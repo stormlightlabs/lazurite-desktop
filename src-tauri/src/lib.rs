@@ -2,10 +2,11 @@ mod auth;
 mod commands;
 mod db;
 mod error;
+mod feed;
 mod state;
 
 use auth::emit_at_uri_navigation;
-use commands::{get_app_bootstrap, list_accounts, login, logout, set_active_account, switch_account};
+use commands as cmd;
 use db::initialize_database;
 use state::AppState;
 use tauri::Manager;
@@ -46,12 +47,24 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            get_app_bootstrap,
-            list_accounts,
-            login,
-            logout,
-            switch_account,
-            set_active_account
+            cmd::get_app_bootstrap,
+            cmd::list_accounts,
+            cmd::login,
+            cmd::logout,
+            cmd::switch_account,
+            cmd::set_active_account,
+            cmd::get_preferences,
+            cmd::get_feed_generators,
+            cmd::get_timeline,
+            cmd::get_feed,
+            cmd::get_list_feed,
+            cmd::get_post_thread,
+            cmd::get_author_feed,
+            cmd::create_post,
+            cmd::like_post,
+            cmd::unlike_post,
+            cmd::repost,
+            cmd::unrepost
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -6,16 +6,16 @@ Spec: [feeds.md](../specs/feeds.md)
 
 ### Backend — `src-tauri/src/feed.rs`
 
-- [ ] `get_preferences()` — calls `app.bsky.actor.getPreferences`, extracts `savedFeedsPrefV2` items and `feedViewPref` entries
-- [ ] `get_feed_generators(uris: Vec<String>)` — calls `app.bsky.feed.getFeedGenerators` to hydrate display names/avatars
-- [ ] `get_timeline(cursor: Option<String>, limit: u32)` — calls `app.bsky.feed.getTimeline`
-- [ ] `get_feed(uri: String, cursor: Option<String>, limit: u32)` — calls `app.bsky.feed.getFeed` for custom feed generators
-- [ ] `get_list_feed(uri: String, cursor: Option<String>, limit: u32)` — calls `app.bsky.feed.getListFeed`
-- [ ] `get_post_thread(uri: String)` — thread view
-- [ ] `get_author_feed(did: String, cursor: Option<String>)`
-- [ ] `create_post(text: String, reply_to: Option<ReplyRef>, embed: Option<Embed>)` — with richtext facet detection via `jacquard::richtext`
-- [ ] `like_post(uri: String, cid: String)` / `unlike_post(uri: String)`
-- [ ] `repost(uri: String, cid: String)` / `unrepost(uri: String)`
+- [x] `get_preferences()` — calls `app.bsky.actor.getPreferences`, extracts `savedFeedsPrefV2` items and `feedViewPref` entries
+- [x] `get_feed_generators(uris: Vec<String>)` — calls `app.bsky.feed.getFeedGenerators` to hydrate display names/avatars
+- [x] `get_timeline(cursor: Option<String>, limit: u32)` — calls `app.bsky.feed.getTimeline`
+- [x] `get_feed(uri: String, cursor: Option<String>, limit: u32)` — calls `app.bsky.feed.getFeed` for custom feed generators
+- [x] `get_list_feed(uri: String, cursor: Option<String>, limit: u32)` — calls `app.bsky.feed.getListFeed`
+- [x] `get_post_thread(uri: String)` — thread view
+- [x] `get_author_feed(did: String, cursor: Option<String>)`
+- [x] `create_post(text: String, reply_to: Option<ReplyRef>, embed: Option<Embed>)` — with richtext facet detection via `jacquard::richtext`
+- [x] `like_post(uri: String, cid: String)` / `unlike_post(uri: String)`
+- [x] `repost(uri: String, cid: String)` / `unrepost(uri: String)`
 
 ### Frontend — Feed Tabs & Content
 

@@ -41,10 +41,18 @@ pub enum AppError {
 }
 
 impl serde::Serialize for AppError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::ser::Serializer,
     {
         serializer.serialize_str(&self.to_string())
     }
 }
+
+impl AppError {
+    pub fn validation(msg: impl Into<String>) -> Self {
+        AppError::Validation(msg.into())
+    }
+}
+
+pub type Result<T> = std::result::Result<T, AppError>;
