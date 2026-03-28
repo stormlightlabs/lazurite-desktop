@@ -1,0 +1,1343 @@
+import { Icon } from "$/components/shared/Icon";
+import {
+  extractHandles,
+  extractHashtags,
+  getFeedName,
+  isQuoteEmbed,
+  isReplyItem,
+  isRepostReason,
+  patchFeedItems,
+  patchThreadNode,
+  toStrongRef,
+} from "$/lib/feeds";
+import type {
+  ActiveSession,
+  CreateRecordResult,
+  EmbedInput,
+  FeedGeneratorView,
+  FeedResponse,
+  FeedViewPost,
+  FeedViewPrefItem,
+  PostView,
+  ReplyRefInput,
+  SavedFeedItem,
+  ThreadNode,
+  ThreadResponse,
+  UserPreferences,
+} from "$/lib/types";
+import { invoke } from "@tauri-apps/api/core";
+import { createEffect, createMemo, For, type JSX, onCleanup, onMount, Show } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
+import { Motion, Presence } from "solid-motionone";
+import { FeedComposer } from "./FeedComposer";
+import { PostCard } from "./PostCard";
+import { ThreadPanel } from "./ThreadPanel";
+
+type FeedWorkspaceProps = { activeSession: ActiveSession; onError: (message: string) => void };
+
+type FeedState = {
+  cursor: string | null;
+  error: string | null;
+  items: FeedViewPost[];
+  loading: boolean;
+  loadingMore: boolean;
+  scrollTop: number;
+};
+
+type FeedWorkspaceState = {
+  activeFeedId: string | null;
+  composer: {
+    open: boolean;
+    pending: boolean;
+    quoteTarget: PostView | null;
+    replyRoot: PostView | null;
+    replyTarget: PostView | null;
+    text: string;
+  };
+  feedStates: Record<string, FeedState>;
+  focusedIndex: number;
+  generators: Record<string, FeedGeneratorView>;
+  likePendingByUri: Record<string, boolean>;
+  likePulseUri: string | null;
+  localPrefs: Record<string, FeedViewPrefItem>;
+  preferences: UserPreferences | null;
+  repostPendingByUri: Record<string, boolean>;
+  repostPulseUri: string | null;
+  showFeedsDrawer: boolean;
+  thread: { data: ThreadNode | null; error: string | null; loading: boolean; uri: string | null };
+};
+
+const DEFAULT_LIMIT = 30;
+
+const DEFAULT_TIMELINE: SavedFeedItem = { id: "following", type: "timeline", value: "following", pinned: true };
+
+function createDefaultFeedState(): FeedState {
+  return { cursor: null, error: null, items: [], loading: false, loadingMore: false, scrollTop: 0 };
+}
+
+function createDefaultFeedPref(feed: SavedFeedItem): FeedViewPrefItem {
+  return {
+    feed: feed.value,
+    hideQuotePosts: false,
+    hideReplies: false,
+    hideRepliesByLikeCount: null,
+    hideRepliesByUnfollowed: false,
+    hideReposts: false,
+  };
+}
+
+function createInitialWorkspaceState(): FeedWorkspaceState {
+  return {
+    activeFeedId: null,
+    composer: { open: false, pending: false, quoteTarget: null, replyRoot: null, replyTarget: null, text: "" },
+    feedStates: {},
+    focusedIndex: 0,
+    generators: {},
+    likePendingByUri: {},
+    likePulseUri: null,
+    localPrefs: {},
+    preferences: null,
+    repostPendingByUri: {},
+    repostPulseUri: null,
+    showFeedsDrawer: false,
+    thread: { data: null, error: null, loading: false, uri: null },
+  };
+}
+
+export function FeedWorkspace(props: FeedWorkspaceProps) {
+  const [workspace, setWorkspace] = createStore<FeedWorkspaceState>(createInitialWorkspaceState());
+
+  let scroller: HTMLDivElement | undefined;
+  let sentinel: HTMLDivElement | undefined;
+  const postRefs = new Map<string, HTMLElement>();
+
+  const savedFeeds = createMemo(() => {
+    const stored = workspace.preferences?.savedFeeds ?? [];
+    return stored.length > 0 ? stored : [DEFAULT_TIMELINE];
+  });
+  const pinnedFeeds = createMemo(() => {
+    const pinned = savedFeeds().filter((feed) => feed.pinned);
+    return pinned.length > 0 ? pinned : [DEFAULT_TIMELINE];
+  });
+  const drawerFeeds = createMemo(() => savedFeeds().filter((feed) => !feed.pinned));
+  const activeFeed = createMemo(() => {
+    const feedId = workspace.activeFeedId;
+    return savedFeeds().find((feed) => feed.id === feedId) ?? pinnedFeeds()[0] ?? DEFAULT_TIMELINE;
+  });
+  const activePref = createMemo(() => {
+    const feed = activeFeed();
+    return workspace.localPrefs[feed.value] ?? createDefaultFeedPref(feed);
+  });
+  const activeFeedState = createMemo(() => workspace.feedStates[activeFeed().id]);
+  const visibleItems = createMemo(() => applyFeedPreferences(activeFeedState()?.items ?? [], activePref()));
+  const composerToken = createMemo(() => {
+    const match = /(^|\s)([@#][^\s@#]*)$/u.exec(workspace.composer.text);
+    return match?.[2] ?? null;
+  });
+  const composerSuggestions = createMemo(() => {
+    const token = composerToken();
+    if (!token) {
+      return [];
+    }
+
+    const posts = visibleItems().map((item) => item.post);
+    if (token.startsWith("@")) {
+      return extractHandles(posts, props.activeSession.handle).filter((handle) =>
+        handle.toLowerCase().startsWith(token.toLowerCase())
+      ).map((label) => ({ label, type: "handle" as const }));
+    }
+
+    return extractHashtags(posts).filter((tag) => tag.toLowerCase().startsWith(token.toLowerCase())).map((label) => ({
+      label,
+      type: "hashtag" as const,
+    }));
+  });
+
+  createEffect(() => {
+    void bootstrapFeeds();
+  });
+
+  createEffect(() => {
+    const feed = activeFeed();
+    if (!feed) {
+      return;
+    }
+
+    if (workspace.activeFeedId !== feed.id) {
+      setWorkspace("activeFeedId", feed.id);
+    }
+
+    void ensureFeedLoaded(feed);
+    const nextScrollTop = workspace.feedStates[feed.id]?.scrollTop ?? 0;
+    queueMicrotask(() => {
+      if (scroller) {
+        scroller.scrollTop = nextScrollTop;
+      }
+    });
+  });
+
+  createEffect(() => {
+    const items = visibleItems();
+    if (items.length === 0) {
+      setWorkspace("focusedIndex", 0);
+      return;
+    }
+
+    setWorkspace("focusedIndex", (current) => Math.min(current, items.length - 1));
+  });
+
+  createEffect(() => {
+    const item = visibleItems()[workspace.focusedIndex];
+    if (!item) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      const element = postRefs.get(item.post.uri);
+      element?.focus();
+      element?.scrollIntoView({ block: "nearest" });
+    });
+  });
+
+  createEffect(() => {
+    const root = scroller;
+    const currentSentinel = sentinel;
+    const feed = activeFeed();
+    if (!root || !currentSentinel || !feed) {
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (!entry?.isIntersecting) {
+        return;
+      }
+
+      const state = workspace.feedStates[feed.id];
+      if (state?.cursor && !state.loading && !state.loadingMore) {
+        void loadFeed(feed, true);
+      }
+    }, { root, threshold: 0.15 });
+
+    observer.observe(currentSentinel);
+    onCleanup(() => observer.disconnect());
+  });
+
+  function handleGlobalKeydown(event: KeyboardEvent) {
+    if (shouldIgnoreKey(event)) {
+      return;
+    }
+
+    const tabs = pinnedFeeds();
+    if (/^[1-9]$/.test(event.key)) {
+      const index = Number(event.key) - 1;
+      const target = tabs[index];
+      if (target) {
+        event.preventDefault();
+        switchFeed(target.id);
+      }
+      return;
+    }
+
+    if (event.key === "n") {
+      event.preventDefault();
+      openComposer();
+      return;
+    }
+
+    const items = visibleItems();
+    if (items.length === 0) {
+      return;
+    }
+
+    if (event.key === "j" || event.key === "k") {
+      event.preventDefault();
+      setWorkspace("focusedIndex", (current) => {
+        if (event.key === "j") {
+          return Math.min(current + 1, items.length - 1);
+        }
+
+        return Math.max(current - 1, 0);
+      });
+      return;
+    }
+
+    const item = items[workspace.focusedIndex];
+    if (!item) {
+      return;
+    }
+
+    switch (event.key) {
+      case "l": {
+        event.preventDefault();
+        void toggleLike(item.post);
+        break;
+      }
+      case "r": {
+        event.preventDefault();
+        openReplyComposer(item.post, getReplyRootPost(item));
+        break;
+      }
+      case "t": {
+        event.preventDefault();
+        void toggleRepost(item.post);
+        break;
+      }
+      case "o":
+      case "Enter": {
+        event.preventDefault();
+        void openThread(item.post.uri);
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+  }
+
+  onMount(() => {
+    globalThis.addEventListener("keydown", handleGlobalKeydown);
+    onCleanup(() => globalThis.removeEventListener("keydown", handleGlobalKeydown));
+  });
+
+  async function bootstrapFeeds() {
+    const currentDid = props.activeSession.did;
+    setWorkspace(reconcile(createInitialWorkspaceState()));
+
+    try {
+      const nextPreferences = await invoke<UserPreferences>("get_preferences");
+      if (currentDid !== props.activeSession.did) {
+        return;
+      }
+
+      setWorkspace("preferences", nextPreferences);
+      setWorkspace(
+        "localPrefs",
+        reconcile(Object.fromEntries(nextPreferences.feedViewPrefs.map((pref) => [pref.feed, pref]))),
+      );
+
+      const uris = nextPreferences.savedFeeds.filter((feed) => feed.type === "feed").map((feed) => feed.value);
+      if (uris.length > 0) {
+        const hydrated = await invoke<{ feeds: FeedGeneratorView[] }>("get_feed_generators", { uris });
+        setWorkspace(
+          "generators",
+          reconcile(Object.fromEntries(hydrated.feeds.map((generator) => [generator.uri, generator]))),
+        );
+      }
+
+      const nextActive = nextPreferences.savedFeeds.find((feed) => feed.pinned) ?? nextPreferences.savedFeeds[0]
+        ?? DEFAULT_TIMELINE;
+      setWorkspace("activeFeedId", nextActive.id);
+    } catch (error) {
+      props.onError(`Failed to load feeds: ${String(error)}`);
+    }
+  }
+
+  async function ensureFeedLoaded(feed: SavedFeedItem) {
+    const state = workspace.feedStates[feed.id];
+    if (state?.loading || state?.loadingMore || state?.items.length) {
+      return;
+    }
+
+    await loadFeed(feed, false);
+  }
+
+  async function loadFeed(feed: SavedFeedItem, append: boolean) {
+    const state = workspace.feedStates[feed.id] ?? createDefaultFeedState();
+
+    if (append) {
+      setWorkspace("feedStates", feed.id, { ...state, error: null, loadingMore: true });
+    } else {
+      setWorkspace("feedStates", feed.id, { ...state, error: null, loading: true });
+    }
+
+    try {
+      const command = getFeedCommand(feed);
+      const payload = await invoke<FeedResponse>(command.name, command.args(state.cursor, DEFAULT_LIMIT));
+      const items = append ? [...state.items, ...payload.feed] : payload.feed;
+      setWorkspace("feedStates", feed.id, {
+        cursor: payload.cursor ?? null,
+        error: null,
+        items,
+        loading: false,
+        loadingMore: false,
+        scrollTop: append ? state.scrollTop : 0,
+      });
+    } catch (error) {
+      setWorkspace("feedStates", feed.id, { ...state, error: String(error), loading: false, loadingMore: false });
+      props.onError(
+        `Failed to load ${getFeedName(feed, workspace.generators[feed.value]?.displayName)}: ${String(error)}`,
+      );
+    }
+  }
+
+  function switchFeed(feedId: string) {
+    const current = activeFeed();
+    if (current && scroller) {
+      setWorkspace("feedStates", current.id, {
+        ...(workspace.feedStates[current.id] ?? createDefaultFeedState()),
+        scrollTop: scroller.scrollTop,
+      });
+    }
+
+    setWorkspace("activeFeedId", feedId);
+    setWorkspace("focusedIndex", 0);
+    setWorkspace("showFeedsDrawer", false);
+  }
+
+  async function openThread(uri: string) {
+    setWorkspace("thread", "uri", uri);
+    setWorkspace("thread", "loading", true);
+    setWorkspace("thread", "error", null);
+
+    try {
+      const payload = await invoke<ThreadResponse>("get_post_thread", { uri });
+      setWorkspace("thread", "data", payload.thread);
+    } catch (error) {
+      setWorkspace("thread", "error", String(error));
+      props.onError(`Failed to open thread: ${String(error)}`);
+    } finally {
+      setWorkspace("thread", "loading", false);
+    }
+  }
+
+  function openComposer() {
+    setWorkspace("composer", "open", true);
+  }
+
+  function resetComposer() {
+    setWorkspace(
+      "composer",
+      (current) => ({ ...current, open: false, quoteTarget: null, replyRoot: null, replyTarget: null, text: "" }),
+    );
+  }
+
+  function openReplyComposer(post: PostView, root: PostView) {
+    setWorkspace(
+      "composer",
+      (current) => ({ ...current, open: true, quoteTarget: null, replyRoot: root, replyTarget: post }),
+    );
+  }
+
+  function openQuoteComposer(post: PostView) {
+    setWorkspace(
+      "composer",
+      (current) => ({ ...current, open: true, quoteTarget: post, replyRoot: null, replyTarget: null }),
+    );
+  }
+
+  function applySuggestion(value: string) {
+    const token = composerToken();
+    if (!token) {
+      return;
+    }
+
+    setWorkspace(
+      "composer",
+      "text",
+      (current) => current.replace(new RegExp(`${escapeForRegex(token)}$`, "u"), `${value} `),
+    );
+  }
+
+  async function submitPost() {
+    const text = workspace.composer.text;
+    const reply = workspace.composer.replyTarget;
+    const root = workspace.composer.replyRoot;
+    const quote = workspace.composer.quoteTarget;
+
+    const replyTo: ReplyRefInput | null = reply && root
+      ? { parent: toStrongRef(reply), root: toStrongRef(root) }
+      : null;
+    const embed: EmbedInput | null = quote ? { type: "record", record: toStrongRef(quote) } : null;
+
+    setWorkspace("composer", "pending", true);
+    try {
+      await invoke<CreateRecordResult>("create_post", { embed, replyTo, text });
+      resetComposer();
+      setWorkspace("thread", "uri", null);
+      setWorkspace("thread", "data", null);
+      await loadFeed(activeFeed(), false);
+      if (scroller) {
+        scroller.scrollTop = 0;
+      }
+    } catch (error) {
+      props.onError(`Failed to create post: ${String(error)}`);
+    } finally {
+      setWorkspace("composer", "pending", false);
+    }
+  }
+
+  async function toggleLike(post: PostView) {
+    setWorkspace("likePendingByUri", post.uri, true);
+    try {
+      if (post.viewer?.like) {
+        await invoke("unlike_post", { likeUri: post.viewer.like });
+        patchPost(
+          post.uri,
+          (current) => ({
+            ...current,
+            likeCount: Math.max(0, (current.likeCount ?? 0) - 1),
+            viewer: { ...current.viewer, like: null },
+          }),
+        );
+      } else {
+        const result = await invoke<CreateRecordResult>("like_post", { cid: post.cid, uri: post.uri });
+        patchPost(
+          post.uri,
+          (current) => ({
+            ...current,
+            likeCount: (current.likeCount ?? 0) + 1,
+            viewer: { ...current.viewer, like: result.uri },
+          }),
+        );
+        triggerLikePulse(post.uri);
+      }
+    } catch (error) {
+      props.onError(`Failed to update like: ${String(error)}`);
+    } finally {
+      setWorkspace("likePendingByUri", post.uri, false);
+    }
+  }
+
+  async function toggleRepost(post: PostView) {
+    setWorkspace("repostPendingByUri", post.uri, true);
+    try {
+      if (post.viewer?.repost) {
+        await invoke("unrepost", { repostUri: post.viewer.repost });
+        patchPost(
+          post.uri,
+          (current) => ({
+            ...current,
+            repostCount: Math.max(0, (current.repostCount ?? 0) - 1),
+            viewer: { ...current.viewer, repost: null },
+          }),
+        );
+      } else {
+        const result = await invoke<CreateRecordResult>("repost", { cid: post.cid, uri: post.uri });
+        patchPost(
+          post.uri,
+          (current) => ({
+            ...current,
+            repostCount: (current.repostCount ?? 0) + 1,
+            viewer: { ...current.viewer, repost: result.uri },
+          }),
+        );
+        triggerRepostPulse(post.uri);
+      }
+    } catch (error) {
+      props.onError(`Failed to update repost: ${String(error)}`);
+    } finally {
+      setWorkspace("repostPendingByUri", post.uri, false);
+    }
+  }
+
+  function patchPost(uri: string, updater: (post: PostView) => PostView) {
+    for (const [feedId, state] of Object.entries(workspace.feedStates)) {
+      if (!state) {
+        continue;
+      }
+
+      setWorkspace("feedStates", feedId, "items", patchFeedItems(state.items, uri, updater));
+    }
+
+    const currentThread = workspace.thread.data;
+    if (currentThread) {
+      setWorkspace("thread", "data", patchThreadNode(currentThread, uri, updater));
+    }
+  }
+
+  function triggerLikePulse(uri: string) {
+    setWorkspace("likePulseUri", uri);
+    globalThis.setTimeout(() => setWorkspace("likePulseUri", (current) => (current === uri ? null : current)), 320);
+  }
+
+  function triggerRepostPulse(uri: string) {
+    setWorkspace("repostPulseUri", uri);
+    globalThis.setTimeout(() => setWorkspace("repostPulseUri", (current) => (current === uri ? null : current)), 320);
+  }
+
+  return (
+    <>
+      <div class="grid h-full gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <FeedPane
+          activeFeed={activeFeed()}
+          activeFeedState={activeFeedState()}
+          activeHandle={props.activeSession.handle}
+          focusedIndex={workspace.focusedIndex}
+          generators={workspace.generators}
+          likePendingByUri={workspace.likePendingByUri}
+          likePulseUri={workspace.likePulseUri}
+          onCompose={openComposer}
+          onFeedSelect={switchFeed}
+          onFocusIndex={(index) => setWorkspace("focusedIndex", index)}
+          onLike={toggleLike}
+          onOpenThread={openThread}
+          onQuote={openQuoteComposer}
+          onReply={openReplyComposer}
+          onRepost={toggleRepost}
+          onToggleDrawer={() => setWorkspace("showFeedsDrawer", (value) => !value)}
+          pinnedFeeds={pinnedFeeds().slice(0, 9)}
+          postRefs={postRefs}
+          repostPendingByUri={workspace.repostPendingByUri}
+          repostPulseUri={workspace.repostPulseUri}
+          scrollerRef={(element) => {
+            scroller = element;
+          }}
+          sentinelRef={(element) => {
+            sentinel = element;
+          }}
+          setScrollTop={(top) =>
+            setWorkspace("feedStates", activeFeed().id, {
+              ...(workspace.feedStates[activeFeed().id] ?? createDefaultFeedState()),
+              scrollTop: top,
+            })}
+          visibleItems={visibleItems()} />
+
+        <WorkspaceSidebar
+          activePref={activePref()}
+          drawerFeeds={drawerFeeds()}
+          generators={workspace.generators}
+          onFeedSelect={switchFeed}
+          onPrefChange={setFeedPref} />
+      </div>
+
+      <SavedFeedsDrawer
+        feeds={drawerFeeds()}
+        generators={workspace.generators}
+        open={workspace.showFeedsDrawer}
+        onClose={() => setWorkspace("showFeedsDrawer", false)}
+        onSelectFeed={switchFeed} />
+
+      <ThreadPanel
+        activeUri={workspace.thread.uri}
+        error={workspace.thread.error}
+        loading={workspace.thread.loading}
+        onClose={() => setWorkspace("thread", "uri", null)}
+        onLike={(post) => void toggleLike(post)}
+        onOpenThread={(uri) => void openThread(uri)}
+        onQuote={(post) => openQuoteComposer(post)}
+        onReply={(post, root) => openReplyComposer(post, root)}
+        onRepost={(post) => void toggleRepost(post)}
+        thread={workspace.thread.data} />
+
+      <FeedComposer
+        activeHandle={props.activeSession.handle}
+        open={workspace.composer.open}
+        pending={workspace.composer.pending}
+        quoteTarget={workspace.composer.quoteTarget}
+        replyTarget={workspace.composer.replyTarget}
+        suggestions={composerSuggestions()}
+        text={workspace.composer.text}
+        onApplySuggestion={applySuggestion}
+        onClearQuote={() => setWorkspace("composer", "quoteTarget", null)}
+        onClearReply={() => {
+          setWorkspace("composer", "replyTarget", null);
+          setWorkspace("composer", "replyRoot", null);
+        }}
+        onClose={() => resetComposer()}
+        onSubmit={() => void submitPost()}
+        onTextChange={(text) => setWorkspace("composer", "text", text)} />
+    </>
+  );
+
+  function setFeedPref<K extends keyof FeedViewPrefItem>(key: K, value: FeedViewPrefItem[K]) {
+    const feed = activeFeed();
+    setWorkspace("localPrefs", feed.value, { ...activePref(), [key]: value });
+  }
+}
+
+function FeedPane(
+  props: {
+    activeFeed: SavedFeedItem;
+    activeFeedState: FeedState | undefined;
+    activeHandle: string;
+    focusedIndex: number;
+    generators: Record<string, FeedGeneratorView>;
+    likePendingByUri: Record<string, boolean>;
+    likePulseUri: string | null;
+    onCompose: () => void;
+    onFeedSelect: (feedId: string) => void;
+    onFocusIndex: (index: number) => void;
+    onLike: (post: PostView) => Promise<void>;
+    onOpenThread: (uri: string) => Promise<void>;
+    onQuote: (post: PostView) => void;
+    onReply: (post: PostView, root: PostView) => void;
+    onRepost: (post: PostView) => Promise<void>;
+    onToggleDrawer: () => void;
+    pinnedFeeds: SavedFeedItem[];
+    postRefs: Map<string, HTMLElement>;
+    repostPendingByUri: Record<string, boolean>;
+    repostPulseUri: string | null;
+    scrollerRef: (element: HTMLDivElement) => void;
+    sentinelRef: (element: HTMLDivElement) => void;
+    setScrollTop: (top: number) => void;
+    visibleItems: FeedViewPost[];
+  },
+) {
+  return (
+    <section class="min-h-0 rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+      <FeedPaneHeader
+        activeFeed={props.activeFeed}
+        generators={props.generators}
+        onCompose={props.onCompose}
+        onFeedSelect={props.onFeedSelect}
+        onToggleDrawer={props.onToggleDrawer}
+        pinnedFeeds={props.pinnedFeeds} />
+      <FeedScroller
+        activeFeedState={props.activeFeedState}
+        activeHandle={props.activeHandle}
+        focusedIndex={props.focusedIndex}
+        generators={props.generators}
+        likePendingByUri={props.likePendingByUri}
+        likePulseUri={props.likePulseUri}
+        onCompose={props.onCompose}
+        onFocusIndex={props.onFocusIndex}
+        onLike={props.onLike}
+        onOpenThread={props.onOpenThread}
+        onQuote={props.onQuote}
+        onReply={props.onReply}
+        onRepost={props.onRepost}
+        postRefs={props.postRefs}
+        repostPendingByUri={props.repostPendingByUri}
+        repostPulseUri={props.repostPulseUri}
+        scrollerRef={props.scrollerRef}
+        sentinelRef={props.sentinelRef}
+        setScrollTop={props.setScrollTop}
+        visibleItems={props.visibleItems} />
+    </section>
+  );
+}
+
+function FeedPaneHeader(
+  props: {
+    activeFeed: SavedFeedItem;
+    generators: Record<string, FeedGeneratorView>;
+    onCompose: () => void;
+    onFeedSelect: (feedId: string) => void;
+    onToggleDrawer: () => void;
+    pinnedFeeds: SavedFeedItem[];
+  },
+) {
+  return (
+    <header class="sticky top-0 z-20 rounded-t-4xl bg-[rgba(14,14,14,0.94)] px-6 pb-3 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)]">
+      <FeedPaneTitle
+        activeFeed={props.activeFeed}
+        generators={props.generators}
+        onCompose={props.onCompose}
+        onToggleDrawer={props.onToggleDrawer} />
+      <FeedTabBar
+        activeFeedId={props.activeFeed.id}
+        generators={props.generators}
+        onFeedSelect={props.onFeedSelect}
+        onToggleDrawer={props.onToggleDrawer}
+        pinnedFeeds={props.pinnedFeeds} />
+    </header>
+  );
+}
+
+function FeedPaneTitle(
+  props: {
+    activeFeed: SavedFeedItem;
+    generators: Record<string, FeedGeneratorView>;
+    onCompose: () => void;
+    onToggleDrawer: () => void;
+  },
+) {
+  return (
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="m-0 text-[1.35rem] font-semibold tracking-[-0.03em] text-on-surface">Timeline</p>
+        <p class="mt-1 text-xs uppercase tracking-[0.12em] text-on-surface-variant">
+          {getFeedName(props.activeFeed, props.generators[props.activeFeed.value]?.displayName)}
+        </p>
+      </div>
+      <FeedHeaderActions onCompose={props.onCompose} onToggleDrawer={props.onToggleDrawer} />
+    </div>
+  );
+}
+
+function FeedHeaderActions(props: { onCompose: () => void; onToggleDrawer: () => void }) {
+  return (
+    <div class="flex items-center gap-2">
+      <button
+        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-[0.82rem] text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+        type="button"
+        onClick={() => props.onCompose()}>
+        <Icon aria-hidden="true" iconClass="i-ri-quill-pen-line" />
+        <span>New post</span>
+      </button>
+      <button
+        class="inline-flex h-11 w-11 items-center justify-center rounded-full border-0 bg-white/5 text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+        type="button"
+        onClick={() => props.onToggleDrawer()}>
+        <Icon aria-hidden="true" iconClass="i-ri-menu-line" />
+      </button>
+    </div>
+  );
+}
+
+function FeedTabBar(
+  props: {
+    activeFeedId: string;
+    generators: Record<string, FeedGeneratorView>;
+    onFeedSelect: (feedId: string) => void;
+    onToggleDrawer: () => void;
+    pinnedFeeds: SavedFeedItem[];
+  },
+) {
+  return (
+    <div class="mt-4 flex items-end justify-between gap-3 max-[720px]:flex-col max-[720px]:items-stretch">
+      <div class="flex min-w-0 gap-1 overflow-x-auto pb-1">
+        <For each={props.pinnedFeeds}>
+          {(feed, index) => (
+            <FeedTab
+              active={props.activeFeedId === feed.id}
+              feed={feed}
+              generator={props.generators[feed.value]}
+              index={index() + 1}
+              onSelect={props.onFeedSelect} />
+          )}
+        </For>
+      </div>
+      <button
+        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-[0.82rem] text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+        type="button"
+        onClick={() => props.onToggleDrawer()}>
+        <Icon aria-hidden="true" iconClass="i-ri-stack-line" />
+        <span>Saved feeds</span>
+      </button>
+    </div>
+  );
+}
+
+function FeedTab(
+  props: {
+    active: boolean;
+    feed: SavedFeedItem;
+    generator?: FeedGeneratorView;
+    index: number;
+    onSelect: (feedId: string) => void;
+  },
+) {
+  return (
+    <button
+      class="relative inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full border-0 px-4 text-[0.84rem] font-medium text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
+      classList={{
+        "bg-[rgba(125,175,255,0.12)] text-primary shadow-[inset_0_0_0_1px_rgba(125,175,255,0.2)]": props.active,
+      }}
+      type="button"
+      onClick={() => props.onSelect(props.feed.id)}>
+      <FeedChipAvatar feed={props.feed} generator={props.generator} />
+      <span class="truncate">{getFeedName(props.feed, props.generator?.displayName)}</span>
+      <span class="rounded-full bg-black/25 px-1.5 py-0.5 text-[0.65rem] text-on-surface-variant">{props.index}</span>
+    </button>
+  );
+}
+
+function FeedScroller(
+  props: {
+    activeFeedState: FeedState | undefined;
+    activeHandle: string;
+    focusedIndex: number;
+    generators: Record<string, FeedGeneratorView>;
+    likePendingByUri: Record<string, boolean>;
+    likePulseUri: string | null;
+    onCompose: () => void;
+    onFocusIndex: (index: number) => void;
+    onLike: (post: PostView) => Promise<void>;
+    onOpenThread: (uri: string) => Promise<void>;
+    onQuote: (post: PostView) => void;
+    onReply: (post: PostView, root: PostView) => void;
+    onRepost: (post: PostView) => Promise<void>;
+    postRefs: Map<string, HTMLElement>;
+    repostPendingByUri: Record<string, boolean>;
+    repostPulseUri: string | null;
+    scrollerRef: (element: HTMLDivElement) => void;
+    sentinelRef: (element: HTMLDivElement) => void;
+    setScrollTop: (top: number) => void;
+    visibleItems: FeedViewPost[];
+  },
+) {
+  return (
+    <div
+      ref={(element) => props.scrollerRef(element)}
+      class="feed-scroll-region h-[calc(100vh-14rem)] overflow-y-auto px-6 pb-8 pt-4 max-[1180px]:h-[calc(100vh-12.5rem)]"
+      onScroll={(event) => props.setScrollTop(event.currentTarget.scrollTop)}>
+      <ComposerLauncher activeHandle={props.activeHandle} onCompose={props.onCompose} />
+      <FeedContent
+        activeFeedState={props.activeFeedState}
+        focusedIndex={props.focusedIndex}
+        likePendingByUri={props.likePendingByUri}
+        likePulseUri={props.likePulseUri}
+        onFocusIndex={props.onFocusIndex}
+        onLike={props.onLike}
+        onOpenThread={props.onOpenThread}
+        onQuote={props.onQuote}
+        onReply={props.onReply}
+        onRepost={props.onRepost}
+        postRefs={props.postRefs}
+        repostPendingByUri={props.repostPendingByUri}
+        repostPulseUri={props.repostPulseUri}
+        sentinelRef={props.sentinelRef}
+        visibleItems={props.visibleItems} />
+    </div>
+  );
+}
+
+function ComposerLauncher(props: { activeHandle: string; onCompose: () => void }) {
+  return (
+    <button
+      class="mb-4 flex w-full items-center gap-3 rounded-3xl border-0 bg-white/3 px-4 py-4 text-left text-on-surface-variant shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/5"
+      type="button"
+      onClick={() => props.onCompose()}>
+      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] text-sm font-semibold text-on-primary-fixed">
+        {props.activeHandle.slice(0, 1).toUpperCase()}
+      </div>
+      <div class="min-w-0 flex-1">
+        <p class="m-0 text-[0.9rem] text-on-surface-variant">What's happening?</p>
+      </div>
+      <div class="flex items-center gap-1 text-on-surface-variant">
+        <Icon aria-hidden="true" iconClass="i-ri-at-line" />
+        <Icon aria-hidden="true" iconClass="i-ri-hashtag" />
+        <Icon aria-hidden="true" iconClass="i-ri-chat-quote-line" />
+      </div>
+    </button>
+  );
+}
+
+function FeedContent(
+  props: {
+    activeFeedState: FeedState | undefined;
+    focusedIndex: number;
+    likePendingByUri: Record<string, boolean>;
+    likePulseUri: string | null;
+    onFocusIndex: (index: number) => void;
+    onLike: (post: PostView) => Promise<void>;
+    onOpenThread: (uri: string) => Promise<void>;
+    onQuote: (post: PostView) => void;
+    onReply: (post: PostView, root: PostView) => void;
+    onRepost: (post: PostView) => Promise<void>;
+    postRefs: Map<string, HTMLElement>;
+    repostPendingByUri: Record<string, boolean>;
+    repostPulseUri: string | null;
+    sentinelRef: (element: HTMLDivElement) => void;
+    visibleItems: FeedViewPost[];
+  },
+) {
+  return (
+    <Presence exitBeforeEnter>
+      <Motion.div
+        class="grid gap-3"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}>
+        <FeedStatus activeFeedState={props.activeFeedState} visibleItems={props.visibleItems} />
+        <For each={props.visibleItems}>
+          {(item, index) => (
+            <PostCard
+              focused={props.focusedIndex === index()}
+              item={item}
+              likePending={!!props.likePendingByUri[item.post.uri]}
+              onFocus={() => props.onFocusIndex(index())}
+              onLike={() => void props.onLike(item.post)}
+              onOpenThread={() => void props.onOpenThread(item.post.uri)}
+              onQuote={() => props.onQuote(item.post)}
+              onReply={() => props.onReply(item.post, getReplyRootPost(item))}
+              onRepost={() => void props.onRepost(item.post)}
+              post={item.post}
+              pulseLike={props.likePulseUri === item.post.uri}
+              pulseRepost={props.repostPulseUri === item.post.uri}
+              registerRef={(element) => props.postRefs.set(item.post.uri, element)}
+              repostPending={!!props.repostPendingByUri[item.post.uri]} />
+          )}
+        </For>
+        <div ref={(element) => props.sentinelRef(element)} />
+        <LoadingMoreIndicator loading={!!props.activeFeedState?.loadingMore} />
+      </Motion.div>
+    </Presence>
+  );
+}
+
+function FeedStatus(props: { activeFeedState: FeedState | undefined; visibleItems: FeedViewPost[] }) {
+  return (
+    <>
+      <Show when={props.activeFeedState?.loading}>
+        <FeedSkeleton />
+      </Show>
+      <Show when={props.activeFeedState?.error}>
+        {(message) => (
+          <div class="rounded-[1.4rem] bg-[rgba(138,31,31,0.2)] p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(255,128,128,0.2)]">
+            {message()}
+          </div>
+        )}
+      </Show>
+      <Show when={!props.activeFeedState?.loading && !props.activeFeedState?.error && props.visibleItems.length === 0}>
+        <EmptyFeedState />
+      </Show>
+    </>
+  );
+}
+
+function LoadingMoreIndicator(props: { loading: boolean }) {
+  return (
+    <Show when={props.loading}>
+      <div class="flex items-center justify-center py-4 text-[0.82rem] text-on-surface-variant">
+        <Icon aria-hidden="true" class="animate-spin" iconClass="i-ri-loader-4-line" />
+        <span class="ml-2">Loading more</span>
+      </div>
+    </Show>
+  );
+}
+
+function WorkspaceSidebar(
+  props: {
+    activePref: UserPreferences["feedViewPrefs"][number];
+    drawerFeeds: SavedFeedItem[];
+    generators: Record<string, FeedGeneratorView>;
+    onFeedSelect: (feedId: string) => void;
+    onPrefChange: <K extends keyof UserPreferences["feedViewPrefs"][number]>(
+      key: K,
+      value: UserPreferences["feedViewPrefs"][number][K],
+    ) => void;
+  },
+) {
+  return (
+    <aside class="grid gap-4 xl:h-[calc(100vh-10rem)] xl:overflow-y-auto">
+      <SavedFeedsCard drawerFeeds={props.drawerFeeds} generators={props.generators} onFeedSelect={props.onFeedSelect} />
+      <DisplayFiltersCard activePref={props.activePref} onPrefChange={props.onPrefChange} />
+      <ShortcutsCard />
+    </aside>
+  );
+}
+
+function SavedFeedsCard(
+  props: {
+    drawerFeeds: SavedFeedItem[];
+    generators: Record<string, FeedGeneratorView>;
+    onFeedSelect: (feedId: string) => void;
+  },
+) {
+  return (
+    <SidebarCard title="Saved Feeds" subtitle="Drawer access">
+      <div class="grid gap-2">
+        <For each={props.drawerFeeds.slice(0, 4)}>
+          {(feed) => (
+            <SidebarFeedButton feed={feed} generator={props.generators[feed.value]} onSelect={props.onFeedSelect} />
+          )}
+        </For>
+        <Show when={props.drawerFeeds.length === 0}>
+          <p class="m-0 text-[0.8rem] leading-[1.6] text-on-surface-variant">
+            All saved feeds are already pinned as tabs.
+          </p>
+        </Show>
+      </div>
+    </SidebarCard>
+  );
+}
+
+function SidebarFeedButton(
+  props: { feed: SavedFeedItem; generator?: FeedGeneratorView; onSelect: (feedId: string) => void },
+) {
+  return (
+    <button
+      class="flex w-full items-center gap-3 rounded-[1.1rem] border-0 bg-white/4 px-3 py-3 text-left text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/[0.07]"
+      type="button"
+      onClick={() => props.onSelect(props.feed.id)}>
+      <FeedChipAvatar feed={props.feed} generator={props.generator} />
+      <div class="min-w-0 flex-1">
+        <p class="m-0 truncate text-[0.84rem] font-medium">{getFeedName(props.feed, props.generator?.displayName)}</p>
+        <p class="m-0 text-[0.72rem] uppercase tracking-[0.08em] text-on-surface-variant">{props.feed.type}</p>
+      </div>
+    </button>
+  );
+}
+
+function DisplayFiltersCard(
+  props: {
+    activePref: UserPreferences["feedViewPrefs"][number];
+    onPrefChange: <K extends keyof UserPreferences["feedViewPrefs"][number]>(
+      key: K,
+      value: UserPreferences["feedViewPrefs"][number][K],
+    ) => void;
+  },
+) {
+  return (
+    <SidebarCard title="Display Filters" subtitle="Per-feed">
+      <div class="grid gap-3">
+        <ToggleRow
+          checked={props.activePref.hideReposts}
+          label="Hide reposts"
+          onChange={(checked) => props.onPrefChange("hideReposts", checked)} />
+        <ToggleRow
+          checked={props.activePref.hideReplies}
+          label="Hide replies"
+          onChange={(checked) => props.onPrefChange("hideReplies", checked)} />
+        <ToggleRow
+          checked={props.activePref.hideQuotePosts}
+          label="Hide quotes"
+          onChange={(checked) => props.onPrefChange("hideQuotePosts", checked)} />
+        <ReplyLikeThreshold
+          value={props.activePref.hideRepliesByLikeCount}
+          onChange={(value) => props.onPrefChange("hideRepliesByLikeCount", value)} />
+      </div>
+    </SidebarCard>
+  );
+}
+
+function ReplyLikeThreshold(props: { value: number | null; onChange: (value: number | null) => void }) {
+  return (
+    <label class="grid gap-2 text-[0.8rem] text-on-surface-variant">
+      <span>Minimum likes for replies</span>
+      <input
+        class="rounded-full border-0 bg-white/6 px-4 py-2 text-on-surface shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] focus:outline focus:outline-primary/50"
+        min="0"
+        type="number"
+        value={props.value ?? ""}
+        onInput={(event) => {
+          const value = event.currentTarget.value.trim();
+          props.onChange(value ? Number(value) : null);
+        }} />
+    </label>
+  );
+}
+
+function ShortcutsCard() {
+  return (
+    <SidebarCard title="Shortcuts" subtitle="Feed controls">
+      <div class="grid gap-2 text-[0.8rem] text-on-surface-variant">
+        <ShortcutLine keys="1-9" label="Switch pinned feeds" />
+        <ShortcutLine keys="j / k" label="Move focus" />
+        <ShortcutLine keys="l" label="Like focused post" />
+        <ShortcutLine keys="r" label="Reply to focused post" />
+        <ShortcutLine keys="t" label="Repost focused post" />
+        <ShortcutLine keys="o" label="Open thread" />
+        <ShortcutLine keys="n" label="Open composer" />
+      </div>
+    </SidebarCard>
+  );
+}
+
+function SavedFeedsDrawer(
+  props: {
+    feeds: SavedFeedItem[];
+    generators: Record<string, FeedGeneratorView>;
+    open: boolean;
+    onClose: () => void;
+    onSelectFeed: (feedId: string) => void;
+  },
+) {
+  return (
+    <Presence>
+      <Show when={props.open}>
+        <Motion.aside
+          class="fixed inset-y-0 right-0 z-30 w-full max-w-104 overflow-y-auto border-l border-white/5 bg-[rgba(12,12,12,0.95)] px-5 pb-6 pt-5 backdrop-blur-[22px] shadow-[-28px_0_50px_rgba(0,0,0,0.35)]"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 24 }}
+          transition={{ duration: 0.2 }}>
+          <DrawerHeader onClose={props.onClose} />
+          <div class="mt-5 grid gap-3">
+            <For each={props.feeds}>
+              {(feed) => (
+                <DrawerFeedButton
+                  feed={feed}
+                  generator={props.generators[feed.value]}
+                  onSelectFeed={props.onSelectFeed} />
+              )}
+            </For>
+          </div>
+        </Motion.aside>
+      </Show>
+    </Presence>
+  );
+}
+
+function DrawerHeader(props: { onClose: () => void }) {
+  return (
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="m-0 text-[1rem] font-semibold text-on-surface">Saved Feeds</p>
+        <p class="m-0 text-[0.74rem] uppercase tracking-[0.12em] text-on-surface-variant">Unpinned drawer</p>
+      </div>
+      <button
+        class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
+        type="button"
+        onClick={() => props.onClose()}>
+        <Icon aria-hidden="true" iconClass="i-ri-close-line" />
+      </button>
+    </div>
+  );
+}
+
+function DrawerFeedButton(
+  props: { feed: SavedFeedItem; generator?: FeedGeneratorView; onSelectFeed: (feedId: string) => void },
+) {
+  return (
+    <button
+      class="flex w-full items-center gap-3 rounded-[1.25rem] border-0 bg-white/4 px-4 py-4 text-left text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+      type="button"
+      onClick={() => props.onSelectFeed(props.feed.id)}>
+      <FeedChipAvatar feed={props.feed} generator={props.generator} />
+      <div class="min-w-0 flex-1">
+        <p class="m-0 truncate text-[0.88rem] font-semibold">{getFeedName(props.feed, props.generator?.displayName)}</p>
+        <p class="m-0 truncate text-[0.74rem] text-on-surface-variant">{props.feed.value}</p>
+      </div>
+    </button>
+  );
+}
+
+function FeedChipAvatar(props: { feed: SavedFeedItem; generator?: FeedGeneratorView }) {
+  const icon = createMemo(() => {
+    switch (props.feed.type) {
+      case "list": {
+        return "i-ri-list-check-2";
+      }
+      case "timeline": {
+        return "i-ri-home-5-line";
+      }
+      default: {
+        return "i-ri-rss-line";
+      }
+    }
+  });
+
+  return (
+    <Show
+      when={props.generator?.avatar}
+      fallback={
+        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-white/6 text-primary">
+          <Icon aria-hidden="true" iconClass={icon()} />
+        </div>
+      }>
+      {(avatar) => <img class="h-8 w-8 rounded-full object-cover" src={avatar()} alt="" />}
+    </Show>
+  );
+}
+
+function SidebarCard(props: { children: JSX.Element; subtitle: string; title: string }) {
+  return (
+    <section class="rounded-[1.6rem] bg-white/3 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+      <p class="m-0 text-[0.95rem] font-semibold text-on-surface">{props.title}</p>
+      <p class="mt-1 text-[0.72rem] uppercase tracking-[0.12em] text-on-surface-variant">{props.subtitle}</p>
+      <div class="mt-4">{props.children}</div>
+    </section>
+  );
+}
+
+function ToggleRow(props: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
+  return (
+    <label class="flex items-center justify-between gap-3 rounded-2xl bg-white/4 px-3 py-3 text-[0.84rem] text-on-surface">
+      <span>{props.label}</span>
+      <input checked={props.checked} type="checkbox" onInput={(event) => props.onChange(event.currentTarget.checked)} />
+    </label>
+  );
+}
+
+function ShortcutLine(props: { keys: string; label: string }) {
+  return (
+    <div class="flex items-center justify-between gap-3 rounded-2xl bg-white/4 px-3 py-2.5">
+      <span>{props.label}</span>
+      <span class="rounded-full bg-black/30 px-2 py-1 text-[0.68rem] uppercase tracking-[0.08em] text-primary">
+        {props.keys}
+      </span>
+    </div>
+  );
+}
+
+function FeedSkeleton() {
+  return (
+    <div class="grid gap-3">
+      <SkeletonCard />
+      <SkeletonCard />
+      <SkeletonCard />
+    </div>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <div class="rounded-3xl bg-white/3 p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+      <div class="flex gap-3">
+        <div class="skeleton-block h-11 w-11 rounded-full" />
+        <div class="min-w-0 flex-1">
+          <div class="skeleton-block h-4 w-48 rounded-full" />
+          <div class="mt-3 grid gap-2">
+            <div class="skeleton-block h-3.5 w-full rounded-full" />
+            <div class="skeleton-block h-3.5 w-[88%] rounded-full" />
+            <div class="skeleton-block h-3.5 w-[70%] rounded-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyFeedState() {
+  return (
+    <div class="rounded-[1.6rem] bg-white/3 p-8 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+      <p class="m-0 text-[1rem] font-semibold text-on-surface">Nothing to show yet</p>
+      <p class="mt-2 text-sm leading-[1.6] text-on-surface-variant">
+        This feed is empty with the current filters. Try another tab or loosen the display settings.
+      </p>
+    </div>
+  );
+}
+
+function getFeedCommand(feed: SavedFeedItem) {
+  if (feed.type === "timeline") {
+    return { args: (cursor: string | null, limit: number) => ({ cursor, limit }), name: "get_timeline" };
+  }
+
+  if (feed.type === "list") {
+    return {
+      args: (cursor: string | null, limit: number) => ({ cursor, limit, uri: feed.value }),
+      name: "get_list_feed",
+    };
+  }
+
+  return { args: (cursor: string | null, limit: number) => ({ cursor, limit, uri: feed.value }), name: "get_feed" };
+}
+
+function applyFeedPreferences(items: FeedViewPost[], pref: UserPreferences["feedViewPrefs"][number]) {
+  return items.filter((item) => {
+    if (pref.hideReposts && isRepostReason(item)) {
+      return false;
+    }
+
+    if (pref.hideReplies && isReplyItem(item)) {
+      return false;
+    }
+
+    if (pref.hideQuotePosts && isQuoteEmbed(item.post.embed)) {
+      return false;
+    }
+
+    if (pref.hideRepliesByLikeCount && isReplyItem(item) && (item.post.likeCount ?? 0) < pref.hideRepliesByLikeCount) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function getReplyRootPost(item: FeedViewPost) {
+  if (item.reply?.root.$type === "app.bsky.feed.defs#postView") {
+    return item.reply.root;
+  }
+
+  return item.post;
+}
+
+function shouldIgnoreKey(event: KeyboardEvent) {
+  const element = event.target;
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  return element.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName);
+}
+
+function escapeForRegex(value: string) {
+  return value.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+}

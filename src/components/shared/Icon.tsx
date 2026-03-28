@@ -1,30 +1,61 @@
-import { Match, Switch } from "solid-js";
+import { type JSX, Match, splitProps, Switch } from "solid-js";
 
-export type IconKind = "loader" | "user" | "logout" | "profile" | "search" | "refresh" | "ext-link";
+export type IconKind =
+  | "explorer"
+  | "ext-link"
+  | "loader"
+  | "logout"
+  | "notifications"
+  | "profile"
+  | "refresh"
+  | "search"
+  | "timeline"
+  | "user";
 
-export function Icon(props: { name: string; class?: string; kind: IconKind }) {
+type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
+  class?: string;
+  iconClass?: string;
+  kind?: IconKind;
+  name?: string;
+};
+
+export function Icon(props: IconProps) {
+  const [local, rest] = splitProps(props, ["class", "iconClass", "kind", "name"]);
+
   return (
-    <span class="flex items-center justify-center" classList={{ [props.class ?? ""]: !!props.class }}>
+    <span {...rest} class="flex items-center justify-center" classList={{ [local.class ?? ""]: !!local.class }}>
       <Switch>
-        <Match when={props.kind === "loader"}>
+        <Match when={!!local.iconClass}>
+          <i class={local.iconClass} />
+        </Match>
+        <Match when={local.kind === "loader"}>
           <i class="i-ri-loader-4-line" />
         </Match>
-        <Match when={props.kind === "user"}>
+        <Match when={local.kind === "user"}>
           <i class="i-ri-user-shared-line" />
         </Match>
-        <Match when={props.kind === "logout"}>
+        <Match when={local.kind === "logout"}>
           <i class="i-ri-logout-box-line" />
         </Match>
-        <Match when={props.kind === "profile"}>
+        <Match when={local.kind === "profile"}>
           <i class="i-ri-user-3-line" />
         </Match>
-        <Match when={props.kind === "search"}>
+        <Match when={local.kind === "search"}>
           <i class="i-ri-search-line" />
         </Match>
-        <Match when={props.kind === "refresh"}>
+        <Match when={local.kind === "timeline"}>
+          <i class="i-ri-home-5-line" />
+        </Match>
+        <Match when={local.kind === "notifications"}>
+          <i class="i-ri-notification-3-line" />
+        </Match>
+        <Match when={local.kind === "explorer"}>
+          <i class="i-ri-compass-discover-line" />
+        </Match>
+        <Match when={local.kind === "refresh"}>
           <i class="i-ri-refresh-line" />
         </Match>
-        <Match when={props.kind === "ext-link"}>
+        <Match when={local.kind === "ext-link"}>
           <i class="i-ri-external-link-line" />
         </Match>
       </Switch>

@@ -26,7 +26,7 @@ export function AccountSwitcherRow(props: AccountSwitcherRowProps) {
           tone={props.account.active ? "primary" : "muted"} />
         <span class="grid">
           <span class="text-[0.92rem] font-semibold">{props.account.handle || props.account.did}</span>
-          <span class="text-[0.78rem] text-on-surface-variant">{props.account.pdsUrl || "PDS unavailable"}</span>
+          <span class="text-xs text-on-surface-variant">{props.account.pdsUrl || "PDS unavailable"}</span>
         </span>
       </button>
       <button

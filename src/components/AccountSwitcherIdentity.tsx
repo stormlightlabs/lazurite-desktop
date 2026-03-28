@@ -12,7 +12,7 @@ export function SwitcherIdentity(props: { label: string; name: string; meta: str
       <AvatarBadge label={props.label} tone={props.tone} />
       <div class="grid">
         <span class="text-[0.92rem] font-semibold">{props.name}</span>
-        <span class="text-[0.78rem] text-on-surface-variant">{props.meta}</span>
+        <span class="text-xs text-on-surface-variant">{props.meta}</span>
       </div>
     </Motion.div>
   );

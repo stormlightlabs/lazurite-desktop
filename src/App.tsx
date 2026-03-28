@@ -1,266 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, startTransition } from "solid-js";
-import { Motion } from "solid-motionone";
+import { createMemo, createSignal, onCleanup, onMount, Show, startTransition } from "solid-js";
 import "@fontsource-variable/google-sans";
 import "./App.css";
+import { AccountLedger } from "./components/AccountLedger";
 import { AccountSwitcher } from "./components/AccountSwitcher";
-import { AvatarBadge } from "./components/AvatarBadge";
+import { FeedWorkspace } from "./components/feeds/FeedWorkspace";
+import { LoginPanel } from "./components/LoginPanel";
 import { HeaderPanel } from "./components/panels/Header";
 import { RailButton } from "./components/RailButton";
 import { SessionSpotlight } from "./components/Session";
 import { ErrorToast } from "./components/shared/ErrorToast";
-import { Icon } from "./components/shared/Icon";
 import { Wordmark } from "./components/Wordmark";
 import type { AccountSummary, ActiveSession, AppBootstrap } from "./lib/types";
 
 const ACCOUNT_SWITCH_EVENT = "auth:account-switched";
-
-const panelTitleClass = "overline-copy text-[0.75rem] text-[color:var(--on-surface-variant)]";
-
-const subtleTextClass = "m-0 text-[0.78rem] leading-[1.55] text-[color:var(--on-surface-variant)]";
-
-const primaryButtonClass =
-  "pill-action border-0 bg-[linear-gradient(135deg,var(--primary)_0%,var(--primary-dim)_100%)] text-[color:var(--on-primary-fixed)]";
-
-const secondaryButtonClass = "pill-action border-0 bg-white/8 text-on-surface";
-
-const ghostButtonClass = "pill-action border-0 bg-transparent text-[color:var(--on-surface-variant)]";
-
-type LoginPanelProps = {
-  value: string;
-  pending: boolean;
-  shakeCount: number;
-  onInput: (value: string) => void;
-  onSubmit: () => void;
-};
-
-function LoginPanel(props: LoginPanelProps) {
-  let input: HTMLInputElement | undefined;
-
-  createEffect(() => {
-    if (props.shakeCount > 0) {
-      input?.focus();
-      input?.select();
-    }
-  });
-
-  return (
-    <article class="panel-surface grid gap-6 p-6">
-      <div class="flex items-baseline justify-between gap-3">
-        <p class={panelTitleClass}>Add account</p>
-        <p class={subtleTextClass}>Enter the account you want to use.</p>
-      </div>
-
-      <Motion.form
-        class="grid gap-4"
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0, x: props.shakeCount > 0 ? [0, -16, 10, -8, 0] : 0 }}
-        transition={{ duration: props.shakeCount > 0 ? 0.42 : 0.24, easing: [0.22, 1, 0.36, 1] }}
-        onSubmit={(event) => {
-          event.preventDefault();
-          props.onSubmit();
-        }}>
-        <label class="grid gap-[0.7rem]">
-          <span class="overline-copy text-[0.76rem] tracking-[0.08em] text-on-surface-variant">
-            Handle, DID, or URL
-          </span>
-          <input
-            ref={(element) => {
-              input = element;
-            }}
-            class="min-h-[3.4rem] w-full rounded-full border-0 bg-white/4 px-[1.15rem] text-on-surface shadow-[inset_0_0_0_1px_rgba(125,175,255,0.16)] focus:outline focus:outline-primary/50 focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.35),0_0_28px_rgba(125,175,255,0.12)]"
-            type="text"
-            autocomplete="username"
-            spellcheck={false}
-            value={props.value}
-            placeholder="alice.bsky.social"
-            onInput={(event) => props.onInput(event.currentTarget.value)} />
-        </label>
-        <LoginSubmitButton pending={props.pending} />
-      </Motion.form>
-    </article>
-  );
-}
-
-function LoginSubmitButton(props: { pending: boolean }) {
-  return (
-    <button class={primaryButtonClass} type="submit" disabled={props.pending}>
-      <Show
-        when={props.pending}
-        fallback={
-          <>
-            <Icon kind="ext-link" name="ext-link" aria-hidden="true" class="mr-1" />
-            <span>Continue</span>
-          </>
-        }>
-        <>
-          <Icon kind="loader" name="loader" aria-hidden="true" class="mr-1" />
-          <span>Opening sign-in...</span>
-        </>
-      </Show>
-    </button>
-  );
-}
-
-type AccountLedgerProps = {
-  accounts: AccountSummary[];
-  activeDid: string | null;
-  busyDid: string | null;
-  logoutDid: string | null;
-  onSwitch: (did: string) => void;
-  onLogout: (did: string) => void;
-};
-
-function AccountLedger(props: AccountLedgerProps) {
-  return (
-    <article class="panel-surface grid gap-6 p-6">
-      <div class="flex items-baseline justify-between gap-3">
-        <p class={panelTitleClass}>Accounts</p>
-        <p class={subtleTextClass}>{props.accounts.length} added</p>
-      </div>
-
-      <Show
-        when={props.accounts.length > 0}
-        fallback={
-          <p class="overline-copy text-[0.72rem] text-on-surface-variant">Accounts you add will show up here.</p>
-        }>
-        <div class="grid gap-3" role="list">
-          <For each={props.accounts}>
-            {(account) => (
-              <AccountLedgerCard
-                account={account}
-                activeDid={props.activeDid}
-                busyDid={props.busyDid}
-                logoutDid={props.logoutDid}
-                onSwitch={props.onSwitch}
-                onLogout={props.onLogout} />
-            )}
-          </For>
-        </div>
-      </Show>
-    </article>
-  );
-}
-
-function LogoutButton(
-  props: { isSwitching: boolean; isLoggingOut: boolean; did: string; onLogout: (did: string) => void },
-) {
-  const isSwitching = () => props.isSwitching;
-  const isLoggingOut = () => props.isLoggingOut;
-  const did = () => props.did;
-  return (
-    <button
-      class={ghostButtonClass}
-      type="button"
-      disabled={isSwitching() || isLoggingOut()}
-      onClick={() => props.onLogout(did())}>
-      <Show
-        when={isLoggingOut()}
-        fallback={
-          <>
-            <Icon kind="logout" name="logout" aria-hidden="true" />
-            <span>Logout</span>
-          </>
-        }>
-        <>
-          <Icon kind="loader" name="loader" aria-hidden="true" />
-          <span>Removing...</span>
-        </>
-      </Show>
-    </button>
-  );
-}
-
-function AccountSwitchButton(
-  props: {
-    isActive: boolean;
-    switching: boolean;
-    loggingOut: boolean;
-    account: AccountSummary;
-    onSwitch: (did: string) => void;
-  },
-) {
-  const isActive = () => props.isActive;
-  const switching = () => props.switching;
-  const loggingOut = () => props.loggingOut;
-
-  const content = createMemo(() => {
-    const active = isActive();
-    const isSwitching = switching();
-    if (active) {
-      return "Active";
-    }
-
-    if (isSwitching) {
-      return "Switching...";
-    }
-
-    return "Switch";
-  });
-  return (
-    <button
-      class={secondaryButtonClass}
-      type="button"
-      disabled={isActive() || switching() || loggingOut()}
-      onClick={() => props.onSwitch(props.account.did)}>
-      <Show when={switching()} fallback={<Icon kind="user" name="user" aria-hidden="true" class="mr-1" />}>
-        <Icon kind="loader" name="loader" aria-hidden="true" class="mr-1" />
-        <span>{content()}</span>
-      </Show>
-    </button>
-  );
-}
-
-type AccountLedgerCardProps = {
-  account: AccountSummary;
-  activeDid: string | null;
-  busyDid: string | null;
-  logoutDid: string | null;
-  onSwitch: (did: string) => void;
-  onLogout: (did: string) => void;
-};
-
-function AccountLedgerCard(props: AccountLedgerCardProps) {
-  const isActive = () => props.activeDid === props.account.did;
-  const switching = () => props.busyDid === props.account.did;
-  const loggingOut = () => props.logoutDid === props.account.did;
-
-  return (
-    <Motion.div
-      class="grid items-center gap-4 rounded-2xl bg-white/2.5 p-4 max-[920px]:grid-cols-1 grid-cols-[minmax(0,1fr)_auto]"
-      classList={{ "bg-[linear-gradient(135deg,rgba(125,175,255,0.12),rgba(0,115,222,0.08))]": isActive() }}
-      role="listitem"
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24 }}>
-      <div class="flex min-w-0 items-start gap-4">
-        <AvatarBadge label={props.account.handle || props.account.did} tone={isActive() ? "primary" : "muted"} />
-        <div class="min-w-0">
-          <p class="m-0 wrap-break-word text-[0.92rem] font-semibold">{props.account.handle || props.account.did}</p>
-          <p class="m-0 wrap-break-word text-[0.78rem] text-on-surface-variant">{props.account.did}</p>
-          <p class="m-0 wrap-break-word text-[0.78rem] text-on-surface-variant">
-            {props.account.pdsUrl || "PDS unavailable"}
-          </p>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-2 max-[920px]:flex-col max-[920px]:items-stretch">
-        <AccountSwitchButton
-          isActive={isActive()}
-          switching={switching()}
-          loggingOut={loggingOut()}
-          account={props.account}
-          onSwitch={props.onSwitch} />
-        <LogoutButton
-          isSwitching={switching()}
-          isLoggingOut={loggingOut()}
-          did={props.account.did}
-          onLogout={props.onLogout} />
-      </div>
-    </Motion.div>
-  );
-}
 
 function App() {
   const [bootstrapping, setBootstrapping] = createSignal(true);
@@ -277,6 +31,7 @@ function App() {
 
   const activeAccount = createMemo(() => accounts().find((account) => account.did === activeSession()?.did) ?? null);
   const primaryAccount = createMemo(() => activeAccount() ?? accounts()[0] ?? null);
+  const hasSession = createMemo(() => !!activeSession());
   const metaLabel = createMemo(() => {
     if (bootstrapping()) {
       return "signing you back in";
@@ -403,10 +158,7 @@ function App() {
           class="flex min-h-screen flex-col gap-8 bg-surface-container-lowest px-6 pb-6 pt-8 max-[1180px]:min-h-0 max-[1180px]:grid max-[1180px]:grid-cols-[auto_auto_minmax(18rem,1fr)] max-[1180px]:items-center max-[1180px]:gap-4 max-[1180px]:p-4 max-[760px]:grid-cols-1"
           aria-label="Primary navigation">
           <Wordmark />
-          <div class="grid gap-2 max-[1180px]:flex max-[1180px]:items-center">
-            <RailButton label="Accounts" icon="profile" active />
-            <RailButton label="Search" icon="search" />
-          </div>
+          <RailNavigation hasSession={hasSession()} />
           <AccountSwitcher
             activeSession={activeSession()}
             accounts={accounts()}
@@ -421,35 +173,127 @@ function App() {
         <section
           class="m-5 grid gap-8 rounded-4xl bg-[linear-gradient(160deg,rgba(14,14,14,0.92),rgba(25,25,25,0.98))] p-8 shadow-[0_24px_40px_rgba(125,175,255,0.05)] max-[1360px]:p-7 max-[1180px]:m-0 max-[1180px]:min-h-[calc(100vh-5.5rem)] max-[1180px]:rounded-none max-[1180px]:p-6 max-[760px]:gap-6 max-[760px]:p-5"
           aria-busy={bootstrapping()}>
-          <HeaderPanel metaLabel={metaLabel()} />
-
-          <div class="grid gap-6 grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.9fr)] max-[1320px]:grid-cols-1">
-            <SessionSpotlight
-              activeSession={activeSession()}
-              activeAccount={activeAccount()}
-              bootstrapping={bootstrapping()}
-              reauthNeeded={reauthNeeded()}
-              onReauth={() => void reauthorizePrimaryAccount()} />
-            <LoginPanel
-              value={loginValue()}
-              pending={loggingIn()}
-              shakeCount={shakeCount()}
-              onInput={setLoginValue}
-              onSubmit={() => void submitLogin()} />
-          </div>
-
-          <AccountLedger
-            accounts={accounts()}
-            activeDid={activeSession()?.did ?? null}
-            busyDid={switchingDid()}
-            logoutDid={logoutDid()}
-            onSwitch={(did) => void switchAccount(did)}
-            onLogout={(did) => void logout(did)} />
+          <Show
+            when={activeSession()}
+            keyed
+            fallback={
+              <AuthWorkspace
+                accounts={accounts()}
+                activeAccount={activeAccount()}
+                activeDid={activeSession()?.did ?? null}
+                bootstrapping={bootstrapping()}
+                loggingIn={loggingIn()}
+                loginValue={loginValue()}
+                logoutDid={logoutDid()}
+                metaLabel={metaLabel()}
+                reauthNeeded={reauthNeeded()}
+                shakeCount={shakeCount()}
+                switchingDid={switchingDid()}
+                onInput={setLoginValue}
+                onLogout={(did) => void logout(did)}
+                onReauth={() => void reauthorizePrimaryAccount()}
+                onSubmit={() => void submitLogin()}
+                onSwitch={(did) => void switchAccount(did)} />
+            }>
+            {(session) => <FeedWorkspace activeSession={session} onError={setErrorMessage} />}
+          </Show>
         </section>
       </main>
 
       <ErrorToast message={errorMessage} onDismiss={() => setErrorMessage(null)} />
     </>
+  );
+}
+
+function RailNavigation(props: { hasSession: boolean }) {
+  return (
+    <div class="grid gap-2 max-[1180px]:flex max-[1180px]:items-center">
+      <Show when={props.hasSession} fallback={<RailButton label="Accounts" icon="profile" active />}>
+        <>
+          <RailButton label="Timeline" icon="timeline" active />
+          <RailButton label="Search" icon="search" />
+          <RailButton label="Notifications" icon="notifications" />
+          <RailButton label="Explorer" icon="explorer" />
+        </>
+      </Show>
+    </div>
+  );
+}
+
+function AuthWorkspace(
+  props: {
+    accounts: AccountSummary[];
+    activeAccount: AccountSummary | null;
+    activeDid: string | null;
+    bootstrapping: boolean;
+    loggingIn: boolean;
+    loginValue: string;
+    logoutDid: string | null;
+    metaLabel: string;
+    reauthNeeded: boolean;
+    shakeCount: number;
+    switchingDid: string | null;
+    onInput: (value: string) => void;
+    onLogout: (did: string) => void;
+    onReauth: () => void;
+    onSubmit: () => void;
+    onSwitch: (did: string) => void;
+  },
+) {
+  return (
+    <>
+      <HeaderPanel metaLabel={props.metaLabel} />
+      <AuthHero
+        activeAccount={props.activeAccount}
+        bootstrapping={props.bootstrapping}
+        loggingIn={props.loggingIn}
+        loginValue={props.loginValue}
+        reauthNeeded={props.reauthNeeded}
+        shakeCount={props.shakeCount}
+        onInput={props.onInput}
+        onReauth={props.onReauth}
+        onSubmit={props.onSubmit} />
+      <AccountLedger
+        accounts={props.accounts}
+        activeDid={props.activeDid}
+        busyDid={props.switchingDid}
+        logoutDid={props.logoutDid}
+        onSwitch={props.onSwitch}
+        onLogout={props.onLogout} />
+    </>
+  );
+}
+
+function AuthHero(
+  props: {
+    activeAccount: AccountSummary | null;
+    bootstrapping: boolean;
+    loggingIn: boolean;
+    loginValue: string;
+    reauthNeeded: boolean;
+    shakeCount: number;
+    onInput: (value: string) => void;
+    onReauth: () => void;
+    onSubmit: () => void;
+  },
+) {
+  return (
+    <div class="grid gap-6 grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.9fr)] max-[1320px]:grid-cols-1">
+      <SessionSpotlight
+        activeSession={props.activeAccount
+          ? { did: props.activeAccount.did, handle: props.activeAccount.handle }
+          : null}
+        activeAccount={props.activeAccount}
+        bootstrapping={props.bootstrapping}
+        reauthNeeded={props.reauthNeeded}
+        onReauth={props.onReauth} />
+      <LoginPanel
+        value={props.loginValue}
+        pending={props.loggingIn}
+        shakeCount={props.shakeCount}
+        onInput={props.onInput}
+        onSubmit={props.onSubmit} />
+    </div>
   );
 }
 

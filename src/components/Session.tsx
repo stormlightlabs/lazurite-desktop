@@ -1,6 +1,6 @@
+import { AccountSummary, ActiveSession } from "$/lib/types";
 import { createMemo, Show } from "solid-js";
 import { Presence } from "solid-motionone";
-import { AccountSummary, ActiveSession } from "../lib/types";
 import { AvatarBadge } from "./AvatarBadge";
 import { ProfileSkeleton } from "./ProfileSkeleton";
 import { ReauthBanner } from "./ReauthBanner";
@@ -9,7 +9,7 @@ export function SessionEmptyState() {
   return (
     <div class="grid">
       <h2 class="m-0 text-[clamp(1.4rem,2vw,1.85rem)] leading-[1.08] tracking-[-0.03em]">Sign in to get started.</h2>
-      <p class="m-0 text-[0.78rem] leading-[1.55] text-on-surface-variant">
+      <p class="m-0 text-xs leading-[1.55] text-on-surface-variant">
         Add a Bluesky account now. You can switch or add more later.
       </p>
     </div>
@@ -22,10 +22,10 @@ export function SessionProfile(props: { session: ActiveSession; activeAccount: A
       <AvatarBadge label={props.session.handle} tone="primary" />
       <div class="grid">
         <h2 class="m-0 text-[clamp(1.3rem,2vw,1.7rem)] tracking-[-0.02em]">{props.session.handle}</h2>
-        <p class="m-0 text-[0.78rem] text-on-surface-variant">{props.session.did}</p>
+        <p class="m-0 text-xs text-on-surface-variant">{props.session.did}</p>
       </div>
       <Show when={props.activeAccount}>
-        {(account) => <p class="m-0 text-[0.78rem] text-on-surface-variant">{account().pdsUrl || "PDS unavailable"}</p>}
+        {(account) => <p class="m-0 text-xs text-on-surface-variant">{account().pdsUrl || "PDS unavailable"}</p>}
       </Show>
     </div>
   );
