@@ -8,7 +8,7 @@ Design goal: focused, cinematic, and modern.
 
 ## Color and Surfaces
 
-Space is defined by light and depth, not lines.
+Space is defined by light and depth, and subtle lines. No gradients.
 
 - **No-Line Rule:** Do not use 1px solid borders for sectioning. Separate regions by stepping between surface tokens (for example, `surface` to `surface_container_low`).
 - **Surface hierarchy:**
@@ -16,7 +16,7 @@ Space is defined by light and depth, not lines.
 - **Primary work surface:** `surface` (`#0e0e0e`) for the default content canvas.
 - **Elevated containers:** `surface_container` (`#191919`) and `surface_container_high` (`#1f1f1f`) for cards and interactive panels.
 - **Glass overlays:** Floating modals and high-priority overlays use `surface_container_highest` at 70% opacity with `backdrop-blur: 20px` for an obsidian-glass effect.
-- **Primary CTA texture:** Use a linear gradient (135deg) from `primary` (`#7dafff`) to `primary_dim` (`#0073de`), not a flat fill.
+- **Primary CTA texture:** Use a properly contrasted background
 
 ## Typography
 
@@ -45,7 +45,7 @@ In a black UI, conventional drop shadows are low impact. Depth is created throug
 
 ### Buttons
 
-- **Primary:** Gradient fill (`primary` to `primary_dim`), text color `on_primary_fixed` (black), radius `full`.
+- **Primary:** Solid fill (`primary` to `primary_dim`), text color `on_primary_fixed` (black), small radius (`sm`, 0.375rem).
 - **Secondary:** Fill `surface_container_highest`, text `on_surface`, no border, radius `md` (0.75rem).
 - **Tertiary:** Transparent background, text `primary`; use for low-emphasis actions (for example, Cancel).
 

@@ -967,7 +967,7 @@ function FeedStatus(props: { activeFeedState: FeedState | undefined; visibleItem
       </Show>
       <Show when={props.activeFeedState?.error}>
         {(message) => (
-          <div class="rounded-[1.4rem] bg-[rgba(138,31,31,0.2)] p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(255,128,128,0.2)]">
+          <div class="rounded-3xl bg-[rgba(138,31,31,0.2)] p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(255,128,128,0.2)]">
             {message()}
           </div>
         )}

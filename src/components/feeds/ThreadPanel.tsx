@@ -35,7 +35,7 @@ export function ThreadPanel(props: ThreadPanelProps) {
 
           <Show when={!props.loading && props.error}>
             {(message) => (
-              <div class="rounded-[1.4rem] bg-[rgba(138,31,31,0.2)] p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(255,128,128,0.2)]">
+              <div class="rounded-3xl bg-[rgba(138,31,31,0.2)] p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(255,128,128,0.2)]">
                 {message()}
               </div>
             )}
@@ -64,7 +64,7 @@ export function ThreadPanel(props: ThreadPanelProps) {
 
 function ThreadPanelHeader(props: { onClose: () => void }) {
   return (
-    <header class="sticky top-0 z-10 mb-4 flex items-center justify-between rounded-[1.4rem] bg-[rgba(14,14,14,0.9)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <header class="sticky top-0 z-10 mb-4 flex items-center justify-between rounded-3xl bg-[rgba(14,14,14,0.9)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
       <div>
         <p class="m-0 text-[0.95rem] font-semibold text-on-surface">Thread</p>
         <p class="m-0 text-[0.74rem] uppercase tracking-[0.12em] text-on-surface-variant">Nested replies</p>
@@ -175,7 +175,7 @@ function StateCard(props: { label: string; meta: string }) {
 
 function SkeletonThreadCard() {
   return (
-    <div class="rounded-[1.4rem] bg-white/3 p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <div class="rounded-3xl bg-white/3 p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
       <div class="flex gap-3">
         <div class="skeleton-block h-11 w-11 rounded-full" />
         <div class="min-w-0 flex-1">
