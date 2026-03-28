@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reading View - Lazurite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --surface-container-lowest: #000000;
+      --surface: #0e0e0e;
+      --surface-container: #191919;
+      --surface-container-high: #1f1f1f;
+      --surface-container-highest: rgba(36, 36, 36, 0.7);
+      --surface-bright: rgba(255, 255, 255, 0.05);
+      --primary: #7dafff;
+      --primary-dim: #0073de;
+      --on-primary-fixed: #05080f;
+      --on-surface: #f4f6fb;
+      --on-surface-variant: #ababab;
+      --on-secondary-container: #c9d1dd;
+    }
+    
+    * { box-sizing: border-box; }
+    
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Google Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 14% 12%, rgba(125, 175, 255, 0.22), transparent 32%),
+        radial-gradient(circle at 88% 22%, rgba(0, 115, 222, 0.18), transparent 28%),
+        radial-gradient(circle at 72% 88%, rgba(125, 175, 255, 0.12), transparent 30%),
+        var(--surface-container-lowest);
+      color: var(--on-surface);
+    }
+    
+    .panel {
+      background: rgba(25, 25, 25, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .gradient-btn {
+      background: linear-gradient(135deg, #7dafff 0%, #0073de 100%);
+      color: #05080f;
+    }
+    
+    .app-rail {
+      width: 64px;
+      background: var(--surface-container-lowest);
+    }
+    
+    .rail-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      transition: all 0.15s ease;
+    }
+    
+    .rail-icon.active {
+      color: var(--primary);
+      background: rgba(125, 175, 255, 0.1);
+    }
+    
+    .rail-icon:not(.active) {
+      color: var(--on-surface-variant);
+    }
+    
+    .article-content {
+      font-family: "Merriweather", Georgia, serif;
+      font-size: 1.125rem;
+      line-height: 1.8;
+      color: var(--on-secondary-container);
+    }
+    
+    .article-content h1,
+    .article-content h2,
+    .article-content h3 {
+      font-family: "Google Sans", sans-serif;
+      color: var(--on-surface);
+      margin-top: 2em;
+      margin-bottom: 0.75em;
+    }
+    
+    .article-content p {
+      margin-bottom: 1.5em;
+    }
+    
+    .article-content code {
+      font-family: "SF Mono", Monaco, monospace;
+      font-size: 0.875em;
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+      background: rgba(125, 175, 255, 0.1);
+      color: var(--primary);
+    }
+    
+    .article-content pre {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 1.5em;
+      border-radius: 12px;
+      overflow-x: auto;
+      margin: 1.5em 0;
+    }
+    
+    .article-content pre code {
+      background: none;
+      padding: 0;
+      color: var(--on-surface);
+    }
+    
+    .article-content blockquote {
+      border-left: 3px solid var(--primary);
+      padding-left: 1.5em;
+      margin: 1.5em 0;
+      font-style: italic;
+      color: var(--on-surface-variant);
+    }
+    
+    .article-content a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    
+    .article-content a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body class="flex">
+  <!-- App Rail -->
+  <aside class="app-rail fixed left-0 top-0 h-full flex flex-col items-center py-4 z-50">
+    <div class="mb-6">
+      <svg width="40" height="40" viewBox="0 0 512 512" style="color: #7dafff;">
+        <path fill="currentColor" d="M128 16v99.3l119 118.9V120.1zm256 0L265 120.1v114.1l119-119zM16 128l104 119h114.2L115.3 128zm380.8 0l-119 119h114.1l104-119zM120 265L16 384h99.2l119-119zm157.8 0l119 119h99.1l-104-119zM247 277.8l-119 119V496l119-104.1zm18 0v114.1L384 496v-99.2z"/>
+      </svg>
+    </div>
+    
+    <nav class="flex flex-col gap-1 flex-1">
+      <button class="rail-icon" title="Timeline">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+      
+      <button class="rail-icon" title="Search">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+      
+      <button class="rail-icon" title="Notifications">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </button>
+      
+      <button class="rail-icon" title="AT Explorer">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 10h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
+        </svg>
+      </button>
+    </nav>
+    
+    <div class="flex flex-col gap-2">
+      <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-transparent hover:border-white/20 transition-colors">
+        <img src="https://placehold.co/40x40/7dafff/05080f?text=U" alt="Current account" class="w-full h-full object-cover">
+      </button>
+    </div>
+  </aside>
+  
+  <!-- Main Content -->
+  <main class="flex-1 ml-16">
+    <!-- Reading Toolbar -->
+    <header class="sticky top-0 z-40 panel backdrop-blur-xl border-b border-white/5">
+      <div class="flex items-center justify-between px-6 py-3">
+        <div class="flex items-center gap-3">
+          <button class="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="m15 18-6-6 6-6"/>
+            </svg>
+          </button>
+          <div class="w-px h-6 bg-white/10"></div>
+          <span class="text-sm" style="color: var(--on-surface-variant);">Engineering Blog</span>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <button class="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all" title="Text Size">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <polyline points="4 7 4 4 20 4 20 7"/>
+              <line x1="9" y1="20" x2="15" y2="20"/>
+              <line x1="12" y1="4" x2="12" y2="20"/>
+            </svg>
+          </button>
+          <button class="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all" title="Bookmark">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+            </svg>
+          </button>
+          <button class="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all" title="Share">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <circle cx="18" cy="5" r="3"/>
+              <circle cx="6" cy="12" r="3"/>
+              <circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+          </button>
+          <button class="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all" title="More">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="1"/>
+              <circle cx="19" cy="12" r="1"/>
+              <circle cx="5" cy="12" r="1"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Reading Progress -->
+      <div class="h-0.5 bg-white/5">
+        <div class="h-full gradient-btn" style="width: 35%;"></div>
+      </div>
+    </header>
+    
+    <!-- Article -->
+    <article class="max-w-3xl mx-auto px-8 py-12">
+      <!-- Header -->
+      <header class="mb-12">
+        <h1 class="text-4xl font-medium mb-4" style="letter-spacing: -0.02em; line-height: 1.2;">
+          Building a Rust AT Protocol Client
+        </h1>
+        <p class="text-xl mb-6" style="color: var(--on-surface-variant);">
+          A comprehensive guide to implementing AT Protocol in Rust, covering XRPC, authentication, and record operations.
+        </p>
+        
+        <!-- Author & Meta -->
+        <div class="flex items-center gap-4 py-6 border-y border-white/10">
+          <div class="w-12 h-12 rounded-full overflow-hidden">
+            <img src="https://placehold.co/48x48/7dafff/05080f?text=AC" alt="Author" class="w-full h-full object-cover">
+          </div>
+          <div class="flex-1">
+            <p class="font-medium">Alice Chen</p>
+            <p class="text-sm" style="color: var(--on-surface-variant);">@alice.bsky.social · Mar 15, 2024 · 12 min read</p>
+          </div>
+          <button class="gradient-btn px-6 py-2 rounded-full text-sm font-medium">
+            Follow
+          </button>
+        </div>
+      </header>
+      
+      <!-- Content -->
+      <div class="article-content">
+        <p>
+          The AT Protocol represents a paradigm shift in how we think about social media infrastructure. 
+          Unlike traditional centralized platforms, it separates identity, data storage, and indexing into 
+          distinct layers, enabling unprecedented flexibility and user control.
+        </p>
+        
+        <h2>Getting Started with XRPC</h2>
+        
+        <p>
+          At the heart of the AT Protocol is XRPC (XML-RPC evolved), a JSON-based RPC protocol that 
+          powers all communication between clients and servers. In Rust, we can implement this using 
+          standard HTTP clients with a few ergonomic wrappers.
+        </p>
+        
+        <pre><code>use atproto::xrpc::Client;
+
+let client = Client::new("https://bsky.social");
+let session = client
+    .create_session("handle.bsky.social", "password")
+    .await?;
+
+println!("Authenticated as: {}", session.did);</code></pre>
+        
+        <p>
+          The <code>Client</code> struct handles all the boilerplate of making XRPC requests, including 
+          proper lexicon validation and type-safe deserialization. It's built on top of 
+          <code>reqwest</code> and leverages Rust's async/await for efficient I/O.
+        </p>
+        
+        <h2>Understanding Lexicons</h2>
+        
+        <p>
+          Lexicons are the schema definitions that govern the AT Protocol. They define the shapes of 
+          records, the parameters for queries, and the structure of responses. Having strong types for 
+          these is essential for a reliable client implementation.
+        </p>
+        
+        <blockquote>
+          "Lexicons are to AT Protocol what GraphQL schemas are to GraphQL — they provide the contract 
+          that all participants in the network must follow."
+        </blockquote>
+        
+        <p>
+          In our Rust implementation, we generate types from the official lexicon definitions using a 
+          custom code generator. This ensures we're always in sync with the protocol spec and catches 
+          breaking changes at compile time.
+        </p>
+        
+        <h2>Authentication with OAuth 2.1</h2>
+        
+        <p>
+          The AT Protocol uses modern OAuth 2.1 with DPoP (Demonstrating Proof-of-Possession) for 
+          authentication. This provides several advantages over traditional API keys:
+        </p>
+        
+        <ul style="margin-bottom: 1.5em; padding-left: 1.5em;">
+          <li style="margin-bottom: 0.5em;">No password storage required</li>
+          <li style="margin-bottom: 0.5em;">Fine-grained permission scopes</li>
+          <li style="margin-bottom: 0.5em;">Automatic token rotation</li>
+          <li>Secure binding to client instances via DPoP</li>
+        </ul>
+        
+        <p>
+          Implementing this in Rust requires careful handling of cryptographic operations. We use the 
+          <code>jsonwebtoken</code> crate for JWT handling and <code>ring</code> for the DPoP proof 
+          generation.
+        </p>
+        
+        <h2>Working with Repositories</h2>
+        
+        <p>
+          User data in AT Protocol is stored in repositories — Merkle tree structures that provide 
+          cryptographic verification of data integrity. When you post, like, or follow, you're creating 
+          new records in your repository.
+        </p>
+        
+        <pre><code>// Creating a new post record
+let record = PostRecord {
+    text: "Hello, AT Protocol!".to_string(),
+    created_at: Utc::now(),
+    facets: vec![],
+    reply: None,
+};
+
+let response = client
+    .create_record(&session, "app.bsky.feed.post", record)
+    .await?;</code></pre>
+        
+        <p>
+          The <code>create_record</code> method handles all the complexity of encoding the record in 
+          CBOR, computing its CID, and updating the repository's Merkle tree. From the developer's 
+          perspective, it feels as simple as a standard API call.
+        </p>
+        
+        <h2>Conclusion</h2>
+        
+        <p>
+          Building a robust AT Protocol client in Rust requires understanding the protocol's unique 
+          architecture, but the results are worth it: type-safe, performant, and fully interoperable 
+          with the growing ecosystem of ATProto applications.
+        </p>
+        
+        <p>
+          In future posts, we'll dive deeper into specific areas like implementing custom lexicons, 
+          building feed generators, and leveraging the protocol's real-time capabilities through 
+          Jetstream.
+        </p>
+      </div>
+      
+      <!-- Tags -->
+      <div class="flex flex-wrap gap-2 mt-12 pt-8 border-t border-white/10">
+        <span class="px-3 py-1.5 rounded-full text-xs bg-white/10" style="color: var(--on-surface-variant);">rust</span>
+        <span class="px-3 py-1.5 rounded-full text-xs bg-white/10" style="color: var(--on-surface-variant);">atprotocol</span>
+        <span class="px-3 py-1.5 rounded-full text-xs bg-white/10" style="color: var(--on-surface-variant);">tutorial</span>
+        <span class="px-3 py-1.5 rounded-full text-xs bg-white/10" style="color: var(--on-surface-variant);">decentralized</span>
+      </div>
+      
+      <!-- Engagement -->
+      <div class="flex items-center justify-between mt-8 pt-8 border-t border-white/10">
+        <div class="flex items-center gap-6">
+          <button class="flex items-center gap-2 text-sm" style="color: var(--on-surface-variant);">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M7 10v12l4-4 4 4V10"/>
+              <path d="M5 10a7 7 0 0 1 14 0"/>
+            </svg>
+            248 likes
+          </button>
+          <button class="flex items-center gap-2 text-sm" style="color: var(--on-surface-variant);">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            18 comments
+          </button>
+          <button class="flex items-center gap-2 text-sm" style="color: var(--on-surface-variant);">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+              <polyline points="16 6 12 2 8 6"/>
+              <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+            Share
+          </button>
+        </div>
+        <span class="text-xs" style="color: var(--on-surface-variant);">1.2K views</span>
+      </div>
+    </article>
+  </main>
+  
+  <!-- Right Sidebar - TOC -->
+  <aside class="fixed right-0 top-0 w-72 h-full panel border-l border-white/5 overflow-y-auto hidden xl:block">
+    <div class="p-6">
+      <h3 class="text-sm font-medium mb-4">Table of Contents</h3>
+      <nav class="space-y-1 text-sm">
+        <a href="#" class="block py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors" style="color: var(--primary);">
+          Getting Started with XRPC
+        </a>
+        <a href="#" class="block py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors" style="color: var(--on-surface-variant);">
+          Understanding Lexicons
+        </a>
+        <a href="#" class="block py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors" style="color: var(--on-surface-variant);">
+          Authentication with OAuth 2.1
+        </a>
+        <a href="#" class="block py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors" style="color: var(--on-surface-variant);">
+          Working with Repositories
+        </a>
+        <a href="#" class="block py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors" style="color: var(--on-surface-variant);">
+          Conclusion
+        </a>
+      </nav>
+      
+      <!-- Related Articles -->
+      <div class="mt-8 pt-6 border-t border-white/10">
+        <h3 class="text-sm font-medium mb-4">More from Alice</h3>
+        <div class="space-y-3">
+          <a href="#" class="block group">
+            <p class="text-sm font-medium group-hover:text-white transition-colors" style="color: var(--on-surface-variant);">
+              Understanding Repo Structure
+            </p>
+            <p class="text-xs mt-1" style="color: var(--on-surface-variant);">8 min read</p>
+          </a>
+          <a href="#" class="block group">
+            <p class="text-sm font-medium group-hover:text-white transition-colors" style="color: var(--on-surface-variant);">
+              OAuth 2.1 with DPoP Explained
+            </p>
+            <p class="text-xs mt-1" style="color: var(--on-surface-variant);">15 min read</p>
+          </a>
+        </div>
+      </div>
+    </div>
+  </aside>
+  
+</body>
+</html>

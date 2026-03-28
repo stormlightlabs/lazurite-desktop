@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile - Lazurite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --surface-container-lowest: #000000;
+      --surface: #0e0e0e;
+      --surface-container: #191919;
+      --surface-container-high: #1f1f1f;
+      --surface-container-highest: rgba(36, 36, 36, 0.7);
+      --surface-bright: rgba(255, 255, 255, 0.05);
+      --primary: #7dafff;
+      --primary-dim: #0073de;
+      --on-primary-fixed: #05080f;
+      --on-surface: #f4f6fb;
+      --on-surface-variant: #ababab;
+      --on-secondary-container: #c9d1dd;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Google Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 14% 12%, rgba(125, 175, 255, 0.22), transparent 32%),
+        radial-gradient(circle at 88% 22%, rgba(0, 115, 222, 0.18), transparent 28%),
+        radial-gradient(circle at 72% 88%, rgba(125, 175, 255, 0.12), transparent 30%),
+        var(--surface-container-lowest);
+      color: var(--on-surface);
+    }
+
+    .panel {
+      background: rgba(25, 25, 25, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .gradient-btn {
+      background: linear-gradient(135deg, #7dafff 0%, #0073de 100%);
+      color: #05080f;
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .tab-btn:not(.active) {
+      color: var(--on-surface-variant);
+    }
+
+    .post-card:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .app-rail {
+      width: 64px;
+      background: var(--surface-container-lowest);
+    }
+
+    .rail-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      transition: all 0.15s ease;
+    }
+
+    .rail-icon.active {
+      color: var(--primary);
+      background: rgba(125, 175, 255, 0.1);
+    }
+
+    .rail-icon:not(.active) {
+      color: var(--on-surface-variant);
+    }
+  </style>
+</head>
+<body class="flex">
+  <!-- App Rail -->
+  <aside class="app-rail fixed left-0 top-0 h-full flex flex-col items-center py-4 z-50">
+    <div class="mb-6">
+      <svg width="40" height="40" viewBox="0 0 512 512" style="color: #7dafff;">
+        <path fill="currentColor" d="M128 16v99.3l119 118.9V120.1zm256 0L265 120.1v114.1l119-119zM16 128l104 119h114.2L115.3 128zm380.8 0l-119 119h114.1l104-119zM120 265L16 384h99.2l119-119zm157.8 0l119 119h99.1l-104-119zM247 277.8l-119 119V496l119-104.1zm18 0v114.1L384 496v-99.2z"/>
+      </svg>
+    </div>
+
+    <nav class="flex flex-col gap-1 flex-1">
+      <button class="rail-icon active" title="Timeline">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="Search">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="Notifications">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="AT Explorer">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 10h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
+        </svg>
+      </button>
+    </nav>
+
+    <div class="flex flex-col gap-2">
+      <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-transparent hover:border-white/20 transition-colors">
+        <img src="https://placehold.co/40x40/7dafff/05080f?text=U" alt="Current account" class="w-full h-full object-cover">
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 ml-16">
+    <!-- Profile Header -->
+    <div class="relative">
+      <!-- Banner -->
+      <div class="h-48 w-full" style="background: linear-gradient(135deg, rgba(125, 175, 255, 0.3) 0%, rgba(0, 115, 222, 0.3) 100%);">
+        <div class="w-full h-full" style="background: url('https://placehold.co/1200x300/0a0a0a/1a1a1a?text=Banner') center/cover;"></div>
+      </div>
+
+      <!-- Profile Info -->
+      <div class="px-6 pb-4">
+        <div class="flex items-end justify-between -mt-16 mb-4">
+          <div class="relative">
+            <div class="w-32 h-32 rounded-full overflow-hidden border-4 border-black" style="box-shadow: 0 0 0 4px rgba(125, 175, 255, 0.3);">
+              <img src="https://placehold.co/128x128/7dafff/05080f?text=AC" alt="Profile" class="w-full h-full object-cover">
+            </div>
+          </div>
+          <div class="flex gap-2 mb-2">
+            <button class="p-2.5 rounded-full border border-white/20 hover:bg-white/5 transition-colors">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="1"/>
+                <circle cx="19" cy="12" r="1"/>
+                <circle cx="5" cy="12" r="1"/>
+              </svg>
+            </button>
+            <button class="px-6 py-2.5 rounded-full text-sm font-medium border border-white/20 hover:bg-white/5 transition-colors">
+              Message
+            </button>
+            <button class="gradient-btn px-6 py-2.5 rounded-full text-sm font-medium">
+              Follow
+            </button>
+          </div>
+        </div>
+
+        <!-- Name & Handle -->
+        <div class="mb-4">
+          <h1 class="text-2xl font-medium mb-1">Alice Chen</h1>
+          <p class="text-base" style="color: var(--on-surface-variant);">@alice.bsky.social</p>
+        </div>
+
+        <!-- Bio -->
+        <p class="text-sm leading-relaxed mb-4" style="color: var(--on-secondary-container);">
+          Building the future of decentralized social media. AT Protocol enthusiast. Rust & TypeScript developer.
+          <span style="color: var(--primary);">#bluesky</span> <span style="color: var(--primary);">#atprotocol</span>
+        </p>
+
+        <!-- Metadata -->
+        <div class="flex flex-wrap items-center gap-4 text-sm mb-4" style="color: var(--on-surface-variant);">
+          <span class="flex items-center gap-1.5">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            San Francisco, CA
+          </span>
+          <span class="flex items-center gap-1.5">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            alicechen.dev
+          </span>
+          <span class="flex items-center gap-1.5">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Joined March 2023
+          </span>
+        </div>
+
+        <!-- Stats -->
+        <div class="flex gap-6 text-sm">
+          <button class="hover:underline">
+            <span class="font-bold" style="color: var(--on-surface);">1,247</span>
+            <span style="color: var(--on-surface-variant);"> Following</span>
+          </button>
+          <button class="hover:underline">
+            <span class="font-bold" style="color: var(--on-surface);">8.5K</span>
+            <span style="color: var(--on-surface-variant);"> Followers</span>
+          </button>
+          <button class="hover:underline">
+            <span class="font-bold" style="color: var(--on-surface);">12.3K</span>
+            <span style="color: var(--on-surface-variant);"> Posts</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="sticky top-0 z-40 panel backdrop-blur-xl border-t border-b border-white/5">
+      <div class="flex px-6">
+        <button class="tab-btn active px-4 py-3 text-sm font-medium">Posts</button>
+        <button class="tab-btn px-4 py-3 text-sm font-medium">Replies</button>
+        <button class="tab-btn px-4 py-3 text-sm font-medium">Media</button>
+        <button class="tab-btn px-4 py-3 text-sm font-medium flex items-center gap-2">
+          Publications
+          <span class="px-2 py-0.5 rounded-full text-xs bg-white/10">3</span>
+        </button>
+        <button class="tab-btn px-4 py-3 text-sm font-medium">Likes</button>
+      </div>
+    </div>
+
+    <!-- Feed -->
+    <div class="divide-y divide-white/5">
+      <!-- Post 1 -->
+      <article class="post-card px-6 py-5 transition-colors">
+        <div class="flex gap-3">
+          <div class="w-11 h-11 rounded-full overflow-hidden shrink-0">
+            <img src="https://placehold.co/44x44/7dafff/05080f?text=AC" alt="Author" class="w-full h-full object-cover">
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-medium text-sm">Alice Chen</span>
+              <span class="text-xs" style="color: var(--on-surface-variant);">@alice.bsky.social</span>
+              <span class="text-xs" style="color: var(--on-surface-variant);">· 2h</span>
+            </div>
+            <p class="text-sm leading-relaxed mb-3" style="color: var(--on-secondary-container);">
+              Just published a new article about the AT Protocol's architecture and how it enables truly decentralized social media. The implications for data ownership are massive! 🧵
+            </p>
+            <div class="flex items-center gap-6">
+              <button class="flex items-center gap-1.5 text-xs p-1.5 rounded-lg transition-all" style="color: var(--on-surface-variant);">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>12</span>
+              </button>
+              <button class="flex items-center gap-1.5 text-xs p-1.5 rounded-lg transition-all" style="color: var(--on-surface-variant);">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M7 10v12l4-4 4 4V10"/>
+                  <path d="M5 10a7 7 0 0 1 14 0"/>
+                </svg>
+                <span>48</span>
+              </button>
+              <button class="flex items-center gap-1.5 text-xs p-1.5 rounded-lg transition-all" style="color: var(--on-surface-variant);">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                  <polyline points="16 6 12 2 8 6"/>
+                  <line x1="12" y1="2" x2="12" y2="15"/>
+                </svg>
+                <span>Share</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Post 2 (With Image) -->
+      <article class="post-card px-6 py-5 transition-colors">
+        <div class="flex gap-3">
+          <div class="w-11 h-11 rounded-full overflow-hidden shrink-0">
+            <img src="https://placehold.co/44x44/7dafff/05080f?text=AC" alt="Author" class="w-full h-full object-cover">
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-medium text-sm">Alice Chen</span>
+              <span class="text-xs" style="color: var(--on-surface-variant);">@alice.bsky.social</span>
+              <span class="text-xs" style="color: var(--on-surface-variant);">· 5h</span>
+            </div>
+            <p class="text-sm leading-relaxed mb-3" style="color: var(--on-secondary-container);">
+              Speaking at RustConf next month about building high-performance AT Protocol clients. Who's going?
+            </p>
+            <div class="rounded-2xl overflow-hidden mb-3 border border-white/5" style="max-height: 300px;">
+              <img src="https://placehold.co/600x300/1a1a1a/7dafff?text=RustConf+2024" alt="Conference" class="w-full h-full object-cover">
+            </div>
+            <div class="flex items-center gap-6">
+              <button class="flex items-center gap-1.5 text-xs p-1.5 rounded-lg transition-all" style="color: var(--on-surface-variant);">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>23</span>
+              </button>
+              <button class="flex items-center gap-1.5 text-xs p-1.5 rounded-lg transition-all" style="color: var(--primary);">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7 10v12l4-4 4 4V10"/>
+                  <path d="M5 10a7 7 0 0 1 14 0"/>
+                </svg>
+                <span>156</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </main>
+
+</body>
+</html>

@@ -52,7 +52,7 @@ A native desktop BlueSky/AT Protocol client built with **Tauri v2** (Rust) + **S
 Details in sub-specs:
 
 - [Authentication & Accounts](./auth.md)
-- [Timeline & Social](./timeline.md)
+- [Feeds & Social](./feeds.md)
 - [AT Explorer](./explorer.md)
 - [Search & Embeddings](./search.md)
 - [standard.site Integration](./standard-site.md)

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Lazurite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap');
+    
+    :root {
+      --surface-container-lowest: #000000;
+      --surface: #0e0e0e;
+      --surface-container: #191919;
+      --surface-container-high: #1f1f1f;
+      --surface-container-highest: rgba(36, 36, 36, 0.7);
+      --surface-bright: rgba(255, 255, 255, 0.05);
+      --primary: #7dafff;
+      --primary-dim: #0073de;
+      --on-primary-fixed: #05080f;
+      --on-surface: #f4f6fb;
+      --on-surface-variant: #ababab;
+      --on-secondary-container: #c9d1dd;
+    }
+    
+    * { box-sizing: border-box; }
+    
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Google Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 14% 12%, rgba(125, 175, 255, 0.22), transparent 32%),
+        radial-gradient(circle at 88% 22%, rgba(0, 115, 222, 0.18), transparent 28%),
+        radial-gradient(circle at 72% 88%, rgba(125, 175, 255, 0.12), transparent 30%),
+        var(--surface-container-lowest);
+      color: var(--on-surface);
+    }
+    
+    .gradient-btn {
+      background: linear-gradient(135deg, #7dafff 0%, #0073de 100%);
+      color: #05080f;
+    }
+    
+    .glass-panel {
+      background: rgba(25, 25, 25, 0.8);
+      backdrop-filter: blur(20px);
+    }
+    
+    .input-glow:focus {
+      box-shadow: 0 0 0 1px rgba(125, 175, 255, 0.5), 0 0 20px rgba(125, 175, 255, 0.1);
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-6">
+  
+  <div class="glass-panel rounded-3xl p-8 w-full max-w-md border border-white/5">
+    <!-- Logo -->
+    <div class="flex justify-center mb-8">
+      <svg width="64" height="64" viewBox="0 0 512 512" style="color: #7dafff;">
+        <path fill="currentColor" d="M128 16v99.3l119 118.9V120.1zm256 0L265 120.1v114.1l119-119zM16 128l104 119h114.2L115.3 128zm380.8 0l-119 119h114.1l104-119zM120 265L16 384h99.2l119-119zm157.8 0l119 119h99.1l-104-119zM247 277.8l-119 119V496l119-104.1zm18 0v114.1L384 496v-99.2z"/>
+      </svg>
+    </div>
+    
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-medium tracking-tight mb-2" style="letter-spacing: -0.02em;">Welcome to Lazurite</h1>
+      <p class="text-sm" style="color: var(--on-surface-variant);">Your AT Protocol desktop client</p>
+    </div>
+    
+    <!-- Login Form -->
+    <div class="space-y-5">
+      <div>
+        <label class="block text-xs uppercase tracking-wider mb-2" style="color: var(--on-surface-variant);">
+          Bluesky Handle
+        </label>
+        <input type="text" 
+               placeholder="@username.bsky.social" 
+               class="input-glow w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 text-sm outline-none transition-all"
+               style="color: var(--on-surface);">
+      </div>
+      
+      <button class="gradient-btn w-full py-3.5 rounded-full font-medium text-sm transition-transform hover:-translate-y-0.5">
+        Continue with OAuth
+      </button>
+      
+      <div class="text-center">
+        <button class="text-xs transition-colors hover:text-white"
+                style="color: var(--on-surface-variant);">
+          Use App Password (Dev Mode)
+        </button>
+      </div>
+    </div>
+    
+    <!-- Divider -->
+    <div class="flex items-center gap-4 my-6">
+      <div class="flex-1 h-px bg-white/10"></div>
+      <span class="text-xs uppercase tracking-wider" style="color: var(--on-surface-variant);">or</span>
+      <div class="flex-1 h-px bg-white/10"></div>
+    </div>
+    
+    <!-- Alternative Actions -->
+    <div class="space-y-3">
+      <button class="w-full py-3 rounded-xl border border-white/10 text-sm font-medium transition-colors hover:bg-white/5"
+              style="color: var(--on-surface);">
+        Browse AT Protocol
+      </button>
+    </div>
+    
+    <!-- Footer -->
+    <p class="text-center text-xs mt-8" style="color: var(--on-surface-variant);">
+      Secure OAuth 2.1 authentication with DPoP
+    </p>
+  </div>
+  
+</body>
+</html>

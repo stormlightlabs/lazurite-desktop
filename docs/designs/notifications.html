@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications - Lazurite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --surface-container-lowest: #000000;
+      --surface: #0e0e0e;
+      --surface-container: #191919;
+      --surface-container-high: #1f1f1f;
+      --surface-container-highest: rgba(36, 36, 36, 0.7);
+      --surface-bright: rgba(255, 255, 255, 0.05);
+      --primary: #7dafff;
+      --primary-dim: #0073de;
+      --on-primary-fixed: #05080f;
+      --on-surface: #f4f6fb;
+      --on-surface-variant: #ababab;
+      --on-secondary-container: #c9d1dd;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Google Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 14% 12%, rgba(125, 175, 255, 0.22), transparent 32%),
+        radial-gradient(circle at 88% 22%, rgba(0, 115, 222, 0.18), transparent 28%),
+        radial-gradient(circle at 72% 88%, rgba(125, 175, 255, 0.12), transparent 30%),
+        var(--surface-container-lowest);
+      color: var(--on-surface);
+    }
+
+    .panel {
+      background: rgba(25, 25, 25, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .notification-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .tab-btn:not(.active) {
+      color: var(--on-surface-variant);
+    }
+
+    .app-rail {
+      width: 64px;
+      background: var(--surface-container-lowest);
+    }
+
+    .rail-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      transition: all 0.15s ease;
+    }
+
+    .rail-icon.active {
+      color: var(--primary);
+      background: rgba(125, 175, 255, 0.1);
+    }
+
+    .rail-icon:not(.active) {
+      color: var(--on-surface-variant);
+    }
+
+    .unread-indicator {
+      background: var(--primary);
+    }
+  </style>
+</head>
+<body class="flex">
+  <!-- App Rail -->
+  <aside class="app-rail fixed left-0 top-0 h-full flex flex-col items-center py-4 z-50">
+    <div class="mb-6">
+      <svg width="40" height="40" viewBox="0 0 512 512" style="color: #7dafff;">
+        <path fill="currentColor" d="M128 16v99.3l119 118.9V120.1zm256 0L265 120.1v114.1l119-119zM16 128l104 119h114.2L115.3 128zm380.8 0l-119 119h114.1l104-119zM120 265L16 384h99.2l119-119zm157.8 0l119 119h99.1l-104-119zM247 277.8l-119 119V496l119-104.1zm18 0v114.1L384 496v-99.2z"/>
+      </svg>
+    </div>
+
+    <nav class="flex flex-col gap-1 flex-1">
+      <button class="rail-icon" title="Timeline">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="Search">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon active relative" title="Notifications">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full unread-indicator"></span>
+      </button>
+
+      <button class="rail-icon" title="AT Explorer">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 10h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
+        </svg>
+      </button>
+    </nav>
+
+    <div class="flex flex-col gap-2">
+      <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-transparent hover:border-white/20 transition-colors">
+        <img src="https://placehold.co/40x40/7dafff/05080f?text=U" alt="Current account" class="w-full h-full object-cover">
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 ml-16">
+    <!-- Header -->
+    <header class="sticky top-0 z-40 panel backdrop-blur-xl border-b border-white/5">
+      <div class="flex items-center justify-between px-6 py-4">
+        <h1 class="text-xl font-medium" style="letter-spacing: -0.02em;">Notifications</h1>
+        <button class="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all" title="Mark all as read">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex px-6 border-t border-white/5">
+        <button class="tab-btn active px-4 py-3 text-sm font-medium flex items-center gap-2">
+          All
+          <span class="px-2 py-0.5 rounded-full text-xs bg-white/10">12</span>
+        </button>
+        <button class="tab-btn px-4 py-3 text-sm font-medium flex items-center gap-2">
+          Mentions
+          <span class="px-2 py-0.5 rounded-full text-xs bg-white/10">3</span>
+        </button>
+        <button class="tab-btn px-4 py-3 text-sm font-medium">Follows</button>
+        <button class="tab-btn px-4 py-3 text-sm font-medium">Activity</button>
+      </div>
+    </header>
+
+    <!-- Notifications List -->
+    <div class="divide-y divide-white/5">
+      <!-- Like Notification -->
+      <div class="notification-item px-6 py-4 flex gap-3 cursor-pointer transition-colors">
+        <div class="shrink-0 w-8 flex justify-center">
+          <svg width="20" height="20" fill="#ff6b6b" viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="flex -space-x-2">
+              <img src="https://placehold.co/32x32/333/fff?text=A" alt="User" class="w-8 h-8 rounded-full border-2 border-black">
+              <img src="https://placehold.co/32x32/444/fff?text=B" alt="User" class="w-8 h-8 rounded-full border-2 border-black">
+              <img src="https://placehold.co/32x32/555/fff?text=C" alt="User" class="w-8 h-8 rounded-full border-2 border-black">
+            </div>
+          </div>
+          <p class="text-sm leading-relaxed">
+            <span class="font-medium">Alice</span>, <span class="font-medium">Bob</span>, and <span class="font-medium">12 others</span> liked your post
+          </p>
+          <p class="text-sm mt-1 line-clamp-2" style="color: var(--on-surface-variant);">
+            Just published a new article about the AT Protocol's architecture...
+          </p>
+          <p class="text-xs mt-2" style="color: var(--on-surface-variant);">2h ago</p>
+        </div>
+        <div class="w-2 h-2 rounded-full unread-indicator shrink-0 mt-1"></div>
+      </div>
+
+      <!-- Repost Notification -->
+      <div class="notification-item px-6 py-4 flex gap-3 cursor-pointer transition-colors">
+        <div class="shrink-0 w-8 flex justify-center">
+          <svg width="20" height="20" fill="#4cd964" viewBox="0 0 24 24">
+            <path d="M17 1l4 4-4 4"/>
+            <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+            <path d="M7 23l-4-4 4-4"/>
+            <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <img src="https://placehold.co/32x32/666/fff?text=D" alt="User" class="w-8 h-8 rounded-full">
+          </div>
+          <p class="text-sm leading-relaxed">
+            <span class="font-medium">David</span> reposted your post
+          </p>
+          <p class="text-sm mt-1 line-clamp-2" style="color: var(--on-surface-variant);">
+            Working on a new Rust project for handling AT Protocol lexicons...
+          </p>
+          <p class="text-xs mt-2" style="color: var(--on-surface-variant);">4h ago</p>
+        </div>
+        <div class="w-2 h-2 rounded-full unread-indicator shrink-0 mt-1"></div>
+      </div>
+
+      <!-- Mention Notification -->
+      <div class="notification-item px-6 py-4 flex gap-3 cursor-pointer transition-colors">
+        <div class="shrink-0 w-8 flex justify-center">
+          <svg width="20" height="20" fill="var(--primary)" viewBox="0 0 24 24">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <img src="https://placehold.co/32x32/777/fff?text=E" alt="User" class="w-8 h-8 rounded-full">
+          </div>
+          <p class="text-sm leading-relaxed">
+            <span class="font-medium">Emma</span> mentioned you in a post
+          </p>
+          <p class="text-sm mt-1" style="color: var(--on-secondary-container);">
+            Hey <span style="color: var(--primary);">@user</span> have you seen the new features in the latest Bluesky update? Really impressive stuff!
+          </p>
+          <p class="text-xs mt-2" style="color: var(--on-surface-variant);">5h ago</p>
+        </div>
+        <div class="w-2 h-2 rounded-full unread-indicator shrink-0 mt-1"></div>
+      </div>
+
+      <!-- Follow Notification -->
+      <div class="notification-item px-6 py-4 flex gap-3 cursor-pointer transition-colors">
+        <div class="shrink-0 w-8 flex justify-center">
+          <svg width="20" height="20" fill="#7dafff" viewBox="0 0 24 24">
+            <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-3">
+            <img src="https://placehold.co/32x32/888/fff?text=F" alt="User" class="w-10 h-10 rounded-full">
+            <div class="flex-1">
+              <p class="text-sm">
+                <span class="font-medium">Frank</span> followed you
+              </p>
+              <p class="text-xs" style="color: var(--on-surface-variant);">@frank.dev · Software Engineer</p>
+            </div>
+            <button class="px-4 py-1.5 rounded-full text-xs font-medium border border-white/20 hover:bg-white/5 transition-colors">
+              Follow back
+            </button>
+          </div>
+          <p class="text-xs mt-3" style="color: var(--on-surface-variant);">Yesterday</p>
+        </div>
+      </div>
+
+      <!-- Read Notification -->
+      <div class="notification-item px-6 py-4 flex gap-3 cursor-pointer transition-colors opacity-60">
+        <div class="shrink-0 w-8 flex justify-center">
+          <svg width="20" height="20" fill="var(--on-surface-variant)" viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <img src="https://placehold.co/32x32/999/fff?text=G" alt="User" class="w-8 h-8 rounded-full">
+          </div>
+          <p class="text-sm leading-relaxed">
+            <span class="font-medium">Grace</span> liked your reply
+          </p>
+          <p class="text-xs mt-2" style="color: var(--on-surface-variant);">2 days ago</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>

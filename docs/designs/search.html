@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search - Lazurite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --surface-container-lowest: #000000;
+      --surface: #0e0e0e;
+      --surface-container: #191919;
+      --surface-container-high: #1f1f1f;
+      --surface-container-highest: rgba(36, 36, 36, 0.7);
+      --surface-bright: rgba(255, 255, 255, 0.05);
+      --primary: #7dafff;
+      --primary-dim: #0073de;
+      --on-primary-fixed: #05080f;
+      --on-surface: #f4f6fb;
+      --on-surface-variant: #ababab;
+      --on-secondary-container: #c9d1dd;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Google Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 14% 12%, rgba(125, 175, 255, 0.22), transparent 32%),
+        radial-gradient(circle at 88% 22%, rgba(0, 115, 222, 0.18), transparent 28%),
+        radial-gradient(circle at 72% 88%, rgba(125, 175, 255, 0.12), transparent 30%),
+        var(--surface-container-lowest);
+      color: var(--on-surface);
+    }
+
+    .panel {
+      background: rgba(25, 25, 25, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .gradient-btn {
+      background: linear-gradient(135deg, #7dafff 0%, #0073de 100%);
+      color: #05080f;
+    }
+
+    .search-mode-btn.active {
+      color: var(--primary);
+      background: rgba(125, 175, 255, 0.1);
+    }
+
+    .result-card:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .highlight {
+      background: rgba(125, 175, 255, 0.2);
+      color: var(--primary);
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    .app-rail {
+      width: 64px;
+      background: var(--surface-container-lowest);
+    }
+
+    .rail-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      transition: all 0.15s ease;
+    }
+
+    .rail-icon.active {
+      color: var(--primary);
+      background: rgba(125, 175, 255, 0.1);
+    }
+
+    .rail-icon:not(.active) {
+      color: var(--on-surface-variant);
+    }
+
+    .sync-progress {
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dim) 100%);
+    }
+  </style>
+</head>
+<body class="flex">
+  <!-- App Rail -->
+  <aside class="app-rail fixed left-0 top-0 h-full flex flex-col items-center py-4 z-50">
+    <div class="mb-6">
+      <svg width="40" height="40" viewBox="0 0 512 512" style="color: #7dafff;">
+        <path fill="currentColor" d="M128 16v99.3l119 118.9V120.1zm256 0L265 120.1v114.1l119-119zM16 128l104 119h114.2L115.3 128zm380.8 0l-119 119h114.1l104-119zM120 265L16 384h99.2l119-119zm157.8 0l119 119h99.1l-104-119zM247 277.8l-119 119V496l119-104.1zm18 0v114.1L384 496v-99.2z"/>
+      </svg>
+    </div>
+
+    <nav class="flex flex-col gap-1 flex-1">
+      <button class="rail-icon" title="Timeline">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon active" title="Search">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="Notifications">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="AT Explorer">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 10h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
+        </svg>
+      </button>
+    </nav>
+
+    <div class="flex flex-col gap-2">
+      <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-transparent hover:border-white/20 transition-colors">
+        <img src="https://placehold.co/40x40/7dafff/05080f?text=U" alt="Current account" class="w-full h-full object-cover">
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 ml-16 mr-80">
+    <!-- Header with Search -->
+    <header class="sticky top-0 z-40 panel backdrop-blur-xl border-b border-white/5">
+      <div class="px-6 py-4">
+        <div class="relative">
+          <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--on-surface-variant);">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text"
+                 value="at protocol architecture"
+                 placeholder="Search your saved posts..."
+                 class="w-full pl-12 pr-4 py-3 rounded-2xl text-base outline-none transition-all"
+                 style="background: rgba(0,0,0,0.4); color: var(--on-surface);">
+          <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <kbd class="px-2 py-1 rounded text-xs bg-white/10" style="color: var(--on-surface-variant);">ESC</kbd>
+            <span class="text-xs" style="color: var(--on-surface-variant);">clear</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search Modes -->
+      <div class="flex items-center justify-between px-6 pb-4">
+        <div class="flex gap-2">
+          <button class="search-mode-btn active px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            Keyword
+          </button>
+          <button class="search-mode-btn px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2" style="color: var(--on-surface-variant);">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 10h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
+            </svg>
+            Semantic
+          </button>
+          <button class="search-mode-btn px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2" style="color: var(--on-surface-variant);">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+            Hybrid
+          </button>
+        </div>
+        <span class="text-xs" style="color: var(--on-surface-variant);">
+          <kbd class="px-1.5 py-0.5 rounded bg-white/10">Tab</kbd> to switch modes
+        </span>
+      </div>
+    </header>
+
+    <!-- Results Info -->
+    <div class="px-6 py-3 border-b border-white/5 flex items-center justify-between">
+      <span class="text-sm" style="color: var(--on-surface-variant);">
+        Found <span class="font-medium" style="color: var(--on-surface);">24</span> results
+      </span>
+      <div class="flex items-center gap-2 text-xs" style="color: var(--on-surface-variant);">
+        <span>Indexed:</span>
+        <span class="font-medium" style="color: var(--primary);">1,247 posts</span>
+        <span>· Last sync: 2h ago</span>
+      </div>
+    </div>
+
+    <!-- Search Results -->
+    <div class="divide-y divide-white/5">
+      <!-- Result 1 -->
+      <article class="result-card px-6 py-5 cursor-pointer transition-colors">
+        <div class="flex gap-3">
+          <div class="w-10 h-10 rounded-full overflow-hidden shrink-0">
+            <img src="https://placehold.co/40x40/333/fff?text=A" alt="Author" class="w-full h-full object-cover">
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-medium text-sm">Alice Chen</span>
+              <span class="text-xs" style="color: var(--on-surface-variant);">@alice.bsky.social</span>
+              <span class="text-xs" style="color: var(--on-surface-variant);">· Mar 15</span>
+            </div>
+            <p class="text-sm leading-relaxed mb-2" style="color: var(--on-secondary-container);">
+              Just published a new article about the <span class="highlight">AT Protocol</span>'s <span class="highlight">architecture</span> and how it enables truly decentralized social media. The implications for data ownership are massive!
+            </p>
+            <div class="flex items-center gap-4">
+              <span class="text-xs flex items-center gap-1.5" style="color: var(--on-surface-variant);">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M7 10v12l4-4 4 4V10"/>
+                  <path d="M5 10a7 7 0 0 1 14 0"/>
+                </svg>
+                48 likes
+              </span>
+              <span class="text-xs flex items-center gap-1.5" style="color: var(--on-surface-variant);">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                12 replies
+              </span>
+              <span class="px-2 py-0.5 rounded-full text-xs bg-white/10" style="color: var(--on-surface-variant);">Liked</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Result 2 (Semantic match) -->
+      <article class="result-card px-6 py-5 cursor-pointer transition-colors">
+        <div class="flex gap-3">
+          <div class="w-10 h-10 rounded-full overflow-hidden shrink-0">
+            <img src="https://placehold.co/40x40/444/fff?text=B" alt="Author" class="w-full h-full object-cover">
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-medium text-sm">Bob Martinez</span>
+              <span class="text-xs" style="color: var(--on-surface-variant);">@bob.dev</span>
+              <span class="text-xs" style="color: var(--on-surface-variant);">· Mar 12</span>
+              <span class="px-2 py-0.5 rounded-full text-xs" style="background: rgba(125, 175, 255, 0.15); color: var(--primary);">Semantic match</span>
+            </div>
+            <p class="text-sm leading-relaxed mb-2" style="color: var(--on-secondary-container);">
+              The federated design of Bluesky's underlying system means users can move between providers without losing their identity or social graph. This is a game-changer for the fediverse.
+            </p>
+            <div class="flex items-center gap-4">
+              <span class="text-xs flex items-center gap-1.5" style="color: var(--on-surface-variant);">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M7 10v12l4-4 4 4V10"/>
+                  <path d="M5 10a7 7 0 0 1 14 0"/>
+                </svg>
+                89 likes
+              </span>
+              <span class="px-2 py-0.5 rounded-full text-xs bg-white/10" style="color: var(--on-surface-variant);">Own post</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Result 3 -->
+      <article class="result-card px-6 py-5 cursor-pointer transition-colors">
+        <div class="flex gap-3">
+          <div class="w-10 h-10 rounded-full overflow-hidden shrink-0">
+            <img src="https://placehold.co/40x40/555/fff?text=C" alt="Author" class="w-full h-full object-cover">
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-medium text-sm">Carol Smith</span>
+              <span class="text-xs" style="color: var(--on-surface-variant);">@carol.tech</span>
+              <span class="text-xs" style="color: var(--on-surface-variant);">· Mar 10</span>
+            </div>
+            <p class="text-sm leading-relaxed mb-2" style="color: var(--on-secondary-container);">
+              Working through the <span class="highlight">AT Protocol</span> specs today. The separation of identity (DID), data (repo), and indexing (AppView) is elegantly designed. <span class="highlight">Architecture</span> matters!
+            </p>
+            <div class="flex items-center gap-4">
+              <span class="text-xs flex items-center gap-1.5" style="color: var(--on-surface-variant);">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M7 10v12l4-4 4 4V10"/>
+                  <path d="M5 10a7 7 0 0 1 14 0"/>
+                </svg>
+                34 likes
+              </span>
+              <span class="px-2 py-0.5 rounded-full text-xs bg-white/10" style="color: var(--on-surface-variant);">Bookmarked</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <!-- Right Sidebar -->
+  <aside class="fixed right-0 top-0 w-80 h-full panel border-l border-white/5 overflow-y-auto">
+    <!-- Sync Status -->
+    <div class="p-4 border-b border-white/5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-medium">Sync Status</h3>
+        <span class="text-xs px-2 py-0.5 rounded-full" style="background: rgba(76, 217, 100, 0.15); color: #4cd964;">Active</span>
+      </div>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs" style="color: var(--on-surface-variant);">
+          <span>Liked posts</span>
+          <span>842 synced</span>
+        </div>
+        <div class="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+          <div class="sync-progress h-full rounded-full" style="width: 100%;"></div>
+        </div>
+        <div class="flex items-center justify-between text-xs" style="color: var(--on-surface-variant);">
+          <span>Own posts</span>
+          <span>405 synced</span>
+        </div>
+        <div class="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+          <div class="sync-progress h-full rounded-full" style="width: 100%;"></div>
+        </div>
+      </div>
+      <button class="w-full mt-4 py-2 rounded-xl text-xs font-medium border border-white/10 hover:bg-white/5 transition-colors" style="color: var(--on-surface-variant);">
+        Sync now
+      </button>
+    </div>
+
+    <!-- Embedding Model -->
+    <div class="p-4 border-b border-white/5">
+      <h3 class="text-sm font-medium mb-3">Embedding Model</h3>
+      <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(125, 175, 255, 0.15);">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 10h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium truncate">nomic-embed-text-v1.5</p>
+          <p class="text-xs" style="color: var(--on-surface-variant);">768 dimensions · Cached</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Tips -->
+    <div class="p-4">
+      <h3 class="text-sm font-medium mb-3">Search Tips</h3>
+      <div class="space-y-2 text-xs" style="color: var(--on-surface-variant);">
+        <p><kbd class="px-1.5 py-0.5 rounded bg-white/10">/</kbd> Focus search from anywhere</p>
+        <p><kbd class="px-1.5 py-0.5 rounded bg-white/10">Tab</kbd> Cycle search modes</p>
+        <p>Use quotes for exact matches</p>
+        <p>Semantic mode finds conceptually similar posts</p>
+      </div>
+    </div>
+  </aside>
+
+</body>
+</html>

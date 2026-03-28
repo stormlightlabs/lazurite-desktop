@@ -9,7 +9,7 @@ Tasks are grouped by module. Each references the relevant spec. Polish (keyboard
 
 ## Phase 2: Core Social
 
-- [Timeline & Feeds](./03-timeline.md) — Feed views, post rendering, composer, keyboard shortcuts, scroll animations
+- [Feeds](./03-feeds.md) — Pinned feed tabs, post rendering, composer, keyboard shortcuts, scroll animations
 - [Notifications](./04-notifications.md) �� Mentions, activity, system notifications, badge animations
 
 ## Phase 3: Power Features

@@ -1,6 +1,6 @@
 # Task 04: Notifications
 
-Spec: [timeline.md](../specs/timeline.md)
+Spec: [feeds.md](../specs/feeds.md)
 
 ## Steps
 

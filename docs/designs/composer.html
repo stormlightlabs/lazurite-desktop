@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post Composer - Lazurite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --surface-container-lowest: #000000;
+      --surface: #0e0e0e;
+      --surface-container: #191919;
+      --surface-container-high: #1f1f1f;
+      --surface-container-highest: rgba(36, 36, 36, 0.7);
+      --surface-bright: rgba(255, 255, 255, 0.05);
+      --primary: #7dafff;
+      --primary-dim: #0073de;
+      --on-primary-fixed: #05080f;
+      --on-surface: #f4f6fb;
+      --on-surface-variant: #ababab;
+      --on-secondary-container: #c9d1dd;
+      --error: #ff8080;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Google Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 14% 12%, rgba(125, 175, 255, 0.22), transparent 32%),
+        radial-gradient(circle at 88% 22%, rgba(0, 115, 222, 0.18), transparent 28%),
+        radial-gradient(circle at 72% 88%, rgba(125, 175, 255, 0.12), transparent 30%),
+        var(--surface-container-lowest);
+      color: var(--on-surface);
+    }
+
+    .gradient-btn {
+      background: linear-gradient(135deg, #7dafff 0%, #0073de 100%);
+      color: #05080f;
+    }
+
+    .glass-overlay {
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(20px);
+    }
+
+    .composer-panel {
+      background: var(--surface-container-high);
+    }
+
+    .icon-btn:hover {
+      color: var(--primary);
+      background: rgba(125, 175, 255, 0.1);
+    }
+
+    textarea:focus {
+      outline: none;
+    }
+
+    .char-count-warning {
+      color: var(--error);
+    }
+
+    .attachment-preview {
+      background: rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+  <!-- Overlay -->
+  <div class="fixed inset-0 glass-overlay z-40"></div>
+
+  <!-- Composer Modal -->
+  <div class="relative z-50 w-full max-w-2xl">
+    <div class="composer-panel rounded-2xl border border-white/10 overflow-hidden shadow-2xl"
+         style="box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(125, 175, 255, 0.1);">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/5">
+        <div class="flex items-center gap-3">
+          <button class="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M18 6 6 18"/>
+              <path d="m6 6 12 12"/>
+            </svg>
+          </button>
+          <span class="text-sm font-medium">New Post</span>
+        </div>
+        <button class="gradient-btn px-6 py-2 rounded-full text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+          Post
+        </button>
+      </div>
+
+      <!-- Composer Body -->
+      <div class="p-6">
+        <div class="flex gap-4">
+          <!-- Avatar -->
+          <div class="shrink-0">
+            <div class="w-11 h-11 rounded-full overflow-hidden">
+              <img src="https://placehold.co/44x44/7dafff/05080f?text=U" alt="Your avatar" class="w-full h-full object-cover">
+            </div>
+          </div>
+
+          <!-- Input Area -->
+          <div class="flex-1 min-w-0">
+            <!-- Reply Context (if replying) -->
+            <div class="flex items-center gap-2 mb-3 text-sm" style="color: var(--on-surface-variant);">
+              <span>Replying to</span>
+              <span style="color: var(--primary);">@alice.bsky.social</span>
+            </div>
+
+            <!-- Text Input -->
+            <textarea
+              placeholder="What's happening?"
+              class="w-full bg-transparent text-lg leading-relaxed resize-none"
+              style="color: var(--on-surface); min-height: 120px;"
+              rows="4"
+            >Just shipped the new timeline view for Lazurite! Really happy with how the animations turned out using solid-motionone. The spring physics feel so natural.</textarea>
+
+            <!-- Rich Text Preview -->
+            <div class="mt-2 text-sm" style="color: var(--on-surface-variant);">
+              <span>Auto-detected: </span>
+              <span style="color: var(--primary);">@lazurite</span>
+              <span style="color: var(--primary);"> #solidjs</span>
+              <span style="color: var(--primary);"> #tauri</span>
+            </div>
+
+            <!-- Image Attachments -->
+            <div class="flex gap-3 mt-4">
+              <div class="relative group w-32 h-32 rounded-xl overflow-hidden border border-white/10 attachment-preview">
+                <img src="https://placehold.co/128x128/1a1a1a/7dafff?text=Screenshot+1" alt="Attachment" class="w-full h-full object-cover">
+                <button class="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M18 6 6 18"/>
+                    <path d="m6 6 12 12"/>
+                  </svg>
+                </button>
+                <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/60 text-xs">
+                  ALT
+                </div>
+              </div>
+              <div class="relative group w-32 h-32 rounded-xl overflow-hidden border border-white/10 attachment-preview">
+                <img src="https://placehold.co/128x128/1a1a1a/0073de?text=Screenshot+2" alt="Attachment" class="w-full h-full object-cover">
+                <button class="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M18 6 6 18"/>
+                    <path d="m6 6 12 12"/>
+                  </svg>
+                </button>
+              </div>
+              <button class="w-32 h-32 rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-2 text-white/30 hover:text-white/50 hover:border-white/20 transition-all">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                  <line x1="12" y1="8" x2="12" y2="16"/>
+                  <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                <span class="text-xs">Add Image</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="flex items-center justify-between px-6 py-4 border-t border-white/5">
+        <div class="flex items-center gap-1">
+          <button class="icon-btn p-2.5 rounded-xl text-white/40 transition-all" title="Add Image">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+          </button>
+          <button class="icon-btn p-2.5 rounded-xl text-white/40 transition-all" title="Add GIF">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <text x="5" y="17" font-family="sans-serif" font-size="12" font-weight="bold" fill="currentColor">GIF</text>
+            </svg>
+          </button>
+          <button class="icon-btn p-2.5 rounded-xl text-white/40 transition-all" title="Add Poll">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </button>
+          <button class="icon-btn p-2.5 rounded-xl text-white/40 transition-all" title="Emoji">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>
+            </svg>
+          </button>
+          <button class="icon-btn p-2.5 rounded-xl text-white/40 transition-all" title="Schedule">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </button>
+          <div class="w-px h-6 bg-white/10 mx-2"></div>
+          <button class="icon-btn p-2.5 rounded-xl text-white/40 transition-all" title="Reply Settings">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <!-- Character Count -->
+          <div class="flex items-center gap-2">
+            <div class="relative w-8 h-8">
+              <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.1)"
+                  stroke-width="3"
+                />
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="#7dafff"
+                  stroke-width="3"
+                  stroke-dasharray="75, 100"
+                />
+              </svg>
+              <span class="absolute inset-0 flex items-center justify-center text-xs font-medium">234</span>
+            </div>
+            <span class="text-xs" style="color: var(--on-surface-variant);">/ 300</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
