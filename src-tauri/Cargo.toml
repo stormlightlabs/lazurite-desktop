@@ -22,4 +22,16 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+rusqlite = "0.39.0"
+jacquard = "0.11.0"
+sqlite-vec = "0.1.7"
+fastembed = "5.13.0"
+tokio = "1.50.0"
+tauri-plugin-deep-link = "2"
+tauri-plugin-log = "2"
+tauri-plugin-notification = "2"
+thiserror = "2.0.18"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
 

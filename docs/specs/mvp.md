@@ -19,7 +19,8 @@ A native desktop BlueSky/AT Protocol client built with **Tauri v2** (Rust) + **S
 │  ├─ jacquard::oauth   — OAuth 2.1 loopback  │
 │  ├─ rusqlite + sqlite-vec — local storage   │
 │  ├─ fastembed         — nomic-embed-text    │
-│  └─ tauri plugins     — deep-link, sql, etc │
+│  └─ tauri plugins     — deep-link, log,     │
+│                         updater             │
 └─────────────────────────────────────────────┘
 ```
 
@@ -33,7 +34,6 @@ A native desktop BlueSky/AT Protocol client built with **Tauri v2** (Rust) + **S
 | `sqlite-vec`             | Vector similarity search extension for SQLite                          |
 | `fastembed`              | Local ONNX inference for `nomic-embed-text-v1.5` embeddings            |
 | `tauri-plugin-deep-link` | Register `at://` URI scheme handler                                    |
-| `tauri-plugin-sql`       | Optional — frontend-side DB queries                                    |
 | `solid-motionone`        | Animation primitives (`Motion`, `Presence`) for SolidJS via Motion One |
 
 ## Cross-Cutting Concerns
