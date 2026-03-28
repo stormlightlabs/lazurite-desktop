@@ -3,256 +3,115 @@
 @plugin "@tailwindcss/forms";
 
 @theme inline {
-	--font-sans: var(--font-stack);
-	--color-surface-container-lowest: var(--surface-container-lowest);
-	--color-surface: var(--surface);
-	--color-surface-container: var(--surface-container);
-	--color-surface-container-high: var(--surface-container-high);
-	--color-surface-bright: var(--surface-bright);
-	--color-primary: var(--primary);
-	--color-on-primary-fixed: var(--on-primary-fixed);
-	--color-on-surface: var(--on-surface);
-	--color-on-surface-variant: var(--on-surface-variant);
-	--color-on-secondary-container: var(--on-secondary-container);
-	--color-error: var(--error);
-	--color-error-surface: var(--error-surface);
-	--radius-app-lg: var(--radius-lg);
-	--radius-app-xl: var(--radius-xl);
-	--radius-app-full: var(--radius-full);
-	--shadow-ambient: var(--shadow-ambient);
+  --font-sans: var(--font-stack);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface: var(--surface);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-bright: var(--surface-bright);
+  --color-primary: var(--primary);
+  --color-on-primary-fixed: var(--on-primary-fixed);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-error: var(--error);
+  --color-error-surface: var(--error-surface);
 }
 
 :root {
-	color-scheme: dark light;
-	--surface-container-lowest: #000000;
-	--surface: #0e0e0e;
-	--surface-container: #191919;
-	--surface-container-high: #1f1f1f;
-	--surface-container-highest: rgba(36, 36, 36, 0.7);
-	--surface-bright: rgba(255, 255, 255, 0.05);
-	--outline-ghost: rgba(72, 72, 72, 0.2);
-	--primary: #7dafff;
-	--primary-dim: #0073de;
-	--on-primary-fixed: #05080f;
-	--on-surface: #f4f6fb;
-	--on-surface-variant: #ababab;
-	--on-secondary-container: #c9d1dd;
-	--error: #ff8080;
-	--error-surface: rgba(138, 31, 31, 0.72);
-	--radius-lg: 1rem;
-	--radius-xl: 1.5rem;
-	--radius-full: 999px;
-	--space-2: 0.5rem;
-	--space-4: 1rem;
-	--space-6: 1.5rem;
-	--space-8: 2rem;
-	--shadow-ambient: 0 24px 40px rgba(125, 175, 255, 0.05);
-	--font-stack: "Google Sans Variable", "Segoe UI", "Avenir Next", sans-serif;
+  color-scheme: dark light;
+  --surface-container-lowest: #000000;
+  --surface: #0e0e0e;
+  --surface-container: #191919;
+  --surface-container-high: #1f1f1f;
+  --surface-container-highest: rgba(36, 36, 36, 0.7);
+  --surface-bright: rgba(255, 255, 255, 0.05);
+  --primary: #7dafff;
+  --primary-dim: #0073de;
+  --on-primary-fixed: #05080f;
+  --on-surface: #f4f6fb;
+  --on-surface-variant: #ababab;
+  --on-secondary-container: #c9d1dd;
+  --error: #ff8080;
+  --error-surface: rgba(138, 31, 31, 0.72);
+  --font-stack: "Google Sans Variable", "Segoe UI", "Avenir Next", sans-serif;
 }
 
 @media (prefers-color-scheme: light) {
-	:root {
-		--surface-container-lowest: #f2f5ff;
-		--surface: #ffffff;
-		--surface-container: #ebeffb;
-		--surface-container-high: #e1e8fa;
-		--surface-container-highest: rgba(234, 241, 255, 0.72);
-		--surface-bright: rgba(24, 37, 66, 0.07);
-		--outline-ghost: rgba(84, 106, 148, 0.26);
-		--on-surface: #0f1523;
-		--on-surface-variant: #4e5e7e;
-		--on-secondary-container: #334368;
-		--error: #8f1f1f;
-		--error-surface: rgba(255, 179, 179, 0.75);
-		--shadow-ambient: 0 24px 40px rgba(0, 115, 222, 0.12);
-	}
+  :root {
+    --surface-container-lowest: #f2f5ff;
+    --surface: #ffffff;
+    --surface-container: #ebeffb;
+    --surface-container-high: #e1e8fa;
+    --surface-container-highest: rgba(234, 241, 255, 0.72);
+    --surface-bright: rgba(24, 37, 66, 0.07);
+    --on-surface: #0f1523;
+    --on-surface-variant: #4e5e7e;
+    --on-secondary-container: #334368;
+    --error: #8f1f1f;
+    --error-surface: rgba(255, 179, 179, 0.75);
+  }
 }
 
 * {
-	@apply box-border;
+  @apply box-border;
 }
 
 body {
-	@apply m-0 min-h-screen font-sans text-on-surface;
-	background:
-		radial-gradient(circle at 16% 15%, rgba(125, 175, 255, 0.16), transparent 40%),
-		radial-gradient(circle at 90% 75%, rgba(0, 115, 222, 0.2), transparent 44%),
-		var(--surface-container-lowest);
+  @apply m-0 min-h-screen font-sans text-on-surface;
+  background:
+    radial-gradient(circle at 14% 12%, rgba(125, 175, 255, 0.22), transparent 32%),
+    radial-gradient(circle at 88% 22%, rgba(0, 115, 222, 0.18), transparent 28%),
+    radial-gradient(circle at 72% 88%, rgba(125, 175, 255, 0.12), transparent 30%),
+    var(--surface-container-lowest);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 120px 120px;
+  mask-image: radial-gradient(circle at center, black 40%, transparent 90%);
 }
 
 #root {
-	@apply min-h-screen;
+  @apply min-h-screen;
 }
 
-.app-shell {
-	@apply min-h-screen grid;
-	grid-template-columns: 4.5rem minmax(0, 1fr);
+@utility overline-copy {
+  @apply m-0 uppercase tracking-[0.12em];
 }
 
-.app-rail {
-	@apply flex flex-col bg-surface-container-lowest;
-	gap: var(--space-4);
-	padding: var(--space-6) var(--space-2);
+@utility panel-surface {
+  @apply rounded-3xl bg-white/3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)];
 }
 
-.rail-button {
-	@apply border-0 rounded-app-full bg-transparent grid place-items-center cursor-pointer text-on-surface-variant;
-	height: 3rem;
-	transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+@utility pill-action {
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-4 transition-transform duration-150 ease-out hover:-translate-y-px disabled:translate-y-0 disabled:cursor-wait disabled:opacity-70;
 }
 
-.rail-button:hover {
-	@apply -translate-y-px text-on-surface bg-surface-bright;
+.skeleton-block {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.rail-button--active {
-	@apply text-primary bg-surface-container;
+.skeleton-block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  animation: shimmer 1.5s linear infinite;
 }
 
-.work-surface {
-	@apply grid rounded-app-xl shadow-ambient;
-	margin: var(--space-6);
-	padding: var(--space-8);
-	background: linear-gradient(160deg, var(--surface) 0%, var(--surface-container) 100%);
-	grid-template-rows: auto auto 1fr;
-	gap: var(--space-6);
-}
-
-.surface-header {
-	@apply flex items-baseline justify-between;
-	gap: var(--space-8);
-}
-
-.headline {
-	@apply m-0 leading-none;
-	font-size: clamp(2rem, 3.2vw, 3.5rem);
-	letter-spacing: -0.02em;
-}
-
-.meta {
-	@apply m-0 uppercase text-on-surface-variant;
-	font-size: 0.75rem;
-	letter-spacing: 0.12em;
-}
-
-.session-panel,
-.accounts-panel {
-	@apply rounded-app-lg bg-surface-container-high;
-	padding: var(--space-6);
-}
-
-.panel-title {
-	@apply m-0 uppercase text-on-surface-variant;
-	font-size: 0.75rem;
-	letter-spacing: 0.08em;
-}
-
-.panel-copy {
-	@apply mt-2 text-on-secondary-container;
-	font-size: 0.875rem;
-}
-
-.panel-subtle {
-	@apply block text-on-surface-variant;
-	margin-top: 0.2rem;
-	font-size: 0.75rem;
-}
-
-.accounts-head {
-	@apply flex justify-between items-baseline;
-	gap: var(--space-4);
-}
-
-.account-list {
-	@apply mt-4 grid;
-	gap: var(--space-2);
-}
-
-.account-chip {
-	@apply w-full text-left border-0 cursor-pointer text-on-surface rounded-app-lg;
-	padding: 0.9rem 1rem;
-	background: rgba(255, 255, 255, 0.02);
-	transition: background-color 180ms ease, transform 180ms ease;
-}
-
-.account-chip:hover {
-	@apply -translate-y-px;
-	background: var(--surface-bright);
-}
-
-.account-chip--active {
-	@apply text-on-primary-fixed;
-	background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dim) 100%);
-}
-
-.account-handle,
-.account-meta {
-	@apply block;
-}
-
-.account-handle {
-	font-size: 0.9rem;
-}
-
-.account-meta {
-	margin-top: 0.25rem;
-	font-size: 0.75rem;
-	opacity: 0.8;
-}
-
-.error-toast {
-	@apply fixed left-1/2 grid items-center rounded-app-full text-on-surface shadow-ambient bg-error-surface;
-	bottom: 1.5rem;
-	transform: translateX(-50%);
-	max-width: min(30rem, calc(100vw - 2rem));
-	width: max-content;
-	grid-template-columns: auto 1fr auto;
-	gap: 0.75rem;
-	padding: 0.75rem 1rem;
-	backdrop-filter: blur(20px);
-}
-
-.error-toast__glyph {
-	@apply text-error;
-}
-
-.error-toast__message {
-	@apply m-0 text-on-surface;
-	font-size: 0.875rem;
-}
-
-.error-toast__dismiss {
-	@apply border-0 rounded-full bg-transparent cursor-pointer;
-	padding: 0.35rem;
-	color: inherit;
-}
-
-.error-toast__dismiss:hover {
-	background: var(--surface-bright);
-}
-
-@media (max-width: 820px) {
-	.app-shell {
-		grid-template-columns: 1fr;
-	}
-
-	.app-rail {
-		@apply flex-row justify-center;
-		padding: var(--space-4);
-	}
-
-	.work-surface {
-		@apply m-0 rounded-none;
-		min-height: calc(100vh - 5rem);
-		padding: var(--space-6);
-	}
-
-	.surface-header {
-		@apply flex-col items-start;
-		gap: var(--space-2);
-	}
-
-	.error-toast {
-		width: calc(100vw - 1.5rem);
-	}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
 }

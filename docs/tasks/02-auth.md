@@ -20,7 +20,7 @@ Spec: [auth.md](../specs/auth.md)
 
 ### Frontend
 
-- [ ] login form with `Motion` spring shake on invalid handle
-- [ ] account switcher dropdown in sidebar with `Presence` avatar enter/exit
-- [ ] skeleton shimmer on profile card during session restore
-- [ ] inline re-auth prompt with pulse animation on session expiry
+- [x] login form with `Motion` spring shake on invalid handle
+- [x] account switcher dropdown in sidebar with `Presence` avatar enter/exit
+- [x] skeleton shimmer on profile card during session restore
+- [x] inline re-auth prompt with pulse animation on session expiry
