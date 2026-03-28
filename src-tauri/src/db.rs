@@ -18,8 +18,16 @@ struct Migration {
     sql: &'static str,
 }
 
-const MIGRATIONS: &[Migration] =
-    &[Migration { version: 1, name: "initial_schema", sql: include_str!("migrations/001_initial.sql") }];
+impl Migration {
+    const fn new(version: i64, name: &'static str, sql: &'static str) -> Self {
+        Self { version, name, sql }
+    }
+}
+
+const MIGRATIONS: &[Migration] = &[
+    Migration::new(1, "initial_schema", include_str!("migrations/001_initial.sql")),
+    Migration::new(2, "oauth_storage", include_str!("migrations/002_auth_storage.sql")),
+];
 
 pub fn initialize_database(app: &AppHandle) -> Result<DbPool, AppError> {
     // Registers sqlite-vec for all future rusqlite connections.
