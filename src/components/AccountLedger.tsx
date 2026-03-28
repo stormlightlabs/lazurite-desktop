@@ -15,7 +15,7 @@ type AccountLedgerProps = {
 
 export function AccountLedger(props: AccountLedgerProps) {
   return (
-    <article class="panel-surface grid gap-6 p-6">
+    <article class="panel-surface grid gap-5 p-5">
       <div class="flex items-baseline justify-between gap-3">
         <p class="overline-copy text-[0.75rem] text-on-surface-variant">Accounts</p>
         <p class="m-0 text-xs leading-[1.55] text-on-surface-variant">{props.accounts.length} added</p>
@@ -24,7 +24,9 @@ export function AccountLedger(props: AccountLedgerProps) {
       <Show
         when={props.accounts.length > 0}
         fallback={
-          <p class="overline-copy text-[0.72rem] text-on-surface-variant">Accounts you add will show up here.</p>
+          <p class="overline-copy text-[0.72rem] text-on-surface-variant">
+            Your accounts will appear here once you sign in.
+          </p>
         }>
         <div class="grid gap-3" role="list">
           <For each={props.accounts}>
@@ -60,8 +62,8 @@ function AccountLedgerCard(props: AccountLedgerCardProps) {
 
   return (
     <Motion.div
-      class="grid items-center gap-4 rounded-2xl bg-white/2.5 p-4 max-[920px]:grid-cols-1 grid-cols-[minmax(0,1fr)_auto]"
-      classList={{ "bg-[linear-gradient(135deg,rgba(125,175,255,0.12),rgba(0,115,222,0.08))]": isActive() }}
+      class="grid items-center gap-4 rounded-xl bg-white/2.5 p-4 max-[920px]:grid-cols-1 grid-cols-[minmax(0,1fr)_auto]"
+      classList={{ "bg-primary/10": isActive() }}
       role="listitem"
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}

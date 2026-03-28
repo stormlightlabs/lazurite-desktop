@@ -66,14 +66,14 @@ function App() {
   const railColumns = createMemo(() => (railCompact() ? "5.75rem minmax(0,1fr)" : "16rem minmax(0,1fr)"));
   const metaLabel = createMemo(() => {
     if (app.bootstrapping) {
-      return "signing you back in";
+      return "reconnecting";
     }
 
     if (app.activeSession) {
-      return "signed in";
+      return "connected";
     }
 
-    return "ready to sign in";
+    return "ready";
   });
 
   async function loadBootstrap() {
@@ -114,7 +114,7 @@ function App() {
     const trimmed = identifier.trim();
     if (!validateIdentifier(trimmed)) {
       triggerShake();
-      setApp("errorMessage", "Enter a valid Bluesky handle, DID, or PDS URL.");
+      setApp("errorMessage", "Please enter a valid handle or DID.");
       return;
     }
 
@@ -204,7 +204,7 @@ function App() {
     return (
       <>
         <main
-          class="grid min-h-screen grid-cols-[var(--app-rail-cols)] transition-[grid-template-columns] duration-300 ease-out max-[1180px]:grid-cols-1"
+          class="grid min-h-screen grid-cols-(--app-rail-cols) transition-[grid-template-columns] duration-300 ease-out max-[1180px]:grid-cols-1"
           style={{ "--app-rail-cols": railColumns() }}>
           <AppRail
             activeSession={app.activeSession}
@@ -220,7 +220,7 @@ function App() {
             onToggleSwitcher={() => setApp("showSwitcher", (open) => !open)} />
 
           <section
-            class="m-5 grid gap-8 rounded-4xl bg-[linear-gradient(160deg,rgba(14,14,14,0.92),rgba(25,25,25,0.98))] p-8 shadow-[0_24px_40px_rgba(125,175,255,0.05)] max-[1360px]:p-7 max-[1180px]:m-0 max-[1180px]:min-h-[calc(100vh-5.5rem)] max-[1180px]:rounded-none max-[1180px]:p-6 max-[760px]:gap-6 max-[760px]:p-5"
+            class="m-5 grid gap-6 rounded-2xl bg-surface p-6 shadow-[0_24px_40px_rgba(125,175,255,0.05)] max-[1360px]:p-6 max-[1180px]:m-0 max-[1180px]:min-h-[calc(100vh-5.5rem)] max-[1180px]:rounded-none max-[1180px]:p-5 max-[760px]:gap-5 max-[760px]:p-4"
             aria-busy={app.bootstrapping}>
             {props.children}
           </section>
@@ -280,11 +280,11 @@ function AppRail(
 ) {
   return (
     <aside
-      class="flex min-h-screen flex-col gap-8 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-8 transition-[padding,gap] duration-300 ease-out max-[1180px]:min-h-0 max-[1180px]:grid max-[1180px]:grid-cols-[auto_auto_minmax(18rem,1fr)] max-[1180px]:items-center max-[1180px]:gap-4 max-[1180px]:p-4 max-[760px]:grid-cols-1"
-      classList={{ "items-center px-4": props.collapsed, "gap-6": props.collapsed }}
+      class="flex min-h-screen flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:min-h-0 max-[1180px]:grid max-[1180px]:grid-cols-[auto_auto_minmax(18rem,1fr)] max-[1180px]:items-center max-[1180px]:gap-4 max-[1180px]:p-4 max-[760px]:grid-cols-1"
+      classList={{ "items-center px-4": props.collapsed, "gap-5": props.collapsed }}
       aria-label="Primary navigation">
       <RailHeader collapsed={props.collapsed} onToggleCollapse={props.onToggleCollapse} />
-      <RailNavigation hasSession={props.hasSession} />
+      <RailNavigation collapsed={props.collapsed} hasSession={props.hasSession} />
       <AccountSwitcher
         activeSession={props.activeSession}
         accounts={props.accounts}
@@ -302,11 +302,11 @@ function AppRail(
 function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void }) {
   return (
     <div
-      class="flex items-start justify-between gap-3 max-[1180px]:items-center"
-      classList={{ "w-full flex-col items-center gap-4": props.collapsed }}>
+      class="flex items-center justify-between gap-3 max-[1180px]:items-center"
+      classList={{ "w-full flex-col gap-3": props.collapsed }}>
       <Wordmark compact={props.collapsed} iconClass="text-primary" />
       <button
-        class="inline-flex h-10 w-10 items-center justify-center rounded-full border-0 bg-white/[0.04] text-on-surface-variant shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition duration-150 ease-out hover:-translate-y-px hover:bg-white/[0.08] hover:text-on-surface max-[1180px]:hidden"
+        class="inline-flex h-10 w-10 items-center justify-center rounded-full border-0 bg-white/4 text-on-surface-variant shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8 hover:text-on-surface max-[1180px]:hidden"
         type="button"
         aria-label={props.collapsed ? "Expand app rail" : "Collapse app rail"}
         aria-pressed={props.collapsed}
@@ -319,15 +319,17 @@ function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void })
   );
 }
 
-function RailNavigation(props: { hasSession: boolean }) {
+function RailNavigation(props: { collapsed: boolean; hasSession: boolean }) {
   return (
-    <div class="grid gap-2 max-[1180px]:flex max-[1180px]:items-center">
-      <Show when={props.hasSession} fallback={<RailButton end href="/auth" label="Accounts" icon="profile" />}>
+    <div class="grid gap-1 max-[1180px]:flex max-[1180px]:items-center">
+      <Show
+        when={props.hasSession}
+        fallback={<RailButton end compact={props.collapsed} href="/auth" label="Accounts" icon="profile" />}>
         <>
-          <RailButton end href="/timeline" label="Timeline" icon="timeline" />
-          <RailButton end href="/search" label="Search" icon="search" />
-          <RailButton end href="/notifications" label="Notifications" icon="notifications" />
-          <RailButton end href="/explorer" label="Explorer" icon="explorer" />
+          <RailButton end compact={props.collapsed} href="/timeline" label="Timeline" icon="timeline" />
+          <RailButton end compact={props.collapsed} href="/search" label="Search" icon="search" />
+          <RailButton end compact={props.collapsed} href="/notifications" label="Notifications" icon="notifications" />
+          <RailButton end compact={props.collapsed} href="/explorer" label="Explorer" icon="explorer" />
         </>
       </Show>
     </div>
@@ -354,60 +356,42 @@ function AuthWorkspace(
     onSwitch: (did: string) => void;
   },
 ) {
-  return (
-    <>
-      <HeaderPanel metaLabel={props.metaLabel} />
-      <AuthHero
-        activeAccount={props.activeAccount}
-        bootstrapping={props.bootstrapping}
-        loggingIn={props.loggingIn}
-        loginValue={props.loginValue}
-        reauthNeeded={props.reauthNeeded}
-        shakeCount={props.shakeCount}
-        onInput={props.onInput}
-        onReauth={props.onReauth}
-        onSubmit={props.onSubmit} />
-      <AccountLedger
-        accounts={props.accounts}
-        activeDid={props.activeDid}
-        busyDid={props.switchingDid}
-        logoutDid={props.logoutDid}
-        onSwitch={props.onSwitch}
-        onLogout={props.onLogout} />
-    </>
-  );
-}
+  const hasAccounts = () => props.accounts.length > 0;
 
-function AuthHero(
-  props: {
-    activeAccount: AccountSummary | null;
-    bootstrapping: boolean;
-    loggingIn: boolean;
-    loginValue: string;
-    reauthNeeded: boolean;
-    shakeCount: number;
-    onInput: (value: string) => void;
-    onReauth: () => void;
-    onSubmit: () => void;
-  },
-) {
   return (
-    <div class="grid gap-6 grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.9fr)] max-[1320px]:grid-cols-1">
-      <SessionSpotlight
-        activeSession={props.activeAccount
-          ? { did: props.activeAccount.did, handle: props.activeAccount.handle }
-          : null}
-        activeAccount={props.activeAccount}
-        bootstrapping={props.bootstrapping}
-        reauthNeeded={props.reauthNeeded}
-        onReauth={props.onReauth} />
-      <LoginPanel
-        value={props.loginValue}
-        pending={props.loggingIn}
-        shakeCount={props.shakeCount}
-        onInput={props.onInput}
-        onSubmit={props.onSubmit} />
-    </div>
+    <Show
+      when={hasAccounts()}
+      fallback={
+        <div class="grid place-items-center py-8">
+          <div class="w-full max-w-md">
+            <LoginPanel
+              value={props.loginValue}
+              pending={props.loggingIn}
+              shakeCount={props.shakeCount}
+              onInput={props.onInput}
+              onSubmit={props.onSubmit} />
+          </div>
+        </div>
+      }>
+      <>
+        <HeaderPanel metaLabel={props.metaLabel} />
+        <SessionSpotlight
+          activeSession={props.activeAccount
+            ? { did: props.activeAccount.did, handle: props.activeAccount.handle }
+            : null}
+          activeAccount={props.activeAccount}
+          bootstrapping={props.bootstrapping}
+          reauthNeeded={props.reauthNeeded}
+          onReauth={props.onReauth} />
+        <AccountLedger
+          accounts={props.accounts}
+          activeDid={props.activeDid}
+          busyDid={props.switchingDid}
+          logoutDid={props.logoutDid}
+          onSwitch={props.onSwitch}
+          onLogout={props.onLogout} />
+      </>
+    </Show>
   );
 }
 

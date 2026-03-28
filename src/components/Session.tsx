@@ -4,14 +4,11 @@ import { Presence } from "solid-motionone";
 import { AvatarBadge } from "./AvatarBadge";
 import { ProfileSkeleton } from "./ProfileSkeleton";
 import { ReauthBanner } from "./ReauthBanner";
-
 export function SessionEmptyState() {
   return (
     <div class="grid">
-      <h2 class="m-0 text-[clamp(1.4rem,2vw,1.85rem)] leading-[1.08] tracking-[-0.03em]">Sign in to get started.</h2>
-      <p class="m-0 text-xs leading-[1.55] text-on-surface-variant">
-        Add a Bluesky account now. You can switch or add more later.
-      </p>
+      <h2 class="m-0 text-[clamp(1.4rem,2vw,1.85rem)] leading-[1.08] tracking-[-0.03em]">No account connected yet.</h2>
+      <p class="m-0 text-xs leading-[1.55] text-on-surface-variant">Connect your Bluesky account to start exploring.</p>
     </div>
   );
 }
@@ -44,19 +41,19 @@ export function SessionSpotlight(props: SessionSpotlightProps) {
   const activeSession = () => props.activeSession;
   const label = createMemo(() => {
     if (bootstrapping()) {
-      return "Restoring";
+      return "Reconnecting";
     }
 
     if (activeSession()) {
-      return "Signed in";
+      return "Connected";
     }
 
     return "Ready";
   });
   return (
-    <article class="panel-surface grid min-h-76 gap-6 p-6 max-[760px]:min-h-0">
+    <article class="panel-surface grid gap-5 p-5">
       <div class="flex items-baseline justify-between gap-3">
-        <p class="overline-copy text-[0.75rem] text-on-surface-variant">Current account</p>
+        <p class="overline-copy text-[0.75rem] text-on-surface-variant">Your account</p>
         <p class="overline-copy text-[0.68rem] text-on-surface-variant">{label()}</p>
       </div>
 

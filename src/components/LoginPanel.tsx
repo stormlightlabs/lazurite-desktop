@@ -1,13 +1,11 @@
 import { createEffect, Show } from "solid-js";
 import { Motion } from "solid-motionone";
 import { Icon } from "./shared/Icon";
+import { LazuriteLogo } from "./Wordmark";
 
 function LoginSubmitButton(props: { pending: boolean }) {
   return (
-    <button
-      class="pill-action border-0 bg-[linear-gradient(135deg,var(--primary)_0%,var(--primary-dim)_100%)] text-on-primary-fixed"
-      type="submit"
-      disabled={props.pending}>
+    <button class="pill-action border-0 bg-primary text-on-primary-fixed" type="submit" disabled={props.pending}>
       <Show
         when={props.pending}
         fallback={
@@ -44,10 +42,15 @@ export function LoginPanel(props: LoginPanelProps) {
   });
 
   return (
-    <article class="panel-surface grid gap-6 p-6">
-      <div class="flex items-baseline justify-between gap-3">
-        <p class="overline-copy text-[0.75rem] text-on-surface-variant">Add account</p>
-        <p class="m-0 text-xs leading-[1.55] text-on-surface-variant">Enter the account you want to use.</p>
+    <article class="panel-surface grid gap-5 p-5">
+      <div class="grid place-items-center gap-3 py-2">
+        <span class="grid place-items-center text-primary">
+          <LazuriteLogo class="h-14 w-14" />
+        </span>
+        <div class="grid place-items-center gap-0.5">
+          <p class="m-0 text-[1.25rem] font-semibold tracking-[-0.02em]">Lazurite</p>
+          <p class="m-0 text-xs text-on-surface-variant">Powered by Bluesky</p>
+        </div>
       </div>
 
       <Motion.form
@@ -59,15 +62,17 @@ export function LoginPanel(props: LoginPanelProps) {
           event.preventDefault();
           props.onSubmit();
         }}>
-        <label class="grid gap-[0.7rem]">
-          <span class="overline-copy text-[0.76rem] tracking-[0.08em] text-on-surface-variant">
-            Handle, DID, or URL
+        <label class="grid gap-3">
+          <span class="overline-copy text-xs tracking-[0.08em] text-on-surface-variant">
+            {/* TODO: use tauri opener */}
+            Sign in with your <a href="https://internethandle.org" class="text-primary underline">Internet Handle</a>
+            or DID
           </span>
           <input
             ref={(element) => {
               input = element;
             }}
-            class="min-h-[3.4rem] w-full rounded-full border-0 bg-white/4 px-[1.15rem] text-on-surface shadow-[inset_0_0_0_1px_rgba(125,175,255,0.16)] focus:outline focus:outline-primary/50 focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.35),0_0_28px_rgba(125,175,255,0.12)]"
+            class="min-h-[3.4rem] w-full rounded-xl border-0 bg-white/4 px-[1.15rem] text-on-surface shadow-[inset_0_0_0_1px_rgba(125,175,255,0.16)] focus:outline focus:outline-primary/50 focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.35),0_0_28px_rgba(125,175,255,0.12)]"
             type="text"
             autocomplete="username"
             spellcheck={false}

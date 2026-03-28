@@ -59,24 +59,7 @@
 
 body {
   @apply m-0 min-h-screen font-sans text-on-surface;
-  background:
-    radial-gradient(circle at 14% 12%, rgba(125, 175, 255, 0.22), transparent 32%),
-    radial-gradient(circle at 88% 22%, rgba(0, 115, 222, 0.18), transparent 28%),
-    radial-gradient(circle at 72% 88%, rgba(125, 175, 255, 0.12), transparent 30%),
-    var(--surface-container-lowest);
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.18;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 120px 120px;
-  mask-image: radial-gradient(circle at center, black 40%, transparent 90%);
+  background: var(--surface-container-lowest);
 }
 
 #root {
@@ -88,7 +71,7 @@ body::before {
 }
 
 @utility panel-surface {
-  @apply rounded-3xl bg-white/3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)];
+  @apply rounded-2xl bg-white/3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)];
 }
 
 @utility pill-action {
