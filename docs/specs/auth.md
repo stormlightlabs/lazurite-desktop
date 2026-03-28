@@ -5,7 +5,7 @@
 Uses `jacquard::oauth` with `LoopbackConfig` to authenticate:
 
 1. User enters handle or DID
-2. Resolve authorization server via `jacquard_oauth::resolver`
+2. Resolve authorization server via `jacquard::oauth::resolver`
 3. Build `AtprotoClientMetadata` with app identity
 4. `OAuthClient` initiates PAR + DPoP flow
 5. Loopback server captures redirect on `127.0.0.1:<port>`
@@ -17,7 +17,7 @@ should be supported in dev environments.
 ## Multi-Account
 
 - SQLite table `accounts`: `did TEXT PK, handle TEXT, pds_url TEXT, active INTEGER`
-- Encrypted token storage via `jacquard_oauth::authstore` trait with a persistent implementation backed by SQLite + OS keychain (Tauri's `tauri-plugin-keychain` or raw `security-framework`)
+- Encrypted token storage via `jacquard::oauth::authstore` trait with a persistent implementation backed by SQLite + OS keychain (Tauri's `tauri-plugin-keychain` or raw `security-framework`)
 - Account switcher in sidebar — click to swap active session
 - Each account gets its own `OAuthSession` instance
 - Active account DID stored in app state; Tauri events notify frontend on switch

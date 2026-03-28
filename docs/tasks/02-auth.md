@@ -4,7 +4,7 @@ Spec: [auth.md](../specs/auth.md)
 
 ## Steps
 
-- [ ] Implement `PersistentAuthStore` backed by SQLite (impl `jacquard_oauth::authstore` trait)
+- [ ] Implement `PersistentAuthStore` backed by SQLite (impl `jacquard::oauth::authstore` trait)
 - [ ] Create Tauri command `login(handle: String)`:
   - Resolve handle → authorization server
   - Build `AtprotoClientMetadata` for Lazurite
