@@ -1,3 +1,4 @@
+use super::auth::{self, LoginSuggestion};
 use super::error::AppError;
 use super::feed::{self, CreateRecordResult, EmbedInput, ReplyRefInput, UserPreferences};
 use super::state::{AccountSummary, AppBootstrap, AppState};
@@ -32,6 +33,11 @@ pub async fn switch_account(did: String, app: AppHandle, state: State<'_, AppSta
 #[tauri::command]
 pub async fn set_active_account(did: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), AppError> {
     state.switch_account(&app, &did).await
+}
+
+#[tauri::command]
+pub async fn search_login_suggestions(query: String) -> Result<Vec<LoginSuggestion>, AppError> {
+    auth::search_login_suggestions(&query).await
 }
 
 #[tauri::command]

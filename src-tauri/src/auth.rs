@@ -1,5 +1,5 @@
 use super::db::DbPool;
-use super::error::AppError;
+use super::error::{AppError, TypeaheadFetchError, TypeaheadFetchErrorKind};
 use super::state::{AccountSummary, ActiveSession};
 use jacquard::api::com_atproto::server::get_session::GetSession;
 use jacquard::common::session::SessionStoreError;
@@ -14,15 +14,20 @@ use jacquard::types::{aturi::AtUri, did::Did};
 use jacquard::xrpc::XrpcClient;
 use jacquard::IntoStatic;
 use rusqlite::{params, OptionalExtension};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{MutexGuard, RwLock};
+use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 pub const ACCOUNT_SWITCHED_EVENT: &str = "auth:account-switched";
 pub const AT_URI_OPEN_EVENT: &str = "navigation:open-at-uri";
 const CLIENT_NAME: &str = "Lazurite";
+const LOGIN_TYPEAHEAD_LIMIT: usize = 6;
+const LOGIN_TYPEAHEAD_CLIENT: &str = "lazurite-desktop";
+const LOGIN_TYPEAHEAD_PRIMARY_URL: &str = "https://typeahead.waow.tech";
+const LOGIN_TYPEAHEAD_FALLBACK_URL: &str = "https://public.api.bsky.app";
 
 pub type LazuriteOAuthClient = OAuthClient<jacquard::identity::JacquardResolver, PersistentAuthStore>;
 pub type LazuriteOAuthSession = OAuthSession<jacquard::identity::JacquardResolver, PersistentAuthStore>;
@@ -45,6 +50,30 @@ pub struct StoredAccount {
 #[serde(rename_all = "camelCase")]
 pub struct AtUriNavigation {
     pub uri: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginSuggestion {
+    pub did: String,
+    pub handle: String,
+    pub display_name: Option<String>,
+    pub avatar: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TypeaheadResponse {
+    #[serde(default)]
+    actors: Vec<TypeaheadActor>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TypeaheadActor {
+    did: String,
+    handle: String,
+    display_name: Option<String>,
+    avatar: Option<String>,
 }
 
 impl PersistentAuthStore {
@@ -178,6 +207,27 @@ impl PersistentAuthStore {
         Ok(())
     }
 
+    pub fn prune_orphaned_sessions(&self) -> Result<(), AppError> {
+        let connection = self.lock_connection()?;
+        connection.execute(
+            "
+            DELETE FROM oauth_sessions
+            WHERE did NOT IN (SELECT did FROM accounts)
+        ",
+            [],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_persisted_session(&self, did: &str, session_id: &str) -> Result<(), AppError> {
+        let connection = self.lock_connection()?;
+        connection.execute(
+            "DELETE FROM oauth_sessions WHERE did = ?1 AND session_id = ?2",
+            params![did, session_id],
+        )?;
+        Ok(())
+    }
+
     pub fn delete_account(&self, did: &str) -> Result<Option<String>, AppError> {
         let mut connection = self.lock_connection()?;
         let transaction = connection.transaction()?;
@@ -190,6 +240,7 @@ impl PersistentAuthStore {
             .unwrap_or_default()
             == 1;
 
+        transaction.execute("DELETE FROM oauth_sessions WHERE did = ?1", params![did])?;
         transaction.execute("DELETE FROM accounts WHERE did = ?1", params![did])?;
 
         let next_active = if was_active {
@@ -443,4 +494,196 @@ fn sqlite_to_store_error(error: rusqlite::Error) -> SessionStoreError {
 
 fn app_to_store_error(error: AppError) -> SessionStoreError {
     SessionStoreError::Other(Box::new(error))
+}
+
+pub async fn search_login_suggestions(query: &str) -> Result<Vec<LoginSuggestion>, AppError> {
+    let Some(normalized_query) = normalize_login_suggestion_query(query) else {
+        return Ok(Vec::new());
+    };
+
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(4)).build()?;
+
+    match fetch_login_suggestions_from_endpoint(&client, LOGIN_TYPEAHEAD_PRIMARY_URL, normalized_query).await {
+        Ok(suggestions) => Ok(suggestions),
+        Err(error) if should_fallback_to_public_typeahead(&error) => {
+            fetch_login_suggestions_from_endpoint(&client, LOGIN_TYPEAHEAD_FALLBACK_URL, normalized_query)
+                .await
+                .map_err(|fallback_error| {
+                    AppError::validation(format!("{error}; fallback request also failed: {fallback_error}"))
+                })
+        }
+        Err(error) => Err(AppError::validation(error.to_string())),
+    }
+}
+
+async fn fetch_login_suggestions_from_endpoint(
+    client: &reqwest::Client, base_url: &str, query: &str,
+) -> Result<Vec<LoginSuggestion>, TypeaheadFetchError> {
+    let response = client
+        .get(format!("{base_url}/xrpc/app.bsky.actor.searchActorsTypeahead"))
+        .header("X-Client", LOGIN_TYPEAHEAD_CLIENT)
+        .query(&[("q", query), ("limit", "6")])
+        .send()
+        .await
+        .map_err(TypeaheadFetchError::transport)?;
+
+    let status = response.status();
+    if !status.is_success() {
+        return Err(TypeaheadFetchError::status(status));
+    }
+
+    let payload = response
+        .json::<TypeaheadResponse>()
+        .await
+        .map_err(TypeaheadFetchError::decode)?;
+
+    Ok(payload
+        .actors
+        .into_iter()
+        .filter(|actor| !actor.handle.trim().is_empty())
+        .map(|actor| LoginSuggestion {
+            did: actor.did,
+            handle: actor.handle,
+            display_name: actor.display_name,
+            avatar: actor.avatar,
+        })
+        .take(LOGIN_TYPEAHEAD_LIMIT)
+        .collect())
+}
+
+fn normalize_login_suggestion_query(query: &str) -> Option<&str> {
+    let trimmed = query.trim();
+    if trimmed.len() < 2
+        || trimmed.starts_with("did:")
+        || trimmed.starts_with("http://")
+        || trimmed.starts_with("https://")
+    {
+        return None;
+    }
+
+    Some(trimmed.trim_start_matches('@'))
+}
+
+fn should_fallback_to_public_typeahead(error: &TypeaheadFetchError) -> bool {
+    match error.kind {
+        TypeaheadFetchErrorKind::Decode | TypeaheadFetchErrorKind::Transport => true,
+        TypeaheadFetchErrorKind::Status(status) => {
+            status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        should_fallback_to_public_typeahead, LoginSuggestion, PersistentAuthStore, TypeaheadFetchError,
+        TypeaheadFetchErrorKind,
+    };
+    use crate::db::DbPool;
+    use reqwest::StatusCode;
+    use rusqlite::{params, Connection};
+    use std::sync::{Arc, Mutex};
+
+    fn auth_store_with_schema(schema: &str) -> PersistentAuthStore {
+        let connection = Connection::open_in_memory().expect("in-memory db should open");
+        connection.execute_batch(schema).expect("schema should apply");
+
+        let pool: DbPool = Arc::new(Mutex::new(connection));
+        PersistentAuthStore::new(pool)
+    }
+
+    #[test]
+    fn prunes_orphaned_oauth_sessions() {
+        let store = auth_store_with_schema(
+            "
+            CREATE TABLE accounts (
+                did TEXT PRIMARY KEY,
+                handle TEXT,
+                pds_url TEXT,
+                session_id TEXT,
+                active INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE oauth_sessions (
+                did TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                session_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (did, session_id)
+            );
+        ",
+        );
+
+        let connection = store.lock_connection().expect("connection should lock");
+        connection
+            .execute(
+                "INSERT INTO accounts(did, handle) VALUES (?1, ?2)",
+                params!["did:plc:kept", "kept.test"],
+            )
+            .expect("account should insert");
+        connection
+            .execute(
+                "INSERT INTO oauth_sessions(did, session_id, session_json) VALUES (?1, ?2, ?3)",
+                params!["did:plc:kept", "session-kept", "{}"],
+            )
+            .expect("owned oauth session should insert");
+        connection
+            .execute(
+                "INSERT INTO oauth_sessions(did, session_id, session_json) VALUES (?1, ?2, ?3)",
+                params!["did:plc:orphan", "session-orphan", "{}"],
+            )
+            .expect("orphan oauth session should insert");
+        drop(connection);
+
+        store.prune_orphaned_sessions().expect("orphan pruning should succeed");
+
+        let connection = store.lock_connection().expect("connection should relock");
+        let dids: Vec<String> = connection
+            .prepare("SELECT did FROM oauth_sessions ORDER BY did ASC")
+            .expect("statement should prepare")
+            .query_map([], |row| row.get(0))
+            .expect("query should run")
+            .collect::<Result<_, _>>()
+            .expect("rows should collect");
+
+        assert_eq!(dids, vec!["did:plc:kept".to_string()]);
+    }
+
+    #[test]
+    fn falls_back_to_public_typeahead_on_rate_limit() {
+        let error = TypeaheadFetchError {
+            kind: TypeaheadFetchErrorKind::Status(StatusCode::TOO_MANY_REQUESTS),
+            message: "rate limited".to_string(),
+        };
+
+        assert!(should_fallback_to_public_typeahead(&error));
+    }
+
+    #[test]
+    fn does_not_fallback_to_public_typeahead_on_client_input_errors() {
+        let error = TypeaheadFetchError {
+            kind: TypeaheadFetchErrorKind::Status(StatusCode::BAD_REQUEST),
+            message: "bad request".to_string(),
+        };
+
+        assert!(!should_fallback_to_public_typeahead(&error));
+    }
+
+    #[test]
+    fn login_suggestion_serialization_shape_matches_frontend_contract() {
+        let suggestion = LoginSuggestion {
+            did: "did:plc:alice".to_string(),
+            handle: "alice.bsky.social".to_string(),
+            display_name: Some("Alice".to_string()),
+            avatar: Some("https://cdn.example/alice.jpg".to_string()),
+        };
+
+        let payload = serde_json::to_value(suggestion).expect("login suggestion should serialize");
+
+        assert_eq!(payload["did"], "did:plc:alice");
+        assert_eq!(payload["handle"], "alice.bsky.social");
+        assert_eq!(payload["displayName"], "Alice");
+        assert_eq!(payload["avatar"], "https://cdn.example/alice.jpg");
+    }
 }

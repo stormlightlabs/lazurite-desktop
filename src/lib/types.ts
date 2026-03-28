@@ -4,6 +4,8 @@ export type ActiveSession = { did: string; handle: string };
 
 export type AppBootstrap = { activeSession: ActiveSession | null; accountList: AccountSummary[] };
 
+export type LoginSuggestion = { did: string; handle: string; displayName?: string | null; avatar?: string | null };
+
 export type SavedFeedItem = { id: string; type: string; value: string; pinned: boolean };
 
 export type FeedViewPrefItem = {

@@ -53,6 +53,7 @@ pub fn run() {
             cmd::logout,
             cmd::switch_account,
             cmd::set_active_account,
+            cmd::search_login_suggestions,
             cmd::get_preferences,
             cmd::get_feed_generators,
             cmd::get_timeline,

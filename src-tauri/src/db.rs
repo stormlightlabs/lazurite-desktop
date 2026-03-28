@@ -27,6 +27,11 @@ impl Migration {
 const MIGRATIONS: &[Migration] = &[
     Migration::new(1, "initial_schema", include_str!("migrations/001_initial.sql")),
     Migration::new(2, "oauth_storage", include_str!("migrations/002_auth_storage.sql")),
+    Migration::new(
+        3,
+        "oauth_sessions_without_fk",
+        include_str!("migrations/003_oauth_sessions_without_fk.sql"),
+    ),
 ];
 
 pub fn initialize_database(app: &AppHandle) -> Result<DbPool, AppError> {
@@ -112,4 +117,77 @@ fn validate_sqlite_vec(connection: &Connection) -> Result<(), AppError> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use rusqlite::{params, Connection};
+
+    fn auth_schema_connection() -> Connection {
+        let connection = Connection::open_in_memory().expect("in-memory db should open");
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .expect("foreign keys should enable");
+        connection
+            .execute_batch(
+                "
+                CREATE TABLE accounts (
+                  did TEXT PRIMARY KEY,
+                  handle TEXT,
+                  pds_url TEXT,
+                  active INTEGER NOT NULL DEFAULT 0 CHECK(active IN (0, 1))
+                );
+            ",
+            )
+            .expect("accounts table should apply");
+        connection
+            .execute_batch(include_str!("migrations/002_auth_storage.sql"))
+            .expect("auth storage schema should apply");
+        connection
+    }
+
+    #[test]
+    fn oauth_sessions_require_accounts_before_migration_three() {
+        let connection = auth_schema_connection();
+
+        let error = connection
+            .execute(
+                "
+                INSERT INTO oauth_sessions(did, session_id, session_json, updated_at)
+                VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)
+            ",
+                params!["did:plc:ghost", "session-1", "{}"],
+            )
+            .expect_err("foreign key should reject oauth sessions without an account row");
+
+        assert!(error.to_string().contains("FOREIGN KEY constraint failed"));
+    }
+
+    #[test]
+    fn migration_three_allows_oauth_sessions_before_account_insert() {
+        let connection = auth_schema_connection();
+        connection
+            .execute_batch(include_str!("migrations/003_oauth_sessions_without_fk.sql"))
+            .expect("migration three should apply");
+
+        connection
+            .execute(
+                "
+                INSERT INTO oauth_sessions(did, session_id, session_json, updated_at)
+                VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)
+            ",
+                params!["did:plc:ghost", "session-1", "{}"],
+            )
+            .expect("oauth session insert should succeed after migration three");
+
+        let stored_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM oauth_sessions WHERE did = ?1",
+                params!["did:plc:ghost"],
+                |row| row.get(0),
+            )
+            .expect("oauth session count should query");
+
+        assert_eq!(stored_count, 1);
+    }
 }

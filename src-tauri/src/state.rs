@@ -48,6 +48,7 @@ pub struct AppState {
 impl AppState {
     pub async fn bootstrap(db_pool: DbPool) -> Result<Self, AppError> {
         let auth_store = PersistentAuthStore::new(db_pool.clone());
+        auth_store.prune_orphaned_sessions()?;
         let oauth_client = build_oauth_client(auth_store.clone());
         let accounts = auth_store.load_accounts()?;
         let app_state = Self {
@@ -90,14 +91,26 @@ impl AppState {
     pub async fn login(&self, app: &AppHandle, identifier: String) -> Result<AccountSummary, AppError> {
         let session = Arc::new(login_with_loopback(&self.oauth_client, identifier.trim()).await?);
         let (did, session_id) = session.session_info().await;
-        let account_summary = fetch_account_summary(&session, true).await?;
+        let did = did.to_string();
+        let session_id = session_id.to_string();
+        let account_summary_result = async {
+            let account_summary = fetch_account_summary(&session, true).await?;
+            self.auth_store.upsert_account(&account_summary, &session_id, true)?;
+            Ok::<_, AppError>(account_summary)
+        }
+        .await;
+        let account_summary = match account_summary_result {
+            Ok(account_summary) => account_summary,
+            Err(error) => {
+                self.auth_store.delete_persisted_session(&did, &session_id)?;
+                return Err(error);
+            }
+        };
 
-        self.auth_store
-            .upsert_account(&account_summary, session_id.as_ref(), true)?;
         self.sessions
             .write()
             .map_err(|_| AppError::StatePoisoned("sessions"))?
-            .insert(did.to_string(), session);
+            .insert(did, session);
 
         self.refresh_account_cache()?;
         emit_account_switch(app, self.current_active_session()?)?;
