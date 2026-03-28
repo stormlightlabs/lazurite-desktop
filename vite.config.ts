@@ -1,11 +1,22 @@
+import tailwindcss from "@tailwindcss/vite";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
+import type { ViteUserConfig } from "vitest/config";
+
+const test: ViteUserConfig["test"] = {
+  environment: "jsdom",
+  globals: true,
+  setupFiles: ["src/test/setup.ts"],
+  server: { deps: { inline: ["@solidjs/router"] } },
+  ui: false,
+  watch: false,
+};
 
 const host = process.env.TAURI_DEV_HOST;
 
-// https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [solid()],
+  plugins: [solid(), tailwindcss()],
   clearScreen: false,
   server: {
     port: 1420,
@@ -14,4 +25,6 @@ export default defineConfig(async () => ({
     hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
     watch: { ignored: ["**/src-tauri/**"] },
   },
+  resolve: { alias: { "$": fileURLToPath(new URL("src", import.meta.url)) } },
+  test,
 }));
