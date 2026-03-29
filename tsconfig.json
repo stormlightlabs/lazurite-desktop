@@ -18,8 +18,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "types": ["vite/client", "@testing-library/jest-dom"],
-    "baseUrl": ".",
-    "paths": { "$/*": ["src/*"] }
+    "baseUrl": "src",
+    "paths": { "$/*": ["./*"] }
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
