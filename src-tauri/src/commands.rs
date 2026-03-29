@@ -2,6 +2,7 @@
 use super::auth::{self, LoginSuggestion};
 use super::error::AppError;
 use super::feed::{self, CreateRecordResult, EmbedInput, FeedViewPrefItem, ReplyRefInput, UserPreferences};
+use super::notifications;
 use super::state::{AccountSummary, AppBootstrap, AppState};
 use serde_json::Value;
 use tauri::{AppHandle, State};
@@ -117,4 +118,19 @@ pub async fn update_saved_feeds(feeds: Vec<feed::SavedFeedItem>, state: State<'_
 #[tauri::command]
 pub async fn update_feed_view_pref(pref: FeedViewPrefItem, state: State<'_, AppState>) -> Result<(), AppError> {
     feed::update_feed_view_pref(pref, &state).await
+}
+
+#[tauri::command]
+pub async fn list_notifications(cursor: Option<String>, state: State<'_, AppState>) -> Result<Value, AppError> {
+    notifications::list_notifications(cursor, &state).await
+}
+
+#[tauri::command]
+pub async fn update_seen(state: State<'_, AppState>) -> Result<(), AppError> {
+    notifications::update_seen(&state).await
+}
+
+#[tauri::command]
+pub async fn get_unread_count(state: State<'_, AppState>) -> Result<i64, AppError> {
+    notifications::get_unread_count(&state).await
 }

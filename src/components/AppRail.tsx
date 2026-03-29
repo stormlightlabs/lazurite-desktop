@@ -60,7 +60,7 @@ export function AppRail(
 ) {
   return (
     <aside
-      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:grid max-[1180px]:min-h-0 max-[1180px]:grid-cols-[auto_minmax(0,1fr)] max-[1180px]:items-center max-[1180px]:gap-x-4 max-[1180px]:gap-y-3 max-[1180px]:p-4"
+      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:grid max-[1180px]:min-h-0 max-[1180px]:grid-cols-[auto_minmax(0,1fr)_auto] max-[1180px]:items-center max-[1180px]:gap-x-4 max-[1180px]:gap-y-3 max-[1180px]:p-4"
       classList={{ "items-center px-4": props.collapsed && !props.narrow, "gap-5": props.collapsed && !props.narrow }}
       aria-label="Primary navigation">
       <RailHeader collapsed={props.collapsed} onToggleCollapse={props.onToggleCollapse} />
@@ -70,8 +70,9 @@ export function AppRail(
         activeSession={props.activeSession}
         accounts={props.accounts}
         busyDid={props.switchingDid}
-        compact={props.collapsed && !props.narrow}
+        compact={props.collapsed || props.narrow}
         logoutDid={props.logoutDid}
+        narrow={props.narrow}
         open={props.openSwitcher}
         onClose={props.onCloseSwitcher}
         onToggle={props.onToggleSwitcher}

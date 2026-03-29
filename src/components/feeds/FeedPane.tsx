@@ -6,7 +6,7 @@ import { FeedContent } from "./FeedContent";
 import { FeedTabBar } from "./FeedTabs";
 import type { FeedState } from "./types";
 
-function FeedHeaderActions(props: { onCompose: () => void; onToggleDrawer: () => void }) {
+function FeedHeaderActions(props: { onCompose: () => void; onRefresh: () => void }) {
   return (
     <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[960px]:w-full max-[960px]:justify-between">
       <button
@@ -19,8 +19,10 @@ function FeedHeaderActions(props: { onCompose: () => void; onToggleDrawer: () =>
       <button
         class="inline-flex h-11 w-11 items-center justify-center rounded-full border-0 bg-white/5 text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
         type="button"
-        onClick={() => props.onToggleDrawer()}>
-        <Icon aria-hidden="true" kind="menu" />
+        aria-label="Refresh active feed"
+        title="Refresh active feed"
+        onClick={() => props.onRefresh()}>
+        <Icon aria-hidden="true" kind="refresh" />
       </button>
     </div>
   );
@@ -30,6 +32,7 @@ function FeedScroller(
   props: {
     activeFeedId: string;
     activeFeedState: FeedState | undefined;
+    activeAvatar?: string | null;
     activeHandle: string;
     focusedIndex: number;
     generators: Record<string, FeedGeneratorView>;
@@ -56,7 +59,10 @@ function FeedScroller(
       ref={(element) => props.scrollerRef(element)}
       class="feed-scroll-region min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain px-6 pb-8 pt-4 max-[760px]:px-4 max-[520px]:px-3"
       onScroll={(event) => props.setScrollTop(event.currentTarget.scrollTop)}>
-      <ComposerLauncher activeHandle={props.activeHandle} onCompose={props.onCompose} />
+      <ComposerLauncher
+        activeAvatar={props.activeAvatar}
+        activeHandle={props.activeHandle}
+        onCompose={props.onCompose} />
       <FeedContent
         activeFeedId={props.activeFeedId}
         activeFeedState={props.activeFeedState}
@@ -83,7 +89,7 @@ function FeedPaneTitle(
     activeFeed: SavedFeedItem;
     generators: Record<string, FeedGeneratorView>;
     onCompose: () => void;
-    onToggleDrawer: () => void;
+    onRefresh: () => void;
   },
 ) {
   return (
@@ -94,7 +100,7 @@ function FeedPaneTitle(
           {getFeedName(props.activeFeed, props.generators[props.activeFeed.value]?.displayName)}
         </p>
       </div>
-      <FeedHeaderActions onCompose={props.onCompose} onToggleDrawer={props.onToggleDrawer} />
+      <FeedHeaderActions onCompose={props.onCompose} onRefresh={props.onRefresh} />
     </div>
   );
 }
@@ -105,6 +111,7 @@ function FeedPaneHeader(
     generators: Record<string, FeedGeneratorView>;
     onCompose: () => void;
     onFeedSelect: (feedId: string) => void;
+    onRefresh: () => void;
     onToggleDrawer: () => void;
     pinnedFeeds: SavedFeedItem[];
   },
@@ -115,7 +122,7 @@ function FeedPaneHeader(
         activeFeed={props.activeFeed}
         generators={props.generators}
         onCompose={props.onCompose}
-        onToggleDrawer={props.onToggleDrawer} />
+        onRefresh={props.onRefresh} />
       <FeedTabBar
         activeFeedId={props.activeFeed.id}
         generators={props.generators}
@@ -131,6 +138,7 @@ export function FeedPane(
     activeFeed: SavedFeedItem;
     activeFeedId: string;
     activeFeedState: FeedState | undefined;
+    activeAvatar?: string | null;
     activeHandle: string;
     focusedIndex: number;
     generators: Record<string, FeedGeneratorView>;
@@ -142,6 +150,7 @@ export function FeedPane(
     onLike: (post: PostView) => Promise<void>;
     onOpenThread: (uri: string) => Promise<void>;
     onQuote: (post: PostView) => void;
+    onRefresh: () => void;
     onReply: (post: PostView, root: PostView) => void;
     onRepost: (post: PostView) => Promise<void>;
     onToggleDrawer: () => void;
@@ -162,11 +171,13 @@ export function FeedPane(
         generators={props.generators}
         onCompose={props.onCompose}
         onFeedSelect={props.onFeedSelect}
+        onRefresh={props.onRefresh}
         onToggleDrawer={props.onToggleDrawer}
         pinnedFeeds={props.pinnedFeeds} />
       <FeedScroller
         activeFeedId={props.activeFeedId}
         activeFeedState={props.activeFeedState}
+        activeAvatar={props.activeAvatar}
         activeHandle={props.activeHandle}
         focusedIndex={props.focusedIndex}
         generators={props.generators}

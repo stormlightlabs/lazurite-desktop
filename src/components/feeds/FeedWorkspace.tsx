@@ -15,6 +15,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
           activeFeed={controller.activeFeed()}
           activeFeedId={controller.activeFeed().id}
           activeFeedState={controller.activeFeedState()}
+          activeAvatar={props.activeAvatar}
           activeHandle={props.activeSession.handle}
           focusedIndex={controller.workspace.focusedIndex}
           generators={controller.workspace.generators}
@@ -26,6 +27,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
           onLike={controller.toggleLike}
           onOpenThread={controller.openThread}
           onQuote={controller.openQuoteComposer}
+          onRefresh={() => void controller.refreshActiveFeed()}
           onReply={controller.openReplyComposer}
           onRepost={controller.toggleRepost}
           onToggleDrawer={controller.toggleFeedsDrawer}
@@ -70,6 +72,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
         thread={controller.workspace.thread.data} />
 
       <FeedComposer
+        activeAvatar={props.activeAvatar}
         activeHandle={props.activeSession.handle}
         open={controller.workspace.composer.open}
         pending={controller.workspace.composer.pending}

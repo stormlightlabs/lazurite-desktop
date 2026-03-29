@@ -5,6 +5,7 @@ import {
   switchAccount as switchAccountRequest,
 } from "$/lib/api/app";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createEffect, createMemo, onCleanup, onMount, Show, startTransition } from "solid-js";
 import { createStore } from "solid-js/store";
 import "@fontsource-variable/google-sans";
@@ -22,6 +23,7 @@ import { ACCOUNT_SWITCH_EVENT } from "./lib/constants/events";
 import type { AccountSummary, ActiveSession } from "./lib/types";
 import { AppRouter } from "./router";
 
+const COMPOSER_WINDOW_LABEL = "composer";
 const RAIL_COLLAPSED_STORAGE_KEY = "lazurite:rail-collapsed";
 
 type AppState = {
@@ -61,6 +63,7 @@ function createInitialAppState(): AppState {
 function App() {
   const [app, setApp] = createStore<AppState>(createInitialAppState());
 
+  const standaloneComposerWindow = isComposerWindow();
   const activeAccount = createMemo(() =>
     app.accounts.find((account) => account.did === app.activeSession?.did) ?? null
   );
@@ -240,42 +243,100 @@ function App() {
   }
 
   return (
-    <AppRouter
-      bootstrapping={app.bootstrapping}
-      hasSession={hasSession()}
-      session={app.activeSession}
-      onLocationChange={() => setApp("showSwitcher", false)}
-      renderAuth={() => (
-        <AuthWorkspace
-          accounts={app.accounts}
-          activeAccount={activeAccount()}
-          activeSession={app.activeSession}
-          activeDid={app.activeSession?.did ?? null}
-          bootstrapping={app.bootstrapping}
-          loggingIn={app.loggingIn}
-          loginValue={app.loginValue}
-          logoutDid={app.logoutDid}
-          metaLabel={metaLabel()}
-          reauthNeeded={app.reauthNeeded}
-          shakeCount={app.shakeCount}
-          switchingDid={app.switchingDid}
-          onInput={(value) => setApp("loginValue", value)}
-          onLogout={(did) => void logout(did)}
-          onReauth={() => void reauthorizePrimaryAccount()}
-          onSubmit={() => void submitLogin()}
-          onSwitch={(did) => void switchAccount(did)} />
-      )}
-      renderShell={AppShell}
-      renderComposer={(session) => (
-        <ComposerWindow activeHandle={session.handle} onError={(message) => setApp("errorMessage", message)} />
-      )}
-      renderTimeline={(session, context) => (
-        <FeedWorkspace
-          activeSession={session}
-          onError={(message) => setApp("errorMessage", message)}
-          onThreadRouteChange={context.onThreadRouteChange}
-          threadUri={context.threadUri} />
-      )} />
+    <Show
+      when={!standaloneComposerWindow}
+      fallback={
+        <>
+          <Show when={!app.bootstrapping} fallback={<ComposerBootState />}>
+            <Show
+              when={app.activeSession}
+              keyed
+              fallback={
+                <div class="grid min-h-screen place-items-center bg-surface-container-lowest p-6">
+                  <div class="w-full max-w-md">
+                    <LoginPanel
+                      value={app.loginValue}
+                      pending={app.loggingIn}
+                      shakeCount={app.shakeCount}
+                      onInput={(value) => setApp("loginValue", value)}
+                      onSubmit={() => void submitLogin()} />
+                  </div>
+                </div>
+              }>
+              {(session) => (
+                <ComposerWindow
+                  activeAvatar={activeAccount()?.avatar}
+                  activeHandle={session.handle}
+                  onError={(message) => setApp("errorMessage", message)} />
+              )}
+            </Show>
+          </Show>
+
+          <ErrorToast
+            message={app.errorMessage}
+            onDismiss={() => setApp("errorMessage", null)} />
+        </>
+      }>
+      <AppRouter
+        bootstrapping={app.bootstrapping}
+        hasSession={hasSession()}
+        session={app.activeSession}
+        onLocationChange={() => setApp("showSwitcher", false)}
+        renderAuth={() => (
+          <AuthWorkspace
+            accounts={app.accounts}
+            activeAccount={activeAccount()}
+            activeSession={app.activeSession}
+            activeDid={app.activeSession?.did ?? null}
+            bootstrapping={app.bootstrapping}
+            loggingIn={app.loggingIn}
+            loginValue={app.loginValue}
+            logoutDid={app.logoutDid}
+            metaLabel={metaLabel()}
+            reauthNeeded={app.reauthNeeded}
+            shakeCount={app.shakeCount}
+            switchingDid={app.switchingDid}
+            onInput={(value) => setApp("loginValue", value)}
+            onLogout={(did) => void logout(did)}
+            onReauth={() => void reauthorizePrimaryAccount()}
+            onSubmit={() => void submitLogin()}
+            onSwitch={(did) => void switchAccount(did)} />
+        )}
+        renderShell={AppShell}
+        renderComposer={(session) => (
+          <ComposerWindow
+            activeAvatar={activeAccount()?.avatar}
+            activeHandle={session.handle}
+            onError={(message) => setApp("errorMessage", message)} />
+        )}
+        renderTimeline={(session, context) => (
+          <FeedWorkspace
+            activeAvatar={activeAccount()?.avatar}
+            activeSession={session}
+            onError={(message) => setApp("errorMessage", message)}
+            onThreadRouteChange={context.onThreadRouteChange}
+            threadUri={context.threadUri} />
+        )} />
+    </Show>
+  );
+}
+
+function isComposerWindow() {
+  try {
+    return getCurrentWindow().label === COMPOSER_WINDOW_LABEL;
+  } catch {
+    return false;
+  }
+}
+
+function ComposerBootState() {
+  return (
+    <div class="grid min-h-screen place-items-center bg-surface-container-lowest p-6">
+      <div class="grid gap-3 text-center">
+        <p class="overline-copy text-sm text-on-surface-variant">Loading</p>
+        <p class="m-0 text-base text-on-surface">Restoring the composer.</p>
+      </div>
+    </div>
   );
 }
 

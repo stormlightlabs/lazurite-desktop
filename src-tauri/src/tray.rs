@@ -7,7 +7,13 @@ use tauri::{
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 const COMPOSER_WINDOW_LABEL: &str = "composer";
-const COMPOSER_WINDOW_ROUTE: &str = "index.html#/composer";
+const APP_INDEX_PATH: &str = "index.html";
+const COMPOSER_HASH_ROUTE: &str = "#/composer";
+const COMPOSER_INIT_SCRIPT: &str = r#"
+if (window.location.hash !== '#/composer') {
+    window.location.replace(`${window.location.pathname}${window.location.search}#/composer`);
+}
+"#;
 const MAIN_WINDOW_LABEL: &str = "main";
 const MENU_NEW_POST: &str = "new_post";
 const MENU_TOGGLE_WINDOW: &str = "toggle_window";
@@ -29,12 +35,8 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             MENU_NEW_POST => {
                 let _ = open_composer_window(app);
             }
-            MENU_TOGGLE_WINDOW => {
-                toggle_window_visibility(app);
-            }
-            MENU_QUIT => {
-                app.exit(0);
-            }
+            MENU_TOGGLE_WINDOW => toggle_window_visibility(app),
+            MENU_QUIT => app.exit(0),
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -77,25 +79,29 @@ fn is_window_visible(window: &WebviewWindow) -> bool {
 
 fn open_composer_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(window) = app.get_webview_window(COMPOSER_WINDOW_LABEL) {
+        route_window_to_composer(&window);
         show_window(&window);
         return Ok(());
     }
 
-    let window = WebviewWindowBuilder::new(
-        app,
-        COMPOSER_WINDOW_LABEL,
-        WebviewUrl::App(COMPOSER_WINDOW_ROUTE.into()),
-    )
-    .title("New Post")
-    .inner_size(720.0, 640.0)
-    .min_inner_size(560.0, 420.0)
-    .resizable(true)
-    .center()
-    .build()?;
+    let window = WebviewWindowBuilder::new(app, COMPOSER_WINDOW_LABEL, WebviewUrl::App(APP_INDEX_PATH.into()))
+        .initialization_script(COMPOSER_INIT_SCRIPT)
+        .title("New Post")
+        .inner_size(720.0, 640.0)
+        .min_inner_size(560.0, 420.0)
+        .resizable(true)
+        .center()
+        .build()?;
 
     show_window(&window);
 
     Ok(())
+}
+
+fn route_window_to_composer(window: &WebviewWindow) {
+    let _ = window.eval(format!(
+        "if (window.location.hash !== '{COMPOSER_HASH_ROUTE}') {{ window.location.hash = '/composer'; }}"
+    ));
 }
 
 fn show_window(window: &WebviewWindow) {

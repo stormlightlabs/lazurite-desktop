@@ -6,15 +6,16 @@ import { Motion, Presence } from "solid-motionone";
 
 type ComposerSuggestion = { label: string; type: "handle" | "hashtag" };
 
-export function ComposerLauncher(props: { activeHandle: string; onCompose: () => void }) {
+export function ComposerLauncher(props: { activeAvatar?: string | null; activeHandle: string; onCompose: () => void }) {
   return (
     <button
       class="mb-4 flex w-full min-w-0 items-center gap-3 rounded-3xl border-0 bg-white/3 px-4 py-4 text-left text-on-surface-variant shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/5 max-[760px]:gap-2 max-[760px]:px-3.5 max-[520px]:py-3.5"
       type="button"
       onClick={() => props.onCompose()}>
-      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] text-sm font-semibold text-on-primary-fixed">
-        {props.activeHandle.slice(0, 1).toUpperCase()}
-      </div>
+      <ComposerIdentityAvatar
+        activeAvatar={props.activeAvatar}
+        activeHandle={props.activeHandle}
+        sizeClass="h-10 w-10" />
       <div class="min-w-0 flex-1">
         <p class="m-0 wrap-break-word text-[0.9rem] text-on-surface-variant">What's happening?</p>
       </div>
@@ -28,6 +29,7 @@ export function ComposerLauncher(props: { activeHandle: string; onCompose: () =>
 }
 
 type FeedComposerProps = {
+  activeAvatar?: string | null;
   activeHandle: string | null;
   open: boolean;
   pending: boolean;
@@ -60,6 +62,7 @@ export function FeedComposer(props: FeedComposerProps) {
             onClick={() => props.onClose()} />
 
           <ComposerSurface
+            activeAvatar={props.activeAvatar}
             activeHandle={props.activeHandle}
             layout="dialog"
             pending={props.pending}
@@ -92,6 +95,7 @@ export function ComposerSurface(props: ComposerSurfaceProps) {
         exit={{ opacity: 0, y: 30 }}
         transition={{ duration: 0.24, easing: [0.22, 1, 0.36, 1] }}>
         <ComposerHeader
+          activeAvatar={props.activeAvatar}
           activeHandle={props.activeHandle}
           pending={props.pending}
           quoteTarget={props.quoteTarget}
@@ -99,6 +103,7 @@ export function ComposerSurface(props: ComposerSurfaceProps) {
           onClose={props.onClose}
           onSubmit={props.onSubmit} />
         <ComposerBody
+          activeAvatar={props.activeAvatar}
           activeHandle={props.activeHandle}
           quoteTarget={props.quoteTarget}
           replyTarget={props.replyTarget}
@@ -138,6 +143,7 @@ function getComposerPanelClass(layout: ComposerSurfaceProps["layout"]) {
 
 function ComposerHeader(
   props: {
+    activeAvatar?: string | null;
     activeHandle: string | null;
     pending: boolean;
     quoteTarget: PostView | null;
@@ -191,6 +197,7 @@ function ComposerSubmitButton(props: { disabled: boolean; pending: boolean; onSu
 
 function ComposerBody(
   props: {
+    activeAvatar?: string | null;
     activeHandle: string | null;
     quoteTarget: PostView | null;
     replyTarget: PostView | null;
@@ -205,7 +212,7 @@ function ComposerBody(
   return (
     <div class="min-h-0 overflow-y-auto overscroll-contain p-6">
       <div class="flex gap-4 max-[640px]:flex-col">
-        <ComposerAvatar activeHandle={props.activeHandle} />
+        <ComposerAvatar activeAvatar={props.activeAvatar} activeHandle={props.activeHandle} />
         <div class="min-w-0 flex-1">
           <ComposerContexts
             quoteTarget={props.quoteTarget}
@@ -221,10 +228,28 @@ function ComposerBody(
   );
 }
 
-function ComposerAvatar(props: { activeHandle: string | null }) {
+function ComposerAvatar(props: { activeAvatar?: string | null; activeHandle: string | null }) {
   return (
-    <div class="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.95),rgba(0,115,222,0.75))] text-sm font-semibold text-on-primary-fixed">
-      {(props.activeHandle ?? "L").slice(0, 1).toUpperCase()}
+    <div class="mt-1">
+      <ComposerIdentityAvatar
+        activeAvatar={props.activeAvatar}
+        activeHandle={props.activeHandle}
+        sizeClass="h-11 w-11" />
+    </div>
+  );
+}
+
+function ComposerIdentityAvatar(
+  props: { activeAvatar?: string | null; activeHandle: string | null; sizeClass: "h-10 w-10" | "h-11 w-11" },
+) {
+  const fallback = () => (props.activeHandle ?? "L").slice(0, 1).toUpperCase();
+
+  return (
+    <div
+      class={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.95),rgba(0,115,222,0.75))] text-sm font-semibold text-on-primary-fixed ${props.sizeClass}`}>
+      <Show when={props.activeAvatar} fallback={fallback()}>
+        {(avatar) => <img class="h-full w-full object-cover" src={avatar()} alt="" />}
+      </Show>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSignal } from "solid-js";
 import { ComposerSurface } from "./FeedComposer";
 
-type ComposerWindowProps = { activeHandle: string; onError: (message: string) => void };
+type ComposerWindowProps = { activeAvatar?: string | null; activeHandle: string; onError: (message: string) => void };
 
 async function closeWindow() {
   await getCurrentWindow().close();
@@ -36,6 +36,7 @@ export function ComposerWindow(props: ComposerWindowProps) {
   return (
     <div class="min-h-screen bg-[radial-gradient(circle_at_top,rgba(125,175,255,0.12),transparent_32%),#000]">
       <ComposerSurface
+        activeAvatar={props.activeAvatar}
         activeHandle={props.activeHandle}
         layout="window"
         pending={pending()}

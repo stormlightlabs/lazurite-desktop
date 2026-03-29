@@ -11,6 +11,7 @@ type AccountSwitcherProps = {
   busyDid: string | null;
   compact?: boolean;
   logoutDid: string | null;
+  narrow?: boolean;
   open: boolean;
   onClose: () => void;
   onToggle: () => void;
@@ -68,8 +69,12 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
 
   return (
     <div
-      class="relative mt-auto w-full transition-[width,max-width] duration-300 ease-out max-[1180px]:col-span-full max-[1180px]:mt-0 max-[1180px]:max-w-none max-[1180px]:justify-self-stretch"
-      classList={{ "w-auto": !!props.compact }}
+      class="relative mt-auto w-full transition-[width,max-width] duration-300 ease-out max-[1180px]:mt-0 max-[1180px]:max-w-none"
+      classList={{
+        "w-auto": !!props.compact,
+        "max-[1180px]:col-start-3 max-[1180px]:row-start-1 max-[1180px]:justify-self-end": !!props.narrow,
+        "max-[1180px]:col-span-full max-[1180px]:justify-self-stretch": !props.narrow,
+      }}
       ref={(element) => {
         container = element;
       }}>
@@ -110,7 +115,8 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
           class="absolute z-20 rounded-2xl bg-(--surface-container-highest) p-4 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px] max-[1180px]:bottom-auto max-[1180px]:top-[calc(100%+0.75rem)]"
           classList={{
             "inset-x-0 bottom-[calc(100%+0.75rem)]": !props.compact,
-            "bottom-0 left-[calc(100%+0.85rem)] w-[19rem]": !!props.compact,
+            "bottom-0 left-[calc(100%+0.85rem)] w-[19rem]": !!props.compact && !props.narrow,
+            "right-0 w-[19rem]": !!props.compact && !!props.narrow,
           }}
           role="menu">
           <p class="overline-copy text-[0.68rem] text-on-surface-variant">Accounts</p>

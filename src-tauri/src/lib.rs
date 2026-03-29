@@ -3,6 +3,7 @@ mod commands;
 mod db;
 mod error;
 mod feed;
+mod notifications;
 mod state;
 mod tray;
 
@@ -77,7 +78,10 @@ pub fn run() {
             cmd::repost,
             cmd::unrepost,
             cmd::update_saved_feeds,
-            cmd::update_feed_view_pref
+            cmd::update_feed_view_pref,
+            cmd::list_notifications,
+            cmd::update_seen,
+            cmd::get_unread_count
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
