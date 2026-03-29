@@ -1,5 +1,7 @@
 # Lazurite (for Desktop)
 
+This app is the "successor" to [bsky-browser](https://tangled.org/did:plc:xg2vq45muivyy3xwatcehspu/skybidi) and companion to [Lazurite for Mobile](https://github.com/stormlightlabs/lazurite).
+
 ## Features
 
 - Account switching
@@ -22,3 +24,7 @@ Solid.js for UI with Tailwind
 
 - [Aeronaut for BlueSky](https://apps.apple.com/us/app/aeronaut-for-bluesky/id6670275450) (Mac Only)
 - [pds.ls](https://pds.ls)
+
+## License
+
+MIT

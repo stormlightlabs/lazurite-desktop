@@ -27,7 +27,7 @@ function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void })
 
 function RailNavigation(props: { collapsed: boolean; hasSession: boolean }) {
   return (
-    <div class="grid gap-1 max-[1180px]:col-start-2 max-[1180px]:row-start-1 max-[1180px]:flex max-[1180px]:min-w-0 max-[1180px]:items-center max-[1180px]:gap-2 max-[1180px]:overflow-x-auto max-[1180px]:overscroll-contain max-[1180px]:[scrollbar-width:none] max-[1180px]:[&::-webkit-scrollbar]:hidden max-[760px]:col-start-auto max-[760px]:row-start-auto">
+    <div class="grid gap-1 max-[1180px]:col-start-2 max-[1180px]:row-start-1 max-[1180px]:flex max-[1180px]:min-w-0 max-[1180px]:items-center max-[1180px]:gap-2 max-[1180px]:overflow-x-auto max-[1180px]:overscroll-contain max-[1180px]:[scrollbar-width:none] max-[1180px]:[&::-webkit-scrollbar]:hidden">
       <Show
         when={props.hasSession}
         fallback={<RailButton end compact={props.collapsed} href="/auth" label="Accounts" icon="profile" />}>
@@ -60,7 +60,7 @@ export function AppRail(
 ) {
   return (
     <aside
-      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:grid max-[1180px]:min-h-0 max-[1180px]:grid-cols-[auto_minmax(0,1fr)] max-[1180px]:items-center max-[1180px]:gap-x-4 max-[1180px]:gap-y-3 max-[1180px]:p-4 max-[760px]:grid-cols-1 max-[760px]:items-stretch"
+      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:grid max-[1180px]:min-h-0 max-[1180px]:grid-cols-[auto_minmax(0,1fr)] max-[1180px]:items-center max-[1180px]:gap-x-4 max-[1180px]:gap-y-3 max-[1180px]:p-4"
       classList={{ "items-center px-4": props.collapsed && !props.narrow, "gap-5": props.collapsed && !props.narrow }}
       aria-label="Primary navigation">
       <RailHeader collapsed={props.collapsed} onToggleCollapse={props.onToggleCollapse} />
