@@ -5,6 +5,7 @@ Spec: [feeds.md](../specs/feeds.md)
 ## Steps
 
 - [ ] Create `src-tauri/src/notifications.rs`
+  - `src-tauri/src/commands/notifications.rs` for Tauri commands
 - [ ] `list_notifications(cursor: Option<String>)` — `app.bsky.notification.listNotifications`
 - [ ] `update_seen()` — `app.bsky.notification.updateSeen`
 - [ ] `get_unread_count()` — `app.bsky.notification.getUnreadCount`

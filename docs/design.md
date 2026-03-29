@@ -39,9 +39,8 @@ In a black UI, conventional drop shadows are low impact. Depth is created throug
 ### App Rail
 
 - Fixed-width rail on the far left using `surface_container_lowest`.
-- Icons use 1.5pt strokes.
 - Active icon color: `primary` (`#7dafff`); inactive: `on_surface_variant`.
-- No persistent labels; labels may appear on hover.
+- No persistent labels; labels may appear on hover when collapsed
 
 ### Buttons
 
@@ -68,10 +67,12 @@ In a black UI, conventional drop shadows are low impact. Depth is created throug
 
 - Preserve large areas of pure `#000000` to maintain visual breathing room.
 - Use `secondary_container` for chips/tags to create soft contrast.
-- Apply `full` roundedness to key interactive controls (for example, buttons and search bars) to balance the hard screen geometry.
+- Apply subtle roundedness to key interactive controls (for example, buttons and search bars) to balance the hard screen geometry.
+- Stick to size/weight from tailwind (`-xs`, `-lg`, etc.), only overriding/hardcoding when necessary for hierarchy or emphasis.
 
 ### Do Not
 
 - Use pure white (`#FFFFFF`) for long-form body copy; use `on_secondary_container` (`#c9d1dd`) to reduce eye strain.
 - Use fully opaque borders.
 - Stack more than three surface-container depth levels; use a backdrop-blur overlay instead.
+- No gradients, textures, or patterns. Avoid noise and visual clutter to maintain focus on content.

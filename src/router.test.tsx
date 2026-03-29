@@ -11,6 +11,9 @@ const Shell: Component<ParentProps> = (props) => <div>{props.children}</div>;
 
 function renderRouter(hash: string) {
   globalThis.location.hash = hash;
+  const renderComposer = vi.fn((currentSession: ActiveSession) => (
+    <div data-testid="composer-view">{currentSession.handle}</div>
+  ));
   const renderTimeline = vi.fn((currentSession: ActiveSession, context: { threadUri: string | null }) => (
     <div data-testid="timeline-view">
       <span>{currentSession.handle}</span>
@@ -23,12 +26,13 @@ function renderRouter(hash: string) {
       bootstrapping={false}
       hasSession
       renderAuth={() => <div>Auth</div>}
+      renderComposer={renderComposer}
       renderShell={Shell}
       renderTimeline={renderTimeline}
       session={session} />
   ));
 
-  return { renderTimeline };
+  return { renderComposer, renderTimeline };
 }
 
 describe("AppRouter", () => {
@@ -50,5 +54,14 @@ describe("AppRouter", () => {
 
     expect(renderTimeline.mock.lastCall?.[1].threadUri).toBe(threadUri);
     expect(screen.getByText(threadUri)).toBeInTheDocument();
+  });
+
+  it("renders the standalone composer route", async () => {
+    const { renderComposer } = renderRouter("#/composer");
+
+    await screen.findByTestId("composer-view");
+
+    expect(renderComposer).toHaveBeenCalledOnce();
+    expect(screen.getByText(session.handle)).toBeInTheDocument();
   });
 });

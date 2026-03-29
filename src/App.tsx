@@ -12,15 +12,15 @@ import "./App.css";
 import type { ParentProps } from "solid-js";
 import { AccountLedger } from "./components/account/AccountLedger";
 import { AppRail } from "./components/AppRail";
+import { ComposerWindow } from "./components/feeds/ComposerWindow";
 import { FeedWorkspace } from "./components/feeds/FeedWorkspace";
 import { LoginPanel } from "./components/LoginPanel";
 import { HeaderPanel } from "./components/panels/Header";
 import { SessionSpotlight } from "./components/Session";
 import { ErrorToast } from "./components/shared/ErrorToast";
+import { ACCOUNT_SWITCH_EVENT } from "./lib/constants/events";
 import type { AccountSummary, ActiveSession } from "./lib/types";
 import { AppRouter } from "./router";
-
-const ACCOUNT_SWITCH_EVENT = "auth:account-switched";
 
 const RAIL_COLLAPSED_STORAGE_KEY = "lazurite:rail-collapsed";
 
@@ -266,6 +266,9 @@ function App() {
           onSwitch={(did) => void switchAccount(did)} />
       )}
       renderShell={AppShell}
+      renderComposer={(session) => (
+        <ComposerWindow activeHandle={session.handle} onError={(message) => setApp("errorMessage", message)} />
+      )}
       renderTimeline={(session, context) => (
         <FeedWorkspace
           activeSession={session}

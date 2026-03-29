@@ -1,11 +1,14 @@
 use tauri::{
+    image::Image,
     menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, WebviewWindow,
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
-const COMPOSER_OPEN_EVENT: &str = "composer:open";
+const COMPOSER_WINDOW_LABEL: &str = "composer";
+const COMPOSER_WINDOW_ROUTE: &str = "index.html#/composer";
+const MAIN_WINDOW_LABEL: &str = "main";
 const MENU_NEW_POST: &str = "new_post";
 const MENU_TOGGLE_WINDOW: &str = "toggle_window";
 const MENU_QUIT: &str = "quit";
@@ -16,14 +19,15 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let quit_i = MenuItem::with_id(app, MENU_QUIT, "Quit", true, None::<&str>)?;
 
     let menu = Menu::with_items(app, &[&new_post_i, &toggle_window_i, &quit_i])?;
+    let tray_icon = Image::from_bytes(include_bytes!("../../public/tray-icon.png"))?;
 
     let tray = TrayIconBuilder::new()
-        .icon(app.default_window_icon().unwrap().clone())
+        .icon(tray_icon)
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
             MENU_NEW_POST => {
-                show_window_and_emit(app, COMPOSER_OPEN_EVENT);
+                let _ = open_composer_window(app);
             }
             MENU_TOGGLE_WINDOW => {
                 toggle_window_visibility(app);
@@ -34,8 +38,8 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click { button: MouseButton::Left, .. } = event {
-                toggle_window_visibility(tray.app_handle());
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                let _ = open_composer_window(tray.app_handle());
             }
         })
         .build(app)?;
@@ -48,21 +52,21 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 pub fn setup_global_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyN);
 
-    app.global_shortcut().on_shortcut(shortcut, |app, _shortcut, _event| {
-        show_window_and_emit(app, COMPOSER_OPEN_EVENT);
+    app.global_shortcut().on_shortcut(shortcut, |app, _, event| {
+        if event.state == ShortcutState::Pressed {
+            let _ = open_composer_window(app);
+        }
     })?;
 
     Ok(())
 }
 
 fn toggle_window_visibility(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         if is_window_visible(&window) {
             let _ = window.hide();
         } else {
-            let _ = window.unminimize();
-            let _ = window.show();
-            let _ = window.set_focus();
+            show_window(&window);
         }
     }
 }
@@ -71,12 +75,31 @@ fn is_window_visible(window: &WebviewWindow) -> bool {
     window.is_visible().unwrap_or(false) && !window.is_minimized().unwrap_or(false)
 }
 
-fn show_window_and_emit(app: &AppHandle, event: &str) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
+fn open_composer_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(window) = app.get_webview_window(COMPOSER_WINDOW_LABEL) {
+        show_window(&window);
+        return Ok(());
     }
 
-    let _ = app.emit(event, ());
+    let window = WebviewWindowBuilder::new(
+        app,
+        COMPOSER_WINDOW_LABEL,
+        WebviewUrl::App(COMPOSER_WINDOW_ROUTE.into()),
+    )
+    .title("New Post")
+    .inner_size(720.0, 640.0)
+    .min_inner_size(560.0, 420.0)
+    .resizable(true)
+    .center()
+    .build()?;
+
+    show_window(&window);
+
+    Ok(())
+}
+
+fn show_window(window: &WebviewWindow) {
+    let _ = window.unminimize();
+    let _ = window.show();
+    let _ = window.set_focus();
 }

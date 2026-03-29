@@ -11,6 +11,7 @@ import {
   updateFeedViewPref,
   updateSavedFeeds,
 } from "$/lib/api/feeds";
+import { POST_CREATED_EVENT } from "$/lib/constants/events";
 import {
   applyFeedPreferences,
   extractHandles,
@@ -217,16 +218,16 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
   onMount(() => {
     globalThis.addEventListener("keydown", handleGlobalKeydown);
 
-    let unlistenComposer: (() => void) | undefined;
-    void listen("composer:open", () => {
-      openComposer();
+    let unlistenPostCreated: (() => void) | undefined;
+    void listen(POST_CREATED_EVENT, () => {
+      void refreshActiveFeed();
     }).then((dispose) => {
-      unlistenComposer = dispose;
+      unlistenPostCreated = dispose;
     });
 
     onCleanup(() => {
       globalThis.removeEventListener("keydown", handleGlobalKeydown);
-      unlistenComposer?.();
+      unlistenPostCreated?.();
     });
   });
 
@@ -498,19 +499,23 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
       await createPost(text, replyTo, embed);
       resetComposer();
       props.onThreadRouteChange(null);
-      const feed = activeFeed();
-      await loadFeed(feed, false);
-      const nextScrollTops = updateFeedScrollTop(workspace.feedScrollTops, feed.id, 0);
-      if (nextScrollTops) {
-        setWorkspace("feedScrollTops", reconcile(nextScrollTops));
-      }
-      if (scroller) {
-        scroller.scrollTop = 0;
-      }
+      await refreshActiveFeed();
     } catch (error) {
       props.onError(`Failed to create post: ${String(error)}`);
     } finally {
       setWorkspace("composer", "pending", false);
+    }
+  }
+
+  async function refreshActiveFeed() {
+    const feed = activeFeed();
+    await loadFeed(feed, false);
+    const nextScrollTops = updateFeedScrollTop(workspace.feedScrollTops, feed.id, 0);
+    if (nextScrollTops) {
+      setWorkspace("feedScrollTops", reconcile(nextScrollTops));
+    }
+    if (scroller) {
+      scroller.scrollTop = 0;
     }
   }
 

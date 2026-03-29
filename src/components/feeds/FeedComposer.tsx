@@ -43,10 +43,9 @@ type FeedComposerProps = {
   onTextChange: (value: string) => void;
 };
 
-export function FeedComposer(props: FeedComposerProps) {
-  const count = createMemo(() => [...props.text].length);
-  const progress = createMemo(() => Math.min(100, (count() / 300) * 100));
+export type ComposerSurfaceProps = Omit<FeedComposerProps, "open"> & { layout?: "dialog" | "window" };
 
+export function FeedComposer(props: FeedComposerProps) {
   return (
     <Presence>
       <Show when={props.open}>
@@ -60,18 +59,34 @@ export function FeedComposer(props: FeedComposerProps) {
             type="button"
             onClick={() => props.onClose()} />
 
-          <ComposerPanel count={count()} progress={progress()} {...props} />
+          <ComposerSurface
+            activeHandle={props.activeHandle}
+            layout="dialog"
+            pending={props.pending}
+            quoteTarget={props.quoteTarget}
+            replyTarget={props.replyTarget}
+            suggestions={props.suggestions}
+            text={props.text}
+            onApplySuggestion={props.onApplySuggestion}
+            onClearQuote={props.onClearQuote}
+            onClearReply={props.onClearReply}
+            onClose={props.onClose}
+            onSubmit={props.onSubmit}
+            onTextChange={props.onTextChange} />
         </div>
       </Show>
     </Presence>
   );
 }
 
-function ComposerPanel(props: FeedComposerProps & { count: number; progress: number }) {
+export function ComposerSurface(props: ComposerSurfaceProps) {
+  const count = createMemo(() => [...props.text].length);
+  const progress = createMemo(() => Math.min(100, (count() / 300) * 100));
+
   return (
-    <div class="relative z-10 flex min-h-screen items-end justify-center p-4 pt-16">
+    <div class={getComposerViewportClass(props.layout)}>
       <Motion.section
-        class="grid max-h-[calc(100vh-2rem)] w-full max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[1.8rem] bg-surface-container-high shadow-[0_25px_70px_rgba(0,0,0,0.7),0_0_0_1px_rgba(125,175,255,0.14)]"
+        class={getComposerPanelClass(props.layout)}
         initial={{ opacity: 0, y: 36 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 30 }}
@@ -93,10 +108,32 @@ function ComposerPanel(props: FeedComposerProps & { count: number; progress: num
           onClearQuote={props.onClearQuote}
           onClearReply={props.onClearReply}
           onTextChange={props.onTextChange} />
-        <ComposerFooter count={props.count} progress={props.progress} />
+        <ComposerFooter count={count()} progress={progress()} />
       </Motion.section>
     </div>
   );
+}
+
+function getComposerViewportClass(layout: ComposerSurfaceProps["layout"]) {
+  if (layout === "window") {
+    return "mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center p-6 max-[640px]:p-4";
+  }
+
+  return "relative z-10 flex min-h-screen items-end justify-center p-4 pt-16";
+}
+
+function getComposerPanelClass(layout: ComposerSurfaceProps["layout"]) {
+  const classes = [
+    "grid w-full max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[1.8rem] bg-surface-container-high shadow-[0_25px_70px_rgba(0,0,0,0.7),0_0_0_1px_rgba(125,175,255,0.14)]",
+  ];
+
+  if (layout === "window") {
+    classes.push("max-h-[min(48rem,calc(100vh-3rem))]");
+  } else {
+    classes.push("max-h-[calc(100vh-2rem)]");
+  }
+
+  return classes.join(" ");
 }
 
 function ComposerHeader(

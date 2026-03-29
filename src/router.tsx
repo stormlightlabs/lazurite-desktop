@@ -16,6 +16,7 @@ type AppRouterProps = {
   hasSession: boolean;
   onLocationChange?: () => void;
   renderAuth: () => JSX.Element;
+  renderComposer: (session: ActiveSession) => JSX.Element;
   renderShell: Component<ParentProps>;
   renderTimeline: (
     session: ActiveSession,
@@ -28,6 +29,7 @@ export function AppRouter(props: AppRouterProps) {
   const RouterFrame: Component<RouteSectionProps> = (routeProps) => {
     const location = useLocation();
     let previousPath = location.pathname;
+    const standaloneComposerRoute = () => location.pathname === "/composer";
 
     createEffect(() => {
       const nextPath = location.pathname;
@@ -37,7 +39,11 @@ export function AppRouter(props: AppRouterProps) {
       }
     });
 
-    return <props.renderShell>{routeProps.children}</props.renderShell>;
+    return (
+      <Show when={standaloneComposerRoute()} fallback={<props.renderShell>{routeProps.children}</props.renderShell>}>
+        {routeProps.children}
+      </Show>
+    );
   };
 
   const IndexRoute = () => (
@@ -99,6 +105,12 @@ export function AppRouter(props: AppRouterProps) {
     </ProtectedRouteView>
   );
 
+  const ComposerRoute = () => (
+    <ProtectedRouteView bootstrapping={props.bootstrapping} session={props.session}>
+      {(session) => props.renderComposer(session)}
+    </ProtectedRouteView>
+  );
+
   const ExplorerRoute = () => (
     <ProtectedRouteView bootstrapping={props.bootstrapping} session={props.session}>
       {() => (
@@ -122,6 +134,7 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/auth" component={AuthRoute} />
       <Route path="/timeline" component={TimelineRoute} />
       <Route path="/timeline/thread/:threadUri" component={ThreadRoute} />
+      <Route path="/composer" component={ComposerRoute} />
       <Route path="/search" component={SearchRoute} />
       <Route path="/notifications" component={NotificationsRoute} />
       <Route path="/explorer" component={ExplorerRoute} />
