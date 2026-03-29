@@ -8,7 +8,7 @@ import { Wordmark } from "./Wordmark";
 function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void }) {
   return (
     <div
-      class="flex shrink-0 items-center justify-between gap-3 max-[1180px]:min-w-0 max-[1180px]:items-center"
+      class="flex shrink-0 items-center justify-between gap-3 max-[1180px]:min-w-0 max-[1180px]:justify-self-start"
       classList={{ "w-full flex-col gap-3": props.collapsed }}>
       <Wordmark compact={props.collapsed} iconClass="text-primary" />
       <button
@@ -27,7 +27,7 @@ function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void })
 
 function RailNavigation(props: { collapsed: boolean; hasSession: boolean }) {
   return (
-    <div class="grid gap-1 max-[1180px]:min-w-0 max-[1180px]:flex-1 max-[1180px]:overflow-x-auto max-[1180px]:overscroll-contain max-[1180px]:[scrollbar-width:none] max-[1180px]:[&::-webkit-scrollbar]:hidden">
+    <div class="grid gap-1 max-[1180px]:col-start-2 max-[1180px]:row-start-1 max-[1180px]:flex max-[1180px]:min-w-0 max-[1180px]:items-center max-[1180px]:gap-2 max-[1180px]:overflow-x-auto max-[1180px]:overscroll-contain max-[1180px]:[scrollbar-width:none] max-[1180px]:[&::-webkit-scrollbar]:hidden max-[760px]:col-start-auto max-[760px]:row-start-auto">
       <Show
         when={props.hasSession}
         fallback={<RailButton end compact={props.collapsed} href="/auth" label="Accounts" icon="profile" />}>
@@ -48,6 +48,7 @@ export function AppRail(
     collapsed: boolean;
     hasSession: boolean;
     logoutDid: string | null;
+    narrow: boolean;
     openSwitcher: boolean;
     switchingDid: string | null;
     onLogout: (did: string) => void;
@@ -58,8 +59,8 @@ export function AppRail(
 ) {
   return (
     <aside
-      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:min-h-0 max-[1180px]:flex-row max-[1180px]:flex-wrap max-[1180px]:items-center max-[1180px]:gap-3 max-[1180px]:p-4 max-[760px]:items-stretch"
-      classList={{ "items-center px-4": props.collapsed, "gap-5": props.collapsed }}
+      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:grid max-[1180px]:min-h-0 max-[1180px]:grid-cols-[auto_minmax(0,1fr)] max-[1180px]:items-center max-[1180px]:gap-x-4 max-[1180px]:gap-y-3 max-[1180px]:p-4 max-[760px]:grid-cols-1 max-[760px]:items-stretch"
+      classList={{ "items-center px-4": props.collapsed && !props.narrow, "gap-5": props.collapsed && !props.narrow }}
       aria-label="Primary navigation">
       <RailHeader collapsed={props.collapsed} onToggleCollapse={props.onToggleCollapse} />
       <RailNavigation collapsed={props.collapsed} hasSession={props.hasSession} />
@@ -68,7 +69,7 @@ export function AppRail(
         activeSession={props.activeSession}
         accounts={props.accounts}
         busyDid={props.switchingDid}
-        compact={props.collapsed}
+        compact={props.collapsed && !props.narrow}
         logoutDid={props.logoutDid}
         open={props.openSwitcher}
         onToggle={props.onToggleSwitcher}

@@ -5,6 +5,9 @@ import {
   getFeedCommand,
   getFeedName,
   getReplyRootPost,
+  parseFeedGeneratorsResponse,
+  parseFeedResponse,
+  parseThreadResponse,
   patchFeedItems,
   patchThreadNode,
   toStrongRef,
@@ -14,12 +17,10 @@ import type {
   CreateRecordResult,
   EmbedInput,
   FeedGeneratorView,
-  FeedResponse,
   FeedViewPrefItem,
   PostView,
   ReplyRefInput,
   SavedFeedItem,
-  ThreadResponse,
   UserPreferences,
 } from "$/lib/types";
 import { shouldIgnoreKey } from "$/lib/utils/events";
@@ -33,7 +34,19 @@ import { FeedComposer } from "./FeedComposer";
 import { SavedFeedsDrawer } from "./FeedDrawer";
 import { FeedPane } from "./FeedPane";
 import { ThreadPanel } from "./ThreadPanel";
-import type { FeedState, FeedWorkspaceState } from "./types";
+import type { FeedWorkspaceState } from "./types";
+import {
+  buildLocalPrefs,
+  createDefaultFeedPref,
+  createDefaultFeedState,
+  createDefaultThreadState,
+  createInitialWorkspaceState,
+  DEFAULT_TIMELINE,
+  getNextFocusedIndex,
+  getNextFocusedScrollTop,
+  updateFeedScrollState,
+  upsertFeedViewPrefs,
+} from "./workspace-state";
 
 type FeedWorkspaceProps = {
   activeSession: ActiveSession;
@@ -43,45 +56,6 @@ type FeedWorkspaceProps = {
 };
 
 const DEFAULT_LIMIT = 30;
-
-const DEFAULT_TIMELINE: SavedFeedItem = { id: "following", type: "timeline", value: "following", pinned: true };
-
-function createDefaultFeedState(): FeedState {
-  return { cursor: null, error: null, items: [], loading: false, loadingMore: false, scrollTop: 0 };
-}
-
-function createDefaultFeedPref(feed: SavedFeedItem): FeedViewPrefItem {
-  return {
-    feed: feed.value,
-    hideQuotePosts: false,
-    hideReplies: false,
-    hideRepliesByLikeCount: null,
-    hideRepliesByUnfollowed: false,
-    hideReposts: false,
-  };
-}
-
-function createInitialWorkspaceState(): FeedWorkspaceState {
-  return {
-    activeFeedId: null,
-    composer: { open: false, pending: false, quoteTarget: null, replyRoot: null, replyTarget: null, text: "" },
-    feedStates: {},
-    focusedIndex: 0,
-    generators: {},
-    likePendingByUri: {},
-    likePulseUri: null,
-    localPrefs: {},
-    preferences: null,
-    repostPendingByUri: {},
-    repostPulseUri: null,
-    showFeedsDrawer: false,
-    thread: createDefaultThreadState(),
-  };
-}
-
-function createDefaultThreadState() {
-  return { data: null, error: null, loading: false, uri: null } satisfies FeedWorkspaceState["thread"];
-}
 
 export function FeedWorkspace(props: FeedWorkspaceProps) {
   const [workspace, setWorkspace] = createStore<FeedWorkspaceState>(createInitialWorkspaceState());
@@ -150,7 +124,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
     void ensureFeedLoaded(feed);
     const nextScrollTop = workspace.feedStates[feed.id]?.scrollTop ?? 0;
     queueMicrotask(() => {
-      if (scroller) {
+      if (scroller && scroller.scrollTop !== nextScrollTop) {
         scroller.scrollTop = nextScrollTop;
       }
     });
@@ -195,16 +169,28 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
 
     lastFocusedUri = item.post.uri;
     queueMicrotask(() => {
+      if (!scroller) {
+        return;
+      }
+
       const element = postRefs.get(item.post.uri);
       if (!element?.isConnected) {
         return;
       }
 
-      if (document.activeElement !== element) {
-        element.focus();
-      }
+      const scrollerRect = scroller.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const itemTop = elementRect.top - scrollerRect.top + scroller.scrollTop;
+      const nextScrollTop = getNextFocusedScrollTop(
+        scroller.scrollTop,
+        scroller.clientHeight,
+        itemTop,
+        element.offsetHeight,
+      );
 
-      element.scrollIntoView({ block: "nearest" });
+      if (nextScrollTop !== null && scroller.scrollTop !== nextScrollTop) {
+        scroller.scrollTop = nextScrollTop;
+      }
     });
   });
 
@@ -263,10 +249,10 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
       event.preventDefault();
       setWorkspace("focusedIndex", (current) => {
         if (event.key === "j") {
-          return Math.min(current + 1, items.length - 1);
+          return getNextFocusedIndex(current, "next", items.length);
         }
 
-        return Math.max(current - 1, 0);
+        return getNextFocusedIndex(current, "previous", items.length);
       });
       return;
     }
@@ -331,16 +317,13 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
       }
 
       setWorkspace("preferences", nextPreferences);
-      setWorkspace(
-        "localPrefs",
-        reconcile(Object.fromEntries(nextPreferences.feedViewPrefs.map((pref) => [pref.feed, pref]))),
-      );
+      setWorkspace("localPrefs", reconcile(buildLocalPrefs(nextPreferences)));
 
       const uris = [
         ...new Set(nextPreferences.savedFeeds.filter((feed) => feed.type === "feed").map((feed) => feed.value)),
       ];
       if (uris.length > 0) {
-        const hydrated = await invoke<{ feeds: FeedGeneratorView[] }>("get_feed_generators", { uris });
+        const hydrated = parseFeedGeneratorsResponse(await invoke("get_feed_generators", { uris }));
         setWorkspace(
           "generators",
           reconcile(Object.fromEntries(hydrated.feeds.map((generator) => [generator.uri, generator]))),
@@ -375,7 +358,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
 
     try {
       const command = getFeedCommand(feed);
-      const payload = await invoke<FeedResponse>(command.name, command.args(state.cursor, DEFAULT_LIMIT));
+      const payload = parseFeedResponse(await invoke(command.name, command.args(state.cursor, DEFAULT_LIMIT)));
       const items = append ? [...state.items, ...payload.feed] : payload.feed;
       setWorkspace("feedStates", feed.id, {
         cursor: payload.cursor ?? null,
@@ -397,7 +380,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
     setWorkspace("thread", { data: null, error: null, loading: true, uri });
 
     try {
-      const payload = await invoke<ThreadResponse>("get_post_thread", { uri });
+      const payload = parseThreadResponse(await invoke("get_post_thread", { uri }));
       if (props.threadUri === uri) {
         setWorkspace("thread", { data: payload.thread, error: null, loading: false, uri });
       }
@@ -634,7 +617,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
 
   return (
     <>
-      <div class="grid h-full min-h-0 min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div class="grid h-full min-h-0 min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] max-[1180px]:gap-5 max-[900px]:gap-4">
         <FeedPane
           activeFeed={activeFeed()}
           activeFeedId={activeFeed().id}
@@ -663,11 +646,15 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
           sentinelRef={(element) => {
             sentinel = element;
           }}
-          setScrollTop={(top) =>
-            setWorkspace("feedStates", activeFeed().id, {
-              ...(workspace.feedStates[activeFeed().id] ?? createDefaultFeedState()),
-              scrollTop: top,
-            })}
+          setScrollTop={(top) => {
+            const feedId = activeFeed().id;
+            const nextState = updateFeedScrollState(workspace.feedStates[feedId], top);
+            if (!nextState) {
+              return;
+            }
+
+            setWorkspace("feedStates", feedId, nextState);
+          }}
           visibleItems={visibleItems()} />
 
         <WorkspaceSidebar
@@ -721,26 +708,38 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
     </>
   );
 
-  function setFeedPref<K extends keyof FeedViewPrefItem>(key: K, value: FeedViewPrefItem[K]) {
+  async function setFeedPref<K extends keyof FeedViewPrefItem>(key: K, value: FeedViewPrefItem[K]) {
     const feed = activeFeed();
-    setWorkspace("localPrefs", feed.value, { ...activePref(), [key]: value });
+    const previousPref = activePref();
+    const nextPref = { ...previousPref, [key]: value };
+
+    setWorkspace("localPrefs", feed.value, nextPref);
+
+    try {
+      await invoke("update_feed_view_pref", { pref: nextPref });
+      setWorkspace(
+        "preferences",
+        (current) =>
+          current ? { ...current, feedViewPrefs: upsertFeedViewPrefs(current.feedViewPrefs, nextPref) } : current,
+      );
+    } catch (error) {
+      setWorkspace("localPrefs", feed.value, previousPref);
+      props.onError(`Failed to update display filters: ${String(error)}`);
+    }
   }
 }
 
 function WorkspaceSidebar(
   props: {
-    activePref: UserPreferences["feedViewPrefs"][number];
+    activePref: FeedViewPrefItem;
     drawerFeeds: SavedFeedItem[];
     generators: Record<string, FeedGeneratorView>;
     onFeedSelect: (feedId: string) => void;
-    onPrefChange: <K extends keyof UserPreferences["feedViewPrefs"][number]>(
-      key: K,
-      value: UserPreferences["feedViewPrefs"][number][K],
-    ) => void;
+    onPrefChange: <K extends keyof FeedViewPrefItem>(key: K, value: FeedViewPrefItem[K]) => void;
   },
 ) {
   return (
-    <aside class="grid min-h-0 min-w-0 gap-4 overflow-hidden xl:overflow-y-auto xl:overscroll-contain">
+    <aside class="grid min-h-0 min-w-0 gap-4 overflow-hidden md:grid-cols-2 xl:grid-cols-1 xl:overflow-y-auto xl:overscroll-contain">
       <SavedFeedsCard drawerFeeds={props.drawerFeeds} generators={props.generators} onFeedSelect={props.onFeedSelect} />
       <DisplayFiltersCard activePref={props.activePref} onPrefChange={props.onPrefChange} />
       <ShortcutsCard />
@@ -792,11 +791,8 @@ function SidebarFeedButton(
 
 function DisplayFiltersCard(
   props: {
-    activePref: UserPreferences["feedViewPrefs"][number];
-    onPrefChange: <K extends keyof UserPreferences["feedViewPrefs"][number]>(
-      key: K,
-      value: UserPreferences["feedViewPrefs"][number][K],
-    ) => void;
+    activePref: FeedViewPrefItem;
+    onPrefChange: <K extends keyof FeedViewPrefItem>(key: K, value: FeedViewPrefItem[K]) => void;
   },
 ) {
   return (
@@ -805,18 +801,18 @@ function DisplayFiltersCard(
         <ToggleRow
           checked={props.activePref.hideReposts}
           label="Hide reposts"
-          onChange={(checked) => props.onPrefChange("hideReposts", checked)} />
+          onChange={(checked) => void props.onPrefChange("hideReposts", checked)} />
         <ToggleRow
           checked={props.activePref.hideReplies}
           label="Hide replies"
-          onChange={(checked) => props.onPrefChange("hideReplies", checked)} />
+          onChange={(checked) => void props.onPrefChange("hideReplies", checked)} />
         <ToggleRow
           checked={props.activePref.hideQuotePosts}
           label="Hide quotes"
-          onChange={(checked) => props.onPrefChange("hideQuotePosts", checked)} />
+          onChange={(checked) => void props.onPrefChange("hideQuotePosts", checked)} />
         <ReplyLikeThreshold
           value={props.activePref.hideRepliesByLikeCount}
-          onChange={(value) => props.onPrefChange("hideRepliesByLikeCount", value)} />
+          onChange={(value) => void props.onPrefChange("hideRepliesByLikeCount", value)} />
       </div>
     </SidebarCard>
   );

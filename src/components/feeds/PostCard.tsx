@@ -1,6 +1,5 @@
 import { Icon } from "$/components/shared/Icon";
 import {
-  formatCount,
   formatRelativeTime,
   getAvatarLabel,
   getDisplayName,
@@ -9,7 +8,8 @@ import {
   getQuotedAuthor,
   getQuotedText,
 } from "$/lib/feeds";
-import type { FeedViewPost, ImagesEmbedView, PostView } from "$/lib/types";
+import type { FeedViewPost, ImagesEmbedView, PostView, ProfileViewBasic } from "$/lib/types";
+import { formatCount } from "$/lib/utils/text";
 import { createMemo, For, Match, Show, Switch } from "solid-js";
 import { Motion } from "solid-motionone";
 
@@ -43,6 +43,10 @@ export function PostCard(props: PostCardProps) {
 
     return `${getDisplayName(reason.by)} reposted`;
   });
+
+  const likeCount = createMemo(() => formatCount(props.post.likeCount));
+  const replyCount = createMemo(() => formatCount(props.post.replyCount));
+  const repostCount = createMemo(() => formatCount(props.post.repostCount));
 
   return (
     <Motion.article
@@ -99,16 +103,16 @@ export function PostCard(props: PostCardProps) {
               busy={!!props.likePending}
               icon="i-ri-heart-3-line"
               iconActive="i-ri-heart-3-fill"
-              label={formatCount(props.post.likeCount)}
+              label={likeCount()}
               pulse={!!props.pulseLike}
               onClick={props.onLike} />
-            <ActionButton icon="i-ri-chat-1-line" label={formatCount(props.post.replyCount)} onClick={props.onReply} />
+            <ActionButton icon="i-ri-chat-1-line" label={replyCount()} onClick={props.onReply} />
             <ActionButton
               active={isReposted()}
               busy={!!props.repostPending}
               icon="i-ri-repeat-2-line"
               iconActive="i-ri-repeat-2-fill"
-              label={formatCount(props.post.repostCount)}
+              label={repostCount()}
               pulse={!!props.pulseRepost}
               onClick={props.onRepost} />
             <ActionButton icon="i-ri-chat-quote-line" label="Quote" onClick={props.onQuote} />
@@ -167,10 +171,8 @@ function ActionButton(
 }
 
 function PostEmbeds(props: { post: PostView }) {
-  const embed = createMemo(() => props.post.embed);
-
   return (
-    <Show when={embed()}>
+    <Show when={props.post.embed}>
       {(current) => (
         <div class="mt-4">
           <Switch>
@@ -204,9 +206,10 @@ function PostEmbeds(props: { post: PostView }) {
 }
 
 function ImageEmbed(props: { embed: ImagesEmbedView }) {
+  const images = createMemo(() => props.embed.images.slice(0, 4));
   return (
     <div class="grid min-w-0 gap-2" classList={{ "grid-cols-2": props.embed.images.length > 1 }}>
-      <For each={props.embed.images.slice(0, 4)}>
+      <For each={images()}>
         {(image) => (
           <div class="overflow-hidden rounded-[1.2rem] bg-black/30 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
             <img class="max-h-88 w-full object-cover" src={image.fullsize ?? image.thumb} alt={image.alt ?? ""} />
@@ -246,12 +249,13 @@ function ExternalEmbed(props: { description?: string; thumb?: string; title?: st
   );
 }
 
-function QuoteEmbed(props: { author: PostView["author"] | null; text?: unknown; title: string }) {
+function QuoteEmbed(props: { author: ProfileViewBasic | null; text?: unknown; title: string }) {
   const preview = createMemo(() => (typeof props.text === "string" ? props.text : ""));
+  const title = () => props.title;
 
   return (
     <div class="rounded-[1.25rem] bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
-      <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.title}</p>
+      <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{title()}</p>
       <Show when={props.author}>
         {(author) => (
           <p class="mt-2 wrap-break-word text-sm font-semibold text-on-surface">
@@ -274,21 +278,18 @@ function LinkifiedText(props: { text: string }) {
 
   return (
     <For each={parts()}>
-      {(part) => {
-        if (/^https?:\/\//i.test(part)) {
-          return (
+      {(part) => (
+        <Switch fallback={<span class="wrap-anywhere">{part}</span>}>
+          <Match when={/^https?:\/\//i.test(part)}>
             <a class="break-all text-primary no-underline hover:underline" href={part} rel="noreferrer" target="_blank">
               {part}
             </a>
-          );
-        }
-
-        if (/^[@#]/.test(part)) {
-          return <span class="break-all text-primary">{part}</span>;
-        }
-
-        return <span class="wrap-anywhere">{part}</span>;
-      }}
+          </Match>
+          <Match when={/^[@#]/.test(part)}>
+            <span class="break-all text-primary">{part}</span>
+          </Match>
+        </Switch>
+      )}
     </For>
   );
 }

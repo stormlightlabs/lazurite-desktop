@@ -74,7 +74,8 @@ pub fn run() {
             cmd::unlike_post,
             cmd::repost,
             cmd::unrepost,
-            cmd::update_saved_feeds
+            cmd::update_saved_feeds,
+            cmd::update_feed_view_pref
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -62,6 +62,7 @@ function App() {
   const primaryAccount = createMemo(() => activeAccount() ?? app.accounts[0] ?? null);
   const hasSession = createMemo(() => !!app.activeSession);
   const railCompact = createMemo(() => app.railCollapsed && !app.narrowViewport);
+  const railCondensed = createMemo(() => railCompact() || app.narrowViewport);
   const railColumns = createMemo(() => (railCompact() ? "5.75rem minmax(0,1fr)" : "16rem minmax(0,1fr)"));
   const metaLabel = createMemo(() => {
     if (app.bootstrapping) {
@@ -209,9 +210,10 @@ function App() {
             activeAccount={activeAccount()}
             activeSession={app.activeSession}
             accounts={app.accounts}
-            collapsed={railCompact()}
+            collapsed={railCondensed()}
             hasSession={hasSession()}
             logoutDid={app.logoutDid}
+            narrow={app.narrowViewport}
             openSwitcher={app.showSwitcher}
             switchingDid={app.switchingDid}
             onLogout={(did) => void logout(did)}
@@ -220,7 +222,7 @@ function App() {
             onToggleSwitcher={() => setApp("showSwitcher", (open) => !open)} />
 
           <section
-            class="m-5 grid min-h-0 overflow-hidden gap-6 rounded-2xl bg-surface p-6 shadow-[0_24px_40px_rgba(125,175,255,0.05)] max-[1360px]:p-6 max-[1180px]:m-0 max-[1180px]:min-h-[calc(100vh-5.5rem)] max-[1180px]:rounded-none max-[1180px]:p-5 max-[1180px]:overflow-visible max-[760px]:gap-5 max-[760px]:p-4"
+            class="m-5 grid min-h-0 overflow-hidden gap-6 rounded-2xl bg-surface p-6 shadow-[0_24px_40px_rgba(125,175,255,0.05)] max-[1360px]:p-6 max-[1180px]:m-0 max-[1180px]:min-h-[calc(100vh-4.75rem)] max-[1180px]:rounded-none max-[1180px]:p-5 max-[1180px]:overflow-visible max-[900px]:gap-5 max-[900px]:p-4 max-[640px]:gap-4 max-[640px]:p-3"
             aria-busy={app.bootstrapping}>
             {props.children}
           </section>

@@ -21,4 +21,11 @@ Spec: [explorer.md](../specs/explorer.md)
 - [ ] **Frontend**: breadcrumb navigation bar with `Motion` width animation on segment changes
 - [ ] **Frontend**: `Presence` crossfade transitions between explorer view levels
 - [ ] **Frontend**: keyboard shortcuts — `Backspace` up a level, `Cmd+[/]` back/forward
-- [ ] **Optional**: Jetstream live-tail view with `Motion` slide-in for new records
+- [ ] **Frontend**: Jetstream live-tail view with `Motion` slide-in for new records
+
+### Parking Lot
+
+These require update to the spec & more research before implementation.
+
+- [ ] **Frontend**: Firehose Viewer
+- [ ] **Frontend**: [Spacedust](https://spacedust.microcosm.blue/) Viewer

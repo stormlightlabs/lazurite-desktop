@@ -1,7 +1,7 @@
 #![allow(clippy::needless_pass_by_value)]
 use super::auth::{self, LoginSuggestion};
 use super::error::AppError;
-use super::feed::{self, CreateRecordResult, EmbedInput, ReplyRefInput, UserPreferences};
+use super::feed::{self, CreateRecordResult, EmbedInput, FeedViewPrefItem, ReplyRefInput, UserPreferences};
 use super::state::{AccountSummary, AppBootstrap, AppState};
 use serde_json::Value;
 use tauri::{AppHandle, State};
@@ -112,4 +112,9 @@ pub async fn unrepost(repost_uri: String, state: State<'_, AppState>) -> Result<
 #[tauri::command]
 pub async fn update_saved_feeds(feeds: Vec<feed::SavedFeedItem>, state: State<'_, AppState>) -> Result<(), AppError> {
     feed::update_saved_feeds(feed::UpdateSavedFeedsInput { feeds }, &state).await
+}
+
+#[tauri::command]
+pub async fn update_feed_view_pref(pref: FeedViewPrefItem, state: State<'_, AppState>) -> Result<(), AppError> {
+    feed::update_feed_view_pref(pref, &state).await
 }

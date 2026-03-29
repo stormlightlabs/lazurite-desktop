@@ -25,5 +25,6 @@ Spec: [search.md](../specs/search.md)
 - [ ] **Frontend**: search results with staggered `Motion` fade-in, highlighted keyword matches
 - [ ] **Frontend**: sync status indicator with animated progress bar, `Presence` fade-out on complete
 - [ ] **Frontend**: model download progress bar (percentage + ETA) on first launch
+  - Splash/Preflight route should explain what the point of this is
 - [ ] **Frontend**: empty state illustration when no posts synced yet
 - [ ] **Frontend**: `Tab` cycles search mode, `Escape` clears

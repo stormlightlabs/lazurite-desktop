@@ -21,7 +21,9 @@ export type FeedViewPrefItem = {
   hideQuotePosts: boolean;
 };
 
-export type UserPreferences = { savedFeeds: SavedFeedItem[]; feedViewPrefs: FeedViewPrefItem[] };
+export type FeedViewPrefs = Array<FeedViewPrefItem>;
+
+export type UserPreferences = { savedFeeds: SavedFeedItem[]; feedViewPrefs: FeedViewPrefs };
 
 export type AuthorViewerState = { following?: string | null };
 

@@ -90,6 +90,8 @@ pub struct UserPreferences {
     pub feed_view_prefs: Vec<FeedViewPrefItem>,
 }
 
+type StoredPreferences = Vec<PreferencesItem<'static>>;
+
 fn extract_saved_feeds(pref: &SavedFeedsPrefV2<'_>) -> Vec<SavedFeedItem> {
     pref.items
         .iter()
@@ -116,6 +118,112 @@ fn extract_feed_view_pref(pref: &FeedViewPref<'_>) -> FeedViewPrefItem {
         hide_reposts: pref.hide_reposts.unwrap_or(false),
         hide_quote_posts: pref.hide_quote_posts.unwrap_or(false),
     }
+}
+
+fn user_preferences_from_items(items: &[PreferencesItem<'_>]) -> UserPreferences {
+    let mut saved_feeds = Vec::new();
+    let mut feed_view_prefs = Vec::new();
+
+    for item in items {
+        match item {
+            PreferencesItem::SavedFeedsPrefV2(pref) => {
+                saved_feeds = extract_saved_feeds(pref);
+            }
+            PreferencesItem::FeedViewPref(pref) => {
+                feed_view_prefs.push(extract_feed_view_pref(pref));
+            }
+            _ => {}
+        }
+    }
+
+    UserPreferences { saved_feeds, feed_view_prefs }
+}
+
+async fn fetch_preference_items(state: &AppState) -> Result<StoredPreferences> {
+    let session = get_session(state).await?;
+    fetch_preference_items_with_session(&session).await
+}
+
+async fn fetch_preference_items_with_session(session: &Arc<LazuriteOAuthSession>) -> Result<StoredPreferences> {
+    let output = session
+        .send(GetPreferences)
+        .await
+        .map_err(|_| AppError::validation("getPreferences"))?
+        .into_output()
+        .map_err(|_| AppError::validation("getPreferences output"))?;
+
+    Ok(output.preferences.into_iter().map(IntoStatic::into_static).collect())
+}
+
+async fn store_preference_items(session: &Arc<LazuriteOAuthSession>, items: StoredPreferences) -> Result<()> {
+    session
+        .send(PutPreferences::new().preferences(items).build())
+        .await
+        .map_err(|_| AppError::validation("putPreferences"))?
+        .into_output()
+        .map_err(|_| AppError::validation("putPreferences output"))?;
+
+    Ok(())
+}
+
+fn build_saved_feeds_preference_item(feeds: Vec<SavedFeedItem>) -> PreferencesItem<'static> {
+    let items = feeds
+        .into_iter()
+        .map(|feed| {
+            SavedFeed::new()
+                .id(feed.id)
+                .r#type(match feed.r#type.as_str() {
+                    "timeline" => SavedFeedType::Timeline,
+                    "feed" => SavedFeedType::Feed,
+                    "list" => SavedFeedType::List,
+                    _ => SavedFeedType::Other(feed.r#type.into()),
+                })
+                .value(feed.value)
+                .pinned(feed.pinned)
+                .build()
+        })
+        .collect::<Vec<_>>();
+
+    PreferencesItem::SavedFeedsPrefV2(Box::new(SavedFeedsPrefV2Builder::new().items(items).build()))
+}
+
+fn build_feed_view_pref_item(pref: FeedViewPrefItem) -> PreferencesItem<'static> {
+    PreferencesItem::FeedViewPref(Box::new(FeedViewPref {
+        feed: pref.feed.into(),
+        hide_quote_posts: Some(pref.hide_quote_posts),
+        hide_replies: Some(pref.hide_replies),
+        hide_replies_by_like_count: pref.hide_replies_by_like_count,
+        hide_replies_by_unfollowed: Some(pref.hide_replies_by_unfollowed),
+        hide_reposts: Some(pref.hide_reposts),
+        extra_data: Default::default(),
+    }))
+}
+
+fn merge_saved_feeds_preferences(preferences: StoredPreferences, feeds: Vec<SavedFeedItem>) -> StoredPreferences {
+    let mut merged = preferences
+        .into_iter()
+        .filter(|item| {
+            !matches!(
+                item,
+                PreferencesItem::SavedFeedsPref(_) | PreferencesItem::SavedFeedsPrefV2(_)
+            )
+        })
+        .collect::<Vec<_>>();
+    merged.push(build_saved_feeds_preference_item(feeds));
+    merged
+}
+
+fn merge_feed_view_preferences(preferences: StoredPreferences, pref: FeedViewPrefItem) -> StoredPreferences {
+    let feed = pref.feed.clone();
+    let mut merged = preferences
+        .into_iter()
+        .filter(|item| match item {
+            PreferencesItem::FeedViewPref(existing) => existing.feed.as_ref() != feed.as_str(),
+            _ => true,
+        })
+        .collect::<Vec<_>>();
+    merged.push(build_feed_view_pref_item(pref));
+    merged
 }
 
 #[derive(Debug, Deserialize)]
@@ -146,30 +254,8 @@ pub struct CreateRecordResult {
 }
 
 pub async fn get_preferences(state: &AppState) -> Result<UserPreferences> {
-    let session = get_session(state).await?;
-    let output = session
-        .send(GetPreferences)
-        .await
-        .map_err(|_| AppError::validation("getPreferences"))?
-        .into_output()
-        .map_err(|_| AppError::validation("getPreferences output"))?;
-
-    let mut saved_feeds = Vec::new();
-    let mut feed_view_prefs = Vec::new();
-
-    for item in &output.preferences {
-        match item {
-            PreferencesItem::SavedFeedsPrefV2(pref) => {
-                saved_feeds = extract_saved_feeds(pref);
-            }
-            PreferencesItem::FeedViewPref(pref) => {
-                feed_view_prefs.push(extract_feed_view_pref(pref));
-            }
-            _ => {}
-        }
-    }
-
-    Ok(UserPreferences { saved_feeds, feed_view_prefs })
+    let preferences = fetch_preference_items(state).await?;
+    Ok(user_preferences_from_items(&preferences))
 }
 
 pub async fn get_feed_generators(uris: Vec<String>, state: &AppState) -> Result<serde_json::Value> {
@@ -476,34 +562,105 @@ pub struct UpdateSavedFeedsInput {
 
 pub async fn update_saved_feeds(input: UpdateSavedFeedsInput, state: &AppState) -> Result<()> {
     let session = get_session(state).await?;
+    let preferences = fetch_preference_items_with_session(&session).await?;
+    let merged = merge_saved_feeds_preferences(preferences, input.feeds);
+    store_preference_items(&session, merged).await
+}
 
-    let items: Vec<SavedFeed<'_>> = input
-        .feeds
-        .into_iter()
-        .map(|f| {
-            SavedFeed::new()
-                .id(f.id)
-                .r#type(match f.r#type.as_str() {
-                    "timeline" => SavedFeedType::Timeline,
-                    "feed" => SavedFeedType::Feed,
-                    "list" => SavedFeedType::List,
-                    _ => SavedFeedType::Other(f.r#type.into()),
-                })
-                .value(f.value)
-                .pinned(f.pinned)
-                .build()
-        })
-        .collect();
+pub async fn update_feed_view_pref(pref: FeedViewPrefItem, state: &AppState) -> Result<()> {
+    let session = get_session(state).await?;
+    let preferences = fetch_preference_items_with_session(&session).await?;
+    let merged = merge_feed_view_preferences(preferences, pref);
+    store_preference_items(&session, merged).await
+}
 
-    let saved_feeds_pref = Box::new(SavedFeedsPrefV2Builder::new().items(items).build());
-    let pref_item = PreferencesItem::SavedFeedsPrefV2(saved_feeds_pref);
+#[cfg(test)]
+mod tests {
+    use super::{
+        merge_feed_view_preferences, merge_saved_feeds_preferences, user_preferences_from_items, FeedViewPrefItem,
+        SavedFeedItem,
+    };
+    use jacquard::api::app_bsky::actor::{AdultContentPref, FeedViewPref, PreferencesItem};
 
-    session
-        .send(PutPreferences::new().preferences(vec![pref_item]).build())
-        .await
-        .map_err(|_| AppError::validation("putPreferences"))?
-        .into_output()
-        .map_err(|_| AppError::validation("putPreferences output"))?;
+    fn adult_content_pref_item() -> PreferencesItem<'static> {
+        PreferencesItem::AdultContentPref(Box::new(AdultContentPref::new().enabled(true).build()))
+    }
 
-    Ok(())
+    fn feed_view_pref_item(feed: &str, hide_reposts: bool) -> PreferencesItem<'static> {
+        PreferencesItem::FeedViewPref(Box::new(FeedViewPref {
+            feed: feed.to_owned().into(),
+            hide_quote_posts: Some(false),
+            hide_replies: Some(false),
+            hide_replies_by_like_count: None,
+            hide_replies_by_unfollowed: Some(true),
+            hide_reposts: Some(hide_reposts),
+            extra_data: Default::default(),
+        }))
+    }
+
+    #[test]
+    fn merging_saved_feeds_preserves_other_preferences() {
+        let preferences = vec![adult_content_pref_item(), feed_view_pref_item("following", true)];
+        let merged = merge_saved_feeds_preferences(
+            preferences,
+            vec![SavedFeedItem {
+                id: "following".into(),
+                r#type: "timeline".into(),
+                value: "following".into(),
+                pinned: true,
+            }],
+        );
+
+        assert!(merged
+            .iter()
+            .any(|item| matches!(item, PreferencesItem::AdultContentPref(_))));
+        assert!(merged
+            .iter()
+            .any(|item| matches!(item, PreferencesItem::FeedViewPref(_))));
+
+        let user_preferences = user_preferences_from_items(&merged);
+        assert_eq!(user_preferences.saved_feeds.len(), 1);
+        assert_eq!(user_preferences.feed_view_prefs.len(), 1);
+        assert!(user_preferences.feed_view_prefs[0].hide_reposts);
+    }
+
+    #[test]
+    fn merging_feed_view_pref_replaces_only_matching_feed() {
+        let preferences = vec![
+            adult_content_pref_item(),
+            feed_view_pref_item("following", true),
+            feed_view_pref_item("at://feed/custom", false),
+        ];
+        let merged = merge_feed_view_preferences(
+            preferences,
+            FeedViewPrefItem {
+                feed: "following".into(),
+                hide_replies: true,
+                hide_replies_by_unfollowed: false,
+                hide_replies_by_like_count: Some(4),
+                hide_reposts: false,
+                hide_quote_posts: true,
+            },
+        );
+
+        let user_preferences = user_preferences_from_items(&merged);
+        assert_eq!(user_preferences.feed_view_prefs.len(), 2);
+
+        let following = user_preferences
+            .feed_view_prefs
+            .iter()
+            .find(|pref| pref.feed == "following")
+            .expect("following pref should exist");
+        assert!(!following.hide_reposts);
+        assert!(following.hide_quote_posts);
+        assert_eq!(following.hide_replies_by_like_count, Some(4));
+
+        let custom = user_preferences
+            .feed_view_prefs
+            .iter()
+            .find(|pref| pref.feed == "at://feed/custom")
+            .expect("custom pref should exist");
+        assert!(!custom.hide_quote_posts);
+        assert!(!custom.hide_replies);
+    }
 }

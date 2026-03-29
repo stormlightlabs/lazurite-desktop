@@ -43,12 +43,8 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
 
   return (
     <div
-      class="relative mt-auto w-full transition-[width,max-width] duration-300 ease-out max-[1180px]:mt-0 max-[1180px]:max-w-[24rem] max-[1180px]:justify-self-end max-[760px]:max-w-none"
-      classList={{
-        "w-auto": !!props.compact,
-        "max-[980px]:order-3 max-[980px]:w-full max-[980px]:max-w-none max-[980px]:justify-self-stretch": !props
-          .compact,
-      }}
+      class="relative mt-auto w-full transition-[width,max-width] duration-300 ease-out max-[1180px]:col-span-full max-[1180px]:mt-0 max-[1180px]:max-w-none max-[1180px]:justify-self-stretch"
+      classList={{ "w-auto": !!props.compact }}
       ref={(element) => {
         container = element;
       }}>

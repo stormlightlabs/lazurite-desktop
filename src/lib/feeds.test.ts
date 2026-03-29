@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { applyFeedPreferences, buildThreadRoute, decodeThreadRouteUri, getFeedCommand } from "./feeds";
+import {
+  applyFeedPreferences,
+  buildThreadRoute,
+  decodeThreadRouteUri,
+  getFeedCommand,
+  parseFeedResponse,
+  parseThreadResponse,
+} from "./feeds";
 import type { FeedViewPost, FeedViewPrefItem, SavedFeedItem } from "./types";
 
 function createFeedItem(overrides: Partial<FeedViewPost> = {}): FeedViewPost {
@@ -91,5 +98,14 @@ describe("feed helpers", () => {
     expect(decodeThreadRouteUri("at%3A%2F%2Fdid%3Aplc%3Aalice%2Fapp.bsky.feed.post%2Fabc123")).toBe(uri);
     expect(decodeThreadRouteUri(uri)).toBe(uri);
     expect(decodeThreadRouteUri("https%3A%2F%2Fexample.com")).toBeNull();
+  });
+
+  it("rejects malformed feed payloads", () => {
+    expect(() => parseFeedResponse({ cursor: null, feed: {} })).toThrow("feed response payload is invalid");
+    expect(() => parseFeedResponse({ cursor: 42, feed: [] })).toThrow("feed response cursor is invalid");
+  });
+
+  it("rejects malformed thread payloads", () => {
+    expect(() => parseThreadResponse({ thread: { nope: true } })).toThrow("thread response payload is invalid");
   });
 });

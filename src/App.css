@@ -1,4 +1,6 @@
-@import "tailwindcss";
+/* NOTE: This prevents vite from processing src-tauri */
+@import "tailwindcss" source(none);
+@source "./";
 @plugin "@egoist/tailwindcss-icons";
 @plugin "@tailwindcss/forms";
 
@@ -97,4 +99,8 @@ body {
   to {
     transform: translateX(100%);
   }
+}
+
+button {
+  @apply cursor-pointer disabled:cursor-auto;
 }

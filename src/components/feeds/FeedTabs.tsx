@@ -14,7 +14,7 @@ export function FeedTabBar(
   },
 ) {
   return (
-    <div class="mt-4 flex items-start gap-3 max-[720px]:mt-3 max-[720px]:gap-2">
+    <div class="mt-4 flex items-start gap-3 max-[960px]:mt-3 max-[960px]:gap-2">
       <div class="flex min-w-0 flex-1 gap-1.5 overflow-x-auto overscroll-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <For each={props.pinnedFeeds}>
           {(feed) => (
@@ -27,11 +27,11 @@ export function FeedTabBar(
         </For>
       </div>
       <button
-        class="inline-flex h-11 shrink-0 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8 max-[1040px]:px-3 max-[1040px]:text-xs max-[920px]:hidden"
+        class="inline-flex h-11 shrink-0 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8 max-[1040px]:px-3 max-[1040px]:text-xs max-[900px]:w-11 max-[900px]:justify-center max-[900px]:px-0"
         type="button"
         onClick={() => props.onToggleDrawer()}>
         <Icon aria-hidden="true" iconClass="i-ri-stack-line" />
-        <span>Saved feeds</span>
+        <span class="max-[900px]:hidden">Saved feeds</span>
       </button>
     </div>
   );

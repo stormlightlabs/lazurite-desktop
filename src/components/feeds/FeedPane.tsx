@@ -8,9 +8,9 @@ import type { FeedState } from "./types";
 
 function FeedHeaderActions(props: { onCompose: () => void; onToggleDrawer: () => void }) {
   return (
-    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[640px]:w-full max-[640px]:justify-between">
+    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[960px]:w-full max-[960px]:justify-between">
       <button
-        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8 max-[520px]:flex-1 max-[520px]:justify-center"
+        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8 max-[960px]:flex-1 max-[960px]:justify-center max-[520px]:px-3"
         type="button"
         onClick={() => props.onCompose()}>
         <Icon aria-hidden="true" kind="quill" />
@@ -87,7 +87,7 @@ function FeedPaneTitle(
   },
 ) {
   return (
-    <div class="flex min-w-0 items-start justify-between gap-4 max-[900px]:gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
+    <div class="flex min-w-0 items-start justify-between gap-4 max-[960px]:flex-col max-[960px]:items-stretch max-[900px]:gap-3">
       <div class="min-w-0">
         <p class="m-0 text-xl font-semibold tracking-tight text-on-surface">Timeline</p>
         <p class="mt-1 wrap-break-word text-xs uppercase tracking-[0.12em] text-on-surface-variant">
@@ -110,7 +110,7 @@ function FeedPaneHeader(
   },
 ) {
   return (
-    <header class="sticky top-0 z-20 overflow-hidden rounded-t-4xl bg-[rgba(14,14,14,0.94)] px-6 pb-3 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)] max-[760px]:px-4 max-[760px]:pt-4 max-[520px]:px-3">
+    <header class="sticky top-0 z-20 overflow-hidden rounded-t-4xl bg-[rgba(14,14,14,0.94)] px-6 pb-3 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)] max-[960px]:px-5 max-[960px]:pb-4 max-[960px]:pt-4 max-[760px]:px-4 max-[520px]:px-3">
       <FeedPaneTitle
         activeFeed={props.activeFeed}
         generators={props.generators}

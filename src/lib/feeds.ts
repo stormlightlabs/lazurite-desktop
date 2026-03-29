@@ -1,7 +1,9 @@
 import type {
   BlockedPost,
   EmbedView,
+  FeedGeneratorsResponse,
   FeedReplyNode,
+  FeedResponse,
   FeedViewPost,
   FeedViewPrefItem,
   Maybe,
@@ -12,6 +14,7 @@ import type {
   SavedFeedItem,
   StrongRefInput,
   ThreadNode,
+  ThreadResponse,
   ThreadViewPost,
 } from "./types";
 
@@ -29,6 +32,82 @@ export function asRecord(value: unknown): Record<string, unknown> | null {
 
 export function asPostRecord(value: unknown): PostRecord {
   return (asRecord(value) ?? {}) as PostRecord;
+}
+
+function asArray(value: unknown) {
+  return Array.isArray(value) ? value : null;
+}
+
+function isProfileViewBasic(value: unknown): boolean {
+  const record = asRecord(value);
+  return !!record && typeof record.did === "string" && typeof record.handle === "string";
+}
+
+function isPostView(value: unknown): value is PostView {
+  const record = asRecord(value);
+  const author = asRecord(record?.author);
+  const postRecord = asRecord(record?.record);
+
+  return !!record
+    && !!author
+    && !!postRecord
+    && typeof record.cid === "string"
+    && typeof record.indexedAt === "string"
+    && typeof record.uri === "string"
+    && isProfileViewBasic(author);
+}
+
+function isFeedViewPost(value: unknown): value is FeedViewPost {
+  const record = asRecord(value);
+  return !!record && isPostView(record.post);
+}
+
+function isThreadNode(value: unknown): value is ThreadNode {
+  const record = asRecord(value);
+  if (!record || typeof record.$type !== "string") {
+    return false;
+  }
+
+  if (record.$type === "app.bsky.feed.defs#threadViewPost") {
+    return isPostView(record.post);
+  }
+
+  return record.$type === "app.bsky.feed.defs#blockedPost" || record.$type === "app.bsky.feed.defs#notFoundPost";
+}
+
+export function parseFeedResponse(value: unknown): FeedResponse {
+  const record = asRecord(value);
+  const feed = asArray(record?.feed);
+
+  if (!record || !feed || !feed.every((item) => isFeedViewPost(item))) {
+    throw new Error("feed response payload is invalid");
+  }
+
+  if (record.cursor !== undefined && record.cursor !== null && typeof record.cursor !== "string") {
+    throw new Error("feed response cursor is invalid");
+  }
+
+  return { cursor: (record.cursor as string | null | undefined) ?? null, feed };
+}
+
+export function parseThreadResponse(value: unknown): ThreadResponse {
+  const record = asRecord(value);
+  if (!record || !isThreadNode(record.thread)) {
+    throw new Error("thread response payload is invalid");
+  }
+
+  return { thread: record.thread };
+}
+
+export function parseFeedGeneratorsResponse(value: unknown): FeedGeneratorsResponse {
+  const record = asRecord(value);
+  const feeds = asArray(record?.feeds);
+
+  if (!record || !feeds) {
+    throw new Error("feed generators payload is invalid");
+  }
+
+  return { feeds: feeds as FeedGeneratorsResponse["feeds"] };
 }
 
 export function getPostText(post: PostView) {
@@ -72,18 +151,6 @@ export function formatRelativeTime(value: string) {
   }
 
   return formatter.format(deltaSeconds, "second");
-}
-
-export function formatCount(value: Maybe<number>) {
-  if (!value) {
-    return "0";
-  }
-
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(value >= 10_000 ? 0 : 1)}K`;
-  }
-
-  return value.toString();
 }
 
 export function getFeedName(item: { type: string; value: string }, hydratedName?: string | null) {

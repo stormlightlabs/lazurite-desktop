@@ -11,6 +11,7 @@ const test: ViteUserConfig["test"] = {
   server: { deps: { inline: ["@solidjs/router"] } },
   ui: false,
   watch: false,
+  testTimeout: 2500,
 };
 
 const host = process.env.TAURI_DEV_HOST;
