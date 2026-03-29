@@ -11,7 +11,7 @@ use jacquard::oauth::loopback::{handle_localhost_callback, one_shot_server, try_
 use jacquard::oauth::loopback::{CallbackHandle, LoopbackConfig, LoopbackPort};
 use jacquard::oauth::session::{AuthRequestData, ClientData, ClientSessionData};
 use jacquard::oauth::types::AuthorizeOptions;
-use jacquard::types::{aturi::AtUri, did::Did};
+use jacquard::types::did::Did;
 use jacquard::xrpc::XrpcClient;
 use jacquard::IntoStatic;
 use rusqlite::{params, OptionalExtension};
@@ -23,7 +23,6 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 pub const ACCOUNT_SWITCHED_EVENT: &str = "auth:account-switched";
-pub const AT_URI_OPEN_EVENT: &str = "navigation:open-at-uri";
 const CLIENT_NAME: &str = "Lazurite";
 const LOGIN_TYPEAHEAD_LIMIT: usize = 6;
 const LOGIN_TYPEAHEAD_CLIENT: &str = "lazurite-desktop";
@@ -46,12 +45,6 @@ pub struct StoredAccount {
     pub pds_url: String,
     pub active: bool,
     pub avatar: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AtUriNavigation {
-    pub uri: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -433,18 +426,8 @@ pub fn restore_session_from_data(
     OAuthSession::new(oauth_client.registry.clone(), oauth_client.client.clone(), session_data)
 }
 
-pub fn normalize_at_uri(raw: &str) -> Result<String, AppError> {
-    Ok(AtUri::new(raw)?.to_string())
-}
-
 pub fn emit_account_switch(app: &AppHandle, active_session: Option<ActiveSession>) -> Result<(), AppError> {
     app.emit(ACCOUNT_SWITCHED_EVENT, active_session)?;
-    Ok(())
-}
-
-pub fn emit_at_uri_navigation(app: &AppHandle, raw: &str) -> Result<(), AppError> {
-    let uri = normalize_at_uri(raw)?;
-    app.emit(AT_URI_OPEN_EVENT, AtUriNavigation { uri })?;
     Ok(())
 }
 

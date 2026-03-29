@@ -1,4 +1,7 @@
 #![allow(clippy::needless_pass_by_value)]
+
+pub mod explorer;
+
 use super::auth::{self, LoginSuggestion};
 use super::error::AppError;
 use super::feed::{self, CreateRecordResult, EmbedInput, FeedViewPrefItem, ReplyRefInput, UserPreferences};

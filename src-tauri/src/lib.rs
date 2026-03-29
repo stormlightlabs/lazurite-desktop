@@ -2,17 +2,18 @@ mod auth;
 mod commands;
 mod db;
 mod error;
+mod explorer;
 mod feed;
 mod notifications;
 mod state;
 mod tray;
 
-use auth::emit_at_uri_navigation;
 use commands as cmd;
 use db::initialize_database;
 use state::AppState;
 use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
+use tauri_plugin_log::log;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -31,13 +32,20 @@ pub fn run() {
             let app_handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
-                    let _ = emit_at_uri_navigation(&app_handle, url.as_str());
+                    let raw = url.to_string();
+                    let handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(error) = explorer::emit_explorer_navigation(&handle, &raw).await {
+                            log::error!("failed to resolve deep-link explorer target for {raw}: {error}");
+                        }
+                    });
                 }
             });
 
             if let Some(urls) = app.deep_link().get_current()? {
                 for url in urls {
-                    emit_at_uri_navigation(app.handle(), url.as_str())?;
+                    let raw = url.to_string();
+                    tauri::async_runtime::block_on(explorer::emit_explorer_navigation(app.handle(), &raw))?;
                 }
             }
 
@@ -82,7 +90,14 @@ pub fn run() {
             cmd::update_feed_view_pref,
             cmd::list_notifications,
             cmd::update_seen,
-            cmd::get_unread_count
+            cmd::get_unread_count,
+            cmd::explorer::resolve_input,
+            cmd::explorer::describe_server,
+            cmd::explorer::describe_repo,
+            cmd::explorer::list_records,
+            cmd::explorer::get_record,
+            cmd::explorer::export_repo_car,
+            cmd::explorer::query_labels
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
