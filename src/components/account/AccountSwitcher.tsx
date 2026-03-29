@@ -1,5 +1,5 @@
 import type { AccountSummary, ActiveSession } from "$/lib/types";
-import { onCleanup, onMount, Show } from "solid-js";
+import { createMemo, onCleanup, onMount, Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
 import { ArrowIcon } from "../shared/Icon";
 import { SwitcherIdentity } from "./AccountSwitcherIdentity";
@@ -20,6 +20,7 @@ type AccountSwitcherProps = {
 
 export function AccountSwitcher(props: AccountSwitcherProps) {
   const isOpen = () => props.open;
+  const staleAccount = createMemo(() => (!props.activeSession && props.accounts.length > 0 ? props.accounts[0] : null));
   let container: HTMLDivElement | undefined;
 
   onMount(() => {
@@ -64,11 +65,11 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
           keyed
           fallback={
             <SwitcherIdentity
-              avatar={null}
+              avatar={staleAccount()?.avatar ?? null}
               compact={props.compact}
-              label="?"
-              name="Sign in"
-              meta="No account connected"
+              label={staleAccount()?.handle ?? "?"}
+              name={staleAccount()?.handle ?? "Sign in"}
+              meta={staleAccount() ? "Session expired" : "No account connected"}
               tone="muted" />
           }>
           {(session) => (

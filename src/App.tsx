@@ -290,6 +290,11 @@ function AuthWorkspace(
   },
 ) {
   const hasAccounts = () => props.accounts.length > 0;
+  const displayAccount = () => props.activeAccount ?? (props.reauthNeeded ? props.accounts[0] ?? null : null);
+  const displaySession = () => {
+    const account = displayAccount();
+    return account ? { did: account.did, handle: account.handle } : null;
+  };
 
   return (
     <Show
@@ -309,10 +314,8 @@ function AuthWorkspace(
       <>
         <HeaderPanel metaLabel={props.metaLabel} />
         <SessionSpotlight
-          activeSession={props.activeAccount
-            ? { did: props.activeAccount.did, handle: props.activeAccount.handle }
-            : null}
-          activeAccount={props.activeAccount}
+          activeSession={displaySession()}
+          activeAccount={displayAccount()}
           bootstrapping={props.bootstrapping}
           reauthNeeded={props.reauthNeeded}
           onReauth={props.onReauth} />

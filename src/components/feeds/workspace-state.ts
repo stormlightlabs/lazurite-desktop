@@ -4,7 +4,7 @@ import type { FeedState, FeedWorkspaceState, ThreadState } from "./types";
 export const DEFAULT_TIMELINE: SavedFeedItem = { id: "following", type: "timeline", value: "following", pinned: true };
 
 export function createDefaultFeedState(): FeedState {
-  return { cursor: null, error: null, items: [], loading: false, loadingMore: false, scrollTop: 0 };
+  return { cursor: null, error: null, items: [], loading: false, loadingMore: false };
 }
 
 export const createDefaultThreadState = (): ThreadState => ({ data: null, error: null, loading: false, uri: null });
@@ -23,6 +23,7 @@ export function createInitialWorkspaceState(): FeedWorkspaceState {
     activeFeedId: null,
     composer: { open: false, pending: false, quoteTarget: null, replyRoot: null, replyTarget: null, text: "" },
     feedStates: {},
+    feedScrollTops: {},
     focusedIndex: 0,
     generators: {},
     likePendingByUri: {},
@@ -56,13 +57,20 @@ export function getNextFocusedIndex(currentIndex: number, direction: "next" | "p
   return Math.max(currentIndex - 1, 0);
 }
 
-export function updateFeedScrollState(state: FeedState | undefined, scrollTop: number): FeedState | null {
-  const currentState = state ?? createDefaultFeedState();
-  if (currentState.scrollTop === scrollTop) {
+export function getFeedScrollTop(feedScrollTops: Record<string, number>, feedId: string): number {
+  return feedScrollTops[feedId] ?? 0;
+}
+
+export function updateFeedScrollTop(
+  feedScrollTops: Record<string, number>,
+  feedId: string,
+  scrollTop: number,
+): Record<string, number> | null {
+  if (getFeedScrollTop(feedScrollTops, feedId) === scrollTop) {
     return null;
   }
 
-  return { ...currentState, scrollTop };
+  return { ...feedScrollTops, [feedId]: scrollTop };
 }
 
 export function getNextFocusedScrollTop(

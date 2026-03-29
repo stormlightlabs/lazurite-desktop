@@ -1,6 +1,6 @@
 use super::auth::{
     account_summaries, active_session_from_accounts, build_oauth_client, emit_account_switch, fetch_account_summary,
-    remove_cached_session, restore_session_from_data,
+    remove_cached_session, restore_session_from_data, ACCOUNT_SWITCHED_EVENT,
 };
 use super::auth::{login_with_loopback, LazuriteOAuthClient, LazuriteOAuthSession};
 use super::auth::{PersistentAuthStore, StoredAccount};
@@ -12,7 +12,9 @@ use jacquard::IntoStatic;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use tauri::AppHandle;
+use std::time::Duration;
+use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_log::log;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,20 +50,37 @@ pub struct AppState {
 
 impl AppState {
     pub async fn bootstrap(db_pool: DbPool) -> Result<Self, AppError> {
+        log::info!("bootstrapping application state");
         let auth_store = PersistentAuthStore::new(db_pool.clone());
         auth_store.prune_orphaned_sessions()?;
         let oauth_client = build_oauth_client(auth_store.clone());
         let accounts = auth_store.load_accounts()?;
+        log::info!("loaded {} stored account(s)", accounts.len());
+
+        let active = active_session_from_accounts(&accounts);
+        if let Some(ref session) = active {
+            log::info!("active account from database: {}", session.handle);
+        } else {
+            log::debug!("no active account found in database");
+        }
+
         let app_state = Self {
             auth_store,
             oauth_client,
-            active_session: RwLock::new(active_session_from_accounts(&accounts)),
+            active_session: RwLock::new(active),
             account_list: RwLock::new(account_summaries(&accounts)),
             sessions: RwLock::new(HashMap::new()),
         };
 
         app_state.restore_sessions().await?;
         app_state.refresh_account_cache()?;
+
+        let final_active = app_state.current_active_session()?;
+        if let Some(ref session) = final_active {
+            log::info!("bootstrap complete, active session: {}", session.handle);
+        } else {
+            log::warn!("bootstrap complete, no active session (reauth may be required)");
+        }
 
         Ok(app_state)
     }
@@ -90,6 +109,7 @@ impl AppState {
     }
 
     pub async fn login(&self, app: &AppHandle, identifier: String) -> Result<AccountSummary, AppError> {
+        log::info!("starting login flow for {}", identifier.trim());
         let session = Arc::new(login_with_loopback(&self.oauth_client, identifier.trim()).await?);
         let (did, session_id) = session.session_info().await;
         let did = did.to_string();
@@ -116,10 +136,12 @@ impl AppState {
         self.refresh_account_cache()?;
         emit_account_switch(app, self.current_active_session()?)?;
 
+        log::info!("login complete for {}", account_summary.handle);
         Ok(account_summary)
     }
 
     pub async fn logout(&self, app: &AppHandle, did: &str) -> Result<(), AppError> {
+        log::info!("logging out account {did}");
         let account = self
             .auth_store
             .get_account(did)?
@@ -137,6 +159,7 @@ impl AppState {
     }
 
     pub async fn switch_account(&self, app: &AppHandle, did: &str) -> Result<(), AppError> {
+        log::info!("switching to account {did}");
         let account = self
             .auth_store
             .get_account(did)?
@@ -180,6 +203,7 @@ impl AppState {
             .get(&account.did)
             .cloned()
         {
+            log::debug!("using cached session for {}", account.handle);
             return Ok(existing);
         }
 
@@ -189,8 +213,10 @@ impl AppState {
 
         let did = Did::new(&account.did)?;
         let session = if refresh {
+            log::info!("restoring session with token refresh for {}", account.handle);
             Arc::new(self.oauth_client.restore(&did, session_id).await?)
         } else {
+            log::debug!("restoring session from persisted data for {}", account.handle);
             let session_data = self.auth_store.get_session(&did, session_id).await?.ok_or_else(|| {
                 AppError::Validation(format!("missing persisted oauth session for account {}", account.did))
             })?;
@@ -205,28 +231,140 @@ impl AppState {
             .map_err(|_| AppError::StatePoisoned("sessions"))?
             .insert(account.did.clone(), session.clone());
 
+        log::info!("session restored successfully for {}", account.handle);
         Ok(session)
     }
 
     async fn restore_sessions(&self) -> Result<(), AppError> {
         let accounts = self.auth_store.load_accounts()?;
+        log::info!("restoring sessions for {} account(s)", accounts.len());
 
-        for account in accounts {
+        for account in &accounts {
             if account.session_id.is_none() {
+                log::debug!("skipping {} (no session_id)", account.handle);
                 continue;
             }
 
-            let restored = self.ensure_session(&account, account.active).await;
+            log::debug!(
+                "restoring session for {} (active={}, refresh={})",
+                account.handle,
+                account.active,
+                account.active
+            );
+
+            let restored = self.ensure_session(account, account.active).await;
             if restored.is_ok() {
                 continue;
             }
 
+            if let Err(error) = restored {
+                log::warn!("failed to restore session for {}: {error}", account.handle);
+            }
+
             remove_cached_session(&self.sessions, &account.did)?;
             if account.active {
+                log::warn!("clearing active flag for {} after restore failure", account.handle);
                 self.auth_store.clear_active_account()?;
             }
         }
 
         Ok(())
+    }
+
+    pub async fn refresh_active_token(&self, app: &AppHandle) -> Result<(), AppError> {
+        let active = self
+            .active_session
+            .read()
+            .map_err(|_| AppError::StatePoisoned("active_session"))?
+            .clone();
+
+        let Some(active) = active else {
+            return self.try_recover_session(app).await;
+        };
+
+        let account = match self.auth_store.get_account(&active.did)? {
+            Some(account) => account,
+            None => return Ok(()),
+        };
+
+        let session_id = match account.session_id.as_deref() {
+            Some(id) => id,
+            None => return Ok(()),
+        };
+
+        remove_cached_session(&self.sessions, &active.did)?;
+
+        let did = Did::new(&active.did)?;
+        match self.oauth_client.restore(&did, session_id).await {
+            Ok(session) => {
+                self.sessions
+                    .write()
+                    .map_err(|_| AppError::StatePoisoned("sessions"))?
+                    .insert(active.did.clone(), Arc::new(session));
+                log::info!("token refresh succeeded for {}", active.handle);
+                Ok(())
+            }
+            Err(error) => {
+                log::warn!("token refresh failed for {}: {error}", active.handle);
+                self.auth_store.clear_active_account()?;
+                self.refresh_account_cache()?;
+                app.emit(ACCOUNT_SWITCHED_EVENT, None::<ActiveSession>)?;
+                Err(AppError::validation(format!("refresh failed: {error}")))
+            }
+        }
+    }
+
+    /// Attempt to recover a session when no account is currently active.
+    /// This handles the case where bootstrap failed to restore a session
+    /// (e.g. due to a transient network error) and the active flag was cleared.
+    async fn try_recover_session(&self, app: &AppHandle) -> Result<(), AppError> {
+        let accounts = self.auth_store.load_accounts()?;
+        let candidate = accounts.iter().find(|a| a.session_id.is_some());
+
+        let Some(account) = candidate else {
+            return Ok(());
+        };
+
+        let session_id = account.session_id.as_deref().unwrap();
+        let did = Did::new(&account.did)?;
+
+        match self.oauth_client.restore(&did, session_id).await {
+            Ok(session) => {
+                self.sessions
+                    .write()
+                    .map_err(|_| AppError::StatePoisoned("sessions"))?
+                    .insert(account.did.clone(), Arc::new(session));
+
+                self.auth_store.set_active_account(&account.did)?;
+                self.refresh_account_cache()?;
+
+                log::info!("session recovery succeeded for {}", account.handle);
+                emit_account_switch(app, self.current_active_session()?)?;
+                Ok(())
+            }
+            Err(error) => {
+                log::warn!("session recovery failed for {}: {error}", account.handle);
+                Err(AppError::validation(format!("recovery failed: {error}")))
+            }
+        }
+    }
+
+    pub fn spawn_token_refresh_task(app: AppHandle) {
+        const INITIAL_DELAY: Duration = Duration::from_secs(30);
+        const REFRESH_INTERVAL: Duration = Duration::from_secs(15 * 60);
+
+        tauri::async_runtime::spawn(async move {
+            // Short initial delay to quickly retry if bootstrap restore failed
+            tokio::time::sleep(INITIAL_DELAY).await;
+
+            loop {
+                let state = app.state::<AppState>();
+                if let Err(error) = state.refresh_active_token(&app).await {
+                    log::warn!("background token refresh error: {error}");
+                }
+
+                tokio::time::sleep(REFRESH_INTERVAL).await;
+            }
+        });
     }
 }

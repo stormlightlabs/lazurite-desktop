@@ -13,7 +13,6 @@ export type FeedState = {
   items: FeedViewPost[];
   loading: boolean;
   loadingMore: boolean;
-  scrollTop: number;
 };
 
 export type ComposerState = {
@@ -31,6 +30,7 @@ export type FeedWorkspaceState = {
   activeFeedId: string | null;
   composer: ComposerState;
   feedStates: Record<string, FeedState>;
+  feedScrollTops: Record<string, number>;
   focusedIndex: number;
   generators: Record<string, FeedGeneratorView>;
   likePendingByUri: Record<string, boolean>;

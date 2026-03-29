@@ -16,7 +16,7 @@ export function SessionEmptyState() {
 export function SessionProfile(props: { session: ActiveSession; activeAccount: AccountSummary | null }) {
   return (
     <div class="grid items-center gap-4 [align-content:start] grid-cols-[auto_minmax(0,1fr)]">
-      <AvatarBadge label={props.session.handle} tone="primary" />
+      <AvatarBadge label={props.session.handle} src={props.activeAccount?.avatar} tone="primary" />
       <div class="grid">
         <h2 class="m-0 text-[clamp(1.3rem,2vw,1.7rem)] tracking-[-0.02em]">{props.session.handle}</h2>
         <p class="m-0 text-xs text-on-surface-variant">{props.session.did}</p>

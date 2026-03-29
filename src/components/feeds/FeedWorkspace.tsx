@@ -27,7 +27,7 @@ import { shouldIgnoreKey } from "$/lib/utils/events";
 import { escapeForRegex } from "$/lib/utils/text";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { createEffect, createMemo, For, onCleanup, onMount, type ParentProps, Show } from "solid-js";
+import { createEffect, createMemo, For, onCleanup, onMount, type ParentProps, Show, untrack } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { FeedChipAvatar } from "./FeedChipAvatar";
 import { FeedComposer } from "./FeedComposer";
@@ -42,9 +42,10 @@ import {
   createDefaultThreadState,
   createInitialWorkspaceState,
   DEFAULT_TIMELINE,
+  getFeedScrollTop,
   getNextFocusedIndex,
   getNextFocusedScrollTop,
-  updateFeedScrollState,
+  updateFeedScrollTop,
   upsertFeedViewPrefs,
 } from "./workspace-state";
 
@@ -121,12 +122,14 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
       setWorkspace("activeFeedId", feed.id);
     }
 
-    void ensureFeedLoaded(feed);
-    const nextScrollTop = workspace.feedStates[feed.id]?.scrollTop ?? 0;
-    queueMicrotask(() => {
-      if (scroller && scroller.scrollTop !== nextScrollTop) {
-        scroller.scrollTop = nextScrollTop;
-      }
+    untrack(() => {
+      void ensureFeedLoaded(feed);
+      const nextScrollTop = getFeedScrollTop(workspace.feedScrollTops, feed.id);
+      queueMicrotask(() => {
+        if (scroller && scroller.scrollTop !== nextScrollTop) {
+          scroller.scrollTop = nextScrollTop;
+        }
+      });
     });
   });
 
@@ -366,7 +369,6 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
         items,
         loading: false,
         loadingMore: false,
-        scrollTop: append ? state.scrollTop : 0,
       });
     } catch (error) {
       setWorkspace("feedStates", feed.id, { ...state, error: String(error), loading: false, loadingMore: false });
@@ -395,10 +397,10 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
   function switchFeed(feedId: string) {
     const current = activeFeed();
     if (current && scroller) {
-      setWorkspace("feedStates", current.id, {
-        ...(workspace.feedStates[current.id] ?? createDefaultFeedState()),
-        scrollTop: scroller.scrollTop,
-      });
+      const nextScrollTops = updateFeedScrollTop(workspace.feedScrollTops, current.id, scroller.scrollTop);
+      if (nextScrollTops) {
+        setWorkspace("feedScrollTops", reconcile(nextScrollTops));
+      }
     }
 
     setWorkspace("activeFeedId", feedId);
@@ -469,7 +471,12 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
       await invoke<CreateRecordResult>("create_post", { embed, replyTo, text });
       resetComposer();
       props.onThreadRouteChange(null);
-      await loadFeed(activeFeed(), false);
+      const feed = activeFeed();
+      await loadFeed(feed, false);
+      const nextScrollTops = updateFeedScrollTop(workspace.feedScrollTops, feed.id, 0);
+      if (nextScrollTops) {
+        setWorkspace("feedScrollTops", reconcile(nextScrollTops));
+      }
       if (scroller) {
         scroller.scrollTop = 0;
       }
@@ -648,12 +655,12 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
           }}
           setScrollTop={(top) => {
             const feedId = activeFeed().id;
-            const nextState = updateFeedScrollState(workspace.feedStates[feedId], top);
-            if (!nextState) {
+            const nextScrollTops = updateFeedScrollTop(workspace.feedScrollTops, feedId, top);
+            if (!nextScrollTops) {
               return;
             }
 
-            setWorkspace("feedStates", feedId, nextState);
+            setWorkspace("feedScrollTops", reconcile(nextScrollTops));
           }}
           visibleItems={visibleItems()} />
 

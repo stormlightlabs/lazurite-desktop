@@ -5,9 +5,10 @@ import {
   createDefaultFeedPref,
   createDefaultFeedState,
   DEFAULT_TIMELINE,
+  getFeedScrollTop,
   getNextFocusedIndex,
   getNextFocusedScrollTop,
-  updateFeedScrollState,
+  updateFeedScrollTop,
   upsertFeedViewPrefs,
 } from "./workspace-state";
 
@@ -63,10 +64,21 @@ describe("workspaceState", () => {
     expect(getNextFocusedIndex(0, "next", 0)).toBe(0);
   });
 
-  it("avoids scroll-state writes when the scroll position is unchanged", () => {
-    const state = createDefaultFeedState();
-    expect(updateFeedScrollState(state, 0)).toBeNull();
-    expect(updateFeedScrollState(state, 48)).toEqual({ ...state, scrollTop: 48 });
+  it("tracks scroll state outside the fetched feed payload", () => {
+    expect(createDefaultFeedState()).toEqual({
+      cursor: null,
+      error: null,
+      items: [],
+      loading: false,
+      loadingMore: false,
+    });
+
+    const scrollTops = { following: 24 };
+    expect(getFeedScrollTop(scrollTops, "following")).toBe(24);
+    expect(getFeedScrollTop(scrollTops, "custom")).toBe(0);
+    expect(updateFeedScrollTop(scrollTops, "following", 24)).toBeNull();
+    expect(updateFeedScrollTop(scrollTops, "following", 48)).toEqual({ following: 48 });
+    expect(updateFeedScrollTop(scrollTops, "custom", 64)).toEqual({ following: 24, custom: 64 });
   });
 
   it("computes focused-post scrolling without using browser focus", () => {
