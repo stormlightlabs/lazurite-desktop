@@ -1,9 +1,9 @@
 import { onCleanup, onMount, Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
-import { AccountSummary, ActiveSession } from "../lib/types";
+import { AccountSummary, ActiveSession } from "../../lib/types";
+import { ArrowIcon } from "../shared/Icon";
 import { SwitcherIdentity } from "./AccountSwitcherIdentity";
 import { AccountSwitcherMenuList } from "./AccountSwitcherMenuList";
-import { ArrowIcon } from "./shared/Icon";
 
 type AccountSwitcherProps = {
   activeSession: ActiveSession | null;

@@ -1,8 +1,8 @@
 import { AccountSummary } from "$/lib/types";
 import { For, Show } from "solid-js";
 import { Motion } from "solid-motionone";
+import { AvatarBadge } from "../AvatarBadge";
 import { AccountSwitchButton, LogoutButton } from "./AccountButtons";
-import { AvatarBadge } from "./AvatarBadge";
 
 type AccountLedgerProps = {
   accounts: AccountSummary[];

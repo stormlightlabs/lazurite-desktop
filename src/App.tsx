@@ -4,7 +4,7 @@ import { createEffect, createMemo, type JSX, onCleanup, onMount, Show, startTran
 import { createStore } from "solid-js/store";
 import "@fontsource-variable/google-sans";
 import "./App.css";
-import { AccountLedger } from "./components/AccountLedger";
+import { AccountLedger } from "./components/account/AccountLedger";
 import { AppRail } from "./components/AppRail";
 import { FeedWorkspace } from "./components/feeds/FeedWorkspace";
 import { LoginPanel } from "./components/LoginPanel";

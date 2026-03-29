@@ -1,6 +1,6 @@
 import { AccountSummary, ActiveSession } from "$/lib/types";
 import { Show } from "solid-js";
-import { AccountSwitcher } from "./AccountSwitcher";
+import { AccountSwitcher } from "./account/AccountSwitcher";
 import { RailButton } from "./RailButton";
 import { ArrowIcon } from "./shared/Icon";
 import { Wordmark } from "./Wordmark";

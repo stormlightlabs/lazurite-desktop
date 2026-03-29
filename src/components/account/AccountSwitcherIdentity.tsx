@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { Motion } from "solid-motionone";
-import { AvatarBadge } from "./AvatarBadge";
+import { AvatarBadge } from "../AvatarBadge";
 
 export function SwitcherIdentity(
   props: { compact?: boolean; label: string; name: string; meta: string; tone: "primary" | "muted" },

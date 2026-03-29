@@ -1,6 +1,6 @@
 import type { AccountSummary } from "$/lib/types";
 import { createMemo, Show } from "solid-js";
-import { Icon } from "./shared/Icon";
+import { Icon } from "../shared/Icon";
 
 export function AccountSwitchButton(
   props: {
