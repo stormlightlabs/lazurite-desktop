@@ -11,7 +11,7 @@ export function ReauthBanner(props: { onReauth: () => void }) {
       exit={{ opacity: 0, y: 8 }}
       transition={{ duration: 1.8, repeat: Number.POSITIVE_INFINITY, easing: "ease-in-out" }}>
       <div class="grid gap-[0.2rem]">
-        <p class="m-0 text-[0.95rem] font-semibold">Your session expired.</p>
+        <p class="m-0 text-base font-semibold">Your session expired.</p>
         <p class="m-0 text-xs text-on-surface-variant">Sign in again to reconnect your account.</p>
       </div>
       <button class="pill-action border-0 bg-white/8 text-on-surface" type="button" onClick={() => props.onReauth()}>

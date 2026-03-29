@@ -82,7 +82,7 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
           class="absolute flex items-center text-on-surface-variant"
           classList={{
             "right-[0.95rem] top-1/2 -translate-y-1/2": !props.compact,
-            "bottom-0 right-0 h-5 w-5 rounded-full bg-surface-container text-[0.7rem] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]":
+            "bottom-0 right-0 h-5 w-5 rounded-full bg-surface-container text-xs shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]":
               !!props.compact,
           }}
           aria-hidden="true">

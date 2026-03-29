@@ -1,5 +1,6 @@
-import { HashRouter, Navigate, Route, type RouteSectionProps, useLocation } from "@solidjs/router";
+import { HashRouter, Navigate, Route, type RouteSectionProps, useLocation, useNavigate, useParams } from "@solidjs/router";
 import { type Component, createEffect, type JSX, Show } from "solid-js";
+import { buildThreadRoute, decodeThreadRouteUri, TIMELINE_ROUTE } from "./lib/feeds";
 import type { ActiveSession } from "./lib/types";
 
 type AppRouterProps = {
@@ -8,7 +9,10 @@ type AppRouterProps = {
   onLocationChange?: () => void;
   renderAuth: () => JSX.Element;
   renderShell: Component<{ children: JSX.Element }>;
-  renderTimeline: (session: ActiveSession) => JSX.Element;
+  renderTimeline: (
+    session: ActiveSession,
+    context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null },
+  ) => JSX.Element;
   session: ActiveSession | null;
 };
 
@@ -30,21 +34,40 @@ export function AppRouter(props: AppRouterProps) {
 
   const IndexRoute = () => (
     <Show when={!props.bootstrapping} fallback={<RouteLoadingState />}>
-      <Navigate href={props.hasSession ? "/timeline" : "/auth"} />
+      <Navigate href={props.hasSession ? TIMELINE_ROUTE : "/auth"} />
     </Show>
   );
 
   const AuthRoute = () => (
-    <PublicOnlyRoute bootstrapping={props.bootstrapping} when={!props.hasSession} redirectHref="/timeline">
+    <PublicOnlyRoute bootstrapping={props.bootstrapping} when={!props.hasSession} redirectHref={TIMELINE_ROUTE}>
       {props.renderAuth()}
     </PublicOnlyRoute>
   );
 
   const TimelineRoute = () => (
-    <ProtectedRouteView bootstrapping={props.bootstrapping} session={props.session}>
-      {(session) => props.renderTimeline(session)}
-    </ProtectedRouteView>
+    <TimelineRouteView
+      bootstrapping={props.bootstrapping}
+      renderTimeline={props.renderTimeline}
+      session={props.session}
+      threadUri={null} />
   );
+
+  const ThreadRoute = () => {
+    const params = useParams<{ threadUri: string }>();
+    const threadUri = () => decodeThreadRouteUri(params.threadUri);
+
+    return (
+      <Show when={threadUri()} keyed fallback={<Navigate href={TIMELINE_ROUTE} />}>
+        {(uri) => (
+          <TimelineRouteView
+            bootstrapping={props.bootstrapping}
+            renderTimeline={props.renderTimeline}
+            session={props.session}
+            threadUri={uri} />
+        )}
+      </Show>
+    );
+  };
 
   const SearchRoute = () => (
     <ProtectedRouteView bootstrapping={props.bootstrapping} session={props.session}>
@@ -81,7 +104,7 @@ export function AppRouter(props: AppRouterProps) {
 
   const NotFoundRoute = () => (
     <Show when={!props.bootstrapping} fallback={<RouteLoadingState />}>
-      <Navigate href={props.hasSession ? "/timeline" : "/auth"} />
+      <Navigate href={props.hasSession ? TIMELINE_ROUTE : "/auth"} />
     </Show>
   );
 
@@ -90,11 +113,32 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/" component={IndexRoute} />
       <Route path="/auth" component={AuthRoute} />
       <Route path="/timeline" component={TimelineRoute} />
+      <Route path="/timeline/thread/:threadUri" component={ThreadRoute} />
       <Route path="/search" component={SearchRoute} />
       <Route path="/notifications" component={NotificationsRoute} />
       <Route path="/explorer" component={ExplorerRoute} />
       <Route path="*404" component={NotFoundRoute} />
     </HashRouter>
+  );
+}
+
+function TimelineRouteView(
+  props: {
+    bootstrapping: boolean;
+    renderTimeline: AppRouterProps["renderTimeline"];
+    session: ActiveSession | null;
+    threadUri: string | null;
+  },
+) {
+  const navigate = useNavigate();
+
+  return (
+    <ProtectedRouteView bootstrapping={props.bootstrapping} session={props.session}>
+      {(session) => props.renderTimeline(session, {
+        onThreadRouteChange: (uri) => navigate(uri ? buildThreadRoute(uri) : TIMELINE_ROUTE),
+        threadUri: props.threadUri,
+      })}
+    </ProtectedRouteView>
   );
 }
 

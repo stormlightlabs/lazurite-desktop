@@ -14,9 +14,7 @@ export function AccountSwitcherMenuList(
   return (
     <Show
       when={props.accounts.length > 0}
-      fallback={
-        <p class="overline-copy mt-[0.9rem] text-[0.72rem] text-on-surface-variant">No stored accounts yet.</p>
-      }>
+      fallback={<p class="overline-copy mt-[0.9rem] text-xs text-on-surface-variant">No stored accounts yet.</p>}>
       <div class="mt-[0.9rem] grid gap-2">
         <For each={props.accounts}>
           {(account) => (

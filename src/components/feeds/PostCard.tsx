@@ -65,7 +65,7 @@ export function PostCard(props: PostCardProps) {
         }
       }}>
       <Show when={reasonLabel()}>
-        <div class="mb-3 flex items-center gap-2 text-[0.72rem] font-medium tracking-[0.04em] text-primary">
+        <div class="mb-3 flex items-center gap-2 text-xs font-medium tracking-[0.04em] text-primary">
           <Icon aria-hidden="true" iconClass="i-ri-repeat-2-line" />
           <span>{reasonLabel()}</span>
         </div>
@@ -76,15 +76,17 @@ export function PostCard(props: PostCardProps) {
 
         <div class="min-w-0 flex-1">
           <header class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span class="text-[0.95rem] font-semibold tracking-[-0.01em] text-on-surface">{authorName()}</span>
-            <span class="text-xs text-on-surface-variant">@{props.post.author.handle.replace(/^@/, "")}</span>
+            <span class="wrap-break-word text-base font-semibold tracking-[-0.01em] text-on-surface">
+              {authorName()}
+            </span>
+            <span class="break-all text-xs text-on-surface-variant">@{props.post.author.handle.replace(/^@/, "")}</span>
             <span class="text-xs text-on-surface-variant">{createdAt()}</span>
           </header>
 
           <Show when={getPostText(props.post)}>
             {(text) => (
-              <p class="m-0 whitespace-pre-wrap text-[0.94rem] leading-[1.65] text-on-secondary-container">
-                {linkifyText(text())}
+              <p class="m-0 whitespace-pre-wrap wrap-break-word text-base leading-[1.65] text-on-secondary-container">
+                <LinkifiedText text={text()} />
               </p>
             )}
           </Show>
@@ -147,6 +149,7 @@ function ActionButton(
 ) {
   return (
     <button
+      aria-label={props.label}
       class="inline-flex items-center gap-1.5 rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary disabled:cursor-wait disabled:opacity-70"
       classList={{ "text-primary": !!props.active }}
       type="button"
@@ -158,7 +161,7 @@ function ActionButton(
         transition={{ duration: 0.28 }}>
         <Icon aria-hidden="true" iconClass={props.active ? props.iconActive ?? props.icon : props.icon} />
       </Motion.span>
-      <span>{props.busy ? "..." : props.label}</span>
+      <span class="max-w-24 truncate">{props.busy ? "..." : props.label}</span>
     </button>
   );
 }
@@ -225,13 +228,15 @@ function ExternalEmbed(props: { description?: string; thumb?: string; title?: st
         {(thumb) => <img class="max-h-64 w-full rounded-2xl object-cover" src={thumb()} alt="" />}
       </Show>
       <div class="grid gap-1">
-        <p class="m-0 text-sm font-semibold text-on-surface">{props.title || "External link"}</p>
+        <p class="m-0 wrap-break-word text-sm font-semibold text-on-surface">{props.title || "External link"}</p>
         <Show when={props.description}>
-          {(description) => <p class="m-0 text-[0.82rem] leading-[1.55] text-on-surface-variant">{description()}</p>}
+          {(description) => (
+            <p class="m-0 wrap-break-word text-sm leading-[1.55] text-on-surface-variant">{description()}</p>
+          )}
         </Show>
         <Show when={props.uri}>
           {(uri) => (
-            <p class="m-0 text-[0.74rem] uppercase tracking-[0.08em] text-primary">
+            <p class="m-0 break-all text-[0.74rem] uppercase tracking-[0.08em] text-primary">
               {uri().replace(/^https?:\/\//, "")}
             </p>
           )}
@@ -246,12 +251,14 @@ function QuoteEmbed(props: { author: PostView["author"] | null; text?: unknown; 
 
   return (
     <div class="rounded-[1.25rem] bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
-      <p class="m-0 text-[0.72rem] uppercase tracking-[0.12em] text-on-surface-variant">{props.title}</p>
+      <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.title}</p>
       <Show when={props.author}>
         {(author) => (
-          <p class="mt-2 text-[0.84rem] font-semibold text-on-surface">
+          <p class="mt-2 wrap-break-word text-sm font-semibold text-on-surface">
             {getDisplayName(author())}
-            <span class="ml-1 text-xs font-normal text-on-surface-variant">@{author().handle.replace(/^@/, "")}</span>
+            <span class="ml-1 break-all text-xs font-normal text-on-surface-variant">
+              @{author().handle.replace(/^@/, "")}
+            </span>
           </p>
         )}
       </Show>
@@ -262,28 +269,26 @@ function QuoteEmbed(props: { author: PostView["author"] | null; text?: unknown; 
   );
 }
 
-function linkifyText(text: string) {
-  const parts = text.split(/(https?:\/\/\S+|@[a-z0-9._-]+(?:\.[a-z0-9._-]+)+|#[\p{L}\p{N}_-]+)/giu);
+function LinkifiedText(props: { text: string }) {
+  const parts = () => props.text.split(/(https?:\/\/\S+|@[a-z0-9._-]+(?:\.[a-z0-9._-]+)+|#[\p{L}\p{N}_-]+)/giu);
 
   return (
-    <>
-      <For each={parts}>
-        {(part) => {
-          if (/^https?:\/\//i.test(part)) {
-            return (
-              <a class="text-primary no-underline hover:underline" href={part} rel="noreferrer" target="_blank">
-                {part}
-              </a>
-            );
-          }
+    <For each={parts()}>
+      {(part) => {
+        if (/^https?:\/\//i.test(part)) {
+          return (
+            <a class="break-all text-primary no-underline hover:underline" href={part} rel="noreferrer" target="_blank">
+              {part}
+            </a>
+          );
+        }
 
-          if (/^[@#]/.test(part)) {
-            return <span class="text-primary">{part}</span>;
-          }
+        if (/^[@#]/.test(part)) {
+          return <span class="break-all text-primary">{part}</span>;
+        }
 
-          return <span>{part}</span>;
-        }}
-      </For>
-    </>
+        return <span class="wrap-anywhere">{part}</span>;
+      }}
+    </For>
   );
 }

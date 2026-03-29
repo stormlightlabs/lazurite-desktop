@@ -10,7 +10,7 @@ export function AvatarBadge(props: AvatarBadgeProps) {
 
   return (
     <span
-      class="inline-flex h-10 w-10 items-center justify-center rounded-full text-[0.82rem] font-bold tracking-[0.08em]"
+      class="inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold tracking-[0.08em]"
       classList={{
         "bg-primary text-[color:var(--on-primary-fixed)]": props.tone === "primary",
         "bg-white/8 text-on-surface": props.tone !== "primary",

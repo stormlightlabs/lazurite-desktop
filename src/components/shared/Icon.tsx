@@ -10,7 +10,12 @@ export type IconKind =
   | "refresh"
   | "search"
   | "timeline"
-  | "user";
+  | "user"
+  | "menu"
+  | "quill"
+  | "at"
+  | "hashtag"
+  | "close";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -27,6 +32,12 @@ export function Icon(props: IconProps) {
       <Switch>
         <Match when={!!local.iconClass}>
           <i class={local.iconClass} />
+        </Match>
+        <Match when={local.kind === "quill"}>
+          <i class="i-ri-quill-3-line" />
+        </Match>
+        <Match when={local.kind === "menu"}>
+          <i class="i-ri-menu-line" />
         </Match>
         <Match when={local.kind === "loader"}>
           <i class="i-ri-loader-4-line" />
@@ -57,6 +68,15 @@ export function Icon(props: IconProps) {
         </Match>
         <Match when={local.kind === "ext-link"}>
           <i class="i-ri-external-link-line" />
+        </Match>
+        <Match when={local.kind === "at"}>
+          <i class="i-ri-at-line" />
+        </Match>
+        <Match when={local.kind === "hashtag"}>
+          <i class="i-ri-hashtag" />
+        </Match>
+        <Match when={local.kind === "close"}>
+          <i class="i-ri-close-line" />
         </Match>
       </Switch>
     </span>

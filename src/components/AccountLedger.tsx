@@ -24,9 +24,7 @@ export function AccountLedger(props: AccountLedgerProps) {
       <Show
         when={props.accounts.length > 0}
         fallback={
-          <p class="overline-copy text-[0.72rem] text-on-surface-variant">
-            Your accounts will appear here once you sign in.
-          </p>
+          <p class="overline-copy text-xs text-on-surface-variant">Your accounts will appear here once you sign in.</p>
         }>
         <div class="grid gap-3" role="list">
           <For each={props.accounts}>

@@ -3,14 +3,21 @@ import type {
   EmbedView,
   FeedReplyNode,
   FeedViewPost,
+  FeedViewPrefItem,
+  Maybe,
   NotFoundPost,
   PostRecord,
   PostView,
   ProfileViewBasic,
+  SavedFeedItem,
   StrongRefInput,
   ThreadNode,
   ThreadViewPost,
 } from "./types";
+
+export const TIMELINE_ROUTE = "/timeline";
+
+export const THREAD_ROUTE_BASE = "/timeline/thread";
 
 export function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -67,7 +74,7 @@ export function formatRelativeTime(value: string) {
   return formatter.format(deltaSeconds, "second");
 }
 
-export function formatCount(value: number | null | undefined) {
+export function formatCount(value: Maybe<number>) {
   if (!value) {
     return "0";
   }
@@ -96,11 +103,29 @@ export function getFeedName(item: { type: string; value: string }, hydratedName?
   return item.type === "list" ? "List" : "Custom feed";
 }
 
+export function getFeedCommand(feed: SavedFeedItem) {
+  if (feed.type === "timeline") {
+    return { args: (cursor: string | null, limit: number) => ({ cursor, limit }), name: "get_timeline" as const };
+  }
+
+  if (feed.type === "list") {
+    return {
+      args: (cursor: string | null, limit: number) => ({ cursor, limit, uri: feed.value }),
+      name: "get_list_feed" as const,
+    };
+  }
+
+  return {
+    args: (cursor: string | null, limit: number) => ({ cursor, limit, uri: feed.value }),
+    name: "get_feed" as const,
+  };
+}
+
 export function isRepostReason(item: FeedViewPost) {
   return item.reason?.$type === "app.bsky.feed.defs#reasonRepost";
 }
 
-export function isQuoteEmbed(embed: EmbedView | null | undefined) {
+export function isQuoteEmbed(embed: Maybe<EmbedView>) {
   return embed?.$type === "app.bsky.embed.record#view" || embed?.$type === "app.bsky.embed.recordWithMedia#view";
 }
 
@@ -116,25 +141,33 @@ export function getRootRef(item: FeedViewPost) {
   return toStrongRef(item.post);
 }
 
+export function getReplyRootPost(item: FeedViewPost) {
+  if (item.reply?.root.$type === "app.bsky.feed.defs#postView") {
+    return item.reply.root;
+  }
+
+  return item.post;
+}
+
 export function toStrongRef(post: PostView) {
   return { cid: post.cid, uri: post.uri } satisfies StrongRefInput;
 }
 
 export function canUseStrongRef(
-  post: FeedReplyNode | ThreadNode | null | undefined,
+  post: Maybe<FeedReplyNode | ThreadNode>,
 ): post is { $type: "app.bsky.feed.defs#postView" } & PostView {
   return !!post && "$type" in post && post.$type === "app.bsky.feed.defs#postView";
 }
 
-export function isThreadViewPost(node: ThreadNode | null | undefined): node is ThreadViewPost {
+export function isThreadViewPost(node: Maybe<ThreadNode>): node is ThreadViewPost {
   return !!node && node.$type === "app.bsky.feed.defs#threadViewPost";
 }
 
-export function isBlockedNode(node: ThreadNode | FeedReplyNode | null | undefined): node is BlockedPost {
+export function isBlockedNode(node: Maybe<ThreadNode | FeedReplyNode>): node is BlockedPost {
   return !!node && node.$type === "app.bsky.feed.defs#blockedPost";
 }
 
-export function isNotFoundNode(node: ThreadNode | FeedReplyNode | null | undefined): node is NotFoundPost {
+export function isNotFoundNode(node: Maybe<ThreadNode | FeedReplyNode>): node is NotFoundPost {
   return !!node && node.$type === "app.bsky.feed.defs#notFoundPost";
 }
 
@@ -164,7 +197,29 @@ export function extractHandles(posts: PostView[], activeHandle: string | null) {
   return [...handles].toSorted((left, right) => left.localeCompare(right));
 }
 
-export function getQuotedRecord(embed: EmbedView | null | undefined) {
+export function applyFeedPreferences(items: FeedViewPost[], pref: FeedViewPrefItem) {
+  return items.filter((item) => {
+    if (pref.hideReposts && isRepostReason(item)) {
+      return false;
+    }
+
+    if (pref.hideReplies && isReplyItem(item)) {
+      return false;
+    }
+
+    if (pref.hideQuotePosts && isQuoteEmbed(item.post.embed)) {
+      return false;
+    }
+
+    if (pref.hideRepliesByLikeCount && isReplyItem(item) && (item.post.likeCount ?? 0) < pref.hideRepliesByLikeCount) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+export function getQuotedRecord(embed: Maybe<EmbedView>) {
   if (!embed) {
     return null;
   }
@@ -180,12 +235,12 @@ export function getQuotedRecord(embed: EmbedView | null | undefined) {
   return null;
 }
 
-export function getQuotedText(embed: EmbedView | null | undefined) {
+export function getQuotedText(embed: Maybe<EmbedView>) {
   const record = getQuotedRecord(embed);
   return asRecord(record?.value)?.text;
 }
 
-export function getQuotedAuthor(embed: EmbedView | null | undefined) {
+export function getQuotedAuthor(embed: Maybe<EmbedView>) {
   return getQuotedRecord(embed)?.author ?? null;
 }
 
@@ -216,4 +271,29 @@ export function findRootPost(node: ThreadNode | null): PostView | null {
   }
 
   return node.post;
+}
+
+export function encodeThreadRouteUri(uri: string) {
+  return encodeURIComponent(uri);
+}
+
+export function decodeThreadRouteUri(value: Maybe<string>) {
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith("at://")) {
+    return value;
+  }
+
+  try {
+    const decoded = decodeURIComponent(value);
+    return decoded.startsWith("at://") ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
+export function buildThreadRoute(uri: string) {
+  return `${THREAD_ROUTE_BASE}/${encodeThreadRouteUri(uri)}`;
 }

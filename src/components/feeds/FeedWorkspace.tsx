@@ -1,11 +1,11 @@
 import { Icon } from "$/components/shared/Icon";
 import {
+  applyFeedPreferences,
   extractHandles,
   extractHashtags,
+  getFeedCommand,
   getFeedName,
-  isQuoteEmbed,
-  isReplyItem,
-  isRepostReason,
+  getReplyRootPost,
   patchFeedItems,
   patchThreadNode,
   toStrongRef,
@@ -25,15 +25,24 @@ import type {
   ThreadResponse,
   UserPreferences,
 } from "$/lib/types";
+import { shouldIgnoreKey } from "$/lib/utils/events";
+import { escapeForRegex } from "$/lib/utils/text";
 import { invoke } from "@tauri-apps/api/core";
 import { createEffect, createMemo, For, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
+import { FeedChipAvatar } from "./FeedChipAvatar";
 import { FeedComposer } from "./FeedComposer";
+import { FeedTabBar } from "./FeedTabs";
 import { PostCard } from "./PostCard";
 import { ThreadPanel } from "./ThreadPanel";
 
-type FeedWorkspaceProps = { activeSession: ActiveSession; onError: (message: string) => void };
+type FeedWorkspaceProps = {
+  activeSession: ActiveSession;
+  onError: (message: string) => void;
+  onThreadRouteChange: (uri: string | null) => void;
+  threadUri: string | null;
+};
 
 type FeedState = {
   cursor: string | null;
@@ -100,8 +109,12 @@ function createInitialWorkspaceState(): FeedWorkspaceState {
     repostPendingByUri: {},
     repostPulseUri: null,
     showFeedsDrawer: false,
-    thread: { data: null, error: null, loading: false, uri: null },
+    thread: createDefaultThreadState(),
   };
+}
+
+function createDefaultThreadState() {
+  return { data: null, error: null, loading: false, uri: null } satisfies FeedWorkspaceState["thread"];
 }
 
 export function FeedWorkspace(props: FeedWorkspaceProps) {
@@ -177,6 +190,22 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
   });
 
   createEffect(() => {
+    const uri = props.threadUri;
+    if (!uri) {
+      if (workspace.thread.uri || workspace.thread.data || workspace.thread.error || workspace.thread.loading) {
+        setWorkspace("thread", reconcile(createDefaultThreadState()));
+      }
+      return;
+    }
+
+    if (workspace.thread.uri === uri && (workspace.thread.data || workspace.thread.error || workspace.thread.loading)) {
+      return;
+    }
+
+    void loadThread(uri);
+  });
+
+  createEffect(() => {
     const items = visibleItems();
     if (items.length === 0) {
       setWorkspace("focusedIndex", 0);
@@ -224,7 +253,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
   });
 
   function handleGlobalKeydown(event: KeyboardEvent) {
-    if (shouldIgnoreKey(event)) {
+    if (workspace.composer.open || shouldIgnoreKey(event)) {
       return;
     }
 
@@ -316,7 +345,9 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
         reconcile(Object.fromEntries(nextPreferences.feedViewPrefs.map((pref) => [pref.feed, pref]))),
       );
 
-      const uris = nextPreferences.savedFeeds.filter((feed) => feed.type === "feed").map((feed) => feed.value);
+      const uris = [
+        ...new Set(nextPreferences.savedFeeds.filter((feed) => feed.type === "feed").map((feed) => feed.value)),
+      ];
       if (uris.length > 0) {
         const hydrated = await invoke<{ feeds: FeedGeneratorView[] }>("get_feed_generators", { uris });
         setWorkspace(
@@ -371,6 +402,22 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
     }
   }
 
+  async function loadThread(uri: string) {
+    setWorkspace("thread", { data: null, error: null, loading: true, uri });
+
+    try {
+      const payload = await invoke<ThreadResponse>("get_post_thread", { uri });
+      if (props.threadUri === uri) {
+        setWorkspace("thread", { data: payload.thread, error: null, loading: false, uri });
+      }
+    } catch (error) {
+      if (props.threadUri === uri) {
+        setWorkspace("thread", { data: null, error: String(error), loading: false, uri });
+      }
+      props.onError(`Failed to open thread: ${String(error)}`);
+    }
+  }
+
   function switchFeed(feedId: string) {
     const current = activeFeed();
     if (current && scroller) {
@@ -386,19 +433,12 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
   }
 
   async function openThread(uri: string) {
-    setWorkspace("thread", "uri", uri);
-    setWorkspace("thread", "loading", true);
-    setWorkspace("thread", "error", null);
-
-    try {
-      const payload = await invoke<ThreadResponse>("get_post_thread", { uri });
-      setWorkspace("thread", "data", payload.thread);
-    } catch (error) {
-      setWorkspace("thread", "error", String(error));
-      props.onError(`Failed to open thread: ${String(error)}`);
-    } finally {
-      setWorkspace("thread", "loading", false);
+    if (props.threadUri === uri) {
+      await loadThread(uri);
+      return;
     }
+
+    props.onThreadRouteChange(uri);
   }
 
   function openComposer() {
@@ -454,8 +494,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
     try {
       await invoke<CreateRecordResult>("create_post", { embed, replyTo, text });
       resetComposer();
-      setWorkspace("thread", "uri", null);
-      setWorkspace("thread", "data", null);
+      props.onThreadRouteChange(null);
       await loadFeed(activeFeed(), false);
       if (scroller) {
         scroller.scrollTop = 0;
@@ -558,9 +597,10 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
 
   return (
     <>
-      <div class="grid h-full gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div class="grid h-full min-h-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <FeedPane
           activeFeed={activeFeed()}
+          activeFeedId={activeFeed().id}
           activeFeedState={activeFeedState()}
           activeHandle={props.activeSession.handle}
           focusedIndex={workspace.focusedIndex}
@@ -609,10 +649,10 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
         onSelectFeed={switchFeed} />
 
       <ThreadPanel
-        activeUri={workspace.thread.uri}
+        activeUri={props.threadUri}
         error={workspace.thread.error}
         loading={workspace.thread.loading}
-        onClose={() => setWorkspace("thread", "uri", null)}
+        onClose={() => props.onThreadRouteChange(null)}
         onLike={(post) => void toggleLike(post)}
         onOpenThread={(uri) => void openThread(uri)}
         onQuote={(post) => openQuoteComposer(post)}
@@ -649,6 +689,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
 function FeedPane(
   props: {
     activeFeed: SavedFeedItem;
+    activeFeedId: string;
     activeFeedState: FeedState | undefined;
     activeHandle: string;
     focusedIndex: number;
@@ -675,7 +716,7 @@ function FeedPane(
   },
 ) {
   return (
-    <section class="min-h-0 rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+    <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
       <FeedPaneHeader
         activeFeed={props.activeFeed}
         generators={props.generators}
@@ -684,6 +725,7 @@ function FeedPane(
         onToggleDrawer={props.onToggleDrawer}
         pinnedFeeds={props.pinnedFeeds} />
       <FeedScroller
+        activeFeedId={props.activeFeedId}
         activeFeedState={props.activeFeedState}
         activeHandle={props.activeHandle}
         focusedIndex={props.focusedIndex}
@@ -744,10 +786,10 @@ function FeedPaneTitle(
   },
 ) {
   return (
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <p class="m-0 text-[1.35rem] font-semibold tracking-[-0.03em] text-on-surface">Timeline</p>
-        <p class="mt-1 text-xs uppercase tracking-[0.12em] text-on-surface-variant">
+    <div class="flex items-start justify-between gap-4 max-[640px]:flex-col max-[640px]:items-stretch">
+      <div class="min-w-0">
+        <p class="m-0 text-xl font-semibold tracking-tight text-on-surface">Timeline</p>
+        <p class="mt-1 wrap-break-word text-xs uppercase tracking-[0.12em] text-on-surface-variant">
           {getFeedName(props.activeFeed, props.generators[props.activeFeed.value]?.displayName)}
         </p>
       </div>
@@ -758,84 +800,27 @@ function FeedPaneTitle(
 
 function FeedHeaderActions(props: { onCompose: () => void; onToggleDrawer: () => void }) {
   return (
-    <div class="flex items-center gap-2">
+    <div class="flex shrink-0 items-center gap-2 max-[640px]:justify-between">
       <button
-        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-[0.82rem] text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
         type="button"
         onClick={() => props.onCompose()}>
-        <Icon aria-hidden="true" iconClass="i-ri-quill-pen-line" />
+        <Icon aria-hidden="true" kind="quill" />
         <span>New post</span>
       </button>
       <button
         class="inline-flex h-11 w-11 items-center justify-center rounded-full border-0 bg-white/5 text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
         type="button"
         onClick={() => props.onToggleDrawer()}>
-        <Icon aria-hidden="true" iconClass="i-ri-menu-line" />
+        <Icon aria-hidden="true" kind="menu" />
       </button>
     </div>
-  );
-}
-
-function FeedTabBar(
-  props: {
-    activeFeedId: string;
-    generators: Record<string, FeedGeneratorView>;
-    onFeedSelect: (feedId: string) => void;
-    onToggleDrawer: () => void;
-    pinnedFeeds: SavedFeedItem[];
-  },
-) {
-  return (
-    <div class="mt-4 flex items-end justify-between gap-3 max-[720px]:flex-col max-[720px]:items-stretch">
-      <div class="flex min-w-0 gap-1 overflow-x-auto pb-1">
-        <For each={props.pinnedFeeds}>
-          {(feed, index) => (
-            <FeedTab
-              active={props.activeFeedId === feed.id}
-              feed={feed}
-              generator={props.generators[feed.value]}
-              index={index() + 1}
-              onSelect={props.onFeedSelect} />
-          )}
-        </For>
-      </div>
-      <button
-        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-[0.82rem] text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
-        type="button"
-        onClick={() => props.onToggleDrawer()}>
-        <Icon aria-hidden="true" iconClass="i-ri-stack-line" />
-        <span>Saved feeds</span>
-      </button>
-    </div>
-  );
-}
-
-function FeedTab(
-  props: {
-    active: boolean;
-    feed: SavedFeedItem;
-    generator?: FeedGeneratorView;
-    index: number;
-    onSelect: (feedId: string) => void;
-  },
-) {
-  return (
-    <button
-      class="relative inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full border-0 px-4 text-[0.84rem] font-medium text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
-      classList={{
-        "bg-[rgba(125,175,255,0.12)] text-primary shadow-[inset_0_0_0_1px_rgba(125,175,255,0.2)]": props.active,
-      }}
-      type="button"
-      onClick={() => props.onSelect(props.feed.id)}>
-      <FeedChipAvatar feed={props.feed} generator={props.generator} />
-      <span class="truncate">{getFeedName(props.feed, props.generator?.displayName)}</span>
-      <span class="rounded-full bg-black/25 px-1.5 py-0.5 text-[0.65rem] text-on-surface-variant">{props.index}</span>
-    </button>
   );
 }
 
 function FeedScroller(
   props: {
+    activeFeedId: string;
     activeFeedState: FeedState | undefined;
     activeHandle: string;
     focusedIndex: number;
@@ -861,10 +846,11 @@ function FeedScroller(
   return (
     <div
       ref={(element) => props.scrollerRef(element)}
-      class="feed-scroll-region h-[calc(100vh-14rem)] overflow-y-auto px-6 pb-8 pt-4 max-[1180px]:h-[calc(100vh-12.5rem)]"
+      class="feed-scroll-region min-h-0 overflow-y-auto overscroll-contain px-6 pb-8 pt-4"
       onScroll={(event) => props.setScrollTop(event.currentTarget.scrollTop)}>
       <ComposerLauncher activeHandle={props.activeHandle} onCompose={props.onCompose} />
       <FeedContent
+        activeFeedId={props.activeFeedId}
         activeFeedState={props.activeFeedState}
         focusedIndex={props.focusedIndex}
         likePendingByUri={props.likePendingByUri}
@@ -894,7 +880,7 @@ function ComposerLauncher(props: { activeHandle: string; onCompose: () => void }
         {props.activeHandle.slice(0, 1).toUpperCase()}
       </div>
       <div class="min-w-0 flex-1">
-        <p class="m-0 text-[0.9rem] text-on-surface-variant">What's happening?</p>
+        <p class="m-0 wrap-break-word text-[0.9rem] text-on-surface-variant">What's happening?</p>
       </div>
       <div class="flex items-center gap-1 text-on-surface-variant">
         <Icon aria-hidden="true" iconClass="i-ri-at-line" />
@@ -907,6 +893,7 @@ function ComposerLauncher(props: { activeHandle: string; onCompose: () => void }
 
 function FeedContent(
   props: {
+    activeFeedId: string;
     activeFeedState: FeedState | undefined;
     focusedIndex: number;
     likePendingByUri: Record<string, boolean>;
@@ -926,43 +913,49 @@ function FeedContent(
 ) {
   return (
     <Presence exitBeforeEnter>
-      <Motion.div
-        class="grid gap-3"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}>
-        <FeedStatus activeFeedState={props.activeFeedState} visibleItems={props.visibleItems} />
-        <For each={props.visibleItems}>
-          {(item, index) => (
-            <PostCard
-              focused={props.focusedIndex === index()}
-              item={item}
-              likePending={!!props.likePendingByUri[item.post.uri]}
-              onFocus={() => props.onFocusIndex(index())}
-              onLike={() => void props.onLike(item.post)}
-              onOpenThread={() => void props.onOpenThread(item.post.uri)}
-              onQuote={() => props.onQuote(item.post)}
-              onReply={() => props.onReply(item.post, getReplyRootPost(item))}
-              onRepost={() => void props.onRepost(item.post)}
-              post={item.post}
-              pulseLike={props.likePulseUri === item.post.uri}
-              pulseRepost={props.repostPulseUri === item.post.uri}
-              registerRef={(element) => props.postRefs.set(item.post.uri, element)}
-              repostPending={!!props.repostPendingByUri[item.post.uri]} />
-          )}
-        </For>
-        <div ref={(element) => props.sentinelRef(element)} />
-        <LoadingMoreIndicator loading={!!props.activeFeedState?.loadingMore} />
-      </Motion.div>
+      <For each={[props.activeFeedId]}>
+        {() => (
+          <Motion.div
+            class="grid gap-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}>
+            <FeedStatus activeFeedState={props.activeFeedState} visibleItems={props.visibleItems} />
+            <For each={props.visibleItems}>
+              {(item, index) => (
+                <PostCard
+                  focused={props.focusedIndex === index()}
+                  item={item}
+                  likePending={!!props.likePendingByUri[item.post.uri]}
+                  onFocus={() => props.onFocusIndex(index())}
+                  onLike={() => void props.onLike(item.post)}
+                  onOpenThread={() => void props.onOpenThread(item.post.uri)}
+                  onQuote={() => props.onQuote(item.post)}
+                  onReply={() => props.onReply(item.post, getReplyRootPost(item))}
+                  onRepost={() => void props.onRepost(item.post)}
+                  post={item.post}
+                  pulseLike={props.likePulseUri === item.post.uri}
+                  pulseRepost={props.repostPulseUri === item.post.uri}
+                  registerRef={(element) => props.postRefs.set(item.post.uri, element)}
+                  repostPending={!!props.repostPendingByUri[item.post.uri]} />
+              )}
+            </For>
+            <div ref={(element) => props.sentinelRef(element)} />
+            <LoadingMoreIndicator loading={!!props.activeFeedState?.loadingMore} />
+          </Motion.div>
+        )}
+      </For>
     </Presence>
   );
 }
 
 function FeedStatus(props: { activeFeedState: FeedState | undefined; visibleItems: FeedViewPost[] }) {
+  const loading = () => !props.activeFeedState || props.activeFeedState.loading;
+
   return (
     <>
-      <Show when={props.activeFeedState?.loading}>
+      <Show when={loading()}>
         <FeedSkeleton />
       </Show>
       <Show when={props.activeFeedState?.error}>
@@ -972,7 +965,7 @@ function FeedStatus(props: { activeFeedState: FeedState | undefined; visibleItem
           </div>
         )}
       </Show>
-      <Show when={!props.activeFeedState?.loading && !props.activeFeedState?.error && props.visibleItems.length === 0}>
+      <Show when={!loading() && !props.activeFeedState?.error && props.visibleItems.length === 0}>
         <EmptyFeedState />
       </Show>
     </>
@@ -982,7 +975,7 @@ function FeedStatus(props: { activeFeedState: FeedState | undefined; visibleItem
 function LoadingMoreIndicator(props: { loading: boolean }) {
   return (
     <Show when={props.loading}>
-      <div class="flex items-center justify-center py-4 text-[0.82rem] text-on-surface-variant">
+      <div class="flex items-center justify-center py-4 text-sm text-on-surface-variant">
         <Icon aria-hidden="true" class="animate-spin" iconClass="i-ri-loader-4-line" />
         <span class="ml-2">Loading more</span>
       </div>
@@ -1003,7 +996,7 @@ function WorkspaceSidebar(
   },
 ) {
   return (
-    <aside class="grid gap-4 xl:h-[calc(100vh-10rem)] xl:overflow-y-auto">
+    <aside class="grid min-h-0 gap-4 overflow-hidden xl:overflow-y-auto xl:overscroll-contain">
       <SavedFeedsCard drawerFeeds={props.drawerFeeds} generators={props.generators} onFeedSelect={props.onFeedSelect} />
       <DisplayFiltersCard activePref={props.activePref} onPrefChange={props.onPrefChange} />
       <ShortcutsCard />
@@ -1046,8 +1039,8 @@ function SidebarFeedButton(
       onClick={() => props.onSelect(props.feed.id)}>
       <FeedChipAvatar feed={props.feed} generator={props.generator} />
       <div class="min-w-0 flex-1">
-        <p class="m-0 truncate text-[0.84rem] font-medium">{getFeedName(props.feed, props.generator?.displayName)}</p>
-        <p class="m-0 text-[0.72rem] uppercase tracking-[0.08em] text-on-surface-variant">{props.feed.type}</p>
+        <p class="m-0 truncate text-sm font-medium">{getFeedName(props.feed, props.generator?.displayName)}</p>
+        <p class="m-0 text-xs uppercase tracking-[0.08em] text-on-surface-variant">{props.feed.type}</p>
       </div>
     </button>
   );
@@ -1131,7 +1124,7 @@ function SavedFeedsDrawer(
     <Presence>
       <Show when={props.open}>
         <Motion.aside
-          class="fixed inset-y-0 right-0 z-30 w-full max-w-104 overflow-y-auto border-l border-white/5 bg-[rgba(12,12,12,0.95)] px-5 pb-6 pt-5 backdrop-blur-[22px] shadow-[-28px_0_50px_rgba(0,0,0,0.35)]"
+          class="fixed inset-y-0 right-0 z-30 w-full max-w-104 overflow-y-auto overscroll-contain border-l border-white/5 bg-[rgba(12,12,12,0.95)] px-5 pb-6 pt-5 backdrop-blur-[22px] shadow-[-28px_0_50px_rgba(0,0,0,0.35)]"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 24 }}
@@ -1181,45 +1174,17 @@ function DrawerFeedButton(
       <FeedChipAvatar feed={props.feed} generator={props.generator} />
       <div class="min-w-0 flex-1">
         <p class="m-0 truncate text-[0.88rem] font-semibold">{getFeedName(props.feed, props.generator?.displayName)}</p>
-        <p class="m-0 truncate text-[0.74rem] text-on-surface-variant">{props.feed.value}</p>
+        <p class="m-0 break-all text-[0.74rem] text-on-surface-variant">{props.feed.value}</p>
       </div>
     </button>
-  );
-}
-
-function FeedChipAvatar(props: { feed: SavedFeedItem; generator?: FeedGeneratorView }) {
-  const icon = createMemo(() => {
-    switch (props.feed.type) {
-      case "list": {
-        return "i-ri-list-check-2";
-      }
-      case "timeline": {
-        return "i-ri-home-5-line";
-      }
-      default: {
-        return "i-ri-rss-line";
-      }
-    }
-  });
-
-  return (
-    <Show
-      when={props.generator?.avatar}
-      fallback={
-        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-white/6 text-primary">
-          <Icon aria-hidden="true" iconClass={icon()} />
-        </div>
-      }>
-      {(avatar) => <img class="h-8 w-8 rounded-full object-cover" src={avatar()} alt="" />}
-    </Show>
   );
 }
 
 function SidebarCard(props: { children: JSX.Element; subtitle: string; title: string }) {
   return (
     <section class="rounded-[1.6rem] bg-white/3 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
-      <p class="m-0 text-[0.95rem] font-semibold text-on-surface">{props.title}</p>
-      <p class="mt-1 text-[0.72rem] uppercase tracking-[0.12em] text-on-surface-variant">{props.subtitle}</p>
+      <p class="m-0 text-base font-semibold text-on-surface">{props.title}</p>
+      <p class="mt-1 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.subtitle}</p>
       <div class="mt-4">{props.children}</div>
     </section>
   );
@@ -1227,7 +1192,7 @@ function SidebarCard(props: { children: JSX.Element; subtitle: string; title: st
 
 function ToggleRow(props: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
   return (
-    <label class="flex items-center justify-between gap-3 rounded-2xl bg-white/4 px-3 py-3 text-[0.84rem] text-on-surface">
+    <label class="flex items-center justify-between gap-3 rounded-2xl bg-white/4 px-3 py-3 text-sm text-on-surface">
       <span>{props.label}</span>
       <input checked={props.checked} type="checkbox" onInput={(event) => props.onChange(event.currentTarget.checked)} />
     </label>
@@ -1282,62 +1247,4 @@ function EmptyFeedState() {
       </p>
     </div>
   );
-}
-
-function getFeedCommand(feed: SavedFeedItem) {
-  if (feed.type === "timeline") {
-    return { args: (cursor: string | null, limit: number) => ({ cursor, limit }), name: "get_timeline" };
-  }
-
-  if (feed.type === "list") {
-    return {
-      args: (cursor: string | null, limit: number) => ({ cursor, limit, uri: feed.value }),
-      name: "get_list_feed",
-    };
-  }
-
-  return { args: (cursor: string | null, limit: number) => ({ cursor, limit, uri: feed.value }), name: "get_feed" };
-}
-
-function applyFeedPreferences(items: FeedViewPost[], pref: UserPreferences["feedViewPrefs"][number]) {
-  return items.filter((item) => {
-    if (pref.hideReposts && isRepostReason(item)) {
-      return false;
-    }
-
-    if (pref.hideReplies && isReplyItem(item)) {
-      return false;
-    }
-
-    if (pref.hideQuotePosts && isQuoteEmbed(item.post.embed)) {
-      return false;
-    }
-
-    if (pref.hideRepliesByLikeCount && isReplyItem(item) && (item.post.likeCount ?? 0) < pref.hideRepliesByLikeCount) {
-      return false;
-    }
-
-    return true;
-  });
-}
-
-function getReplyRootPost(item: FeedViewPost) {
-  if (item.reply?.root.$type === "app.bsky.feed.defs#postView") {
-    return item.reply.root;
-  }
-
-  return item.post;
-}
-
-function shouldIgnoreKey(event: KeyboardEvent) {
-  const element = event.target;
-  if (!(element instanceof HTMLElement)) {
-    return false;
-  }
-
-  return element.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName);
-}
-
-function escapeForRegex(value: string) {
-  return value.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }

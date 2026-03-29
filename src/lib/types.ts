@@ -1,3 +1,5 @@
+export type Maybe<T> = T | null | undefined;
+
 export type AccountSummary = { did: string; handle: string; pdsUrl: string; active: boolean };
 
 export type ActiveSession = { did: string; handle: string };
@@ -6,7 +8,9 @@ export type AppBootstrap = { activeSession: ActiveSession | null; accountList: A
 
 export type LoginSuggestion = { did: string; handle: string; displayName?: string | null; avatar?: string | null };
 
-export type SavedFeedItem = { id: string; type: string; value: string; pinned: boolean };
+export type SavedFeedKind = "timeline" | "feed" | "list";
+
+export type SavedFeedItem = { id: string; type: SavedFeedKind; value: string; pinned: boolean };
 
 export type FeedViewPrefItem = {
   feed: string;
@@ -104,15 +108,15 @@ export type EmbedView =
 export type PostView = {
   author: ProfileViewBasic;
   cid: string;
-  embed?: EmbedView | null;
+  embed: Maybe<EmbedView>;
   indexedAt: string;
-  likeCount?: number | null;
-  quoteCount?: number | null;
+  likeCount: Maybe<number>;
+  quoteCount: Maybe<number>;
   record: PostRecord | Record<string, unknown>;
-  replyCount?: number | null;
-  repostCount?: number | null;
+  replyCount: Maybe<number>;
+  repostCount: Maybe<number>;
   uri: string;
-  viewer?: ViewerState | null;
+  viewer: Maybe<ViewerState>;
 };
 
 export type NotFoundPost = { $type: "app.bsky.feed.defs#notFoundPost"; notFound: boolean; uri: string };

@@ -19,22 +19,22 @@ Spec: [feeds.md](../specs/feeds.md)
 
 ### Frontend — Feed Tabs & Content
 
-- [ ] Feed tab bar — pinned feeds as tabs, hydrated with generator display names/avatars; `1`–`9` keyboard shortcuts to switch
-- [ ] Feed content loader — dispatches to correct endpoint based on feed type (`timeline` / `feed` / `list`)
-- [ ] Infinite scroll with cursor pagination and scroll-position preservation
-- [ ] `Presence` crossfade animation on tab switch
-- [ ] Skeleton screens while feeds load
+- [x] Feed tab bar — pinned feeds as tabs, hydrated with generator display names/avatars; `1`–`9` keyboard shortcuts to switch
+- [x] Feed content loader — dispatches to correct endpoint based on feed type (`timeline` / `feed` / `list`)
+- [x] Infinite scroll with cursor pagination and scroll-position preservation
+- [x] `Presence` crossfade animation on tab switch
+- [x] Skeleton screens while feeds load
 
 ### Frontend — Post Card & Actions
 
-- [ ] Post card component (author, text, embeds, timestamps, action bar) — `Motion` fade-in on viewport enter
-- [ ] Like/repost icon `Motion` scale pop animation (1.0 -> 1.3 -> 1.0)
-- [ ] `j/k` keyboard navigation between posts, `l` like, `r` reply, `t` repost, `o` open thread
+- [x] Post card component (author, text, embeds, timestamps, action bar) — `Motion` fade-in on viewport enter
+- [x] Like/repost icon `Motion` scale pop animation (1.0 -> 1.3 -> 1.0)
+- [x] `j/k` keyboard navigation between posts, `l` like, `r` reply, `t` repost, `o` open thread
 
 ### Frontend — Thread View
 
-- [ ] Thread view with nested replies
-- [ ] Navigate into thread from post card (`o` / `Enter`)
+- [x] Thread view with nested replies
+- [x] Navigate into thread from post card (`o` / `Enter`) with route-backed thread URLs
 
 ### Frontend — Post Composer
 
@@ -47,3 +47,4 @@ Spec: [feeds.md](../specs/feeds.md)
 
 - [ ] Per-feed display toggles (hide reposts/replies/quotes) via `feedViewPref`
 - [ ] Feeds drawer for accessing saved (unpinned) feeds
+- [ ] Feed generator management (pin/unpin, reorder) via `savedFeedsPrefV2`
