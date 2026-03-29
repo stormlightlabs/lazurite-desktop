@@ -108,3 +108,8 @@ pub async fn repost(uri: String, cid: String, state: State<'_, AppState>) -> Res
 pub async fn unrepost(repost_uri: String, state: State<'_, AppState>) -> Result<(), AppError> {
     feed::unrepost(repost_uri, &state).await
 }
+
+#[tauri::command]
+pub async fn update_saved_feeds(feeds: Vec<feed::SavedFeedItem>, state: State<'_, AppState>) -> Result<(), AppError> {
+    feed::update_saved_feeds(feed::UpdateSavedFeedsInput { feeds }, &state).await
+}

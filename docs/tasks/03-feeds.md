@@ -38,14 +38,14 @@ Spec: [feeds.md](../specs/feeds.md)
 
 ### Frontend — Post Composer
 
-- [ ] Composer with `Presence` slide-up/down, `n` keyboard shortcut to open
-- [ ] Mention/hashtag autocomplete
-- [ ] Reply threading with parent/root refs
-- [ ] Quote post embed
-- [ ] Tray button and global keyboard shortcut to open composer from anywhere
+- [x] Composer with `Presence` slide-up/down, `n` keyboard shortcut to open
+- [x] Mention/hashtag autocomplete
+- [x] Reply threading with parent/root refs
+- [x] Quote post embed
+- [x] Tray button and global keyboard shortcut to open composer from anywhere
 
 ### Frontend — Feed Preferences
 
-- [ ] Per-feed display toggles (hide reposts/replies/quotes) via `feedViewPref`
-- [ ] Feeds drawer for accessing saved (unpinned) feeds
-- [ ] Feed generator management (pin/unpin, reorder) via `savedFeedsPrefV2`
+- [x] Per-feed display toggles (hide reposts/replies/quotes) via `feedViewPref`
+- [x] Feeds drawer for accessing saved (unpinned) feeds
+- [x] Feed generator management (pin/unpin, reorder) via `savedFeedsPrefV2`

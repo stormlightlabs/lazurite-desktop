@@ -1,4 +1,3 @@
-import { Icon } from "$/components/shared/Icon";
 import {
   applyFeedPreferences,
   extractHandles,
@@ -26,11 +25,12 @@ import type {
 import { shouldIgnoreKey } from "$/lib/utils/events";
 import { escapeForRegex } from "$/lib/utils/text";
 import { invoke } from "@tauri-apps/api/core";
-import { createEffect, createMemo, For, type JSX, onCleanup, onMount, Show } from "solid-js";
+import { listen } from "@tauri-apps/api/event";
+import { createEffect, createMemo, For, onCleanup, onMount, type ParentProps, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
-import { Motion, Presence } from "solid-motionone";
 import { FeedChipAvatar } from "./FeedChipAvatar";
 import { FeedComposer } from "./FeedComposer";
+import { SavedFeedsDrawer } from "./FeedDrawer";
 import { FeedPane } from "./FeedPane";
 import { ThreadPanel } from "./ThreadPanel";
 import type { FeedState, FeedWorkspaceState } from "./types";
@@ -306,7 +306,18 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
 
   onMount(() => {
     globalThis.addEventListener("keydown", handleGlobalKeydown);
-    onCleanup(() => globalThis.removeEventListener("keydown", handleGlobalKeydown));
+
+    let unlistenComposer: (() => void) | undefined;
+    void listen("composer:open", () => {
+      openComposer();
+    }).then((dispose) => {
+      unlistenComposer = dispose;
+    });
+
+    onCleanup(() => {
+      globalThis.removeEventListener("keydown", handleGlobalKeydown);
+      unlistenComposer?.();
+    });
   });
 
   async function bootstrapFeeds() {
@@ -575,6 +586,52 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
     globalThis.setTimeout(() => setWorkspace("repostPulseUri", (current) => (current === uri ? null : current)), 320);
   }
 
+  async function saveFeedPreferences(updatedFeeds: SavedFeedItem[]) {
+    try {
+      await invoke("update_saved_feeds", { feeds: updatedFeeds });
+      setWorkspace("preferences", (current) => current ? { ...current, savedFeeds: updatedFeeds } : current);
+    } catch (error) {
+      props.onError(`Failed to update feeds: ${String(error)}`);
+    }
+  }
+
+  function pinFeed(feedId: string) {
+    const currentFeeds = workspace.preferences?.savedFeeds ?? [];
+    const updatedFeeds = currentFeeds.map((feed) => feed.id === feedId ? { ...feed, pinned: true } : feed);
+    void saveFeedPreferences(updatedFeeds);
+  }
+
+  function unpinFeed(feedId: string) {
+    const currentFeeds = workspace.preferences?.savedFeeds ?? [];
+    const updatedFeeds = currentFeeds.map((feed) => feed.id === feedId ? { ...feed, pinned: false } : feed);
+    void saveFeedPreferences(updatedFeeds);
+  }
+
+  function reorderPinnedFeeds(feedId: string, direction: "up" | "down") {
+    const pinned = pinnedFeeds();
+    const index = pinned.findIndex((f) => f.id === feedId);
+    if (index === -1) return;
+
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= pinned.length) return;
+
+    const currentFeeds = [...(workspace.preferences?.savedFeeds ?? [])];
+    const feedIds = currentFeeds.map((f) => f.id);
+    const pinnedIds = pinned.map((f) => f.id);
+
+    const itemId = pinnedIds[index];
+    const swapId = pinnedIds[newIndex];
+    const itemIdx = feedIds.indexOf(itemId);
+    const swapIdx = feedIds.indexOf(swapId);
+
+    if (itemIdx === -1 || swapIdx === -1) return;
+
+    const reordered = [...currentFeeds];
+    [reordered[itemIdx], reordered[swapIdx]] = [reordered[swapIdx], reordered[itemIdx]];
+
+    void saveFeedPreferences(reordered);
+  }
+
   return (
     <>
       <div class="grid h-full min-h-0 min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
@@ -622,11 +679,15 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
       </div>
 
       <SavedFeedsDrawer
-        feeds={drawerFeeds()}
+        drawerFeeds={drawerFeeds()}
         generators={workspace.generators}
         open={workspace.showFeedsDrawer}
+        pinnedFeeds={pinnedFeeds()}
         onClose={() => setWorkspace("showFeedsDrawer", false)}
-        onSelectFeed={switchFeed} />
+        onPinFeed={pinFeed}
+        onReorderPinned={reorderPinnedFeeds}
+        onSelectFeed={switchFeed}
+        onUnpinFeed={unpinFeed} />
 
       <ThreadPanel
         activeUri={props.threadUri}
@@ -794,76 +855,7 @@ function ShortcutsCard() {
   );
 }
 
-function SavedFeedsDrawer(
-  props: {
-    feeds: SavedFeedItem[];
-    generators: Record<string, FeedGeneratorView>;
-    open: boolean;
-    onClose: () => void;
-    onSelectFeed: (feedId: string) => void;
-  },
-) {
-  return (
-    <Presence>
-      <Show when={props.open}>
-        <Motion.aside
-          class="fixed inset-y-0 right-0 z-30 w-full max-w-104 overflow-y-auto overscroll-contain border-l border-white/5 bg-[rgba(12,12,12,0.95)] px-5 pb-6 pt-5 backdrop-blur-[22px] shadow-[-28px_0_50px_rgba(0,0,0,0.35)]"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 24 }}
-          transition={{ duration: 0.2 }}>
-          <DrawerHeader onClose={props.onClose} />
-          <div class="mt-5 grid gap-3">
-            <For each={props.feeds}>
-              {(feed) => (
-                <DrawerFeedButton
-                  feed={feed}
-                  generator={props.generators[feed.value]}
-                  onSelectFeed={props.onSelectFeed} />
-              )}
-            </For>
-          </div>
-        </Motion.aside>
-      </Show>
-    </Presence>
-  );
-}
-
-function DrawerHeader(props: { onClose: () => void }) {
-  return (
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="m-0 text-[1rem] font-semibold text-on-surface">Saved Feeds</p>
-        <p class="m-0 text-[0.74rem] uppercase tracking-[0.12em] text-on-surface-variant">Unpinned drawer</p>
-      </div>
-      <button
-        class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
-        type="button"
-        onClick={() => props.onClose()}>
-        <Icon aria-hidden="true" iconClass="i-ri-close-line" />
-      </button>
-    </div>
-  );
-}
-
-function DrawerFeedButton(
-  props: { feed: SavedFeedItem; generator?: FeedGeneratorView; onSelectFeed: (feedId: string) => void },
-) {
-  return (
-    <button
-      class="flex w-full items-center gap-3 rounded-[1.25rem] border-0 bg-white/4 px-4 py-4 text-left text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
-      type="button"
-      onClick={() => props.onSelectFeed(props.feed.id)}>
-      <FeedChipAvatar feed={props.feed} generator={props.generator} />
-      <div class="min-w-0 flex-1">
-        <p class="m-0 truncate text-[0.88rem] font-semibold">{getFeedName(props.feed, props.generator?.displayName)}</p>
-        <p class="m-0 break-all text-[0.74rem] text-on-surface-variant">{props.feed.value}</p>
-      </div>
-    </button>
-  );
-}
-
-function SidebarCard(props: { children: JSX.Element; subtitle: string; title: string }) {
+function SidebarCard(props: ParentProps & { subtitle: string; title: string }) {
   return (
     <section class="rounded-[1.6rem] bg-white/3 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
       <p class="m-0 text-base font-semibold text-on-surface">{props.title}</p>

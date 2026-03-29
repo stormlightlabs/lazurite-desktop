@@ -1,5 +1,5 @@
 import { render, screen } from "@solidjs/testing-library";
-import type { Component, JSX } from "solid-js";
+import type { Component, ParentProps } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { buildThreadRoute } from "./lib/feeds";
 import type { ActiveSession } from "./lib/types";
@@ -7,7 +7,7 @@ import { AppRouter } from "./router";
 
 const session: ActiveSession = { did: "did:plc:alice", handle: "alice.test" };
 
-const Shell: Component<{ children: JSX.Element }> = (props) => <div>{props.children}</div>;
+const Shell: Component<ParentProps> = (props) => <div>{props.children}</div>;
 
 function renderRouter(hash: string) {
   globalThis.location.hash = hash;

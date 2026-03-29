@@ -4,6 +4,7 @@ mod db;
 mod error;
 mod feed;
 mod state;
+mod tray;
 
 use auth::emit_at_uri_navigation;
 use commands as cmd;
@@ -36,6 +37,12 @@ pub fn run() {
                 }
             }
 
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                tray::setup_tray(app.handle())?;
+                tray::setup_global_shortcut(app.handle())?;
+            }
+
             Ok(())
         })
         .plugin(tauri_plugin_notification::init())
@@ -46,6 +53,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             cmd::get_app_bootstrap,
             cmd::list_accounts,
@@ -65,7 +73,8 @@ pub fn run() {
             cmd::like_post,
             cmd::unlike_post,
             cmd::repost,
-            cmd::unrepost
+            cmd::unrepost,
+            cmd::update_saved_feeds
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

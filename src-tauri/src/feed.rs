@@ -2,7 +2,10 @@ use super::auth::LazuriteOAuthSession;
 use super::error::{AppError, Result};
 use super::state::AppState;
 use jacquard::api::app_bsky::actor::get_preferences::GetPreferences;
-use jacquard::api::app_bsky::actor::{FeedViewPref, PreferencesItem, SavedFeedType, SavedFeedsPrefV2};
+use jacquard::api::app_bsky::actor::put_preferences::PutPreferences;
+use jacquard::api::app_bsky::actor::{
+    FeedViewPref, PreferencesItem, SavedFeed, SavedFeedType, SavedFeedsPrefV2, SavedFeedsPrefV2Builder,
+};
 use jacquard::api::app_bsky::embed::record::Record;
 use jacquard::api::app_bsky::feed::get_author_feed::GetAuthorFeed;
 use jacquard::api::app_bsky::feed::get_feed::GetFeed;
@@ -463,4 +466,44 @@ fn post_embed_from_input(input: EmbedInput) -> Result<PostEmbed<'static>> {
             Record::new().record(strong_ref_from_input(&record)?).build(),
         ))),
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateSavedFeedsInput {
+    pub feeds: Vec<SavedFeedItem>,
+}
+
+pub async fn update_saved_feeds(input: UpdateSavedFeedsInput, state: &AppState) -> Result<()> {
+    let session = get_session(state).await?;
+
+    let items: Vec<SavedFeed<'_>> = input
+        .feeds
+        .into_iter()
+        .map(|f| {
+            SavedFeed::new()
+                .id(f.id)
+                .r#type(match f.r#type.as_str() {
+                    "timeline" => SavedFeedType::Timeline,
+                    "feed" => SavedFeedType::Feed,
+                    "list" => SavedFeedType::List,
+                    _ => SavedFeedType::Other(f.r#type.into()),
+                })
+                .value(f.value)
+                .pinned(f.pinned)
+                .build()
+        })
+        .collect();
+
+    let saved_feeds_pref = Box::new(SavedFeedsPrefV2Builder::new().items(items).build());
+    let pref_item = PreferencesItem::SavedFeedsPrefV2(saved_feeds_pref);
+
+    session
+        .send(PutPreferences::new().preferences(vec![pref_item]).build())
+        .await
+        .map_err(|_| AppError::validation("putPreferences"))?
+        .into_output()
+        .map_err(|_| AppError::validation("putPreferences output"))?;
+
+    Ok(())
 }

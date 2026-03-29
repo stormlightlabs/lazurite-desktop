@@ -1,9 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { createEffect, createMemo, type JSX, onCleanup, onMount, Show, startTransition } from "solid-js";
+import { createEffect, createMemo, onCleanup, onMount, Show, startTransition } from "solid-js";
 import { createStore } from "solid-js/store";
 import "@fontsource-variable/google-sans";
 import "./App.css";
+import type { ParentProps } from "solid-js";
 import { AccountLedger } from "./components/account/AccountLedger";
 import { AppRail } from "./components/AppRail";
 import { FeedWorkspace } from "./components/feeds/FeedWorkspace";
@@ -15,6 +16,7 @@ import type { AccountSummary, ActiveSession, AppBootstrap } from "./lib/types";
 import { AppRouter } from "./router";
 
 const ACCOUNT_SWITCH_EVENT = "auth:account-switched";
+
 const RAIL_COLLAPSED_STORAGE_KEY = "lazurite:rail-collapsed";
 
 type AppState = {
@@ -197,7 +199,7 @@ function App() {
     globalThis.localStorage.setItem(RAIL_COLLAPSED_STORAGE_KEY, app.railCollapsed ? "true" : "false");
   });
 
-  function AppShell(props: { children: JSX.Element }) {
+  function AppShell(props: ParentProps) {
     return (
       <>
         <main

@@ -7,7 +7,7 @@ import {
   useNavigate,
   useParams,
 } from "@solidjs/router";
-import { type Component, createEffect, type JSX, Show } from "solid-js";
+import { type Component, createEffect, type JSX, type ParentProps, Show } from "solid-js";
 import { buildThreadRoute, decodeThreadRouteUri, TIMELINE_ROUTE } from "./lib/feeds";
 import type { ActiveSession } from "./lib/types";
 
@@ -16,7 +16,7 @@ type AppRouterProps = {
   hasSession: boolean;
   onLocationChange?: () => void;
   renderAuth: () => JSX.Element;
-  renderShell: Component<{ children: JSX.Element }>;
+  renderShell: Component<ParentProps>;
   renderTimeline: (
     session: ActiveSession,
     context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null },
@@ -151,9 +151,7 @@ function TimelineRouteView(
   );
 }
 
-function PublicOnlyRoute(
-  props: { bootstrapping: boolean; when: boolean; redirectHref: string; children: JSX.Element },
-) {
+function PublicOnlyRoute(props: ParentProps & { bootstrapping: boolean; when: boolean; redirectHref: string }) {
   return (
     <Show when={props.when || props.bootstrapping} fallback={<Navigate href={props.redirectHref} />}>
       {props.children}
