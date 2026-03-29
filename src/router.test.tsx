@@ -14,6 +14,9 @@ function renderRouter(hash: string) {
   const renderComposer = vi.fn((currentSession: ActiveSession) => (
     <div data-testid="composer-view">{currentSession.handle}</div>
   ));
+  const renderNotifications = vi.fn((currentSession: ActiveSession) => (
+    <div data-testid="notifications-view">{currentSession.handle}</div>
+  ));
   const renderTimeline = vi.fn((currentSession: ActiveSession, context: { threadUri: string | null }) => (
     <div data-testid="timeline-view">
       <span>{currentSession.handle}</span>
@@ -27,12 +30,13 @@ function renderRouter(hash: string) {
       hasSession
       renderAuth={() => <div>Auth</div>}
       renderComposer={renderComposer}
+      renderNotifications={renderNotifications}
       renderShell={Shell}
       renderTimeline={renderTimeline}
       session={session} />
   ));
 
-  return { renderComposer, renderTimeline };
+  return { renderComposer, renderNotifications, renderTimeline };
 }
 
 describe("AppRouter", () => {
@@ -62,6 +66,15 @@ describe("AppRouter", () => {
     await screen.findByTestId("composer-view");
 
     expect(renderComposer).toHaveBeenCalledOnce();
+    expect(screen.getByText(session.handle)).toBeInTheDocument();
+  });
+
+  it("renders the notifications route inside the protected shell", async () => {
+    const { renderNotifications } = renderRouter("#/notifications");
+
+    await screen.findByTestId("notifications-view");
+
+    expect(renderNotifications).toHaveBeenCalledOnce();
     expect(screen.getByText(session.handle)).toBeInTheDocument();
   });
 });

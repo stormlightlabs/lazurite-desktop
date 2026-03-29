@@ -16,15 +16,15 @@ export function SessionEmptyState() {
 
 export function SessionExpiredState(props: { account: AccountSummary }) {
   return (
-    <div class="grid items-center gap-4 [align-content:start] grid-cols-[auto_minmax(0,1fr)]">
+    <div class="flex items-center gap-4 [align-content:start] grid-cols-[auto_minmax(0,1fr)]">
       <AvatarBadge label={props.account.handle || props.account.did} src={props.account.avatar} tone="muted" />
       <div class="grid">
         <h2 class="m-0 text-[clamp(1.3rem,2vw,1.7rem)] tracking-[-0.02em]">
           {props.account.handle || props.account.did}
         </h2>
         <p class="m-0 text-xs text-on-surface-variant">Stored account</p>
+        <p class="m-0 text-xs text-on-surface-variant">PDS: {props.account.pdsUrl || "PDS unavailable"}</p>
       </div>
-      <p class="m-0 text-xs text-on-surface-variant">{props.account.pdsUrl || "PDS unavailable"}</p>
     </div>
   );
 }

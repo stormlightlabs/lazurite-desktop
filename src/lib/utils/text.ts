@@ -15,3 +15,11 @@ export function formatCount(value: Maybe<number>) {
 
   return value.toString();
 }
+
+export function normalizeError(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message;
+  } else {
+    return String(err);
+  }
+}

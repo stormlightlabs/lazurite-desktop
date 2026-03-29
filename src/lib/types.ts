@@ -164,6 +164,35 @@ export type ThreadNode = ThreadViewPost | NotFoundPost | BlockedPost;
 
 export type ThreadResponse = { thread: ThreadNode };
 
+export type NotificationReason =
+  | "like"
+  | "repost"
+  | "follow"
+  | "mention"
+  | "reply"
+  | "quote"
+  | "starterpack-joined"
+  | "verified"
+  | "unverified"
+  | string;
+
+export type NotificationView = {
+  uri: string;
+  cid: string;
+  author: ProfileViewBasic;
+  reason: NotificationReason;
+  reasonSubject?: string | null;
+  record: Record<string, unknown>;
+  isRead: boolean;
+  indexedAt: string;
+};
+
+export type ListNotificationsResponse = {
+  cursor?: string | null;
+  notifications: NotificationView[];
+  seenAt?: string | null;
+};
+
 export type StrongRefInput = { cid: string; uri: string };
 
 export type ReplyRefInput = { parent: StrongRefInput; root: StrongRefInput };

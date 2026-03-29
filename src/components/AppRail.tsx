@@ -25,7 +25,7 @@ function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void })
   );
 }
 
-function RailNavigation(props: { collapsed: boolean; hasSession: boolean }) {
+function RailNavigation(props: { collapsed: boolean; hasSession: boolean; unreadNotifications: number }) {
   return (
     <div class="grid gap-1 max-[1180px]:col-start-2 max-[1180px]:row-start-1 max-[1180px]:flex max-[1180px]:min-w-0 max-[1180px]:items-center max-[1180px]:gap-2 max-[1180px]:overflow-x-auto max-[1180px]:overscroll-contain max-[1180px]:[scrollbar-width:none] max-[1180px]:[&::-webkit-scrollbar]:hidden">
       <Show
@@ -33,7 +33,13 @@ function RailNavigation(props: { collapsed: boolean; hasSession: boolean }) {
         fallback={<RailButton end compact={props.collapsed} href="/auth" label="Accounts" icon="profile" />}>
         <RailButton end compact={props.collapsed} href="/timeline" label="Timeline" icon="timeline" />
         <RailButton end compact={props.collapsed} href="/search" label="Search" icon="search" />
-        <RailButton end compact={props.collapsed} href="/notifications" label="Notifications" icon="notifications" />
+        <RailButton
+          end
+          badge={props.unreadNotifications}
+          compact={props.collapsed}
+          href="/notifications"
+          label="Notifications"
+          icon="notifications" />
         <RailButton end compact={props.collapsed} href="/explorer" label="Explorer" icon="explorer" />
       </Show>
     </div>
@@ -50,6 +56,7 @@ export function AppRail(
     logoutDid: string | null;
     narrow: boolean;
     openSwitcher: boolean;
+    unreadNotifications: number;
     onCloseSwitcher: () => void;
     switchingDid: string | null;
     onLogout: (did: string) => void;
@@ -64,7 +71,10 @@ export function AppRail(
       classList={{ "items-center px-4": props.collapsed && !props.narrow, "gap-5": props.collapsed && !props.narrow }}
       aria-label="Primary navigation">
       <RailHeader collapsed={props.collapsed} onToggleCollapse={props.onToggleCollapse} />
-      <RailNavigation collapsed={props.collapsed} hasSession={props.hasSession} />
+      <RailNavigation
+        collapsed={props.collapsed}
+        hasSession={props.hasSession}
+        unreadNotifications={props.unreadNotifications} />
       <AccountSwitcher
         activeAccount={props.activeAccount}
         activeSession={props.activeSession}

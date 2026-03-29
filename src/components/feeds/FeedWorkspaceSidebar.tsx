@@ -29,7 +29,7 @@ function SavedFeedsCard(
   },
 ) {
   return (
-    <SidebarCard title="Saved Feeds" subtitle="Drawer access">
+    <SidebarCard title="Saved Feeds" subtitle="All your feeds">
       <div class="grid gap-2">
         <For each={props.drawerFeeds.slice(0, 4)}>
           {(feed) => (

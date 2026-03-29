@@ -17,6 +17,7 @@ type AppRouterProps = {
   onLocationChange?: () => void;
   renderAuth: () => JSX.Element;
   renderComposer: (session: ActiveSession) => JSX.Element;
+  renderNotifications: (session: ActiveSession) => JSX.Element;
   renderShell: Component<ParentProps>;
   renderTimeline: (
     session: ActiveSession,
@@ -96,12 +97,7 @@ export function AppRouter(props: AppRouterProps) {
 
   const NotificationsRoute = () => (
     <ProtectedRouteView bootstrapping={props.bootstrapping} session={props.session}>
-      {() => (
-        <FeaturePlaceholder
-          eyebrow="Notifications"
-          title="Notification routing is gated."
-          description="The notifications surface can now be added as an authenticated route without changing the shell again." />
-      )}
+      {(session) => props.renderNotifications(session)}
     </ProtectedRouteView>
   );
 

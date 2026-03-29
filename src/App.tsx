@@ -4,6 +4,7 @@ import {
   logout as logoutRequest,
   switchAccount as switchAccountRequest,
 } from "$/lib/api/app";
+import { getUnreadCount } from "$/lib/api/notifications";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createEffect, createMemo, onCleanup, onMount, Show, startTransition } from "solid-js";
@@ -16,10 +17,11 @@ import { AppRail } from "./components/AppRail";
 import { ComposerWindow } from "./components/feeds/ComposerWindow";
 import { FeedWorkspace } from "./components/feeds/FeedWorkspace";
 import { LoginPanel } from "./components/LoginPanel";
+import { NotificationsPanel } from "./components/notifications/NotificationsPanel";
 import { HeaderPanel } from "./components/panels/Header";
 import { SessionSpotlight } from "./components/Session";
 import { ErrorToast } from "./components/shared/ErrorToast";
-import { ACCOUNT_SWITCH_EVENT } from "./lib/constants/events";
+import { ACCOUNT_SWITCH_EVENT, NOTIFICATIONS_UNREAD_COUNT_EVENT } from "./lib/constants/events";
 import type { AccountSummary, ActiveSession } from "./lib/types";
 import { AppRouter } from "./router";
 
@@ -40,6 +42,7 @@ type AppState = {
   shakeCount: number;
   showSwitcher: boolean;
   switchingDid: string | null;
+  unreadNotifications: number;
 };
 
 function createInitialAppState(): AppState {
@@ -57,6 +60,7 @@ function createInitialAppState(): AppState {
     shakeCount: 0,
     showSwitcher: false,
     switchingDid: null,
+    unreadNotifications: 0,
   };
 }
 
@@ -94,6 +98,16 @@ function App() {
         setApp("accounts", payload.accountList);
         setApp("reauthNeeded", payload.accountList.length > 0 && !payload.activeSession);
       });
+
+      if (payload.activeSession) {
+        try {
+          setApp("unreadNotifications", await getUnreadCount());
+        } catch {
+          setApp("unreadNotifications", 0);
+        }
+      } else {
+        setApp("unreadNotifications", 0);
+      }
     } catch (error) {
       setApp("errorMessage", `Failed to load app bootstrap: ${String(error)}`);
     } finally {
@@ -198,8 +212,16 @@ function App() {
       unlisten = dispose;
     });
 
+    let unlistenUnread: (() => void) | undefined;
+    void listen<number>(NOTIFICATIONS_UNREAD_COUNT_EVENT, (event) => {
+      setApp("unreadNotifications", event.payload);
+    }).then((dispose) => {
+      unlistenUnread = dispose;
+    });
+
     onCleanup(() => {
       unlisten?.();
+      unlistenUnread?.();
       media.removeEventListener("change", syncViewport);
     });
   });
@@ -223,6 +245,7 @@ function App() {
             logoutDid={app.logoutDid}
             narrow={app.narrowViewport}
             openSwitcher={app.showSwitcher}
+            unreadNotifications={app.unreadNotifications}
             onCloseSwitcher={closeSwitcher}
             switchingDid={app.switchingDid}
             onLogout={(did) => void logout(did)}
@@ -316,7 +339,8 @@ function App() {
             onError={(message) => setApp("errorMessage", message)}
             onThreadRouteChange={context.onThreadRouteChange}
             threadUri={context.threadUri} />
-        )} />
+        )}
+        renderNotifications={() => <NotificationsPanel onMarkSeen={() => setApp("unreadNotifications", 0)} />} />
     </Show>
   );
 }

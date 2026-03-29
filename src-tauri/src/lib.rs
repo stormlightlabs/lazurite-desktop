@@ -26,6 +26,7 @@ pub fn run() {
             app.manage(app_state);
 
             AppState::spawn_token_refresh_task(app.handle().clone());
+            notifications::spawn_notification_poll_task(app.handle().clone());
 
             let app_handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {

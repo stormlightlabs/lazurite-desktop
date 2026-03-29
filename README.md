@@ -2,6 +2,8 @@
 
 This app is the "successor" to [bsky-browser](https://tangled.org/did:plc:xg2vq45muivyy3xwatcehspu/skybidi) and companion to [Lazurite for Mobile](https://github.com/stormlightlabs/lazurite).
 
+![main feed](docs/screens/main.png)
+
 ## Features
 
 - Account switching

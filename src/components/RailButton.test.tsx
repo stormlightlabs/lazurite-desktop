@@ -31,4 +31,10 @@ describe("RailButton", () => {
     expect(link.className).toContain("rounded-lg");
     expect(link.className).not.toContain("rounded-full");
   });
+
+  it("renders an unread badge when the count is positive", () => {
+    renderInRouter(() => <RailButton badge={3} href="/notifications" label="Notifications" icon="notifications" />);
+
+    expect(screen.getByRole("status", { name: "3 unread" })).toBeInTheDocument();
+  });
 });
