@@ -1,7 +1,7 @@
+import { Icon } from "$/components/shared/Icon";
 import { getFeedName } from "$/lib/feeds";
 import type { FeedGeneratorView, SavedFeedItem } from "$/lib/types";
 import { For } from "solid-js";
-import { Icon } from "../shared/Icon";
 import { FeedChipAvatar } from "./FeedChipAvatar";
 
 export function FeedTabBar(
@@ -49,7 +49,7 @@ function FeedTab(
       type="button"
       onClick={() => props.onSelect(props.feed.id)}>
       <FeedChipAvatar feed={props.feed} generator={props.generator} />
-      <span class="max-w-[11rem] truncate max-[900px]:max-w-[9rem] max-[720px]:max-w-[7.5rem]">
+      <span class="max-w-44 truncate max-[900px]:max-w-36 max-[720px]:max-w-30">
         {getFeedName(props.feed, props.generator?.displayName)}
       </span>
     </button>

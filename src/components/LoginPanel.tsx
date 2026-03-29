@@ -1,7 +1,7 @@
+import type { LoginSuggestion } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { Motion } from "solid-motionone";
-import type { LoginSuggestion } from "../lib/types";
 import { AvatarBadge } from "./AvatarBadge";
 import { Icon } from "./shared/Icon";
 import { LazuriteLogo } from "./Wordmark";

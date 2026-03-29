@@ -1,5 +1,5 @@
+import { AvatarBadge } from "$/components/AvatarBadge";
 import { Show } from "solid-js";
-import { AvatarBadge } from "../AvatarBadge";
 
 export function SwitcherIdentity(
   props: {

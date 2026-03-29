@@ -1,5 +1,5 @@
+import { Icon } from "$/components/shared/Icon";
 import { Show } from "solid-js";
-import { Icon } from "../shared/Icon";
 
 export function LoadingMoreIndicator(props: { loading: boolean }) {
   return (

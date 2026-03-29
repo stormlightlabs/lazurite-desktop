@@ -1,8 +1,8 @@
+import { Icon } from "$/components/shared/Icon";
 import { getFeedName } from "$/lib/feeds";
 import type { FeedGeneratorView, SavedFeedItem } from "$/lib/types";
 import { For, Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
-import { Icon } from "../shared/Icon";
 import { FeedChipAvatar } from "./FeedChipAvatar";
 
 export function SavedFeedsDrawer(
