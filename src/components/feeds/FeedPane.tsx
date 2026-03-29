@@ -8,9 +8,9 @@ import type { FeedState } from "./types";
 
 function FeedHeaderActions(props: { onCompose: () => void; onToggleDrawer: () => void }) {
   return (
-    <div class="flex shrink-0 items-center gap-2 max-[640px]:justify-between">
+    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[640px]:w-full max-[640px]:justify-between">
       <button
-        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8 max-[520px]:flex-1 max-[520px]:justify-center"
         type="button"
         onClick={() => props.onCompose()}>
         <Icon aria-hidden="true" kind="quill" />
@@ -54,7 +54,7 @@ function FeedScroller(
   return (
     <div
       ref={(element) => props.scrollerRef(element)}
-      class="feed-scroll-region min-h-0 overflow-y-auto overscroll-contain px-6 pb-8 pt-4"
+      class="feed-scroll-region min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain px-6 pb-8 pt-4 max-[760px]:px-4 max-[520px]:px-3"
       onScroll={(event) => props.setScrollTop(event.currentTarget.scrollTop)}>
       <ComposerLauncher activeHandle={props.activeHandle} onCompose={props.onCompose} />
       <FeedContent
@@ -87,7 +87,7 @@ function FeedPaneTitle(
   },
 ) {
   return (
-    <div class="flex items-start justify-between gap-4 max-[640px]:flex-col max-[640px]:items-stretch">
+    <div class="flex min-w-0 items-start justify-between gap-4 max-[900px]:gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
       <div class="min-w-0">
         <p class="m-0 text-xl font-semibold tracking-tight text-on-surface">Timeline</p>
         <p class="mt-1 wrap-break-word text-xs uppercase tracking-[0.12em] text-on-surface-variant">
@@ -110,7 +110,7 @@ function FeedPaneHeader(
   },
 ) {
   return (
-    <header class="sticky top-0 z-20 rounded-t-4xl bg-[rgba(14,14,14,0.94)] px-6 pb-3 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)]">
+    <header class="sticky top-0 z-20 overflow-hidden rounded-t-4xl bg-[rgba(14,14,14,0.94)] px-6 pb-3 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)] max-[760px]:px-4 max-[760px]:pt-4 max-[520px]:px-3">
       <FeedPaneTitle
         activeFeed={props.activeFeed}
         generators={props.generators}
@@ -156,7 +156,7 @@ export function FeedPane(
   },
 ) {
   return (
-    <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+    <section class="grid min-h-0 min-w-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)] rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
       <FeedPaneHeader
         activeFeed={props.activeFeed}
         generators={props.generators}

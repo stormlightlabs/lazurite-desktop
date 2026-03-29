@@ -9,7 +9,7 @@ type ComposerSuggestion = { label: string; type: "handle" | "hashtag" };
 export function ComposerLauncher(props: { activeHandle: string; onCompose: () => void }) {
   return (
     <button
-      class="mb-4 flex w-full items-center gap-3 rounded-3xl border-0 bg-white/3 px-4 py-4 text-left text-on-surface-variant shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/5"
+      class="mb-4 flex w-full min-w-0 items-center gap-3 rounded-3xl border-0 bg-white/3 px-4 py-4 text-left text-on-surface-variant shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/5 max-[760px]:gap-2 max-[760px]:px-3.5 max-[520px]:py-3.5"
       type="button"
       onClick={() => props.onCompose()}>
       <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] text-sm font-semibold text-on-primary-fixed">
@@ -18,7 +18,7 @@ export function ComposerLauncher(props: { activeHandle: string; onCompose: () =>
       <div class="min-w-0 flex-1">
         <p class="m-0 wrap-break-word text-[0.9rem] text-on-surface-variant">What's happening?</p>
       </div>
-      <div class="flex items-center gap-1 text-on-surface-variant">
+      <div class="flex items-center gap-1 text-on-surface-variant max-[520px]:hidden">
         <Icon aria-hidden="true" kind="at" />
         <Icon aria-hidden="true" kind="hashtag" />
         <Icon aria-hidden="true" kind="quote" />

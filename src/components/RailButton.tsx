@@ -9,7 +9,7 @@ export function RailButton(props: RailButtonProps) {
     <A
       href={props.href}
       end={props.end}
-      class="flex h-11 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"
+      class="flex h-11 shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"
       activeClass="bg-surface-container text-primary"
       inactiveClass=""
       classList={{ "w-[2.75rem] justify-center": !!props.compact, "px-3": !props.compact }}

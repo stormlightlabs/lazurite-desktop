@@ -1,4 +1,12 @@
-import { HashRouter, Navigate, Route, type RouteSectionProps, useLocation, useNavigate, useParams } from "@solidjs/router";
+import {
+  HashRouter,
+  Navigate,
+  Route,
+  type RouteSectionProps,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "@solidjs/router";
 import { type Component, createEffect, type JSX, Show } from "solid-js";
 import { buildThreadRoute, decodeThreadRouteUri, TIMELINE_ROUTE } from "./lib/feeds";
 import type { ActiveSession } from "./lib/types";
@@ -134,10 +142,11 @@ function TimelineRouteView(
 
   return (
     <ProtectedRouteView bootstrapping={props.bootstrapping} session={props.session}>
-      {(session) => props.renderTimeline(session, {
-        onThreadRouteChange: (uri) => navigate(uri ? buildThreadRoute(uri) : TIMELINE_ROUTE),
-        threadUri: props.threadUri,
-      })}
+      {(session) =>
+        props.renderTimeline(session, {
+          onThreadRouteChange: (uri) => navigate(uri ? buildThreadRoute(uri) : TIMELINE_ROUTE),
+          threadUri: props.threadUri,
+        })}
     </ProtectedRouteView>
   );
 }

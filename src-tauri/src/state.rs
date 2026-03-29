@@ -35,6 +35,7 @@ pub struct AccountSummary {
     pub handle: String,
     pub pds_url: String,
     pub active: bool,
+    pub avatar: Option<String>,
 }
 
 pub struct AppState {

@@ -1,6 +1,7 @@
 use super::db::DbPool;
 use super::error::{AppError, TypeaheadFetchError, TypeaheadFetchErrorKind};
 use super::state::{AccountSummary, ActiveSession};
+use jacquard::api::app_bsky::actor::get_profile::GetProfile;
 use jacquard::api::com_atproto::server::get_session::GetSession;
 use jacquard::common::session::SessionStoreError;
 use jacquard::oauth::atproto::AtprotoClientMetadata;
@@ -44,6 +45,7 @@ pub struct StoredAccount {
     pub handle: String,
     pub pds_url: String,
     pub active: bool,
+    pub avatar: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -89,12 +91,13 @@ impl PersistentAuthStore {
         let connection = self.lock_connection()?;
         let mut statement = connection.prepare(
             "
-            SELECT
-                did,
-                session_id,
-                COALESCE(handle, ''),
-                COALESCE(pds_url, ''),
-                active
+                SELECT
+                    did,
+                    session_id,
+                    COALESCE(handle, ''),
+                    COALESCE(pds_url, ''),
+                    active,
+                    avatar
             FROM accounts
             ORDER BY active DESC, handle COLLATE NOCASE ASC
         ",
@@ -107,6 +110,7 @@ impl PersistentAuthStore {
                 handle: row.get(2)?,
                 pds_url: row.get(3)?,
                 active: row.get::<_, i64>(4)? == 1,
+                avatar: row.get(5)?,
             })
         })?;
 
@@ -128,7 +132,8 @@ impl PersistentAuthStore {
                     session_id,
                     COALESCE(handle, ''),
                     COALESCE(pds_url, ''),
-                    active
+                    active,
+                    avatar
                 FROM accounts
                 WHERE did = ?1
             ",
@@ -140,6 +145,7 @@ impl PersistentAuthStore {
                         handle: row.get(2)?,
                         pds_url: row.get(3)?,
                         active: row.get::<_, i64>(4)? == 1,
+                        avatar: row.get(5)?,
                     })
                 },
             )
@@ -159,20 +165,22 @@ impl PersistentAuthStore {
 
         transaction.execute(
             "
-            INSERT INTO accounts(did, handle, pds_url, session_id, active)
-            VALUES (?1, ?2, ?3, ?4, ?5)
+            INSERT INTO accounts(did, handle, pds_url, session_id, active, avatar)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
             ON CONFLICT(did) DO UPDATE SET
                 handle = excluded.handle,
                 pds_url = excluded.pds_url,
                 session_id = excluded.session_id,
-                active = excluded.active
+                active = excluded.active,
+                avatar = excluded.avatar
         ",
             params![
                 account.did,
                 account.handle,
                 account.pds_url,
                 session_id,
-                if make_active { 1_i64 } else { 0_i64 }
+                if make_active { 1_i64 } else { 0_i64 },
+                account.avatar,
             ],
         )?;
 
@@ -399,12 +407,23 @@ pub async fn fetch_account_summary(session: &LazuriteOAuthSession, active: bool)
     let output = response
         .into_output()
         .map_err(|error| AppError::Validation(format!("failed to parse account session: {error}")))?;
+    let avatar = session
+        .send(
+            GetProfile::new()
+                .actor(jacquard::common::types::ident::AtIdentifier::Did(output.did.clone()))
+                .build(),
+        )
+        .await
+        .ok()
+        .and_then(|response| response.into_output().ok())
+        .and_then(|profile| profile.value.avatar.map(|uri| uri.as_str().to_owned()));
 
     Ok(AccountSummary {
         did: output.did.to_string(),
         handle: output.handle.to_string(),
         pds_url: session.endpoint().await.to_string(),
         active,
+        avatar,
     })
 }
 
@@ -444,6 +463,7 @@ pub fn account_summaries(accounts: &[StoredAccount]) -> Vec<AccountSummary> {
             handle: account.handle.clone(),
             pds_url: account.pds_url.clone(),
             active: account.active,
+            avatar: account.avatar.clone(),
         })
         .collect()
 }
@@ -525,7 +545,7 @@ async fn fetch_login_suggestions_from_endpoint(
         .query(&[("q", query), ("limit", "6")])
         .send()
         .await
-        .map_err(TypeaheadFetchError::transport)?;
+        .map_err(|error| TypeaheadFetchError::transport(&error))?;
 
     let status = response.status();
     if !status.is_success() {
@@ -535,7 +555,7 @@ async fn fetch_login_suggestions_from_endpoint(
     let payload = response
         .json::<TypeaheadResponse>()
         .await
-        .map_err(TypeaheadFetchError::decode)?;
+        .map_err(|error| TypeaheadFetchError::decode(&error))?;
 
     Ok(payload
         .actors

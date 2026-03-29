@@ -1,6 +1,6 @@
 export type Maybe<T> = T | null | undefined;
 
-export type AccountSummary = { did: string; handle: string; pdsUrl: string; active: boolean };
+export type AccountSummary = { did: string; handle: string; pdsUrl: string; active: boolean; avatar?: string | null };
 
 export type ActiveSession = { did: string; handle: string };
 

@@ -8,7 +8,7 @@ import { Wordmark } from "./Wordmark";
 function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void }) {
   return (
     <div
-      class="flex items-center justify-between gap-3 max-[1180px]:items-center"
+      class="flex shrink-0 items-center justify-between gap-3 max-[1180px]:min-w-0 max-[1180px]:items-center"
       classList={{ "w-full flex-col gap-3": props.collapsed }}>
       <Wordmark compact={props.collapsed} iconClass="text-primary" />
       <button
@@ -27,7 +27,7 @@ function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void })
 
 function RailNavigation(props: { collapsed: boolean; hasSession: boolean }) {
   return (
-    <div class="grid gap-1 max-[1180px]:flex max-[1180px]:items-center">
+    <div class="grid gap-1 max-[1180px]:min-w-0 max-[1180px]:flex-1 max-[1180px]:overflow-x-auto max-[1180px]:overscroll-contain max-[1180px]:[scrollbar-width:none] max-[1180px]:[&::-webkit-scrollbar]:hidden">
       <Show
         when={props.hasSession}
         fallback={<RailButton end compact={props.collapsed} href="/auth" label="Accounts" icon="profile" />}>
@@ -42,6 +42,7 @@ function RailNavigation(props: { collapsed: boolean; hasSession: boolean }) {
 
 export function AppRail(
   props: {
+    activeAccount: AccountSummary | null;
     activeSession: ActiveSession | null;
     accounts: AccountSummary[];
     collapsed: boolean;
@@ -57,12 +58,13 @@ export function AppRail(
 ) {
   return (
     <aside
-      class="flex min-h-screen flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:min-h-0 max-[1180px]:grid max-[1180px]:grid-cols-[auto_auto_minmax(18rem,1fr)] max-[1180px]:items-center max-[1180px]:gap-4 max-[1180px]:p-4 max-[760px]:grid-cols-1"
+      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:min-h-0 max-[1180px]:flex-row max-[1180px]:flex-wrap max-[1180px]:items-center max-[1180px]:gap-3 max-[1180px]:p-4 max-[760px]:items-stretch"
       classList={{ "items-center px-4": props.collapsed, "gap-5": props.collapsed }}
       aria-label="Primary navigation">
       <RailHeader collapsed={props.collapsed} onToggleCollapse={props.onToggleCollapse} />
       <RailNavigation collapsed={props.collapsed} hasSession={props.hasSession} />
       <AccountSwitcher
+        activeAccount={props.activeAccount}
         activeSession={props.activeSession}
         accounts={props.accounts}
         busyDid={props.switchingDid}

@@ -7,8 +7,7 @@ vi.mock(
   "solid-motionone",
   () => ({
     Motion: new Proxy({}, {
-      get: (_, property) =>
-        (props: { children?: unknown }) => Dynamic({ ...props, component: String(property) }),
+      get: (_, property) => (props: { children?: unknown }) => Dynamic({ ...props, component: String(property) }),
     }),
     Presence: (props: { children?: unknown }) => props.children as unknown,
   }),

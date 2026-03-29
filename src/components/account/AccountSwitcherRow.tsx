@@ -16,16 +16,17 @@ export function AccountSwitcherRow(props: AccountSwitcherRowProps) {
   return (
     <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2" role="menuitem">
       <button
-        class="flex items-center gap-3 rounded-2xl border-0 bg-white/2 p-3 text-left text-on-surface transition duration-150 ease-out hover:bg-surface-bright"
+        class="flex min-w-0 items-center gap-3 rounded-2xl border-0 bg-white/2 p-3 text-left text-on-surface transition duration-150 ease-out hover:bg-surface-bright"
         classList={{ "bg-primary/15": props.account.active }}
         type="button"
         disabled={isLocked()}
         onClick={() => props.onSwitch(props.account.did)}>
         <AvatarBadge
           label={props.account.handle || props.account.did}
+          src={props.account.avatar}
           tone={props.account.active ? "primary" : "muted"} />
-        <span class="grid">
-          <span class="text-[0.92rem] font-semibold">{props.account.handle || props.account.did}</span>
+        <span class="grid min-w-0">
+          <span class="truncate text-[0.92rem] font-semibold">{props.account.handle || props.account.did}</span>
           <span class="text-xs text-on-surface-variant">{props.account.pdsUrl || "PDS unavailable"}</span>
         </span>
       </button>

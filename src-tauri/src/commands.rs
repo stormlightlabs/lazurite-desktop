@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 use super::auth::{self, LoginSuggestion};
 use super::error::AppError;
 use super::feed::{self, CreateRecordResult, EmbedInput, ReplyRefInput, UserPreferences};

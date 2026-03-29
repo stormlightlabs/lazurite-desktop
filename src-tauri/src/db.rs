@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::ffi::{c_char, c_int};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -11,6 +12,12 @@ use tauri::{AppHandle, Manager};
 use crate::error::AppError;
 
 pub type DbPool = Arc<Mutex<Connection>>;
+type SqliteVecInit = unsafe extern "C" fn();
+type SqliteAutoExtension = unsafe extern "C" fn(
+    db: *mut rusqlite::ffi::sqlite3,
+    pz_err_msg: *mut *mut c_char,
+    api: *const rusqlite::ffi::sqlite3_api_routines,
+) -> c_int;
 
 struct Migration {
     version: i64,
@@ -32,12 +39,14 @@ const MIGRATIONS: &[Migration] = &[
         "oauth_sessions_without_fk",
         include_str!("migrations/003_oauth_sessions_without_fk.sql"),
     ),
+    Migration::new(4, "account_avatars", include_str!("migrations/004_account_avatars.sql")),
 ];
 
 pub fn initialize_database(app: &AppHandle) -> Result<DbPool, AppError> {
-    // Registers sqlite-vec for all future rusqlite connections.
     unsafe {
-        sqlite3_auto_extension(Some(std::mem::transmute(sqlite3_vec_init as *const ())));
+        let init: SqliteVecInit = sqlite3_vec_init;
+        let auto_extension: SqliteAutoExtension = std::mem::transmute(init);
+        sqlite3_auto_extension(Some(auto_extension));
     }
 
     let database_path = resolve_database_path(app)?;

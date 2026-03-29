@@ -53,7 +53,7 @@ export function FeedContent(
       <For each={[props.activeFeedId]}>
         {() => (
           <Motion.div
-            class="grid gap-3"
+            class="grid min-w-0 gap-3"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

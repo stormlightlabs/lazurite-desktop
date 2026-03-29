@@ -15,7 +15,7 @@ pub struct TypeaheadFetchError {
 }
 
 impl TypeaheadFetchError {
-    pub fn decode(error: reqwest::Error) -> Self {
+    pub fn decode(error: &reqwest::Error) -> Self {
         Self {
             kind: TypeaheadFetchErrorKind::Decode,
             message: format!("failed to decode typeahead response: {error}"),
@@ -29,7 +29,7 @@ impl TypeaheadFetchError {
         }
     }
 
-    pub fn transport(error: reqwest::Error) -> Self {
+    pub fn transport(error: &reqwest::Error) -> Self {
         Self {
             kind: TypeaheadFetchErrorKind::Transport,
             message: format!("failed to reach typeahead endpoint: {error}"),

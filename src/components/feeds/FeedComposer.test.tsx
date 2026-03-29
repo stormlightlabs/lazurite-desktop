@@ -2,10 +2,10 @@ import { render, screen } from "@solidjs/testing-library";
 import { describe, expect, it } from "vitest";
 import { FeedComposer } from "./FeedComposer";
 
-const suggestions = Array.from({ length: 13 }, (_, index) => ({
-  label: `@handle-${index + 1}.test`,
-  type: "handle" as const,
-}));
+const suggestions = Array.from(
+  { length: 13 },
+  (_, index) => ({ label: `@handle-${index + 1}.test`, type: "handle" as const }),
+);
 
 describe("FeedComposer", () => {
   it("renders a contained scroll region for typeahead suggestions", () => {

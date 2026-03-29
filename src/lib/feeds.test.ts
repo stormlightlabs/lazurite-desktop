@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  applyFeedPreferences,
-  buildThreadRoute,
-  decodeThreadRouteUri,
-  getFeedCommand,
-} from "./feeds";
+import { applyFeedPreferences, buildThreadRoute, decodeThreadRouteUri, getFeedCommand } from "./feeds";
 import type { FeedViewPost, FeedViewPrefItem, SavedFeedItem } from "./types";
 
 function createFeedItem(overrides: Partial<FeedViewPost> = {}): FeedViewPost {
@@ -54,10 +49,7 @@ describe("feed helpers", () => {
     const quote = createFeedItem({
       post: {
         ...base.post,
-        embed: {
-          $type: "app.bsky.embed.record#view",
-          record: { uri: "at://did:plc:bob/app.bsky.feed.post/9" },
-        },
+        embed: { $type: "app.bsky.embed.record#view", record: { uri: "at://did:plc:bob/app.bsky.feed.post/9" } },
         uri: "at://did:plc:alice/app.bsky.feed.post/4",
       },
     });
@@ -86,17 +78,10 @@ describe("feed helpers", () => {
       value: "at://did:plc:alice/app.bsky.graph.list/list",
     };
 
-    expect(getFeedCommand(timeline)).toEqual({
-      args: expect.any(Function),
-      name: "get_timeline",
-    });
+    expect(getFeedCommand(timeline)).toEqual({ args: expect.any(Function), name: "get_timeline" });
     expect(getFeedCommand(feed).name).toBe("get_feed");
     expect(getFeedCommand(list).name).toBe("get_list_feed");
-    expect(getFeedCommand(list).args("cursor-1", 30)).toEqual({
-      cursor: "cursor-1",
-      limit: 30,
-      uri: list.value,
-    });
+    expect(getFeedCommand(list).args("cursor-1", 30)).toEqual({ cursor: "cursor-1", limit: 30, uri: list.value });
   });
 
   it("encodes and decodes thread routes", () => {

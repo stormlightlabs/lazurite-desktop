@@ -6,6 +6,7 @@ import { SwitcherIdentity } from "./AccountSwitcherIdentity";
 import { AccountSwitcherMenuList } from "./AccountSwitcherMenuList";
 
 type AccountSwitcherProps = {
+  activeAccount: AccountSummary | null;
   activeSession: ActiveSession | null;
   accounts: AccountSummary[];
   busyDid: string | null;
@@ -43,12 +44,16 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
   return (
     <div
       class="relative mt-auto w-full transition-[width,max-width] duration-300 ease-out max-[1180px]:mt-0 max-[1180px]:max-w-[24rem] max-[1180px]:justify-self-end max-[760px]:max-w-none"
-      classList={{ "w-auto": !!props.compact }}
+      classList={{
+        "w-auto": !!props.compact,
+        "max-[980px]:order-3 max-[980px]:w-full max-[980px]:max-w-none max-[980px]:justify-self-stretch": !props
+          .compact,
+      }}
       ref={(element) => {
         container = element;
       }}>
       <button
-        class="relative w-full cursor-pointer border-0 bg-white/4 text-on-surface shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+        class="relative w-full min-w-0 cursor-pointer border-0 bg-white/4 text-on-surface shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
         classList={{
           "rounded-xl py-[0.95rem] pr-10 pl-4": !props.compact,
           "grid h-14 w-14 place-items-center rounded-full p-0": !!props.compact,
@@ -63,6 +68,7 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
           keyed
           fallback={
             <SwitcherIdentity
+              avatar={null}
               compact={props.compact}
               label="?"
               name="Sign in"
@@ -71,6 +77,7 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
           }>
           {(session) => (
             <SwitcherIdentity
+              avatar={props.activeAccount?.avatar}
               compact={props.compact}
               label={session.handle}
               name={session.handle}

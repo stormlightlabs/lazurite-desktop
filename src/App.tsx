@@ -204,6 +204,7 @@ function App() {
           class="grid h-screen min-h-screen overflow-hidden grid-cols-(--app-rail-cols) transition-[grid-template-columns] duration-300 ease-out max-[1180px]:h-auto max-[1180px]:min-h-screen max-[1180px]:grid-cols-1 max-[1180px]:overflow-visible"
           style={{ "--app-rail-cols": railColumns() }}>
           <AppRail
+            activeAccount={activeAccount()}
             activeSession={app.activeSession}
             accounts={app.accounts}
             collapsed={railCompact()}

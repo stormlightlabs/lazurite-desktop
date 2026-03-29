@@ -47,7 +47,7 @@ export function PostCard(props: PostCardProps) {
   return (
     <Motion.article
       ref={(element) => props.registerRef?.(element)}
-      class="group rounded-[1.6rem] bg-white/2.5 px-5 py-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/4"
+      class="group min-w-0 overflow-hidden rounded-[1.6rem] bg-white/2.5 px-5 py-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/4 max-[760px]:px-4 max-[760px]:py-4 max-[520px]:rounded-[1.35rem] max-[520px]:px-3.5"
       classList={{
         "bg-[linear-gradient(135deg,rgba(125,175,255,0.11),rgba(0,115,222,0.06))] shadow-[inset_0_0_0_1px_rgba(125,175,255,0.22),0_0_0_1px_rgba(125,175,255,0.08)]":
           !!props.focused,
@@ -71,7 +71,7 @@ export function PostCard(props: PostCardProps) {
         </div>
       </Show>
 
-      <div class="flex gap-3">
+      <div class="flex min-w-0 gap-3">
         <AuthorAvatar avatar={props.post.author.avatar} label={getAvatarLabel(props.post.author)} />
 
         <div class="min-w-0 flex-1">
@@ -93,7 +93,7 @@ export function PostCard(props: PostCardProps) {
 
           <PostEmbeds post={props.post} />
 
-          <footer class="mt-4 flex flex-wrap items-center gap-2">
+          <footer class="mt-4 flex min-w-0 flex-wrap items-center gap-2 max-[520px]:gap-1">
             <ActionButton
               active={isLiked()}
               busy={!!props.likePending}
@@ -150,7 +150,7 @@ function ActionButton(
   return (
     <button
       aria-label={props.label}
-      class="inline-flex items-center gap-1.5 rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary disabled:cursor-wait disabled:opacity-70"
+      class="inline-flex min-w-0 items-center gap-1.5 rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary disabled:cursor-wait disabled:opacity-70 max-[520px]:px-2.5"
       classList={{ "text-primary": !!props.active }}
       type="button"
       disabled={props.busy}
@@ -205,7 +205,7 @@ function PostEmbeds(props: { post: PostView }) {
 
 function ImageEmbed(props: { embed: ImagesEmbedView }) {
   return (
-    <div class="grid gap-2" classList={{ "grid-cols-2": props.embed.images.length > 1 }}>
+    <div class="grid min-w-0 gap-2" classList={{ "grid-cols-2": props.embed.images.length > 1 }}>
       <For each={props.embed.images.slice(0, 4)}>
         {(image) => (
           <div class="overflow-hidden rounded-[1.2rem] bg-black/30 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
@@ -220,7 +220,7 @@ function ImageEmbed(props: { embed: ImagesEmbedView }) {
 function ExternalEmbed(props: { description?: string; thumb?: string; title?: string; uri?: string }) {
   return (
     <a
-      class="grid gap-3 overflow-hidden rounded-[1.25rem] bg-black/30 p-3 text-inherit no-underline shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] transition duration-150 ease-out hover:bg-black/40"
+      class="grid min-w-0 gap-3 overflow-hidden rounded-[1.25rem] bg-black/30 p-3 text-inherit no-underline shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] transition duration-150 ease-out hover:bg-black/40"
       href={props.uri}
       rel="noreferrer"
       target="_blank">

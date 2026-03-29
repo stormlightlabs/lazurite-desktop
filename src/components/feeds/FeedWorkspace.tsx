@@ -89,6 +89,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
   let scroller: HTMLDivElement | undefined;
   let sentinel: HTMLDivElement | undefined;
   const postRefs = new Map<string, HTMLElement>();
+  let lastFocusedUri: string | null = null;
 
   const savedFeeds = createMemo(() => {
     const stored = workspace.preferences?.savedFeeds ?? [];
@@ -184,13 +185,26 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
   createEffect(() => {
     const item = visibleItems()[workspace.focusedIndex];
     if (!item) {
+      lastFocusedUri = null;
       return;
     }
 
+    if (lastFocusedUri === item.post.uri) {
+      return;
+    }
+
+    lastFocusedUri = item.post.uri;
     queueMicrotask(() => {
       const element = postRefs.get(item.post.uri);
-      element?.focus();
-      element?.scrollIntoView({ block: "nearest" });
+      if (!element?.isConnected) {
+        return;
+      }
+
+      if (document.activeElement !== element) {
+        element.focus();
+      }
+
+      element.scrollIntoView({ block: "nearest" });
     });
   });
 
@@ -563,7 +577,7 @@ export function FeedWorkspace(props: FeedWorkspaceProps) {
 
   return (
     <>
-      <div class="grid h-full min-h-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div class="grid h-full min-h-0 min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <FeedPane
           activeFeed={activeFeed()}
           activeFeedId={activeFeed().id}
@@ -665,7 +679,7 @@ function WorkspaceSidebar(
   },
 ) {
   return (
-    <aside class="grid min-h-0 gap-4 overflow-hidden xl:overflow-y-auto xl:overscroll-contain">
+    <aside class="grid min-h-0 min-w-0 gap-4 overflow-hidden xl:overflow-y-auto xl:overscroll-contain">
       <SavedFeedsCard drawerFeeds={props.drawerFeeds} generators={props.generators} onFeedSelect={props.onFeedSelect} />
       <DisplayFiltersCard activePref={props.activePref} onPrefChange={props.onPrefChange} />
       <ShortcutsCard />
