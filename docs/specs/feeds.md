@@ -89,6 +89,77 @@ Pinned feeds appear in array order as tabs.
 - Skeleton screens while feeds load; error toast with retry button on network failure
 - Per-feed display preferences (hide reposts/replies/quotes) stored via `putPreferences`
 
+## System Tray & Global Composer Shortcut
+
+The composer should be accessible from anywhere on the system — even when the app window is hidden or unfocused — via a system tray icon and a global keyboard shortcut.
+
+### System Tray
+
+Uses Tauri's built-in tray support (core feature flag, not a plugin).
+
+**Setup:**
+- Enable `tray-icon` feature in `src-tauri/Cargo.toml`: `tauri = { version = "2", features = ["tray-icon"] }`
+- Icon: `public/tray-icon.png` (already exists)
+- Build tray in `lib.rs` `setup()` via `TrayIconBuilder`
+
+**Tray menu items:**
+
+| Item            | Action                                                  |
+| --------------- | ------------------------------------------------------- |
+| New Post…       | Show + focus window, emit `"composer:open"` event       |
+| Show / Hide     | Toggle main window visibility                           |
+| Quit            | `app.exit(0)`                                           |
+
+**Tray icon click (left click):** Toggle window visibility — if visible, hide; if hidden, show + focus.
+
+**Key types:** `TrayIconBuilder`, `TrayIconEvent::Click`, `MouseButton`, `MenuItem::with_id`
+
+**Platform note:** Use `.show_menu_on_left_click(false)` so left click toggles the window. Linux does not support tray mouse events; on Linux the menu is the only interaction.
+
+### Global Keyboard Shortcut
+
+Uses `tauri-plugin-global-shortcut` (separate plugin, registers OS-level hotkeys that work even when the app is unfocused).
+
+**Setup:**
+- `cargo add tauri-plugin-global-shortcut` (desktop only via `cfg(any(target_os = "macos", windows, target_os = "linux"))`)
+- Register plugin in `lib.rs` builder with a handler
+- No capability permissions needed since registration happens in Rust only
+
+**Shortcut:** `Ctrl+Shift+N` (maps to `Modifiers::CONTROL | Modifiers::SHIFT`, `Code::KeyN`)
+
+**Handler flow:**
+1. On `ShortcutState::Pressed`, get the main webview window
+2. Call `window.unminimize()`, `window.show()`, `window.set_focus()` (all three to cover every hidden state)
+3. Emit `"composer:open"` event to the frontend
+
+**Key types:** `Shortcut::new()`, `Modifiers`, `Code`, `ShortcutState`, `GlobalShortcutExt`
+
+### Frontend Integration
+
+Both tray "New Post…" and the global shortcut emit a `"composer:open"` Tauri event. The frontend listens for this event and opens the composer:
+
+```ts
+import { listen } from "@tauri-apps/api/event";
+
+listen("composer:open", () => {
+  // set composer.open = true in FeedWorkspace state
+});
+```
+
+This reuses the existing `FeedComposer` component and state — no new UI needed.
+
+### Window Show/Focus Pattern
+
+Reliable cross-platform pattern used in both tray and shortcut handlers:
+
+```rust
+if let Some(window) = app.get_webview_window("main") {
+    let _ = window.unminimize();
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+```
+
 ## Direct Messages
 
 - `chat.bsky.convo.*` lexicons for DM support

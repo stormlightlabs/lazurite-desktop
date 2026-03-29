@@ -42,6 +42,7 @@ Spec: [feeds.md](../specs/feeds.md)
 - [ ] Mention/hashtag autocomplete
 - [ ] Reply threading with parent/root refs
 - [ ] Quote post embed
+- [ ] Tray button and global keyboard shortcut to open composer from anywhere
 
 ### Frontend — Feed Preferences
 

@@ -10,10 +10,13 @@
 
 ## Stack
 
-Rust/Tauri
-    - `rustqlite`/`tokio-rustqlite` & `tokio` for sqlite (FTS and vector search)
-    - `jacquard` for atproto client
-    - `fastembed` and `nomic-embed-text` for embeddings
+### Rust/Tauri
+
+- `rustqlite`/`tokio-rustqlite` & `tokio` for sqlite (FTS and vector search)
+- `jacquard` for atproto client
+- `fastembed` and `nomic-embed-text` for embeddings
+
+Solid.js for UI with Tailwind
 
 ## Inspiration
 
