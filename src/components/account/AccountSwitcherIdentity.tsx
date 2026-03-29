@@ -1,5 +1,4 @@
 import { Show } from "solid-js";
-import { Motion } from "solid-motionone";
 import { AvatarBadge } from "../AvatarBadge";
 
 export function SwitcherIdentity(
@@ -13,13 +12,7 @@ export function SwitcherIdentity(
   },
 ) {
   return (
-    <Motion.div
-      class="flex min-w-0 items-center gap-3"
-      classList={{ "justify-center": !!props.compact }}
-      initial={{ opacity: 0, y: 8, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -6, scale: 0.94 }}
-      transition={{ duration: 0.24 }}>
+    <div class="flex min-w-0 items-center gap-3" classList={{ "justify-center": !!props.compact }}>
       <AvatarBadge label={props.label} src={props.avatar} tone={props.tone} />
       <Show when={!props.compact}>
         <div class="grid min-w-0">
@@ -27,6 +20,6 @@ export function SwitcherIdentity(
           <span class="text-xs text-on-surface-variant">{props.meta}</span>
         </div>
       </Show>
-    </Motion.div>
+    </div>
   );
 }

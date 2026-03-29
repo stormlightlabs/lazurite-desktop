@@ -1,7 +1,6 @@
 import { getReplyRootPost } from "$/lib/feeds";
 import type { FeedViewPost, PostView } from "$/lib/types";
 import { For, Show } from "solid-js";
-import { Motion, Presence } from "solid-motionone";
 import { EmptyFeedState, FeedSkeleton, LoadingMoreIndicator } from "./FeedEmpty";
 import { PostCard } from "./PostCard";
 import type { FeedState } from "./types";
@@ -49,40 +48,29 @@ export function FeedContent(
   },
 ) {
   return (
-    <Presence exitBeforeEnter>
-      <For each={[props.activeFeedId]}>
-        {() => (
-          <Motion.div
-            class="grid min-w-0 gap-3"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}>
-            <FeedStatus activeFeedState={props.activeFeedState} visibleItems={props.visibleItems} />
-            <For each={props.visibleItems}>
-              {(item, index) => (
-                <PostCard
-                  focused={props.focusedIndex === index()}
-                  item={item}
-                  likePending={!!props.likePendingByUri[item.post.uri]}
-                  onFocus={() => props.onFocusIndex(index())}
-                  onLike={() => void props.onLike(item.post)}
-                  onOpenThread={() => void props.onOpenThread(item.post.uri)}
-                  onQuote={() => props.onQuote(item.post)}
-                  onReply={() => props.onReply(item.post, getReplyRootPost(item))}
-                  onRepost={() => void props.onRepost(item.post)}
-                  post={item.post}
-                  pulseLike={props.likePulseUri === item.post.uri}
-                  pulseRepost={props.repostPulseUri === item.post.uri}
-                  registerRef={(element) => props.postRefs.set(item.post.uri, element)}
-                  repostPending={!!props.repostPendingByUri[item.post.uri]} />
-              )}
-            </For>
-            <div ref={(element) => props.sentinelRef(element)} />
-            <LoadingMoreIndicator loading={!!props.activeFeedState?.loadingMore} />
-          </Motion.div>
+    <div class="grid min-w-0 gap-3" data-feed-id={props.activeFeedId}>
+      <FeedStatus activeFeedState={props.activeFeedState} visibleItems={props.visibleItems} />
+      <For each={props.visibleItems}>
+        {(item, index) => (
+          <PostCard
+            focused={props.focusedIndex === index()}
+            item={item}
+            likePending={!!props.likePendingByUri[item.post.uri]}
+            onFocus={() => props.onFocusIndex(index())}
+            onLike={() => void props.onLike(item.post)}
+            onOpenThread={() => void props.onOpenThread(item.post.uri)}
+            onQuote={() => props.onQuote(item.post)}
+            onReply={() => props.onReply(item.post, getReplyRootPost(item))}
+            onRepost={() => void props.onRepost(item.post)}
+            post={item.post}
+            pulseLike={props.likePulseUri === item.post.uri}
+            pulseRepost={props.repostPulseUri === item.post.uri}
+            registerRef={(element) => props.postRefs.set(item.post.uri, element)}
+            repostPending={!!props.repostPendingByUri[item.post.uri]} />
         )}
       </For>
-    </Presence>
+      <div ref={(element) => props.sentinelRef(element)} />
+      <LoadingMoreIndicator loading={!!props.activeFeedState?.loadingMore} />
+    </div>
   );
 }

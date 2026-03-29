@@ -33,33 +33,52 @@ use jacquard::xrpc::XrpcClient;
 use jacquard::IntoStatic;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tauri_plugin_log::log;
 
 async fn get_session(state: &AppState) -> Result<Arc<LazuriteOAuthSession>> {
     let did = state
         .active_session
         .read()
-        .map_err(|_| AppError::StatePoisoned("active_session"))?
+        .map_err(|error| {
+            log::error!("active_session poisoned: {error}");
+            AppError::StatePoisoned("active_session")
+        })?
         .as_ref()
-        .ok_or_else(|| AppError::Validation("no active account".into()))?
+        .ok_or_else(|| {
+            log::error!("no active account");
+            AppError::Validation("no active account".into())
+        })?
         .did
         .clone();
 
     state
         .sessions
         .read()
-        .map_err(|_| AppError::StatePoisoned("sessions"))?
+        .map_err(|error| {
+            log::error!("sessions poisoned: {error}");
+            AppError::StatePoisoned("sessions")
+        })?
         .get(&did)
         .cloned()
-        .ok_or_else(|| AppError::Validation("session not found for active account".into()))
+        .ok_or_else(|| {
+            log::error!("session not found for active account");
+            AppError::Validation("session not found for active account".into())
+        })
 }
 
 fn active_did(state: &AppState) -> Result<String> {
     state
         .active_session
         .read()
-        .map_err(|_| AppError::StatePoisoned("active_session"))?
+        .map_err(|error| {
+            log::error!("active_session poisoned: {error}");
+            AppError::StatePoisoned("active_session")
+        })?
         .as_ref()
-        .ok_or_else(|| AppError::Validation("no active account".into()))
+        .ok_or_else(|| {
+            log::error!("no active account");
+            AppError::Validation("no active account".into())
+        })
         .map(|s| s.did.clone())
 }
 
@@ -126,13 +145,9 @@ fn user_preferences_from_items(items: &[PreferencesItem<'_>]) -> UserPreferences
 
     for item in items {
         match item {
-            PreferencesItem::SavedFeedsPrefV2(pref) => {
-                saved_feeds = extract_saved_feeds(pref);
-            }
-            PreferencesItem::FeedViewPref(pref) => {
-                feed_view_prefs.push(extract_feed_view_pref(pref));
-            }
-            _ => {}
+            PreferencesItem::SavedFeedsPrefV2(pref) => saved_feeds = extract_saved_feeds(pref),
+            PreferencesItem::FeedViewPref(pref) => feed_view_prefs.push(extract_feed_view_pref(pref)),
+            _ => (),
         }
     }
 
@@ -148,9 +163,15 @@ async fn fetch_preference_items_with_session(session: &Arc<LazuriteOAuthSession>
     let output = session
         .send(GetPreferences)
         .await
-        .map_err(|_| AppError::validation("getPreferences"))?
+        .map_err(|error| {
+            log::error!("fetch Preferences error: {error}");
+            AppError::validation("fetch Preferences error")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("getPreferences output"))?;
+        .map_err(|error| {
+            log::error!("fetch Preferences output error: {error}");
+            AppError::validation("fetch Preferences output error")
+        })?;
 
     Ok(output.preferences.into_iter().map(IntoStatic::into_static).collect())
 }
@@ -159,9 +180,15 @@ async fn store_preference_items(session: &Arc<LazuriteOAuthSession>, items: Stor
     session
         .send(PutPreferences::new().preferences(items).build())
         .await
-        .map_err(|_| AppError::validation("putPreferences"))?
+        .map_err(|error| {
+            log::error!("putPreferences error: {error}");
+            AppError::validation("putPreferences error")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("putPreferences output"))?;
+        .map_err(|error| {
+            log::error!("putPreferences output error: {error}");
+            AppError::validation("putPreferences output error")
+        })?;
 
     Ok(())
 }
@@ -265,14 +292,23 @@ pub async fn get_feed_generators(uris: Vec<String>, state: &AppState) -> Result<
 
     let session = get_session(state).await?;
     let parsed: std::result::Result<Vec<AtUri<'_>>, _> = uris.iter().map(|u| AtUri::new(u)).collect();
-    let feeds = parsed.map_err(|_| AppError::validation("invalid feed URI"))?;
+    let feeds = parsed.map_err(|error| {
+        log::warn!("invalid feed URI in get_feed_generators input: {:?}", error);
+        AppError::validation("invalid feed URI")
+    })?;
 
     let output = session
         .send(GetFeedGenerators::new().feeds(feeds).build())
         .await
-        .map_err(|_| AppError::validation("getFeedGenerators"))?
+        .map_err(|error| {
+            log::error!("getFeedGenerators error: {error}");
+            AppError::validation("getFeedGenerators error")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("getFeedGenerators output"))?;
+        .map_err(|error| {
+            log::error!("getFeedGenerators output error: {error}");
+            AppError::validation("getFeedGenerators output error")
+        })?;
 
     serde_json::to_value(&output).map_err(AppError::from)
 }
@@ -287,9 +323,15 @@ pub async fn get_timeline(cursor: Option<String>, limit: u32, state: &AppState) 
     let output = session
         .send(req.build())
         .await
-        .map_err(|_| AppError::validation("getTimeline"))?
+        .map_err(|error| {
+            log::error!("getTimeline error: {error}");
+            AppError::validation("getTimeline")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("getTimeline output"))?;
+        .map_err(|error| {
+            log::error!("getTimeline output error: {error}");
+            AppError::validation("getTimeline output")
+        })?;
 
     serde_json::to_value(&output).map_err(AppError::from)
 }
@@ -305,9 +347,15 @@ pub async fn get_feed(uri: String, cursor: Option<String>, limit: u32, state: &A
     let output = session
         .send(req.build())
         .await
-        .map_err(|_| AppError::validation("getFeed"))?
+        .map_err(|error| {
+            log::error!("getFeed error: {error}");
+            AppError::validation("getFeed")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("getFeed output"))?;
+        .map_err(|error| {
+            log::error!("getFeed output error: {error}");
+            AppError::validation("getFeed output")
+        })?;
 
     serde_json::to_value(&output).map_err(AppError::from)
 }
@@ -325,9 +373,15 @@ pub async fn get_list_feed(
     let output = session
         .send(req.build())
         .await
-        .map_err(|_| AppError::validation("getListFeed"))?
+        .map_err(|error| {
+            log::error!("getListFeed error: {error}");
+            AppError::validation("getListFeed")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("getListFeed output"))?;
+        .map_err(|error| {
+            log::error!("getListFeed output error: {error}");
+            AppError::validation("getListFeed output")
+        })?;
 
     serde_json::to_value(&output).map_err(AppError::from)
 }
@@ -339,9 +393,15 @@ pub async fn get_post_thread(uri: String, state: &AppState) -> Result<serde_json
     let output = session
         .send(GetPostThread::new().uri(post_uri).build())
         .await
-        .map_err(|_| AppError::validation("getPostThread"))?
+        .map_err(|error| {
+            log::error!("getPostThread error: {error}");
+            AppError::validation("getPostThread")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("getPostThread output"))?;
+        .map_err(|error| {
+            log::error!("getPostThread output error: {error}");
+            AppError::validation("getPostThread output")
+        })?;
 
     serde_json::to_value(&output).map_err(AppError::from)
 }
@@ -357,9 +417,15 @@ pub async fn get_author_feed(did: String, cursor: Option<String>, state: &AppSta
     let output = session
         .send(req.build())
         .await
-        .map_err(|_| AppError::validation("getAuthorFeed"))?
+        .map_err(|error| {
+            log::error!("getAuthorFeed error: {error}");
+            AppError::validation("getAuthorFeed")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("getAuthorFeed output"))?;
+        .map_err(|error| {
+            log::error!("getAuthorFeed output error: {error}");
+            AppError::validation("getAuthorFeed output")
+        })?;
 
     serde_json::to_value(&output).map_err(AppError::from)
 }
@@ -375,10 +441,10 @@ pub async fn create_post(
     let did = active_did(state)?;
 
     let resolver = JacquardResolver::default();
-    let rich = richtext::parse(&text)
-        .build_async(&resolver)
-        .await
-        .map_err(|_| AppError::validation("richtext parse"))?;
+    let rich = richtext::parse(&text).build_async(&resolver).await.map_err(|error| {
+        log::error!("richtext parse error: {error}");
+        AppError::validation("failed to parse post text")
+    })?;
 
     let mut post = Post::new().text(rich.text).created_at(Datetime::now());
 
@@ -413,9 +479,15 @@ pub async fn create_post(
                 .build(),
         )
         .await
-        .map_err(|_| AppError::validation("createRecord (post)"))?
+        .map_err(|error| {
+            log::error!("createRecord (post) error: {error}");
+            AppError::validation("failed to create record (post)")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("createRecord (post) output"))?;
+        .map_err(|error| {
+            log::error!("createRecord (post) output error: {error}");
+            AppError::validation("failed to create record (post) output")
+        })?;
 
     Ok(CreateRecordResult { uri: output.uri.to_string(), cid: output.cid.to_string() })
 }
@@ -446,9 +518,15 @@ pub async fn like_post(uri: String, cid: String, state: &AppState) -> Result<Cre
                 .build(),
         )
         .await
-        .map_err(|_| AppError::validation("createRecord (like)"))?
+        .map_err(|error| {
+            log::error!("createRecord (like) error: {error}");
+            AppError::validation("failed to create record (like)")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("createRecord (like) output"))?;
+        .map_err(|error| {
+            log::error!("createRecord (like) output error: {error}");
+            AppError::validation("failed to create record (like) output")
+        })?;
 
     Ok(CreateRecordResult { uri: output.uri.to_string(), cid: output.cid.to_string() })
 }
@@ -470,9 +548,15 @@ pub async fn unlike_post(like_uri: String, state: &AppState) -> Result<()> {
     session
         .send(DeleteRecord::new().repo(repo).collection(collection).rkey(rkey).build())
         .await
-        .map_err(|_| AppError::validation("deleteRecord (unlike)"))?
+        .map_err(|error| {
+            log::error!("deleteRecord (unlike) error: {error}");
+            AppError::validation("failed to delete record (unlike)")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("deleteRecord (unlike) output"))?;
+        .map_err(|error| {
+            log::error!("deleteRecord (unlike) output error: {error}");
+            AppError::validation("failed to delete record (unlike) output")
+        })?;
 
     Ok(())
 }
@@ -503,9 +587,15 @@ pub async fn repost(uri: String, cid: String, state: &AppState) -> Result<Create
                 .build(),
         )
         .await
-        .map_err(|_| AppError::validation("createRecord (repost)"))?
+        .map_err(|error| {
+            log::error!("createRecord (repost) error: {error}");
+            AppError::validation("failed to create record (repost)")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("createRecord (repost) output"))?;
+        .map_err(|error| {
+            log::error!("createRecord (repost) output error: {error}");
+            AppError::validation("failed to create record (repost) output")
+        })?;
 
     Ok(CreateRecordResult { uri: output.uri.to_string(), cid: output.cid.to_string() })
 }
@@ -528,9 +618,15 @@ pub async fn unrepost(repost_uri: String, state: &AppState) -> Result<()> {
     session
         .send(DeleteRecord::new().repo(repo).collection(collection).rkey(rkey).build())
         .await
-        .map_err(|_| AppError::validation("deleteRecord (unrepost)"))?
+        .map_err(|error| {
+            log::error!("deleteRecord (unrepost) error: {error}");
+            AppError::validation("failed to delete record (unrepost)")
+        })?
         .into_output()
-        .map_err(|_| AppError::validation("deleteRecord (unrepost) output"))?;
+        .map_err(|error| {
+            log::error!("deleteRecord (unrepost) output error: {error}");
+            AppError::validation("failed to delete record (unrepost) output")
+        })?;
 
     Ok(())
 }

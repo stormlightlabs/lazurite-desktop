@@ -4,11 +4,27 @@ import { Presence } from "solid-motionone";
 import { AvatarBadge } from "./AvatarBadge";
 import { ProfileSkeleton } from "./ProfileSkeleton";
 import { ReauthBanner } from "./ReauthBanner";
+
 export function SessionEmptyState() {
   return (
     <div class="grid">
       <h2 class="m-0 text-[clamp(1.4rem,2vw,1.85rem)] leading-[1.08] tracking-[-0.03em]">No account connected yet.</h2>
       <p class="m-0 text-xs leading-[1.55] text-on-surface-variant">Connect your Bluesky account to start exploring.</p>
+    </div>
+  );
+}
+
+export function SessionExpiredState(props: { account: AccountSummary }) {
+  return (
+    <div class="grid items-center gap-4 [align-content:start] grid-cols-[auto_minmax(0,1fr)]">
+      <AvatarBadge label={props.account.handle || props.account.did} src={props.account.avatar} tone="muted" />
+      <div class="grid">
+        <h2 class="m-0 text-[clamp(1.3rem,2vw,1.7rem)] tracking-[-0.02em]">
+          {props.account.handle || props.account.did}
+        </h2>
+        <p class="m-0 text-xs text-on-surface-variant">Stored account</p>
+      </div>
+      <p class="m-0 text-xs text-on-surface-variant">{props.account.pdsUrl || "PDS unavailable"}</p>
     </div>
   );
 }
@@ -48,6 +64,10 @@ export function SessionSpotlight(props: SessionSpotlightProps) {
       return "Connected";
     }
 
+    if (props.reauthNeeded && props.activeAccount) {
+      return "Expired";
+    }
+
     return "Ready";
   });
   return (
@@ -60,7 +80,8 @@ export function SessionSpotlight(props: SessionSpotlightProps) {
       <SessionBody
         activeSession={props.activeSession}
         activeAccount={props.activeAccount}
-        bootstrapping={props.bootstrapping} />
+        bootstrapping={props.bootstrapping}
+        reauthNeeded={props.reauthNeeded} />
 
       <Presence>
         <Show when={props.reauthNeeded}>
@@ -72,11 +93,22 @@ export function SessionSpotlight(props: SessionSpotlightProps) {
 }
 
 export function SessionBody(
-  props: { activeSession: ActiveSession | null; activeAccount: AccountSummary | null; bootstrapping: boolean },
+  props: {
+    activeSession: ActiveSession | null;
+    activeAccount: AccountSummary | null;
+    bootstrapping: boolean;
+    reauthNeeded: boolean;
+  },
 ) {
   return (
     <Show when={!props.bootstrapping} fallback={<ProfileSkeleton />}>
-      <Show when={props.activeSession} fallback={<SessionEmptyState />}>
+      <Show
+        when={props.activeSession}
+        fallback={
+          <Show when={props.reauthNeeded && props.activeAccount} fallback={<SessionEmptyState />}>
+            {(account) => <SessionExpiredState account={account()} />}
+          </Show>
+        }>
         {(session) => <SessionProfile session={session()} activeAccount={props.activeAccount} />}
       </Show>
     </Show>

@@ -38,6 +38,21 @@ describe("SessionSpotlight", () => {
     expect(screen.getByText("Ready")).toBeInTheDocument();
   });
 
+  it("shows expired account state when reauth is needed", () => {
+    render(() => (
+      <SessionSpotlight
+        activeSession={null}
+        activeAccount={{ active: false, did: "did:plc:alice", handle: "alice.test", pdsUrl: "https://pds.example.com" }}
+        bootstrapping={false}
+        reauthNeeded
+        onReauth={vi.fn()} />
+    ));
+
+    expect(screen.getByText("Expired")).toBeInTheDocument();
+    expect(screen.getByText("alice.test")).toBeInTheDocument();
+    expect(screen.getByText("Stored account")).toBeInTheDocument();
+  });
+
   it("shows Reconnecting status when bootstrapping", () => {
     render(() => (
       <SessionSpotlight

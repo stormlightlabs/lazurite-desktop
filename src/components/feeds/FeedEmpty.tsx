@@ -14,7 +14,7 @@ export function LoadingMoreIndicator(props: { loading: boolean }) {
 
 export function EmptyFeedState() {
   return (
-    <div class="rounded-[1.6rem] bg-white/3 p-8 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <div class="rounded-3xl bg-white/3 p-8 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
       <p class="m-0 text-[1rem] font-semibold text-on-surface">Nothing to show yet</p>
       <p class="mt-2 text-sm leading-[1.6] text-on-surface-variant">
         This feed is empty with the current filters. Try another tab or loosen the display settings.

@@ -49,18 +49,15 @@ export function PostCard(props: PostCardProps) {
   const repostCount = createMemo(() => formatCount(props.post.repostCount));
 
   return (
-    <Motion.article
+    <article
       ref={(element) => props.registerRef?.(element)}
-      class="group min-w-0 overflow-hidden rounded-[1.6rem] bg-white/2.5 px-5 py-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/4 max-[760px]:px-4 max-[760px]:py-4 max-[520px]:rounded-[1.35rem] max-[520px]:px-3.5"
+      class="group min-w-0 overflow-hidden rounded-3xl bg-white/2.5 px-5 py-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/4 max-[760px]:px-4 max-[760px]:py-4 max-[520px]:rounded-3xl max-[520px]:px-3.5"
       classList={{
         "bg-[linear-gradient(135deg,rgba(125,175,255,0.11),rgba(0,115,222,0.06))] shadow-[inset_0_0_0_1px_rgba(125,175,255,0.22),0_0_0_1px_rgba(125,175,255,0.08)]":
           !!props.focused,
       }}
       role="article"
       tabIndex={0}
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22 }}
       onClick={() => props.onFocus?.()}
       onFocus={() => props.onFocus?.()}
       onKeyDown={(event) => {
@@ -120,7 +117,7 @@ export function PostCard(props: PostCardProps) {
           </footer>
         </div>
       </div>
-    </Motion.article>
+    </article>
   );
 }
 
@@ -223,7 +220,7 @@ function ImageEmbed(props: { embed: ImagesEmbedView }) {
 function ExternalEmbed(props: { description?: string; thumb?: string; title?: string; uri?: string }) {
   return (
     <a
-      class="grid min-w-0 gap-3 overflow-hidden rounded-[1.25rem] bg-black/30 p-3 text-inherit no-underline shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] transition duration-150 ease-out hover:bg-black/40"
+      class="grid min-w-0 gap-3 overflow-hidden rounded-2xl bg-black/30 p-3 text-inherit no-underline shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] transition duration-150 ease-out hover:bg-black/40"
       href={props.uri}
       rel="noreferrer"
       target="_blank">
@@ -239,7 +236,7 @@ function ExternalEmbed(props: { description?: string; thumb?: string; title?: st
         </Show>
         <Show when={props.uri}>
           {(uri) => (
-            <p class="m-0 break-all text-[0.74rem] uppercase tracking-[0.08em] text-primary">
+            <p class="m-0 break-all text-xs uppercase tracking-[0.08em] text-primary">
               {uri().replace(/^https?:\/\//, "")}
             </p>
           )}
@@ -254,7 +251,7 @@ function QuoteEmbed(props: { author: ProfileViewBasic | null; text?: unknown; ti
   const title = () => props.title;
 
   return (
-    <div class="rounded-[1.25rem] bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
+    <div class="rounded-2xl bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
       <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{title()}</p>
       <Show when={props.author}>
         {(author) => (

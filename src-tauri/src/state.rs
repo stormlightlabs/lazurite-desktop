@@ -1,9 +1,8 @@
 use super::auth::{
     account_summaries, active_session_from_accounts, build_oauth_client, emit_account_switch, fetch_account_summary,
-    remove_cached_session, restore_session_from_data, ACCOUNT_SWITCHED_EVENT,
+    login_with_loopback, remove_cached_session, restore_session_from_data,
 };
-use super::auth::{login_with_loopback, LazuriteOAuthClient, LazuriteOAuthSession};
-use super::auth::{PersistentAuthStore, StoredAccount};
+use super::auth::{LazuriteOAuthClient, LazuriteOAuthSession, PersistentAuthStore, StoredAccount};
 use super::db::DbPool;
 use super::error::AppError;
 use jacquard::oauth::authstore::ClientAuthStore;
@@ -299,7 +298,10 @@ impl AppState {
             Ok(session) => {
                 self.sessions
                     .write()
-                    .map_err(|_| AppError::StatePoisoned("sessions"))?
+                    .map_err(|error| {
+                        log::error!("failed to acquire sessions write lock: {error}");
+                        AppError::StatePoisoned("sessions")
+                    })?
                     .insert(active.did.clone(), Arc::new(session));
                 log::info!("token refresh succeeded for {}", active.handle);
                 Ok(())
@@ -308,7 +310,7 @@ impl AppState {
                 log::warn!("token refresh failed for {}: {error}", active.handle);
                 self.auth_store.clear_active_account()?;
                 self.refresh_account_cache()?;
-                app.emit(ACCOUNT_SWITCHED_EVENT, None::<ActiveSession>)?;
+                app.emit(super::auth::ACCOUNT_SWITCHED_EVENT, None::<ActiveSession>)?;
                 Err(AppError::validation(format!("refresh failed: {error}")))
             }
         }
@@ -349,18 +351,21 @@ impl AppState {
         }
     }
 
+    /// Starts a background task to refresh the active session's token at regular intervals.
+    ///
+    /// Adds a short initial delay to quickly retry if bootstrap restore failed
     pub fn spawn_token_refresh_task(app: AppHandle) {
         const INITIAL_DELAY: Duration = Duration::from_secs(30);
         const REFRESH_INTERVAL: Duration = Duration::from_secs(15 * 60);
 
         tauri::async_runtime::spawn(async move {
-            // Short initial delay to quickly retry if bootstrap restore failed
             tokio::time::sleep(INITIAL_DELAY).await;
 
             loop {
                 let state = app.state::<AppState>();
-                if let Err(error) = state.refresh_active_token(&app).await {
-                    log::warn!("background token refresh error: {error}");
+                match state.refresh_active_token(&app).await {
+                    Ok(_) => log::debug!("background token refresh successful"),
+                    Err(error) => log::warn!("background token refresh error: {error}"),
                 }
 
                 tokio::time::sleep(REFRESH_INTERVAL).await;

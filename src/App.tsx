@@ -1,4 +1,9 @@
-import { invoke } from "@tauri-apps/api/core";
+import {
+  getAppBootstrap,
+  login as loginRequest,
+  logout as logoutRequest,
+  switchAccount as switchAccountRequest,
+} from "$/lib/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { createEffect, createMemo, onCleanup, onMount, Show, startTransition } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -12,7 +17,7 @@ import { LoginPanel } from "./components/LoginPanel";
 import { HeaderPanel } from "./components/panels/Header";
 import { SessionSpotlight } from "./components/Session";
 import { ErrorToast } from "./components/shared/ErrorToast";
-import type { AccountSummary, ActiveSession, AppBootstrap } from "./lib/types";
+import type { AccountSummary, ActiveSession } from "./lib/types";
 import { AppRouter } from "./router";
 
 const ACCOUNT_SWITCH_EVENT = "auth:account-switched";
@@ -80,7 +85,7 @@ function App() {
     setApp("bootstrapping", true);
 
     try {
-      const payload = await invoke<AppBootstrap>("get_app_bootstrap");
+      const payload = await getAppBootstrap();
       startTransition(() => {
         setApp("activeSession", payload.activeSession);
         setApp("accounts", payload.accountList);
@@ -120,7 +125,7 @@ function App() {
 
     setApp("loggingIn", true);
     try {
-      await invoke("login", { handle: trimmed });
+      await loginRequest(trimmed);
       setApp("loginValue", "");
       closeSwitcher();
       await loadBootstrap();
@@ -135,7 +140,7 @@ function App() {
   async function switchAccount(did: string) {
     setApp("switchingDid", did);
     try {
-      await invoke("switch_account", { did });
+      await switchAccountRequest(did);
       closeSwitcher();
       await loadBootstrap();
     } catch (error) {
@@ -149,7 +154,7 @@ function App() {
   async function logout(did: string) {
     setApp("logoutDid", did);
     try {
-      await invoke("logout", { did });
+      await logoutRequest(did);
       closeSwitcher();
       await loadBootstrap();
     } catch (error) {
@@ -215,6 +220,7 @@ function App() {
             logoutDid={app.logoutDid}
             narrow={app.narrowViewport}
             openSwitcher={app.showSwitcher}
+            onCloseSwitcher={closeSwitcher}
             switchingDid={app.switchingDid}
             onLogout={(did) => void logout(did)}
             onSwitch={(did) => void switchAccount(did)}
@@ -243,6 +249,7 @@ function App() {
         <AuthWorkspace
           accounts={app.accounts}
           activeAccount={activeAccount()}
+          activeSession={app.activeSession}
           activeDid={app.activeSession?.did ?? null}
           bootstrapping={app.bootstrapping}
           loggingIn={app.loggingIn}
@@ -273,6 +280,7 @@ function AuthWorkspace(
   props: {
     accounts: AccountSummary[];
     activeAccount: AccountSummary | null;
+    activeSession: ActiveSession | null;
     activeDid: string | null;
     bootstrapping: boolean;
     loggingIn: boolean;
@@ -291,10 +299,6 @@ function AuthWorkspace(
 ) {
   const hasAccounts = () => props.accounts.length > 0;
   const displayAccount = () => props.activeAccount ?? (props.reauthNeeded ? props.accounts[0] ?? null : null);
-  const displaySession = () => {
-    const account = displayAccount();
-    return account ? { did: account.did, handle: account.handle } : null;
-  };
 
   return (
     <Show
@@ -314,7 +318,7 @@ function AuthWorkspace(
       <>
         <HeaderPanel metaLabel={props.metaLabel} />
         <SessionSpotlight
-          activeSession={displaySession()}
+          activeSession={props.activeSession}
           activeAccount={displayAccount()}
           bootstrapping={props.bootstrapping}
           reauthNeeded={props.reauthNeeded}

@@ -50,6 +50,7 @@ export function AppRail(
     logoutDid: string | null;
     narrow: boolean;
     openSwitcher: boolean;
+    onCloseSwitcher: () => void;
     switchingDid: string | null;
     onLogout: (did: string) => void;
     onSwitch: (did: string) => void;
@@ -72,6 +73,7 @@ export function AppRail(
         compact={props.collapsed && !props.narrow}
         logoutDid={props.logoutDid}
         open={props.openSwitcher}
+        onClose={props.onCloseSwitcher}
         onToggle={props.onToggleSwitcher}
         onSwitch={props.onSwitch}
         onLogout={props.onLogout} />

@@ -247,7 +247,7 @@ function LoginTypeaheadPanel(
   return (
     <Show when={props.open && props.suggestions.length > 0}>
       <div
-        class="absolute inset-x-0 top-[calc(100%+0.7rem)] z-10 rounded-[1.35rem] bg-(--surface-container-highest) p-2.5 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px]"
+        class="absolute inset-x-0 top-[calc(100%+0.7rem)] z-10 rounded-3xl bg-(--surface-container-highest) p-2.5 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px]"
         id="login-suggestions"
         role="listbox">
         <p class="px-2 pb-2 text-[0.68rem] uppercase tracking-[0.12em] text-on-surface-variant">Suggested handles</p>
@@ -272,7 +272,7 @@ function LoginTypeaheadOption(
 ) {
   return (
     <button
-      class="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[1.05rem] border-0 bg-transparent px-3 py-2.5 text-left transition duration-150 ease-out hover:bg-white/6"
+      class="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-1xl border-0 bg-transparent px-3 py-2.5 text-left transition duration-150 ease-out hover:bg-white/6"
       classList={{ "bg-white/7 shadow-[inset_0_0_0_1px_rgba(125,175,255,0.12)]": props.active }}
       id={props.id}
       type="button"

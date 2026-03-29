@@ -236,7 +236,7 @@ function QuotePreview(props: { post: PostView | null }) {
   return (
     <Show when={props.post}>
       {(post) => (
-        <div class="mt-4 rounded-[1.25rem] bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
+        <div class="mt-4 rounded-2xl bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
           <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Quote preview</p>
           <p class="mt-2 text-sm font-semibold text-on-surface">
             {getDisplayName(post().author)}
@@ -257,7 +257,7 @@ function SuggestionPanel(props: { suggestions: ComposerSuggestion[]; onApplySugg
   const suggestions = () => props.suggestions.slice(0, 12);
   return (
     <Show when={props.suggestions.length > 0}>
-      <div class="mt-4 rounded-[1.25rem] bg-black/35 p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
+      <div class="mt-4 rounded-2xl bg-black/35 p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
         <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Suggestions</p>
         <div class="mt-3 max-h-44 overflow-y-auto overscroll-contain pr-1">
           <div class="grid gap-2">

@@ -69,7 +69,7 @@ function ThreadPanelHeader(props: { onClose: () => void }) {
     <header class="sticky top-0 z-10 mb-4 flex items-center justify-between rounded-3xl bg-[rgba(14,14,14,0.9)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
       <div>
         <p class="m-0 text-base font-semibold text-on-surface">Thread</p>
-        <p class="m-0 text-[0.74rem] uppercase tracking-[0.12em] text-on-surface-variant">Nested replies</p>
+        <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Nested replies</p>
       </div>
       <button
         class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
@@ -119,7 +119,7 @@ function ThreadNodeView(
           <div class="grid gap-4">
             <Show when={threadNode().parent}>
               {(parent) => (
-                <div class="rounded-[1.35rem] bg-white/[0.03] p-3">
+                <div class="rounded-3xl bg-white/3 p-3">
                   <ThreadNodeView
                     activeUri={props.activeUri}
                     node={parent()}
@@ -143,7 +143,7 @@ function ThreadNodeView(
               onRepost={() => props.onRepost(threadNode().post)} />
 
             <Show when={threadNode().replies?.length}>
-              <div class="grid gap-4 rounded-[1.35rem] bg-white/[0.03] p-3">
+              <div class="grid gap-4 rounded-3xl bg-white/3 p-3">
                 <For each={threadNode().replies}>
                   {(reply) => (
                     <ThreadNodeView
@@ -168,9 +168,9 @@ function ThreadNodeView(
 
 function StateCard(props: { label: string; meta: string }) {
   return (
-    <div class="rounded-[1.3rem] bg-white/3 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <div class="rounded-3xl bg-white/3 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
       <p class="m-0 text-sm font-semibold text-on-surface">{props.label}</p>
-      <p class="mt-1 text-[0.74rem] text-on-surface-variant">{props.meta}</p>
+      <p class="mt-1 text-xs text-on-surface-variant">{props.meta}</p>
     </div>
   );
 }

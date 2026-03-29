@@ -69,7 +69,7 @@ function PinnedFeedsSection(
   return (
     <Show when={props.pinnedFeeds.length > 0}>
       <div class="mt-6">
-        <p class="m-0 text-[0.74rem] uppercase tracking-[0.12em] text-on-surface-variant">Pinned Feeds</p>
+        <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Pinned Feeds</p>
         <div class="mt-3 grid gap-2">
           <For each={props.pinnedFeeds}>
             {(feed, index) => (
@@ -102,7 +102,7 @@ function UnpinnedFeedsSection(
   return (
     <Show when={props.drawerFeeds.length > 0}>
       <div class="mt-6">
-        <p class="m-0 text-[0.74rem] uppercase tracking-[0.12em] text-on-surface-variant">Saved Feeds</p>
+        <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Saved Feeds</p>
         <div class="mt-3 grid gap-2">
           <For each={props.drawerFeeds}>
             {(feed) => (
@@ -124,7 +124,7 @@ function DrawerHeader(props: { onClose: () => void }) {
     <div class="flex items-center justify-between">
       <div>
         <p class="m-0 text-[1rem] font-semibold text-on-surface">Saved Feeds</p>
-        <p class="m-0 text-[0.74rem] uppercase tracking-[0.12em] text-on-surface-variant">Unpinned drawer</p>
+        <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">All Saved Feeds</p>
       </div>
       <button
         class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
@@ -150,14 +150,14 @@ function DrawerPinnedFeedRow(
   },
 ) {
   return (
-    <div class="flex items-center gap-2 rounded-[1.25rem] bg-white/4 px-3 py-3 transition duration-150 ease-out hover:bg-white/6">
+    <div class="flex items-center gap-2 rounded-2xl bg-white/4 px-3 py-3 transition duration-150 ease-out hover:bg-white/6">
       <button class="flex min-w-0 flex-1 items-center gap-3 text-left" type="button" onClick={() => props.onSelect()}>
         <FeedChipAvatar feed={props.feed} generator={props.generator} />
         <div class="min-w-0 flex-1">
           <p class="m-0 truncate text-[0.88rem] font-semibold text-on-surface">
             {getFeedName(props.feed, props.generator?.displayName)}
           </p>
-          <p class="m-0 break-all text-[0.74rem] text-on-surface-variant">{props.feed.value}</p>
+          <p class="m-0 break-all text-xs text-on-surface-variant">{props.feed.value}</p>
         </div>
       </button>
       <div class="flex items-center gap-1">
@@ -193,14 +193,14 @@ function DrawerUnpinnedFeedRow(
   props: { feed: SavedFeedItem; generator?: FeedGeneratorView; onSelect: () => void; onPin: () => void },
 ) {
   return (
-    <div class="flex items-center gap-2 rounded-[1.25rem] bg-white/4 px-3 py-3 transition duration-150 ease-out hover:bg-white/6">
+    <div class="flex items-center gap-2 rounded-2xl bg-white/4 px-3 py-3 transition duration-150 ease-out hover:bg-white/6">
       <button class="flex min-w-0 flex-1 items-center gap-3 text-left" type="button" onClick={() => props.onSelect()}>
         <FeedChipAvatar feed={props.feed} generator={props.generator} />
         <div class="min-w-0 flex-1">
           <p class="m-0 truncate text-[0.88rem] font-semibold text-on-surface">
             {getFeedName(props.feed, props.generator?.displayName)}
           </p>
-          <p class="m-0 break-all text-[0.74rem] text-on-surface-variant">{props.feed.value}</p>
+          <p class="m-0 break-all text-xs text-on-surface-variant">{props.feed.value}</p>
         </div>
       </button>
       <button

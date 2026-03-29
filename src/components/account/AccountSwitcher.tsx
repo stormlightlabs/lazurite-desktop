@@ -1,6 +1,5 @@
 import type { AccountSummary, ActiveSession } from "$/lib/types";
 import { createMemo, onCleanup, onMount, Show } from "solid-js";
-import { Motion, Presence } from "solid-motionone";
 import { ArrowIcon } from "../shared/Icon";
 import { SwitcherIdentity } from "./AccountSwitcherIdentity";
 import { AccountSwitcherMenuList } from "./AccountSwitcherMenuList";
@@ -13,6 +12,7 @@ type AccountSwitcherProps = {
   compact?: boolean;
   logoutDid: string | null;
   open: boolean;
+  onClose: () => void;
   onToggle: () => void;
   onSwitch: (did: string) => void;
   onLogout: (did: string) => void;
@@ -20,7 +20,31 @@ type AccountSwitcherProps = {
 
 export function AccountSwitcher(props: AccountSwitcherProps) {
   const isOpen = () => props.open;
-  const staleAccount = createMemo(() => (!props.activeSession && props.accounts.length > 0 ? props.accounts[0] : null));
+  const previewAccount = createMemo(() => props.activeAccount ?? props.accounts[0] ?? null);
+  const identity = createMemo(() => {
+    if (props.activeSession) {
+      return {
+        avatar: props.activeAccount?.avatar ?? null,
+        label: props.activeSession.handle,
+        meta: "Current account",
+        name: props.activeSession.handle,
+        tone: "primary" as const,
+      };
+    }
+
+    const account = previewAccount();
+    if (account) {
+      return {
+        avatar: account.avatar ?? null,
+        label: account.handle || account.did,
+        meta: "Session expired",
+        name: account.handle || account.did,
+        tone: "muted" as const,
+      };
+    }
+
+    return { avatar: null, label: "?", meta: "No account connected", name: "Sign in", tone: "muted" as const };
+  });
   let container: HTMLDivElement | undefined;
 
   onMount(() => {
@@ -34,7 +58,7 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
           return;
         }
 
-        props.onToggle();
+        props.onClose();
       },
     };
 
@@ -58,30 +82,15 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
         type="button"
         aria-haspopup="menu"
         aria-expanded={props.open}
-        aria-label={props.activeSession ? `Current account ${props.activeSession.handle}` : "Sign in"}
+        aria-label={props.activeSession ? `Current account ${props.activeSession.handle}` : identity().name}
         onClick={() => props.onToggle()}>
-        <Show
-          when={props.activeSession}
-          keyed
-          fallback={
-            <SwitcherIdentity
-              avatar={staleAccount()?.avatar ?? null}
-              compact={props.compact}
-              label={staleAccount()?.handle ?? "?"}
-              name={staleAccount()?.handle ?? "Sign in"}
-              meta={staleAccount() ? "Session expired" : "No account connected"}
-              tone="muted" />
-          }>
-          {(session) => (
-            <SwitcherIdentity
-              avatar={props.activeAccount?.avatar}
-              compact={props.compact}
-              label={session.handle}
-              name={session.handle}
-              meta="Current account"
-              tone="primary" />
-          )}
-        </Show>
+        <SwitcherIdentity
+          avatar={identity().avatar}
+          compact={props.compact}
+          label={identity().label}
+          meta={identity().meta}
+          name={identity().name}
+          tone={identity().tone} />
         <span
           class="absolute flex items-center text-on-surface-variant"
           classList={{
@@ -96,29 +105,23 @@ export function AccountSwitcher(props: AccountSwitcherProps) {
         </span>
       </button>
 
-      <Presence>
-        <Show when={props.open}>
-          <Motion.div
-            class="absolute rounded-2xl bg-(--surface-container-highest) p-4 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px] max-[1180px]:bottom-auto max-[1180px]:top-[calc(100%+0.75rem)]"
-            classList={{
-              "inset-x-0 bottom-[calc(100%+0.75rem)]": !props.compact,
-              "bottom-0 left-[calc(100%+0.85rem)] w-[19rem]": !!props.compact,
-            }}
-            role="menu"
-            initial={{ opacity: 0, y: 10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            transition={{ duration: 0.2 }}>
-            <p class="overline-copy text-[0.68rem] text-on-surface-variant">Accounts</p>
-            <AccountSwitcherMenuList
-              accounts={props.accounts}
-              busyDid={props.busyDid}
-              logoutDid={props.logoutDid}
-              onSwitch={props.onSwitch}
-              onLogout={props.onLogout} />
-          </Motion.div>
-        </Show>
-      </Presence>
+      <Show when={props.open}>
+        <div
+          class="absolute z-20 rounded-2xl bg-(--surface-container-highest) p-4 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px] max-[1180px]:bottom-auto max-[1180px]:top-[calc(100%+0.75rem)]"
+          classList={{
+            "inset-x-0 bottom-[calc(100%+0.75rem)]": !props.compact,
+            "bottom-0 left-[calc(100%+0.85rem)] w-[19rem]": !!props.compact,
+          }}
+          role="menu">
+          <p class="overline-copy text-[0.68rem] text-on-surface-variant">Accounts</p>
+          <AccountSwitcherMenuList
+            accounts={props.accounts}
+            busyDid={props.busyDid}
+            logoutDid={props.logoutDid}
+            onSwitch={props.onSwitch}
+            onLogout={props.onLogout} />
+        </div>
+      </Show>
     </div>
   );
 }

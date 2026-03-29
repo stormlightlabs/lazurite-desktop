@@ -35,7 +35,7 @@ export function Icon(props: IconProps) {
           <i class={local.iconClass} />
         </Match>
         <Match when={local.kind === "quill"}>
-          <i class="i-ri-quill-3-line" />
+          <i class="i-ri-quill-pen-line" />
         </Match>
         <Match when={local.kind === "menu"}>
           <i class="i-ri-menu-line" />
