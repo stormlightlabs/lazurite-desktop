@@ -1,5 +1,5 @@
+import type { AccountSummary } from "$/lib/types";
 import { For, Show } from "solid-js";
-import { AccountSummary } from "../../lib/types";
 import { AccountSwitcherRow } from "./AccountSwitcherRow";
 
 export function AccountSwitcherMenuList(

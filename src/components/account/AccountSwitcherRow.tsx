@@ -1,6 +1,6 @@
-import { AccountSummary } from "../../lib/types";
-import { AvatarBadge } from "../AvatarBadge";
-import { Icon } from "../shared/Icon";
+import { AvatarBadge } from "$/components/AvatarBadge";
+import { Icon } from "$/components/shared/Icon";
+import type { AccountSummary } from "$/lib/types";
 
 type AccountSwitcherRowProps = {
   account: AccountSummary;

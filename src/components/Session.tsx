@@ -1,4 +1,4 @@
-import { AccountSummary, ActiveSession } from "$/lib/types";
+import type { AccountSummary, ActiveSession } from "$/lib/types";
 import { createMemo, Show } from "solid-js";
 import { Presence } from "solid-motionone";
 import { AvatarBadge } from "./AvatarBadge";

@@ -1,5 +1,5 @@
 import { Icon } from "$/components/shared/Icon";
-import { FeedGeneratorView, SavedFeedItem } from "$/lib/types";
+import type { FeedGeneratorView, SavedFeedItem } from "$/lib/types";
 import { createMemo, Show } from "solid-js";
 
 export function FeedChipAvatar(props: { feed: SavedFeedItem; generator?: FeedGeneratorView }) {

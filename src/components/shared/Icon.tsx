@@ -15,6 +15,7 @@ export type IconKind =
   | "quill"
   | "at"
   | "hashtag"
+  | "quote"
   | "close";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
@@ -77,6 +78,9 @@ export function Icon(props: IconProps) {
         </Match>
         <Match when={local.kind === "close"}>
           <i class="i-ri-close-line" />
+        </Match>
+        <Match when={local.kind === "quote"}>
+          <i class="i-ri-chat-quote-line" />
         </Match>
       </Switch>
     </span>

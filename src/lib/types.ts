@@ -63,10 +63,9 @@ export type PostRecord = {
   [key: string]: unknown;
 };
 
-export type ImagesEmbedView = {
-  $type: "app.bsky.embed.images#view";
-  images: Array<{ alt?: string; aspectRatio?: { height: number; width: number }; fullsize?: string; thumb?: string }>;
-};
+type ImageEmbed = { alt?: string; aspectRatio?: { height: number; width: number }; fullsize?: string; thumb?: string };
+
+export type ImagesEmbedView = { $type: "app.bsky.embed.images#view"; images: Array<ImageEmbed> };
 
 export type ExternalEmbedView = {
   $type: "app.bsky.embed.external#view";
@@ -108,15 +107,15 @@ export type EmbedView =
 export type PostView = {
   author: ProfileViewBasic;
   cid: string;
-  embed: Maybe<EmbedView>;
+  embed?: EmbedView | null;
   indexedAt: string;
-  likeCount: Maybe<number>;
-  quoteCount: Maybe<number>;
+  likeCount?: number | null;
+  quoteCount?: number | null;
   record: PostRecord | Record<string, unknown>;
-  replyCount: Maybe<number>;
-  repostCount: Maybe<number>;
+  replyCount?: number | null;
+  repostCount?: number | null;
   uri: string;
-  viewer: Maybe<ViewerState>;
+  viewer?: ViewerState | null;
 };
 
 export type NotFoundPost = { $type: "app.bsky.feed.defs#notFoundPost"; notFound: boolean; uri: string };

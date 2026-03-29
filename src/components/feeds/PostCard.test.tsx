@@ -8,10 +8,7 @@ function createPost() {
     cid: "cid-post",
     indexedAt: "2026-03-28T12:00:00.000Z",
     likeCount: 4,
-    record: {
-      createdAt: "2026-03-28T12:00:00.000Z",
-      text: "Visit https://example.com @bob.test #solid",
-    },
+    record: { createdAt: "2026-03-28T12:00:00.000Z", text: "Visit https://example.com @bob.test #solid" },
     replyCount: 2,
     repostCount: 1,
     uri: "at://did:plc:alice/app.bsky.feed.post/123",
@@ -32,7 +29,10 @@ describe("PostCard", () => {
     const onOpenThread = vi.fn();
     render(() => <PostCard post={createPost()} onOpenThread={onOpenThread} />);
 
-    await fireEvent.keyDown(screen.getByRole("article"), { key: "Enter" });
+    await new Promise((resolve) => {
+      fireEvent.keyDown(screen.getByRole("article"), { key: "Enter" });
+      resolve(void 0);
+    });
 
     expect(onOpenThread).toHaveBeenCalledTimes(1);
   });

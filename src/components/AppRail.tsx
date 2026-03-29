@@ -1,4 +1,4 @@
-import { AccountSummary, ActiveSession } from "$/lib/types";
+import type { AccountSummary, ActiveSession } from "$/lib/types";
 import { Show } from "solid-js";
 import { AccountSwitcher } from "./account/AccountSwitcher";
 import { RailButton } from "./RailButton";
