@@ -1,7 +1,7 @@
 import { A } from "@solidjs/router";
 import { Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
-import { Icon, type IconKind } from "./shared/Icon";
+import { Icon, type IconKind } from "../shared/Icon";
 
 type RailButtonProps = {
   badge?: number;

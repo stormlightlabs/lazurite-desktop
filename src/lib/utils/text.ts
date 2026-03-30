@@ -1,4 +1,4 @@
-import type { Maybe } from "$/lib/types";
+import type { LogEntry, Maybe } from "$/lib/types";
 
 export function escapeForRegex(value: string) {
   return value.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
@@ -48,4 +48,28 @@ export function formatBytes(bytes: number): string {
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+export function formatLogTimestamp(timestamp: string | null) {
+  if (!timestamp) {
+    return "--";
+  }
+
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) {
+    return timestamp;
+  }
+
+  return parsed.toLocaleString(undefined, {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    second: "2-digit",
+  });
+}
+
+export function formatLogCopyLine(log: LogEntry) {
+  const prefix = [formatLogTimestamp(log.timestamp), log.level, log.target ?? "app"].join(" ");
+  return `${prefix} ${log.message}`;
 }

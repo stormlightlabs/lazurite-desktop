@@ -36,6 +36,22 @@ function createFeedItem(id: string, text = `Post ${id}`) {
   };
 }
 
+function createReplyItem(id: string, likeCount: number, text = `Reply ${id}`) {
+  const base = createFeedItem(id, text);
+  return {
+    ...base,
+    post: {
+      ...base.post,
+      author: { ...base.post.author, viewer: { following: "at://did:plc:alice/app.bsky.graph.follow/1" } },
+      likeCount,
+    },
+    reply: {
+      parent: { $type: "app.bsky.feed.defs#postView", ...createFeedItem("root").post },
+      root: { $type: "app.bsky.feed.defs#postView", ...createFeedItem("root").post },
+    },
+  };
+}
+
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((innerResolve) => {
@@ -133,5 +149,41 @@ describe("FeedWorkspace", () => {
     await flushMicrotasks();
 
     expect(scroller!.scrollTop).toBe(260);
+  });
+
+  it("filters replies when the minimum like threshold changes", async () => {
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_preferences") {
+        return Promise.resolve({
+          savedFeeds: [{ id: "following", pinned: true, type: "timeline", value: "following" }],
+          feedViewPrefs: [],
+        });
+      }
+
+      if (command === "get_timeline") {
+        return Promise.resolve({ cursor: null, feed: [createReplyItem("1", 2, "Low-like reply")] });
+      }
+
+      if (command === "update_feed_view_pref") {
+        return Promise.resolve(null);
+      }
+
+      throw new Error(`unexpected invoke: ${command}`);
+    });
+
+    render(() => (
+      <AppTestProviders
+        session={{ activeDid: ACTIVE_SESSION.did, activeHandle: ACTIVE_SESSION.handle, activeSession: ACTIVE_SESSION }}>
+        <FeedWorkspace onThreadRouteChange={vi.fn()} threadUri={null} />
+      </AppTestProviders>
+    ));
+
+    await screen.findByText("Low-like reply");
+
+    const thresholdInput = screen.getByRole("spinbutton", { name: /Minimum likes for replies/i });
+    fireEvent.input(thresholdInput, { target: { value: "5" } });
+
+    expect(await screen.findByDisplayValue("5")).toBeInTheDocument();
+    expect(screen.queryByText("Low-like reply")).not.toBeInTheDocument();
   });
 });

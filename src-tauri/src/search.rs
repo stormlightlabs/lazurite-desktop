@@ -15,6 +15,7 @@ use jacquard::xrpc::XrpcClient;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
@@ -606,6 +607,24 @@ fn embeddings_downloaded(models_dir: &Path) -> bool {
     cached_embedding_files(models_dir) == required_embedding_files().len()
 }
 
+fn directory_size(path: &Path) -> Result<u64> {
+    if !path.exists() {
+        return Ok(0);
+    }
+
+    if path.is_file() {
+        return Ok(path.metadata()?.len());
+    }
+
+    let mut total = 0_u64;
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        total = total.saturating_add(directory_size(&entry.path())?);
+    }
+
+    Ok(total)
+}
+
 fn set_download_idle_state(downloaded_files: usize, total_files: usize) {
     if let Ok(mut state) = EMBEDDINGS_DOWNLOAD_STATE.lock() {
         state.active = false;
@@ -1040,6 +1059,7 @@ pub struct EmbeddingsConfig {
     pub enabled: bool,
     pub model_name: String,
     pub dimensions: i64,
+    pub model_size_bytes: Option<u64>,
     pub downloaded: bool,
     pub download_active: bool,
     pub download_progress: Option<f64>,
@@ -1056,6 +1076,7 @@ pub fn get_embeddings_config(app: &AppHandle, state: &AppState) -> Result<Embedd
     let enabled = db_get_embeddings_enabled(&conn)?;
     let models_dir = resolve_models_dir(app)?;
     let downloaded = embeddings_downloaded(&models_dir);
+    let model_size_bytes = directory_size(&models_dir).ok().filter(|bytes| *bytes > 0);
     let state = EMBEDDINGS_DOWNLOAD_STATE
         .lock()
         .map_err(|_| AppError::StatePoisoned("embeddings_download_state"))?;
@@ -1087,6 +1108,7 @@ pub fn get_embeddings_config(app: &AppHandle, state: &AppState) -> Result<Embedd
         enabled,
         model_name: EMBEDDING_MODEL_NAME.to_string(),
         dimensions: EMBEDDING_DIMENSIONS,
+        model_size_bytes,
         downloaded,
         download_active: state.active,
         download_progress,

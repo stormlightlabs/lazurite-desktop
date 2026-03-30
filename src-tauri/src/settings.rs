@@ -475,12 +475,15 @@ fn parse_log_line(line: &str) -> LogEntry {
     if is_valid_level {
         let timestamp = Some(timestamp_token.to_string());
         if let Some(colon_pos) = rest.find(": ") {
-            return LogEntry {
-                timestamp,
-                level: level_token,
-                target: Some(rest[..colon_pos].to_string()),
-                message: rest[colon_pos + 2..].to_string(),
-            };
+            let candidate_target = &rest[..colon_pos];
+            if !candidate_target.contains(char::is_whitespace) {
+                return LogEntry {
+                    timestamp,
+                    level: level_token,
+                    target: Some(candidate_target.to_string()),
+                    message: rest[colon_pos + 2..].to_string(),
+                };
+            }
         }
         return LogEntry { timestamp, level: level_token, target: None, message: rest };
     }
@@ -1049,6 +1052,15 @@ mod tests {
         assert_eq!(entry.level, "ERROR");
         assert!(entry.target.is_none());
         assert_eq!(entry.message, "something went wrong");
+    }
+
+    #[test]
+    fn parse_log_line_keeps_colon_messages_when_no_target_is_present() {
+        let line = "2024-01-15T10:30:00Z WARN failed to parse payload: invalid json";
+        let entry = parse_log_line(line);
+        assert_eq!(entry.level, "WARN");
+        assert!(entry.target.is_none());
+        assert_eq!(entry.message, "failed to parse payload: invalid json");
     }
 
     #[test]

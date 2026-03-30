@@ -633,6 +633,12 @@ function SearchTipsCard() {
           </div>
         </div>
       </div>
+      <a
+        class="inline-flex w-fit items-center gap-2 rounded-full bg-white/6 px-3 py-2 text-xs font-medium text-on-surface no-underline transition hover:bg-white/10 hover:text-primary"
+        href="#/settings">
+        <Icon kind="settings" class="text-sm" />
+        <span>Open settings</span>
+      </a>
     </section>
   );
 }

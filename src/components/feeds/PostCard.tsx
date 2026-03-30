@@ -7,6 +7,7 @@ import {
   getPostText,
   getQuotedAuthor,
   getQuotedText,
+  isReplyItem,
 } from "$/lib/feeds";
 import type { FeedViewPost, ImagesEmbedView, PostView, ProfileViewBasic } from "$/lib/types";
 import { formatCount } from "$/lib/utils/text";
@@ -43,6 +44,19 @@ export function PostCard(props: PostCardProps) {
 
     return `${getDisplayName(reason.by)} reposted`;
   });
+  const replyLabel = createMemo(() => {
+    const item = props.item;
+    if (!item || !isReplyItem(item)) {
+      return null;
+    }
+
+    const parent = item.reply?.parent;
+    if (parent?.$type === "app.bsky.feed.defs#postView") {
+      return `Replying to @${parent.author.handle.replace(/^@/, "")}`;
+    }
+
+    return "Reply in thread";
+  });
 
   const likeCount = createMemo(() => formatCount(props.post.likeCount));
   const replyCount = createMemo(() => formatCount(props.post.replyCount));
@@ -69,6 +83,12 @@ export function PostCard(props: PostCardProps) {
         <div class="mb-3 flex items-center gap-2 text-xs font-medium tracking-[0.04em] text-primary">
           <Icon aria-hidden="true" iconClass="i-ri-repeat-2-line" />
           <span>{reasonLabel()}</span>
+        </div>
+      </Show>
+      <Show when={replyLabel()}>
+        <div class="mb-3 flex items-center gap-2 text-xs font-medium tracking-[0.04em] text-on-surface-variant">
+          <Icon aria-hidden="true" iconClass="i-ri-corner-down-right-line" />
+          <span>{replyLabel()}</span>
         </div>
       </Show>
 

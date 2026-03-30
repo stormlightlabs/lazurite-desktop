@@ -1,7 +1,7 @@
 import { MemoryRouter, Route } from "@solidjs/router";
 import { render, screen } from "@solidjs/testing-library";
 import { describe, expect, it } from "vitest";
-import { RailButton } from "./RailButton";
+import { RailButton } from "./AppRailButton";
 
 function renderInRouter(ui: () => ReturnType<typeof RailButton>) {
   return render(() => (

@@ -55,6 +55,7 @@ describe("EmbeddingsSettings", () => {
       enabled: true,
       modelName: "nomic-embed-text-v1.5",
       dimensions: 768,
+      modelSizeBytes: 1024 * 1024 * 384,
       downloaded: true,
       downloadActive: false,
     });
@@ -62,6 +63,7 @@ describe("EmbeddingsSettings", () => {
       enabled: true,
       modelName: "nomic-embed-text-v1.5",
       dimensions: 768,
+      modelSizeBytes: 1024 * 1024 * 384,
       downloaded: true,
       downloadActive: false,
     });
@@ -74,6 +76,7 @@ describe("EmbeddingsSettings", () => {
     expect(await screen.findByText("Semantic Search")).toBeInTheDocument();
     expect(await screen.findByText(/nomic-embed-text-v1\.5/)).toBeInTheDocument();
     expect(await screen.findByText(/768D/)).toBeInTheDocument();
+    expect(await screen.findByText(/384 MB on disk/i)).toBeInTheDocument();
   });
 
   it("shows toggle in enabled state when embeddings are enabled", async () => {

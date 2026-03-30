@@ -3,27 +3,36 @@ use super::error::{AppError, TypeaheadFetchError, TypeaheadFetchErrorKind};
 use super::state::{AccountSummary, ActiveSession};
 use jacquard::api::app_bsky::actor::get_profile::GetProfile;
 use jacquard::api::com_atproto::server::get_session::GetSession;
+use jacquard::common::deps::fluent_uri::Uri;
 use jacquard::common::session::SessionStoreError;
 use jacquard::oauth::atproto::AtprotoClientMetadata;
 use jacquard::oauth::authstore::ClientAuthStore;
 use jacquard::oauth::client::{OAuthClient, OAuthSession};
-use jacquard::oauth::loopback::{handle_localhost_callback, one_shot_server, try_open_in_browser};
-use jacquard::oauth::loopback::{CallbackHandle, LoopbackConfig, LoopbackPort};
+use jacquard::oauth::loopback::{try_open_in_browser, LoopbackConfig, LoopbackPort};
+use jacquard::oauth::scopes::Scope;
 use jacquard::oauth::session::{AuthRequestData, ClientData, ClientSessionData};
-use jacquard::oauth::types::AuthorizeOptions;
+use jacquard::oauth::types::{AuthorizeOptions, CallbackParams};
 use jacquard::types::did::Did;
 use jacquard::xrpc::XrpcClient;
 use jacquard::IntoStatic;
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::sync::mpsc as std_mpsc;
 use std::sync::{MutexGuard, RwLock};
+use std::thread;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
+use tokio::sync::oneshot;
 
 pub const ACCOUNT_SWITCHED_EVENT: &str = "auth:account-switched";
 const CLIENT_NAME: &str = "Lazurite";
+const CLIENT_METADATA_URL: &str = "https://lazurite.stormlightlabs.org/client-metadata.json";
+const CLIENT_SITE_URL: &str = "https://lazurite.stormlightlabs.org";
+const LOOPBACK_CALLBACK_PATH: &str = "/callback";
+const LOOPBACK_SCOPE: &str = "atproto transition:generic";
 const LOGIN_TYPEAHEAD_LIMIT: usize = 6;
 const LOGIN_TYPEAHEAD_CLIENT: &str = "lazurite-desktop";
 const LOGIN_TYPEAHEAD_PRIMARY_URL: &str = "https://typeahead.waow.tech";
@@ -408,7 +417,7 @@ pub fn build_oauth_client(store: PersistentAuthStore) -> LazuriteOAuthClient {
 }
 
 pub fn default_client_metadata() -> AtprotoClientMetadata<'static> {
-    AtprotoClientMetadata::default_localhost().with_prod_info(CLIENT_NAME, None, None, None)
+    build_client_metadata("http://127.0.0.1/callback")
 }
 
 pub async fn login_with_loopback(
@@ -417,10 +426,17 @@ pub async fn login_with_loopback(
     let config = LoopbackConfig::default();
     let options = AuthorizeOptions::default();
     let bind_addr = loopback_bind_addr(&config)?;
-    let (local_addr, callback_handle) = one_shot_server(bind_addr);
+    let (local_addr, callback_handle) = start_loopback_callback_server(bind_addr)?;
     let flow_client = build_loopback_client(oauth_client, &config, &options, local_addr);
 
-    let auth_url = flow_client.start_auth(identifier, options).await?;
+    let auth_url = match flow_client.start_auth(identifier, options).await {
+        Ok(auth_url) => auth_url,
+        Err(error) => {
+            let _ = callback_handle.stop_tx.send(());
+            let _ = callback_handle.server_handle.join();
+            return Err(error.into());
+        }
+    };
     let _ = try_open_in_browser(&auth_url);
 
     complete_loopback_login(flow_client, callback_handle, config).await
@@ -498,8 +514,9 @@ pub fn remove_cached_session(
 fn build_loopback_client(
     oauth_client: &LazuriteOAuthClient, config: &LoopbackConfig, options: &AuthorizeOptions<'_>, local_addr: SocketAddr,
 ) -> LazuriteOAuthClient {
-    let mut client_data = oauth_client.build_localhost_client_data(config, options, local_addr);
-    client_data.config = client_data.config.with_prod_info(CLIENT_NAME, None, None, None);
+    let scopes = if options.scopes.is_empty() { None } else { Some(options.scopes.clone().into_static()) };
+    let redirect_uri = format!("http://{}:{}{}", config.host, local_addr.port(), LOOPBACK_CALLBACK_PATH);
+    let client_data = ClientData::new_public(build_client_metadata_with_scopes(&redirect_uri, scopes));
 
     OAuthClient::new_with_shared(
         oauth_client.registry.store.clone(),
@@ -508,10 +525,24 @@ fn build_loopback_client(
     )
 }
 
+struct LocalCallbackServerHandle {
+    callback_rx: oneshot::Receiver<CallbackParams<'static>>,
+    server_handle: thread::JoinHandle<()>,
+    stop_tx: std_mpsc::Sender<()>,
+}
+
 async fn complete_loopback_login(
-    flow_client: LazuriteOAuthClient, callback_handle: CallbackHandle, config: LoopbackConfig,
+    flow_client: LazuriteOAuthClient, callback_handle: LocalCallbackServerHandle, config: LoopbackConfig,
 ) -> Result<LazuriteOAuthSession, AppError> {
-    Ok(handle_localhost_callback(callback_handle, &flow_client, &config).await?)
+    let callback = tokio::time::timeout(Duration::from_millis(config.timeout_ms), callback_handle.callback_rx)
+        .await
+        .map_err(|_| AppError::validation("oauth loopback callback timed out"))?
+        .map_err(|_| AppError::validation("oauth loopback callback channel closed"))?;
+
+    let _ = callback_handle.stop_tx.send(());
+    let _ = callback_handle.server_handle.join();
+
+    Ok(flow_client.callback(callback).await?)
 }
 
 fn loopback_bind_addr(config: &LoopbackConfig) -> Result<SocketAddr, AppError> {
@@ -523,6 +554,141 @@ fn loopback_bind_addr(config: &LoopbackConfig) -> Result<SocketAddr, AppError> {
     format!("0.0.0.0:{port}")
         .parse()
         .map_err(|error| AppError::Validation(format!("invalid loopback bind address: {error}")))
+}
+
+fn start_loopback_callback_server(bind_addr: SocketAddr) -> Result<(SocketAddr, LocalCallbackServerHandle), AppError> {
+    let listener = TcpListener::bind(bind_addr)?;
+    listener.set_nonblocking(true)?;
+    let local_addr = listener.local_addr()?;
+
+    let (callback_tx, callback_rx) = oneshot::channel();
+    let (stop_tx, stop_rx) = std_mpsc::channel();
+
+    let server_handle = thread::spawn(move || {
+        run_loopback_callback_server(&listener, callback_tx, &stop_rx);
+    });
+
+    Ok((
+        local_addr,
+        LocalCallbackServerHandle { callback_rx, server_handle, stop_tx },
+    ))
+}
+
+fn run_loopback_callback_server(
+    listener: &TcpListener, callback_tx: oneshot::Sender<CallbackParams<'static>>, stop_rx: &std_mpsc::Receiver<()>,
+) {
+    let mut callback_tx = Some(callback_tx);
+
+    loop {
+        if stop_rx.try_recv().is_ok() {
+            break;
+        }
+
+        match listener.accept() {
+            Ok((mut stream, _)) => {
+                let handled = handle_loopback_stream(&mut stream, &mut callback_tx);
+                if handled {
+                    break;
+                }
+            }
+            Err(error) => match error.kind() {
+                std::io::ErrorKind::WouldBlock => thread::sleep(Duration::from_millis(25)),
+                _ => break,
+            },
+        }
+    }
+}
+
+fn handle_loopback_stream(
+    stream: &mut TcpStream, callback_tx: &mut Option<oneshot::Sender<CallbackParams<'static>>>,
+) -> bool {
+    let mut buffer = [0_u8; 8192];
+    let bytes_read = match stream.read(&mut buffer) {
+        Ok(bytes_read) => bytes_read,
+        Err(_) => return false,
+    };
+
+    let request = String::from_utf8_lossy(&buffer[..bytes_read]);
+    let request_line = request.lines().next().unwrap_or_default();
+    let request_target = request_line.split_whitespace().nth(1).unwrap_or_default();
+
+    match parse_loopback_callback(request_target) {
+        Ok(params) => {
+            let _ = write_http_response(stream, 200, "Logged in!");
+            if let Some(callback_tx) = callback_tx.take() {
+                let _ = callback_tx.send(params);
+            }
+            true
+        }
+        Err(_) => {
+            let _ = write_http_response(stream, 404, "Not found");
+            false
+        }
+    }
+}
+
+fn parse_loopback_callback(request_target: &str) -> Result<CallbackParams<'static>, AppError> {
+    let url = reqwest::Url::parse(&format!("http://127.0.0.1{request_target}"))
+        .map_err(|error| AppError::validation(format!("invalid loopback callback URL: {error}")))?;
+
+    if url.path() != LOOPBACK_CALLBACK_PATH {
+        return Err(AppError::validation("unexpected loopback callback path"));
+    }
+
+    let mut code = None;
+    let mut iss = None;
+    let mut state = None;
+
+    for (key, value) in url.query_pairs() {
+        match key.as_ref() {
+            "code" => code = Some(value.into_owned()),
+            "iss" => iss = Some(value.into_owned()),
+            "state" => state = Some(value.into_owned()),
+            _ => {}
+        }
+    }
+
+    let code = code.ok_or_else(|| AppError::validation("loopback callback missing code"))?;
+
+    Ok(CallbackParams { code: code.into(), iss: iss.map(Into::into), state: state.map(Into::into) })
+}
+
+fn write_http_response(stream: &mut TcpStream, status_code: u16, body: &str) -> std::io::Result<()> {
+    let status_text = match status_code {
+        200 => "OK",
+        404 => "Not Found",
+        _ => "OK",
+    };
+    let response = format!(
+        "HTTP/1.1 {status_code} {status_text}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    stream.write_all(response.as_bytes())?;
+    stream.flush()
+}
+
+fn build_client_metadata(redirect_uri: &str) -> AtprotoClientMetadata<'static> {
+    build_client_metadata_with_scopes(redirect_uri, None)
+}
+
+fn build_client_metadata_with_scopes(
+    redirect_uri: &str, scopes: Option<Vec<Scope<'static>>>,
+) -> AtprotoClientMetadata<'static> {
+    AtprotoClientMetadata {
+        client_id: Uri::parse(CLIENT_METADATA_URL.to_string()).expect("client metadata URL should be valid"),
+        client_uri: Some(Uri::parse(CLIENT_SITE_URL.to_string()).expect("client site URL should be valid")),
+        redirect_uris: vec![Uri::parse(redirect_uri.to_string()).expect("loopback redirect URI should be valid")],
+        grant_types: vec![
+            jacquard::oauth::atproto::GrantType::AuthorizationCode,
+            jacquard::oauth::atproto::GrantType::RefreshToken,
+        ],
+        scopes: scopes.unwrap_or_else(|| Scope::parse_multiple(LOOPBACK_SCOPE).expect("loopback scopes should parse")),
+        jwks_uri: None,
+        client_name: Some(CLIENT_NAME.into()),
+        logo_uri: None,
+        tos_uri: None,
+        privacy_policy_uri: None,
+    }
 }
 
 fn sqlite_to_store_error(error: rusqlite::Error) -> SessionStoreError {
@@ -613,10 +779,11 @@ fn should_fallback_to_public_typeahead(error: &TypeaheadFetchError) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        should_fallback_to_public_typeahead, LoginSuggestion, PersistentAuthStore, TypeaheadFetchError,
-        TypeaheadFetchErrorKind,
+        default_client_metadata, parse_loopback_callback, should_fallback_to_public_typeahead, LoginSuggestion,
+        PersistentAuthStore, TypeaheadFetchError, TypeaheadFetchErrorKind,
     };
     use crate::db::DbPool;
+    use jacquard::common::deps::fluent_uri::Uri;
     use reqwest::StatusCode;
     use rusqlite::{params, Connection};
     use std::sync::{Arc, Mutex};
@@ -723,6 +890,31 @@ mod tests {
         assert_eq!(payload["handle"], "alice.bsky.social");
         assert_eq!(payload["displayName"], "Alice");
         assert_eq!(payload["avatar"], "https://cdn.example/alice.jpg");
+    }
+
+    #[test]
+    fn default_client_metadata_uses_hosted_document_and_callback_path() {
+        let metadata = default_client_metadata();
+
+        assert_eq!(
+            metadata.client_id.as_str(),
+            "https://lazurite.stormlightlabs.org/client-metadata.json"
+        );
+        assert_eq!(
+            metadata.client_uri.as_ref().map(Uri::as_str),
+            Some("https://lazurite.stormlightlabs.org")
+        );
+        assert_eq!(metadata.redirect_uris[0].as_str(), "http://127.0.0.1/callback");
+    }
+
+    #[test]
+    fn parse_loopback_callback_extracts_query_params_from_callback_path() {
+        let params = parse_loopback_callback("/callback?code=abc123&state=state-1&iss=https%3A%2F%2Fauth.example")
+            .expect("loopback callback should parse");
+
+        assert_eq!(params.code.as_ref(), "abc123");
+        assert_eq!(params.state.as_deref(), Some("state-1"));
+        assert_eq!(params.iss.as_deref(), Some("https://auth.example"));
     }
 
     #[test]

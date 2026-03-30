@@ -2,7 +2,7 @@
 import { Icon } from "$/components/shared/Icon";
 import { useAppPreferences } from "$/contexts/app-preferences";
 import type { EmbeddingsConfig } from "$/lib/api/search";
-import { formatEtaSeconds, formatProgress } from "$/lib/utils/text";
+import { formatBytes, formatEtaSeconds, formatProgress } from "$/lib/utils/text";
 import { createEffect, createMemo, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
 
@@ -12,6 +12,14 @@ function ModelDescriptor(props: { config: EmbeddingsConfig | null }) {
       <span>{props.config?.modelName ?? "nomic-embed-text-v1.5"}</span>
       <span>·</span>
       <span>{props.config?.dimensions ?? 768}D</span>
+      <Show when={props.config?.modelSizeBytes}>
+        {(bytes) => (
+          <>
+            <span>·</span>
+            <span>{formatBytes(bytes())} on disk</span>
+          </>
+        )}
+      </Show>
     </p>
   );
 }

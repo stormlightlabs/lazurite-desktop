@@ -176,19 +176,29 @@ async fn fetch_preference_items_with_session(session: &Arc<LazuriteOAuthSession>
     Ok(output.preferences.into_iter().map(IntoStatic::into_static).collect())
 }
 
+fn accepts_empty_put_preferences_response(status: reqwest::StatusCode, body: &[u8]) -> bool {
+    status.is_success() && body.is_empty()
+}
+
 async fn store_preference_items(session: &Arc<LazuriteOAuthSession>, items: StoredPreferences) -> Result<()> {
-    session
+    let response = session
         .send(PutPreferences::new().preferences(items).build())
         .await
         .map_err(|error| {
             log::error!("putPreferences error: {error}");
             AppError::validation("putPreferences error")
-        })?
-        .into_output()
-        .map_err(|error| {
-            log::error!("putPreferences output error: {error}");
-            AppError::validation("putPreferences output error")
         })?;
+
+    // Bluesky may return a 200 with no body for putPreferences. jacquard's default
+    // unit decoder still tries to parse JSON, which raises an EOF on successful writes.
+    if accepts_empty_put_preferences_response(response.status(), response.buffer()) {
+        return Ok(());
+    }
+
+    response.into_output().map_err(|error| {
+        log::error!("putPreferences output error: {error}");
+        AppError::validation("putPreferences output error")
+    })?;
 
     Ok(())
 }
@@ -673,10 +683,11 @@ pub async fn update_feed_view_pref(pref: FeedViewPrefItem, state: &AppState) -> 
 #[cfg(test)]
 mod tests {
     use super::{
-        merge_feed_view_preferences, merge_saved_feeds_preferences, user_preferences_from_items, FeedViewPrefItem,
-        SavedFeedItem,
+        accepts_empty_put_preferences_response, merge_feed_view_preferences, merge_saved_feeds_preferences,
+        user_preferences_from_items, FeedViewPrefItem, SavedFeedItem,
     };
     use jacquard::api::app_bsky::actor::{AdultContentPref, FeedViewPref, PreferencesItem};
+    use reqwest::StatusCode;
 
     fn adult_content_pref_item() -> PreferencesItem<'static> {
         PreferencesItem::AdultContentPref(Box::new(AdultContentPref::new().enabled(true).build()))
@@ -758,5 +769,12 @@ mod tests {
             .expect("custom pref should exist");
         assert!(!custom.hide_quote_posts);
         assert!(!custom.hide_replies);
+    }
+
+    #[test]
+    fn empty_success_put_preferences_response_is_treated_as_valid() {
+        assert!(accepts_empty_put_preferences_response(StatusCode::OK, b""));
+        assert!(!accepts_empty_put_preferences_response(StatusCode::OK, b"null"));
+        assert!(!accepts_empty_put_preferences_response(StatusCode::BAD_REQUEST, b""));
     }
 }

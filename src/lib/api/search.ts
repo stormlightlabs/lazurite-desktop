@@ -47,6 +47,7 @@ export type EmbeddingsConfig = {
   enabled: boolean;
   modelName: string;
   dimensions: number;
+  modelSizeBytes?: number | null;
   downloaded: boolean;
   downloadActive: boolean;
   downloadProgress?: number | null;

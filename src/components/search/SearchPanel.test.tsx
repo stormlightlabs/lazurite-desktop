@@ -53,6 +53,7 @@ describe("SearchPanel", () => {
     expect(screen.getByText("Keyword")).toBeInTheDocument();
     expect(screen.getByText("Semantic")).toBeInTheDocument();
     expect(screen.getByText("Hybrid")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open settings/i })).toHaveAttribute("href", "#/settings");
   });
 
   it("switches search modes when clicking mode buttons", async () => {

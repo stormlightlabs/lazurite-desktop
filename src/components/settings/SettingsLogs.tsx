@@ -1,5 +1,6 @@
 import type { LogEntry, LogLevelFilter } from "$/lib/types";
-import { For, Show } from "solid-js";
+import { formatLogCopyLine, formatLogTimestamp } from "$/lib/utils/text";
+import { createMemo, For, Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
 import { Icon } from "../shared/Icon";
 import { SegmentedControl } from "../shared/SegmentedControl";
@@ -21,10 +22,67 @@ type SettingsLogsProps = {
   expand: (expanded: boolean) => void;
 };
 
+function ExpandButton(props: { expanded: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => props.onClick()}
+      class="flex items-center justify-between rounded-lg bg-black/40 px-4 py-2 text-sm text-on-surface transition hover:bg-black/50">
+      <Show
+        when={props.expanded}
+        fallback={
+          <>
+            <span>Expand Logs</span>
+            <Icon kind="menu" class="text-xs" />
+          </>
+        }>
+        <>
+          <span>Collapse Logs</span>
+          <Icon kind="close" class="text-xs" />
+        </>
+      </Show>
+    </button>
+  );
+}
+
+function LogDisplay(props: { logs: LogEntry[] }) {
+  return (
+    <Motion.div
+      class="overflow-hidden"
+      initial={{ height: 0 }}
+      animate={{ height: "auto" }}
+      exit={{ height: 0 }}
+      transition={{ duration: 0.2 }}>
+      <div class="max-h-64 overflow-y-auto rounded-xl bg-black/50 p-4 font-mono text-xs">
+        <For each={props.logs} fallback={<p class="text-on-surface-variant">No log entries found</p>}>
+          {(log) => (
+            <div class="mb-2 grid gap-2 rounded-xl bg-white/3 px-3 py-2 md:grid-cols-[auto_auto_auto_minmax(0,1fr)] md:items-start">
+              <span class="text-on-surface-variant">{formatLogTimestamp(log.timestamp)}</span>
+              <span
+                class="font-semibold"
+                classList={{
+                  "text-on-surface-variant": log.level === "DEBUG" || log.level === "TRACE",
+                  "text-primary": log.level === "INFO",
+                  "text-yellow-400": log.level === "WARN",
+                  "text-red-400": log.level === "ERROR",
+                }}>
+                {log.level}
+              </span>
+              <span class="break-all text-on-surface-variant">{log.target ?? "app"}</span>
+              <span class="whitespace-pre-wrap wrap-break-word text-on-secondary-container">{log.message}</span>
+            </div>
+          )}
+        </For>
+      </div>
+    </Motion.div>
+  );
+}
+
 export function SettingsLogs(props: SettingsLogsProps) {
   const expanded = () => props.expanded;
   const level = () => props.logLevel;
   const logs = () => props.logs;
+  const output = createMemo(() => logs().map((log) => formatLogCopyLine(log)).join("\n"));
   return (
     <SettingsCard icon="computer" title="Logs">
       <div class="grid gap-3">
@@ -34,9 +92,7 @@ export function SettingsLogs(props: SettingsLogsProps) {
             <button
               type="button"
               onClick={() => {
-                void navigator.clipboard.writeText(
-                  logs().map((l) => `[${l.timestamp}] ${l.level}: ${l.message}`).join("\n"),
-                );
+                void navigator.clipboard.writeText(output());
               }}
               class="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-medium text-on-surface transition hover:bg-white/5">
               Copy all
@@ -49,13 +105,7 @@ export function SettingsLogs(props: SettingsLogsProps) {
             </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => props.expand(!expanded())}
-          class="flex items-center justify-between rounded-lg bg-black/40 px-4 py-2 text-sm text-on-surface transition hover:bg-black/50">
-          <span>{expanded() ? "Collapse" : "Expand"} log viewer</span>
-          <Icon kind={expanded() ? "close" : "menu"} class="text-xs" />
-        </button>
+        <ExpandButton expanded={expanded()} onClick={() => props.expand(!expanded())} />
         <Presence>
           <Show when={expanded()}>
             <LogDisplay logs={logs()} />
@@ -63,35 +113,5 @@ export function SettingsLogs(props: SettingsLogsProps) {
         </Presence>
       </div>
     </SettingsCard>
-  );
-}
-
-function LogDisplay(props: { logs: LogEntry[] }) {
-  return (
-    <Motion.div
-      class="overflow-hidden"
-      initial={{ height: 0 }}
-      animate={{ height: "auto" }}
-      exit={{ height: 0 }}
-      transition={{ duration: 0.2 }}>
-      <div class="max-h-48 overflow-y-auto rounded-xl bg-black/50 p-4 font-mono text-xs">
-        <For each={props.logs} fallback={<p class="text-on-surface-variant">No log entries found</p>}>
-          {(log) => (
-            <div class="mb-1 flex gap-3">
-              <span class="text-on-surface-variant">{log.timestamp?.split("T")[1]?.slice(0, 8) ?? "--:--:--"}</span>
-              <span
-                classList={{
-                  "text-primary": log.level === "INFO",
-                  "text-yellow-400": log.level === "WARN",
-                  "text-red-400": log.level === "ERROR",
-                }}>
-                {log.level}
-              </span>
-              <span class="text-on-secondary-container">{log.message}</span>
-            </div>
-          )}
-        </For>
-      </div>
-    </Motion.div>
   );
 }

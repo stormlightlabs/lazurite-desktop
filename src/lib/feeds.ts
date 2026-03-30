@@ -186,7 +186,16 @@ export function isQuoteEmbed(embed: Maybe<EmbedView>) {
 }
 
 export function isReplyItem(item: FeedViewPost) {
-  return !!item.reply;
+  if (item.reply) {
+    return true;
+  }
+
+  const record = asRecord(item.post.record);
+  return !!asRecord(record?.reply);
+}
+
+export function isReplyByUnfollowed(item: FeedViewPost) {
+  return isReplyItem(item) && !item.post.author.viewer?.following;
 }
 
 export function getRootRef(item: FeedViewPost) {
@@ -263,11 +272,19 @@ export function applyFeedPreferences(items: FeedViewPost[], pref: FeedViewPrefIt
       return false;
     }
 
+    if (pref.hideRepliesByUnfollowed && isReplyByUnfollowed(item)) {
+      return false;
+    }
+
     if (pref.hideQuotePosts && isQuoteEmbed(item.post.embed)) {
       return false;
     }
 
-    if (pref.hideRepliesByLikeCount && isReplyItem(item) && (item.post.likeCount ?? 0) < pref.hideRepliesByLikeCount) {
+    if (
+      pref.hideRepliesByLikeCount !== null
+      && isReplyItem(item)
+      && (item.post.likeCount ?? 0) < pref.hideRepliesByLikeCount
+    ) {
       return false;
     }
 

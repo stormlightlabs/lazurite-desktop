@@ -17,6 +17,7 @@ const DEFAULT_EMBEDDINGS_CONFIG = {
   enabled: true,
   modelName: "nomic-embed-text-v1.5",
   dimensions: 768,
+  modelSizeBytes: 1024 * 1024 * 384,
   downloaded: true,
   downloadActive: false,
 };
@@ -110,6 +111,7 @@ describe("SettingsPanel", () => {
     expect(await screen.findByText("Data")).toBeInTheDocument();
     expect(await screen.findByText("Logs")).toBeInTheDocument();
     expect(await screen.findByText("About")).toBeInTheDocument();
+    expect(await screen.findByText(/384 MB on disk/i)).toBeInTheDocument();
   });
 
   it("displays cache size information", async () => {
@@ -225,10 +227,10 @@ describe("SettingsPanel", () => {
     renderSettingsPanel();
 
     await screen.findByText("Settings");
-    const expandButton = await screen.findByRole("button", { name: /expand log viewer/i });
+    const expandButton = await screen.findByRole("button", { name: /expand logs/i });
 
     fireEvent.click(expandButton);
-    expect(await screen.findByRole("button", { name: /collapse log viewer/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /collapse logs/i })).toBeInTheDocument();
   });
 
   it("copies logs to clipboard", async () => {

@@ -1,10 +1,10 @@
 import { useAppSession } from "$/contexts/app-session";
 import { useAppShellUi } from "$/contexts/app-shell-ui";
 import { Show } from "solid-js";
-import { AccountSwitcher } from "./account/AccountSwitcher";
-import { RailButton } from "./RailButton";
-import { ArrowIcon } from "./shared/Icon";
-import { Wordmark } from "./Wordmark";
+import { AccountSwitcher } from "../account/AccountSwitcher";
+import { ArrowIcon } from "../shared/Icon";
+import { Wordmark } from "../Wordmark";
+import { RailButton } from "./AppRailButton";
 
 function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void }) {
   return (

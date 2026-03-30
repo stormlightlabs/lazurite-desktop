@@ -96,13 +96,18 @@ function ReplyLikeThreshold(props: { value: number | null; onChange: (value: num
   return (
     <label class="grid gap-2 text-[0.8rem] text-on-surface-variant">
       <span>Minimum likes for replies</span>
+      <p class="m-0 text-[0.72rem] leading-normal text-on-surface-variant/80">Only reply posts are affected.</p>
       <input
         class="rounded-full border-0 bg-white/6 px-4 py-2 text-on-surface shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] focus:outline focus:outline-primary/50"
         min="0"
         type="number"
+        placeholder='e.g. "10"'
         value={props.value ?? ""}
         onInput={(event) => {
           const value = event.currentTarget.value.trim();
+          if (value !== "" && (Number.isNaN(Number(value)) || Number(value) < 0)) {
+            return;
+          }
           props.onChange(value ? Number(value) : null);
         }} />
     </label>

@@ -70,6 +70,41 @@ describe("feed helpers", () => {
     expect(applyFeedPreferences([reply], createPref({ hideRepliesByLikeCount: 5 }))).toEqual([]);
   });
 
+  it("treats zero as an active reply-like threshold", () => {
+    const reply = createFeedItem({
+      post: { ...createFeedItem().post, likeCount: 0, uri: "at://did:plc:alice/app.bsky.feed.post/zero" },
+      reply: {
+        parent: { $type: "app.bsky.feed.defs#postView", ...createFeedItem().post },
+        root: { $type: "app.bsky.feed.defs#postView", ...createFeedItem().post },
+      },
+    });
+
+    expect(applyFeedPreferences([reply], createPref({ hideRepliesByLikeCount: 0 }))).toEqual([reply]);
+    expect(applyFeedPreferences([reply], createPref({ hideRepliesByLikeCount: 1 }))).toEqual([]);
+  });
+
+  it("detects replies from the embedded record and respects the unfollowed reply filter", () => {
+    const base = createFeedItem();
+    const unfollowedReply = createFeedItem({
+      post: {
+        ...base.post,
+        author: { did: "did:plc:bob", handle: "bob.test", viewer: { following: null } },
+        record: {
+          createdAt: "2026-03-28T12:00:00.000Z",
+          reply: { parent: { uri: "at://did:plc:alice/app.bsky.feed.post/1" } },
+          text: "reply from unfollowed author",
+        },
+        uri: "at://did:plc:bob/app.bsky.feed.post/2",
+      },
+    });
+
+    expect(applyFeedPreferences([unfollowedReply], createPref({ hideReplies: true }))).toEqual([]);
+    expect(applyFeedPreferences([unfollowedReply], createPref({ hideRepliesByUnfollowed: true }))).toEqual([]);
+    expect(applyFeedPreferences([unfollowedReply], createPref({ hideRepliesByUnfollowed: false }))).toEqual([
+      unfollowedReply,
+    ]);
+  });
+
   it("builds feed commands per saved feed type", () => {
     const timeline: SavedFeedItem = { id: "following", pinned: true, type: "timeline", value: "following" };
     const feed: SavedFeedItem = {

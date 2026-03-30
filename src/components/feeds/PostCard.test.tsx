@@ -36,4 +36,20 @@ describe("PostCard", () => {
 
     expect(onOpenThread).toHaveBeenCalledTimes(1);
   });
+
+  it("shows reply context when the feed item is a reply", () => {
+    render(() => (
+      <PostCard
+        item={{
+          post: createPost(),
+          reply: {
+            parent: { $type: "app.bsky.feed.defs#postView", ...createPost(), author: { ...createPost().author, handle: "bob.test" } },
+            root: { $type: "app.bsky.feed.defs#postView", ...createPost() },
+          },
+        }}
+        post={createPost()} />
+    ));
+
+    expect(screen.getByText("Replying to @bob.test")).toBeInTheDocument();
+  });
 });
