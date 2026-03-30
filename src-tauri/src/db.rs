@@ -1,18 +1,18 @@
+use super::error::AppError;
+use rusqlite::ffi::sqlite3_auto_extension;
+use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
+use sqlite_vec::sqlite3_vec_init;
 use std::collections::HashSet;
 use std::ffi::{c_char, c_int};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-
-use rusqlite::ffi::sqlite3_auto_extension;
-use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
-use sqlite_vec::sqlite3_vec_init;
 use tauri::{AppHandle, Manager};
 
-use crate::error::AppError;
-
 pub type DbPool = Arc<Mutex<Connection>>;
+
 type SqliteVecInit = unsafe extern "C" fn();
+
 type SqliteAutoExtension = unsafe extern "C" fn(
     db: *mut rusqlite::ffi::sqlite3,
     pz_err_msg: *mut *mut c_char,
@@ -40,6 +40,7 @@ const MIGRATIONS: &[Migration] = &[
         include_str!("migrations/003_oauth_sessions_without_fk.sql"),
     ),
     Migration::new(4, "account_avatars", include_str!("migrations/004_account_avatars.sql")),
+    Migration::new(5, "sync_state", include_str!("migrations/005_sync_state.sql")),
 ];
 
 pub fn initialize_database(app: &AppHandle) -> Result<DbPool, AppError> {
@@ -119,13 +120,12 @@ fn validate_sqlite_vec(connection: &Connection) -> Result<(), AppError> {
         .query_row("SELECT vec_version()", [], |row| row.get(0))
         .optional()?;
 
-    if version.is_none() {
-        return Err(AppError::Validation(
+    match version.is_none() {
+        true => Err(AppError::Validation(
             "sqlite-vec extension did not report a version".to_string(),
-        ));
+        )),
+        false => Ok(()),
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
