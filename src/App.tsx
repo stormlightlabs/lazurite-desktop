@@ -1,7 +1,8 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "@fontsource-variable/google-sans";
+import { useNavigate } from "@solidjs/router";
 import type { ParentProps } from "solid-js";
-import { Show } from "solid-js";
+import { createEffect, onCleanup, Show } from "solid-js";
 import "./App.css";
 import { AccountLedger } from "./components/account/AccountLedger";
 import { AppRail } from "./components/AppRail";
@@ -12,6 +13,7 @@ import { NotificationsPanel } from "./components/notifications/NotificationsPane
 import { HeaderPanel } from "./components/panels/Header";
 import { SessionSpotlight } from "./components/Session";
 import { ErrorToast } from "./components/shared/ErrorToast";
+import { AppPreferencesProvider } from "./contexts/app-preferences";
 import { AppSessionProvider, useAppSession } from "./contexts/app-session";
 import { AppShellUiProvider, useAppShellUi } from "./contexts/app-shell-ui";
 import { AppRouter } from "./router";
@@ -20,9 +22,28 @@ const COMPOSER_WINDOW_LABEL = "composer";
 
 type AppShellProps = ParentProps<{ fullWidth?: boolean }>;
 
+function createSettingsShortcutHandler(hasSession: boolean, navigate: (path: string) => void) {
+  return (e: KeyboardEvent) => {
+    if (e.key === "," && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement;
+      if (!isInputFocused && hasSession) {
+        navigate("/settings");
+      }
+    }
+  };
+}
+
 function AppShell(props: AppShellProps) {
   const session = useAppSession();
   const shell = useAppShellUi();
+  const navigate = useNavigate();
+
+  createEffect(() => {
+    const handler = createSettingsShortcutHandler(session.hasSession, navigate);
+    globalThis.addEventListener("keydown", handler);
+    onCleanup(() => globalThis.removeEventListener("keydown", handler));
+  });
 
   return (
     <>
@@ -99,9 +120,11 @@ function AppContent() {
 function App() {
   return (
     <AppSessionProvider>
-      <AppShellUiProvider>
-        <AppContent />
-      </AppShellUiProvider>
+      <AppPreferencesProvider>
+        <AppShellUiProvider>
+          <AppContent />
+        </AppShellUiProvider>
+      </AppPreferencesProvider>
     </AppSessionProvider>
   );
 }

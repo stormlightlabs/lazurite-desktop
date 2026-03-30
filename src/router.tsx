@@ -1,21 +1,16 @@
 import { useAppSession } from "$/contexts/app-session";
 import { useAppShellUi } from "$/contexts/app-shell-ui";
-import {
-  HashRouter,
-  Navigate,
-  Route,
-  type RouteSectionProps,
-  useLocation,
-  useNavigate,
-  useParams,
-} from "@solidjs/router";
+import { HashRouter, Navigate, Route, useLocation, useNavigate, useParams } from "@solidjs/router";
+import type { RouteSectionProps } from "@solidjs/router";
 import { type Component, createEffect, type JSX, type ParentProps, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { ExplorerPanel } from "./components/explorer/ExplorerPanel";
 import { SearchPanel } from "./components/search/SearchPanel";
+import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { buildThreadRoute, decodeThreadRouteUri, TIMELINE_ROUTE } from "./lib/feeds";
 
 type TTimelineRouteProps = { context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null } };
+
 type AppShellProps = ParentProps<{ fullWidth?: boolean }>;
 
 type AppRouterProps = {
@@ -91,6 +86,12 @@ export function AppRouter(props: AppRouterProps) {
     </ProtectedRouteView>
   );
 
+  const SettingsRoute = () => (
+    <ProtectedRouteView>
+      <SettingsPanel />
+    </ProtectedRouteView>
+  );
+
   const NotFoundRoute = () => (
     <Show when={session.bootstrapping} fallback={<Navigate href={session.hasSession ? TIMELINE_ROUTE : "/auth"} />}>
       <RouteLoadingState />
@@ -107,6 +108,7 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/search" component={SearchRoute} />
       <Route path="/notifications" component={NotificationsRoute} />
       <Route path="/explorer" component={ExplorerRoute} />
+      <Route path="/settings" component={SettingsRoute} />
       <Route path="*404" component={NotFoundRoute} />
     </HashRouter>
   );

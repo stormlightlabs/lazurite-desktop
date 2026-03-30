@@ -2,6 +2,16 @@ import type { SearchMode } from "$/lib/api/search";
 import type { ExplorerTargetKind } from "$/lib/api/types/explorer";
 import { type JSX, Match, splitProps, Switch } from "solid-js";
 
+export type SettingsIconKind =
+  | "computer"
+  | "info"
+  | "timeline"
+  | "db"
+  | "notifications"
+  | "user"
+  | "services"
+  | "theme";
+
 export type IconKind =
   | "explorer"
   | "ext-link"
@@ -32,7 +42,15 @@ export type IconKind =
   | "repost"
   | "reply"
   | "follow"
-  | "download";
+  | "download"
+  | "info"
+  | "computer"
+  | "timeline"
+  | "db"
+  | "notifications"
+  | "user"
+  | "services"
+  | "theme";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -136,6 +154,40 @@ export function Icon(props: IconProps) {
         </Match>
         <Match when={local.kind === "settings"}>
           <i class="i-ri-settings-3-line" />
+        </Match>
+      </Switch>
+    </span>
+  );
+}
+
+export function SettingsIcon(props: IconProps & { kind: SettingsIconKind }) {
+  const [local, rest] = splitProps(props, ["class", "iconClass", "kind", "name"]);
+  return (
+    <span {...rest} class="flex items-center justify-center" classList={{ [local.class ?? ""]: !!local.class }}>
+      <Switch>
+        <Match when={local.kind === "info"}>
+          <i class="i-ri-information-line" />
+        </Match>
+        <Match when={local.kind === "computer"}>
+          <i class="i-ri-computer-line" />
+        </Match>
+        <Match when={local.kind === "timeline"}>
+          <i class="i-ri-timeline-view" />
+        </Match>
+        <Match when={local.kind === "db"}>
+          <i class="i-ri-database-2-line" />
+        </Match>
+        <Match when={local.kind === "notifications"}>
+          <i class="i-ri-notification-3-line" />
+        </Match>
+        <Match when={local.kind === "user"}>
+          <i class="i-ri-user-lin" />
+        </Match>
+        <Match when={local.kind === "services"}>
+          <i class="i-ri-global-line" />
+        </Match>
+        <Match when={local.kind === "theme"}>
+          <i class="i-ri-paint-line" />
         </Match>
       </Switch>
     </span>

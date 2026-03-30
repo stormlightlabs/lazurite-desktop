@@ -7,16 +7,10 @@ const searchPostsMock = vi.hoisted(() => vi.fn());
 const searchPostsNetworkMock = vi.hoisted(() => vi.fn());
 const getSyncStatusMock = vi.hoisted(() => vi.fn());
 const syncPostsMock = vi.hoisted(() => vi.fn());
-const getEmbeddingsConfigMock = vi.hoisted(() => vi.fn());
-const prepareEmbeddingsModelMock = vi.hoisted(() => vi.fn());
-const setEmbeddingsEnabledMock = vi.hoisted(() => vi.fn());
 
 vi.mock(
   "$/lib/api/search",
   () => ({
-    getEmbeddingsConfig: getEmbeddingsConfigMock,
-    prepareEmbeddingsModel: prepareEmbeddingsModelMock,
-    setEmbeddingsEnabled: setEmbeddingsEnabledMock,
     searchPosts: searchPostsMock,
     searchPostsNetwork: searchPostsNetworkMock,
     getSyncStatus: getSyncStatusMock,
@@ -41,9 +35,6 @@ describe("SearchPanel", () => {
     searchPostsNetworkMock.mockReset();
     getSyncStatusMock.mockReset();
     syncPostsMock.mockReset();
-    getEmbeddingsConfigMock.mockReset();
-    prepareEmbeddingsModelMock.mockReset();
-    setEmbeddingsEnabledMock.mockReset();
 
     getSyncStatusMock.mockResolvedValue([]);
     syncPostsMock.mockResolvedValue({
@@ -52,27 +43,12 @@ describe("SearchPanel", () => {
       postCount: 100,
       lastSyncedAt: "2026-03-29T12:00:00.000Z",
     });
-    getEmbeddingsConfigMock.mockResolvedValue({
-      enabled: true,
-      modelName: "nomic-embed-text-v1.5",
-      dimensions: 768,
-      downloaded: true,
-      downloadActive: false,
-    });
-    prepareEmbeddingsModelMock.mockResolvedValue({
-      enabled: true,
-      modelName: "nomic-embed-text-v1.5",
-      dimensions: 768,
-      downloaded: true,
-      downloadActive: false,
-    });
-    setEmbeddingsEnabledMock.mockResolvedValue(void 0);
   });
 
   it("renders the search panel with initial state", async () => {
     renderSearchPanel();
 
-    expect(await screen.findByPlaceholderText("Search your saved & liked posts...")).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText("Search public posts across Bluesky...")).toBeInTheDocument();
     expect(screen.getByText("Network")).toBeInTheDocument();
     expect(screen.getByText("Keyword")).toBeInTheDocument();
     expect(screen.getByText("Semantic")).toBeInTheDocument();
@@ -103,7 +79,7 @@ describe("SearchPanel", () => {
 
     renderSearchPanel();
 
-    const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
+    const input = await screen.findByRole("textbox");
     fireEvent.input(input, { target: { value: "test query" } });
 
     vi.advanceTimersByTime(350);
@@ -136,7 +112,7 @@ describe("SearchPanel", () => {
     fireEvent.click(keywordButton);
     expect(keywordButton).toHaveAttribute("aria-pressed", "true");
 
-    const input = screen.getByPlaceholderText("Search your saved & liked posts...");
+    const input = screen.getByRole("textbox");
     fireEvent.input(input, { target: { value: "test query" } });
 
     await vi.advanceTimersByTimeAsync(350);
@@ -150,7 +126,7 @@ describe("SearchPanel", () => {
   it("cycles through modes with Tab key", async () => {
     renderSearchPanel();
 
-    const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
+    const input = await screen.findByRole("textbox");
     input.focus();
     fireEvent.keyDown(input, { key: "Tab" });
 
@@ -170,7 +146,7 @@ describe("SearchPanel", () => {
 
     renderSearchPanel();
 
-    const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
+    const input = await screen.findByRole("textbox");
     fireEvent.input(input, { target: { value: "test" } });
     vi.advanceTimersByTime(350);
 
@@ -188,7 +164,7 @@ describe("SearchPanel", () => {
 
     renderSearchPanel();
 
-    const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
+    const input = await screen.findByRole("textbox");
     fireEvent.input(input, { target: { value: "test" } });
     vi.advanceTimersByTime(350);
 
@@ -206,7 +182,7 @@ describe("SearchPanel", () => {
     const keywordButton = screen.getByRole("button", { name: /keyword/i });
     fireEvent.click(keywordButton);
 
-    const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
+    const input = await screen.findByRole("textbox");
     fireEvent.input(input, { target: { value: "nonexistent" } });
     vi.advanceTimersByTime(350);
 

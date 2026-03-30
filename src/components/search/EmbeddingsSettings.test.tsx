@@ -1,3 +1,4 @@
+import { AppPreferencesProvider } from "$/contexts/app-preferences";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EmbeddingsSettings } from "./EmbeddingsSettings";
@@ -5,6 +6,8 @@ import { EmbeddingsSettings } from "./EmbeddingsSettings";
 const getEmbeddingsConfigMock = vi.hoisted(() => vi.fn());
 const prepareEmbeddingsModelMock = vi.hoisted(() => vi.fn());
 const setEmbeddingsEnabledMock = vi.hoisted(() => vi.fn());
+const getSettingsMock = vi.hoisted(() => vi.fn());
+const updateSettingMock = vi.hoisted(() => vi.fn());
 
 vi.mock(
   "$/lib/api/search",
@@ -15,14 +18,39 @@ vi.mock(
   }),
 );
 
+vi.mock("$/lib/api/settings", () => ({ getSettings: getSettingsMock, updateSetting: updateSettingMock }));
+
 vi.mock("@tauri-apps/plugin-log", () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }));
+
+function renderEmbeddingsSettings() {
+  render(() => (
+    <AppPreferencesProvider>
+      <EmbeddingsSettings />
+    </AppPreferencesProvider>
+  ));
+}
 
 describe("EmbeddingsSettings", () => {
   beforeEach(() => {
     getEmbeddingsConfigMock.mockReset();
     prepareEmbeddingsModelMock.mockReset();
     setEmbeddingsEnabledMock.mockReset();
+    getSettingsMock.mockReset();
+    updateSettingMock.mockReset();
 
+    getSettingsMock.mockResolvedValue({
+      theme: "auto",
+      timelineRefreshSecs: 60,
+      notificationsDesktop: true,
+      notificationsBadge: true,
+      notificationsSound: false,
+      embeddingsEnabled: true,
+      constellationUrl: "https://constellation.microcosm.blue",
+      spacedustUrl: "https://spacedust.microcosm.blue",
+      spacedustInstant: false,
+      spacedustEnabled: false,
+      globalShortcut: "Ctrl+Shift+N",
+    });
     getEmbeddingsConfigMock.mockResolvedValue({
       enabled: true,
       modelName: "nomic-embed-text-v1.5",
@@ -41,7 +69,7 @@ describe("EmbeddingsSettings", () => {
   });
 
   it("renders embeddings settings with model info", async () => {
-    render(() => <EmbeddingsSettings />);
+    renderEmbeddingsSettings();
 
     expect(await screen.findByText("Semantic Search")).toBeInTheDocument();
     expect(await screen.findByText(/nomic-embed-text-v1\.5/)).toBeInTheDocument();
@@ -49,7 +77,7 @@ describe("EmbeddingsSettings", () => {
   });
 
   it("shows toggle in enabled state when embeddings are enabled", async () => {
-    render(() => <EmbeddingsSettings />);
+    renderEmbeddingsSettings();
 
     const toggle = await screen.findByRole("switch");
     expect(toggle).toHaveAttribute("aria-checked", "true");
@@ -64,7 +92,7 @@ describe("EmbeddingsSettings", () => {
       downloadActive: false,
     });
 
-    render(() => <EmbeddingsSettings />);
+    renderEmbeddingsSettings();
 
     const toggle = await screen.findByRole("switch");
     expect(toggle).toHaveAttribute("aria-checked", "false");
@@ -85,7 +113,7 @@ describe("EmbeddingsSettings", () => {
       downloadActive: false,
     });
 
-    render(() => <EmbeddingsSettings />);
+    renderEmbeddingsSettings();
 
     const toggle = await screen.findByRole("switch");
     expect(toggle).toHaveAttribute("aria-checked", "true");
@@ -114,32 +142,32 @@ describe("EmbeddingsSettings", () => {
       downloadFileTotal: 5,
     });
 
-    render(() => <EmbeddingsSettings />);
+    renderEmbeddingsSettings();
 
     expect(await screen.findAllByText(/downloading model files/i)).toHaveLength(2);
     expect(await screen.findByText(/0%/)).toBeInTheDocument();
   });
 
   it("displays semantic search description", async () => {
-    render(() => <EmbeddingsSettings />);
+    renderEmbeddingsSettings();
     expect(await screen.findByText(/conceptually similar posts/i)).toBeInTheDocument();
   });
 
   it("handles errors when loading config gracefully", async () => {
     getEmbeddingsConfigMock.mockRejectedValue(new Error("Failed to load"));
 
-    render(() => <EmbeddingsSettings />);
+    renderEmbeddingsSettings();
 
-    // Should still render without crashing
     await waitFor(() => {
       expect(getEmbeddingsConfigMock).toHaveBeenCalled();
     });
+    expect(await screen.findByText("Semantic Search")).toBeInTheDocument();
   });
 
   it("handles errors when toggling gracefully", async () => {
     setEmbeddingsEnabledMock.mockRejectedValue(new Error("Failed to save"));
 
-    render(() => <EmbeddingsSettings />);
+    renderEmbeddingsSettings();
 
     const toggle = await screen.findByRole("switch");
     fireEvent.click(toggle);
@@ -148,7 +176,6 @@ describe("EmbeddingsSettings", () => {
       expect(setEmbeddingsEnabledMock).toHaveBeenCalled();
     });
 
-    // Toggle state should remain unchanged on error
     expect(toggle).toHaveAttribute("aria-checked", "true");
   });
 });

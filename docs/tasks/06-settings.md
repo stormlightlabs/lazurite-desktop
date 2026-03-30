@@ -16,8 +16,8 @@ Spec: [settings.md](../specs/settings.md)
 
 ### Frontend - Settings View
 
-- [ ] Settings route (`/settings`) accessible from app rail icon (`Icon` with kind `settings`)
-- [ ] Section-based layout using `surface_container` cards with `lg` radius:
+- [x] Settings route (`/settings`) accessible from app rail icon (`Icon` with kind `settings`)
+- [x] Section-based layout using `surface_container` cards with `lg` radius:
   1. **Appearance** - Theme toggle (light/dark/auto), `Motion` crossfade on theme switch
   2. **Timeline** - Refresh interval selector (30s, 1m, 2m, 5m, manual)
   3. **Notifications** - Toggle desktop notifications, badge count, notification sound
@@ -26,6 +26,6 @@ Spec: [settings.md](../specs/settings.md)
   6. **Logs** - Collapsible log viewer with level filtering (`info`, `warn`, `error`)
   7. **Services** - Constellation instance URL, Spacedust instance URL
   8. **About** - Version info, license (MIT), contributors, support links
-- [ ] `Presence` slide transitions between setting sections
-- [ ] Keyboard shortcut: `,` to open settings from anywhere
-- [ ] Confirmation modal for destructive actions (clear cache, reset app, remove account) using glass overlay
+- [x] `Presence` slide transitions between setting sections
+- [x] Keyboard shortcut: `,` to open settings from anywhere
+- [x] Confirmation modal for destructive actions (clear cache, reset app, remove account) using glass overlay

@@ -200,3 +200,31 @@ export type ReplyRefInput = { parent: StrongRefInput; root: StrongRefInput };
 export type EmbedInput = { type: "record"; record: StrongRefInput };
 
 export type CreateRecordResult = { cid: string; uri: string };
+
+export type AppSettings = {
+  theme: string;
+  timelineRefreshSecs: number;
+  notificationsDesktop: boolean;
+  notificationsBadge: boolean;
+  notificationsSound: boolean;
+  embeddingsEnabled: boolean;
+  constellationUrl: string;
+  spacedustUrl: string;
+  spacedustInstant: boolean;
+  spacedustEnabled: boolean;
+  globalShortcut: string;
+};
+
+export type CacheSize = { feedsBytes: number; embeddingsBytes: number; ftsBytes: number; totalBytes: number };
+
+export type LogEntry = { timestamp: string | null; level: string; target: string | null; message: string };
+
+export type CacheClearScope = "all" | "feeds" | "embeddings" | "fts";
+
+export type ExportFormat = "json" | "csv";
+
+export type LogLevelFilter = "all" | "info" | "warn" | "error";
+
+export type RefreshInterval = 30 | 60 | 120 | 300 | 0;
+
+export type Theme = "light" | "dark" | "auto";

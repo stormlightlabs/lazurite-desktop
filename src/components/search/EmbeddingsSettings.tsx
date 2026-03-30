@@ -1,9 +1,8 @@
 /* eslint react/jsx-max-depth: ["error", { "max": 5 }] */
 import { Icon } from "$/components/shared/Icon";
+import { useAppPreferences } from "$/contexts/app-preferences";
 import type { EmbeddingsConfig } from "$/lib/api/search";
-import { getEmbeddingsConfig, prepareEmbeddingsModel, setEmbeddingsEnabled } from "$/lib/api/search";
 import { formatEtaSeconds, formatProgress } from "$/lib/utils/text";
-import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
 
@@ -123,45 +122,13 @@ function StatusLabelWithIcon(props: { config: EmbeddingsConfig | null }) {
   );
 }
 
-type EmbeddingsSettingsProps = { onConfigChange?: (config: EmbeddingsConfig) => void };
-
-export function EmbeddingsSettings(props: EmbeddingsSettingsProps) {
-  const [config, setConfig] = createSignal<EmbeddingsConfig | null>(null);
-  const [loading, setLoading] = createSignal(true);
+export function EmbeddingsSettings() {
+  const preferences = useAppPreferences();
   const [autoPrepareStarted, setAutoPrepareStarted] = createSignal(false);
-
-  async function loadConfig() {
-    try {
-      setLoading(true);
-      const nextConfig = await getEmbeddingsConfig();
-      setConfig(nextConfig);
-      props.onConfigChange?.(nextConfig);
-    } catch (error) {
-      logger.error("failed to load embeddings config", { keyValues: { error: String(error) } });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function refreshConfig() {
-    try {
-      const nextConfig = await getEmbeddingsConfig();
-      setConfig(nextConfig);
-      props.onConfigChange?.(nextConfig);
-    } catch (error) {
-      logger.error("failed to refresh embeddings config", { keyValues: { error: String(error) } });
-    }
-  }
+  const config = () => preferences.embeddingsConfig;
 
   async function prepareModel() {
-    try {
-      const nextConfig = await prepareEmbeddingsModel();
-      setConfig(nextConfig);
-      props.onConfigChange?.(nextConfig);
-    } catch (error) {
-      logger.error("failed to prepare embeddings model", { keyValues: { error: String(error) } });
-      await refreshConfig();
-    }
+    await preferences.prepareEmbeddingsModel();
   }
 
   async function handleToggle() {
@@ -171,15 +138,9 @@ export function EmbeddingsSettings(props: EmbeddingsSettingsProps) {
     }
 
     const nextEnabled = !current.enabled;
-    try {
-      await setEmbeddingsEnabled(nextEnabled);
-      if (!nextEnabled) {
-        setAutoPrepareStarted(false);
-      }
-
-      await loadConfig();
-    } catch (error) {
-      logger.error("failed to set embeddings enabled", { keyValues: { error: String(error) } });
+    await preferences.setEmbeddingsEnabled(nextEnabled);
+    if (!nextEnabled) {
+      setAutoPrepareStarted(false);
     }
   }
 
@@ -195,7 +156,9 @@ export function EmbeddingsSettings(props: EmbeddingsSettingsProps) {
   });
 
   createEffect(() => {
-    void loadConfig();
+    if (!config() && !preferences.embeddingsLoading) {
+      void preferences.loadEmbeddingsConfig();
+    }
   });
 
   createEffect(() => {
@@ -219,8 +182,8 @@ export function EmbeddingsSettings(props: EmbeddingsSettingsProps) {
 
   onMount(() => {
     const interval = setInterval(() => {
-      if (config()?.downloadActive) {
-        void refreshConfig();
+      if (preferences.embeddingsConfig?.downloadActive) {
+        void preferences.loadEmbeddingsConfig();
       }
     }, 1000);
 
@@ -229,7 +192,7 @@ export function EmbeddingsSettings(props: EmbeddingsSettingsProps) {
 
   return (
     <section class="panel-surface grid gap-4 p-5">
-      <EmbedSettingsHeader config={config()} isLoading={loading()} handleToggle={handleToggle} />
+      <EmbedSettingsHeader config={config()} isLoading={preferences.embeddingsLoading} handleToggle={handleToggle} />
 
       <Presence>
         <Show when={config()?.enabled && (!config()?.downloaded || config()?.downloadActive || config()?.lastError)}>

@@ -1,8 +1,7 @@
 import { Icon, SearchModeIcon } from "$/components/shared/Icon";
+import { useAppPreferences } from "$/contexts/app-preferences";
 import { useAppSession } from "$/contexts/app-session";
 import {
-  type EmbeddingsConfig,
-  getEmbeddingsConfig,
   type LocalPostResult,
   type NetworkSearchResult,
   type SearchMode,
@@ -14,6 +13,7 @@ import { formatRelativeTime } from "$/lib/feeds";
 import { normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { createStore } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
 import { PostCount } from "../shared/PostCount";
 import { EmbeddingsSettings } from "./EmbeddingsSettings";
@@ -22,6 +22,18 @@ import { SearchResultCard } from "./SearchResultCard";
 import { SyncStatusPanel } from "./SyncStatusPanel";
 
 const MODES: SearchMode[] = ["network", "keyword", "semantic", "hybrid"];
+
+type SearchPanelState = {
+  error: string | null;
+  hasSearched: boolean;
+  loading: boolean;
+  mode: SearchMode;
+  networkResults: NetworkSearchResult | null;
+  query: string;
+  resultCount: number;
+  results: LocalPostResult[];
+  syncStatus: SyncStatus[];
+};
 
 function ModeLabel(props: { mode: SearchMode }) {
   return (
@@ -38,27 +50,31 @@ function ModeLabel(props: { mode: SearchMode }) {
 }
 
 export function SearchPanel() {
+  const preferences = useAppPreferences();
   const session = useAppSession();
-  const [mode, setMode] = createSignal<SearchMode>("network");
-  const [query, setQuery] = createSignal("");
-  const [results, setResults] = createSignal<LocalPostResult[]>([]);
-  const [networkResults, setNetworkResults] = createSignal<NetworkSearchResult | null>(null);
-  const [loading, setLoading] = createSignal(false);
-  const [error, setError] = createSignal<string | null>(null);
-  const [resultCount, setResultCount] = createSignal(0);
-  const [hasSearched, setHasSearched] = createSignal(false);
-  const [syncStatus, setSyncStatus] = createSignal<SyncStatus[]>([]);
-  const [embeddingsConfig, setEmbeddingsConfig] = createSignal<EmbeddingsConfig | null>(null);
+  const [search, setSearch] = createStore<SearchPanelState>({
+    error: null,
+    hasSearched: false,
+    loading: false,
+    mode: "network",
+    networkResults: null,
+    query: "",
+    resultCount: 0,
+    results: [],
+    syncStatus: [],
+  });
 
   let searchInputRef: HTMLInputElement | undefined;
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const isLocalMode = createMemo(() => mode() !== "network");
-  const semanticEnabled = createMemo(() => embeddingsConfig()?.enabled ?? true);
-  const totalIndexedPosts = createMemo(() => syncStatus().reduce((sum, status) => sum + (status.postCount ?? 0), 0));
+  const isLocalMode = createMemo(() => search.mode !== "network");
+  const semanticEnabled = createMemo(() => preferences.embeddingsEnabled);
+  const totalIndexedPosts = createMemo(() =>
+    search.syncStatus.reduce((sum, status) => sum + (status.postCount ?? 0), 0)
+  );
   const hasLocalPosts = createMemo(() => totalIndexedPosts() > 0);
   const lastSync = createMemo(() => {
-    const timestamps = syncStatus().map((status) => status.lastSyncedAt).filter(Boolean) as string[];
+    const timestamps = search.syncStatus.map((status) => status.lastSyncedAt).filter(Boolean) as string[];
     if (timestamps.length === 0) {
       return null;
     }
@@ -67,14 +83,6 @@ export function SearchPanel() {
   });
   const cycleModes = createMemo(() => MODES.filter((candidate) => candidate !== "semantic" || semanticEnabled()));
 
-  async function loadEmbeddingsConfig() {
-    try {
-      setEmbeddingsConfig(await getEmbeddingsConfig());
-    } catch (err) {
-      logger.error("failed to load embeddings config", { keyValues: { error: normalizeError(err) } });
-    }
-  }
-
   async function performSearch(searchQuery: string, searchMode: SearchMode) {
     if (!searchQuery.trim()) {
       clearResults();
@@ -82,56 +90,44 @@ export function SearchPanel() {
     }
 
     if (searchMode === "semantic" && !semanticEnabled()) {
-      setError("Semantic search is disabled. Re-enable embeddings to use this mode.");
-      setHasSearched(true);
-      setResults([]);
-      setNetworkResults(null);
-      setResultCount(0);
+      setSearch({
+        error: "Semantic search is disabled. Re-enable embeddings to use this mode.",
+        hasSearched: true,
+        networkResults: null,
+        resultCount: 0,
+        results: [],
+      });
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    setSearch({ error: null, loading: true });
 
     try {
       if (searchMode === "network") {
         const response = await searchPostsNetwork(searchQuery, "top", 25);
-        setNetworkResults(response);
-        setResults([]);
-        setResultCount(response.posts.length);
+        setSearch({ hasSearched: true, networkResults: response, resultCount: response.posts.length, results: [] });
       } else {
         const response = await searchPosts(searchQuery, searchMode, 50);
-        setResults(response);
-        setNetworkResults(null);
-        setResultCount(response.length);
+        setSearch({ hasSearched: true, networkResults: null, resultCount: response.length, results: response });
       }
-      setHasSearched(true);
-    } catch (err) {
-      const errorMsg = normalizeError(err);
-      setError(errorMsg);
-      setResults([]);
-      setNetworkResults(null);
-      setResultCount(0);
-      setHasSearched(true);
-      logger.error("search failed", { keyValues: { query: searchQuery, mode: searchMode, error: errorMsg } });
+    } catch (error) {
+      const errorMessage = normalizeError(error);
+      setSearch({ error: errorMessage, hasSearched: true, networkResults: null, resultCount: 0, results: [] });
+      logger.error("search failed", { keyValues: { query: searchQuery, mode: searchMode, error: errorMessage } });
     } finally {
-      setLoading(false);
+      setSearch("loading", false);
     }
   }
 
   function clearResults() {
-    setResults([]);
-    setNetworkResults(null);
-    setResultCount(0);
-    setError(null);
-    setHasSearched(false);
+    setSearch({ error: null, hasSearched: false, networkResults: null, resultCount: 0, results: [] });
   }
 
   function handleInput(value: string) {
-    setQuery(value);
+    setSearch("query", value);
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      void performSearch(value, mode());
+      void performSearch(value, search.mode);
     }, 300);
   }
 
@@ -140,23 +136,24 @@ export function SearchPanel() {
       return;
     }
 
-    setMode(newMode);
-    if (query().trim()) {
-      void performSearch(query(), newMode);
-    } else {
-      setError(null);
+    setSearch("mode", newMode);
+    if (search.query.trim()) {
+      void performSearch(search.query, newMode);
+      return;
     }
+
+    setSearch("error", null);
   }
 
   function cycleMode() {
     const availableModes = cycleModes();
-    const currentIndex = availableModes.indexOf(mode());
+    const currentIndex = availableModes.indexOf(search.mode);
     const nextIndex = (currentIndex + 1) % availableModes.length;
     handleModeChange(availableModes[nextIndex] ?? availableModes[0] ?? "network");
   }
 
   function clearSearch() {
-    setQuery("");
+    setSearch("query", "");
     clearResults();
     searchInputRef?.focus();
   }
@@ -165,7 +162,10 @@ export function SearchPanel() {
     if (event.key === "Tab" && !event.shiftKey && document.activeElement === searchInputRef) {
       event.preventDefault();
       cycleMode();
-    } else if (event.key === "Escape" && query()) {
+      return;
+    }
+
+    if (event.key === "Escape" && search.query) {
       clearSearch();
     }
   }
@@ -182,7 +182,6 @@ export function SearchPanel() {
 
   onMount(() => {
     document.addEventListener("keydown", handleGlobalKeyDown);
-    void loadEmbeddingsConfig();
 
     onCleanup(() => {
       document.removeEventListener("keydown", handleGlobalKeyDown);
@@ -191,8 +190,11 @@ export function SearchPanel() {
   });
 
   createEffect(() => {
-    if (mode() === "semantic" && !semanticEnabled()) {
-      setMode("keyword");
+    if (search.mode === "semantic" && !semanticEnabled()) {
+      setSearch("mode", "keyword");
+      if (search.query.trim()) {
+        void performSearch(search.query, "keyword");
+      }
     }
   });
 
@@ -200,41 +202,39 @@ export function SearchPanel() {
     <div class="grid min-h-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <section class="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden rounded-4xl bg-surface-container shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
         <SearchHeader
-          error={error()}
-          hasSearched={hasSearched()}
-          loading={loading()}
-          mode={mode()}
-          query={query()}
-          resultCount={resultCount()}
-          semanticEnabled={semanticEnabled()}
-          totalIndexedPosts={totalIndexedPosts()}
-          lastSync={lastSync()}
-          onModeChange={handleModeChange}
-          onQueryChange={handleInput}
+          error={search.error}
+          hasSearched={search.hasSearched}
           inputRef={(element) => {
             searchInputRef = element;
           }}
+          lastSync={lastSync()}
+          loading={search.loading}
+          mode={search.mode}
+          onClear={clearSearch}
           onKeyDown={handleKeyDown}
-          onClear={clearSearch} />
+          onModeChange={handleModeChange}
+          onQueryChange={handleInput}
+          query={search.query}
+          resultCount={search.resultCount}
+          semanticEnabled={semanticEnabled()}
+          totalIndexedPosts={totalIndexedPosts()} />
 
         <SearchViewport
-          error={error()}
+          error={search.error}
           hasLocalPosts={hasLocalPosts()}
-          hasSearched={hasSearched()}
+          hasSearched={search.hasSearched}
           isLocalMode={isLocalMode()}
-          loading={loading()}
-          localResults={results()}
-          mode={mode()}
-          networkResults={networkResults()}
-          query={query()} />
+          loading={search.loading}
+          localResults={search.results}
+          networkResults={search.networkResults}
+          query={search.query} />
       </section>
 
       <aside class="grid content-start gap-4 overflow-y-auto">
-        <Show when={session.activeDid}>{(did) => <SyncStatusPanel did={did()} onStatusChange={setSyncStatus} />}</Show>
-        <EmbeddingsSettings
-          onConfigChange={(nextConfig) => {
-            setEmbeddingsConfig(nextConfig);
-          }} />
+        <Show when={session.activeDid}>
+          {(did) => <SyncStatusPanel did={did()} onStatusChange={(status) => setSearch("syncStatus", status)} />}
+        </Show>
+        <EmbeddingsSettings />
         <SearchTipsCard />
       </aside>
     </div>
@@ -265,6 +265,9 @@ function SearchHeader(
         error={props.error}
         inputRef={props.inputRef}
         loading={props.loading}
+        placeholder={props.mode === "network"
+          ? "Search public posts across Bluesky..."
+          : "Search your saved & liked posts..."}
         query={props.query}
         onClear={props.onClear}
         onKeyDown={props.onKeyDown}
@@ -282,22 +285,31 @@ function SearchHeader(
 
       <ResultMeta
         hasSearched={props.hasSearched}
+        lastSync={props.lastSync}
+        mode={props.mode}
         resultCount={props.resultCount}
-        totalIndexedPosts={props.totalIndexedPosts}
-        lastSync={props.lastSync} />
+        totalIndexedPosts={props.totalIndexedPosts} />
     </header>
   );
 }
 
 function ResultMeta(
-  props: { hasSearched: boolean; lastSync: string | null; resultCount: number; totalIndexedPosts: number },
+  props: {
+    hasSearched: boolean;
+    lastSync: string | null;
+    mode: SearchMode;
+    resultCount: number;
+    totalIndexedPosts: number;
+  },
 ) {
   return (
     <div class="flex items-center justify-between gap-4 border-t border-white/5 pt-3">
       <span class="text-sm text-on-surface-variant">
         <Show
           when={props.hasSearched}
-          fallback="Search your liked and bookmarked posts locally, or search the network.">
+          fallback={props.mode === "network"
+            ? "Search public posts across Bluesky or switch to your synced archive."
+            : "Search your liked and bookmarked posts locally, or search the network."}>
           <span>
             Found <span class="font-medium text-on-surface">{props.resultCount}</span> results
           </span>
@@ -318,6 +330,7 @@ function SearchInput(
     error: string | null;
     inputRef: (el: HTMLInputElement) => void;
     loading: boolean;
+    placeholder: string;
     query: string;
     onClear: () => void;
     onKeyDown: (event: KeyboardEvent) => void;
@@ -335,7 +348,7 @@ function SearchInput(
           ref={props.inputRef}
           type="text"
           value={props.query}
-          placeholder="Search your saved & liked posts..."
+          placeholder={props.placeholder}
           class="w-full rounded-3xl border-0 bg-black/40 py-3.5 pl-12 pr-20 text-base text-on-surface placeholder:text-on-surface-variant/50 outline-none ring-1 ring-white/5 transition-all focus:ring-primary/50"
           onInput={(event) => props.onQueryChange(event.currentTarget.value)}
           onKeyDown={(event) => props.onKeyDown(event)} />
@@ -446,7 +459,6 @@ function SearchViewport(
     isLocalMode: boolean;
     loading: boolean;
     localResults: LocalPostResult[];
-    mode: SearchMode;
     networkResults: NetworkSearchResult | null;
     query: string;
   },
@@ -468,9 +480,7 @@ function SearchState(
     hasLocalPosts: boolean;
     hasSearched: boolean;
     isLocalMode: boolean;
-    loading: boolean;
     localResults: LocalPostResult[];
-    mode: SearchMode;
     networkResults: NetworkSearchResult | null;
     query: string;
   },
@@ -479,23 +489,23 @@ function SearchState(
     <Presence>
       <Switch>
         <Match when={props.error && props.query}>
-          <EmptyStateView reason={props.isLocalMode && !props.hasLocalPosts ? "no-sync" : "no-results"} />
+          <EmptyStateView reason="error" scope={props.isLocalMode ? "local" : "network"} />
         </Match>
 
         <Match when={props.isLocalMode && !props.hasLocalPosts}>
-          <EmptyStateView reason="no-sync" />
+          <EmptyStateView reason="no-sync" scope="local" />
         </Match>
 
         <Match when={!props.hasSearched && !props.query}>
-          <EmptyStateView reason="initial" />
+          <EmptyStateView reason="initial" scope={props.isLocalMode ? "local" : "network"} />
         </Match>
 
         <Match when={props.isLocalMode && props.localResults.length === 0}>
-          <EmptyStateView reason="no-results" />
+          <EmptyStateView reason="no-results" scope="local" />
         </Match>
 
         <Match when={!props.isLocalMode && props.networkResults?.posts.length === 0}>
-          <EmptyStateView reason="no-results" />
+          <EmptyStateView reason="no-results" scope="network" />
         </Match>
 
         <Match when={props.isLocalMode}>
@@ -510,7 +520,7 @@ function SearchState(
   );
 }
 
-function EmptyStateView(props: { reason: "initial" | "no-results" | "no-sync" }) {
+function EmptyStateView(props: { reason: "error" | "initial" | "no-results" | "no-sync"; scope: "local" | "network" }) {
   return (
     <Motion.div
       class="grid place-items-center px-6 py-16"
@@ -518,7 +528,7 @@ function EmptyStateView(props: { reason: "initial" | "no-results" | "no-sync" })
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}>
-      <SearchEmptyState reason={props.reason} />
+      <SearchEmptyState reason={props.reason} scope={props.scope} />
     </Motion.div>
   );
 }
@@ -603,7 +613,7 @@ function SearchTipsCard() {
   return (
     <section class="panel-surface grid gap-3 p-5">
       <p class="m-0 text-sm font-medium text-on-surface">Search Tips</p>
-      <div class="grid gap-2 grid-cols-2 text-xs text-on-surface-variant">
+      <div class="grid grid-cols-2 gap-2 text-xs text-on-surface-variant">
         <p class="m-0 flex items-center gap-2">
           <kbd class="rounded bg-white/10 px-1.5 py-0.5">/</kbd>
           <span>Focus search from anywhere</span>
@@ -612,14 +622,14 @@ function SearchTipsCard() {
           <kbd class="rounded bg-white/10 px-1.5 py-0.5">Tab</kbd>
           <span>Cycle search modes</span>
         </p>
-        <div class="flex flex-col items-start gap-1 col-span-2">
-          <div class="m-0 flex gap-2 items-start">
+        <div class="col-span-2 flex flex-col items-start gap-1">
+          <div class="m-0 flex items-start gap-2">
             <div>·</div>
             <div>Use keyword mode for exact terms and hybrid mode for broader recall.</div>
           </div>
-          <div class="m-0 flex gap-2 items-start">
+          <div class="m-0 flex items-start gap-2">
             <div>·</div>
-            <div>Network search queries public Bluesky posts without using your local index.</div>
+            <div>Semantic mode follows the embeddings setting and model status shown above.</div>
           </div>
         </div>
       </div>
