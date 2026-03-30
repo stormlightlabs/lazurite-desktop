@@ -1,3 +1,4 @@
+import type { ExplorerTargetKind } from "$/lib/api/types/explorer";
 import { type JSX, Match, splitProps, Switch } from "solid-js";
 
 export type IconKind =
@@ -16,7 +17,9 @@ export type IconKind =
   | "at"
   | "hashtag"
   | "quote"
-  | "close";
+  | "close"
+  | "folder"
+  | "file";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -82,6 +85,12 @@ export function Icon(props: IconProps) {
         <Match when={local.kind === "quote"}>
           <i class="i-ri-chat-quote-line" />
         </Match>
+        <Match when={local.kind === "folder"}>
+          <i class="i-ri-folder-line" />
+        </Match>
+        <Match when={local.kind === "file"}>
+          <i class="i-ri-file-line" />
+        </Match>
       </Switch>
     </span>
   );
@@ -102,6 +111,27 @@ export function ArrowIcon(props: { class?: string; direction: "up" | "down" | "l
         </Match>
         <Match when={props.direction === "right"}>
           <i class="i-ri-arrow-right-s-line" />
+        </Match>
+      </Switch>
+    </span>
+  );
+}
+
+export function ExplorerLevelIcon(props: { level: ExplorerTargetKind; class?: string }) {
+  return (
+    <span class="flex items-center justify-center" classList={{ [props.class ?? ""]: !!props.class }}>
+      <Switch>
+        <Match when={props.level === "pds"}>
+          <i class="i-ri-server-line" />
+        </Match>
+        <Match when={props.level === "repo"}>
+          <i class="i-ri-user-line" />
+        </Match>
+        <Match when={props.level === "collection"}>
+          <i class="i-ri-folder-line" />
+        </Match>
+        <Match when={props.level === "record"}>
+          <i class="i-ri-file-line" />
         </Match>
       </Switch>
     </span>

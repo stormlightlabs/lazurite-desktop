@@ -516,8 +516,9 @@ fn sanitize_did_for_filename(did: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        canonical_at_uri, detect_input_kind, extract_pds_url_from_did_doc_json, normalize_handle, normalize_pds_url,
-        repo_car_filename, sanitize_did_for_filename, ExplorerInputKind,
+        build_resolved_at_uri, canonical_at_uri, detect_input_kind, extract_pds_url_from_did_doc_json,
+        normalize_handle, normalize_pds_url, repo_car_filename, sanitize_did_for_filename, ExplorerInputKind,
+        ExplorerTargetKind,
     };
     use jacquard::types::aturi::AtUri;
 
@@ -619,5 +620,39 @@ mod tests {
         );
         assert!(collection_uri.rkey().is_none());
         assert_eq!(record_uri.rkey().expect("rkey should exist").as_ref(), "abc123");
+    }
+
+    #[test]
+    fn build_resolved_at_uri_sets_expected_target_levels() {
+        let repo = AtUri::new("at://did:plc:alice").expect("repo uri should parse");
+        let collection = AtUri::new("at://did:plc:alice/app.bsky.feed.post").expect("collection uri should parse");
+        let record = AtUri::new("at://did:plc:alice/app.bsky.feed.post/abc123").expect("record uri should parse");
+
+        assert_eq!(
+            build_resolved_at_uri("at://did:plc:alice", "did:plc:alice", None, None, &repo).target_kind,
+            ExplorerTargetKind::Repo
+        );
+        assert_eq!(
+            build_resolved_at_uri(
+                "at://did:plc:alice/app.bsky.feed.post",
+                "did:plc:alice",
+                None,
+                None,
+                &collection
+            )
+            .target_kind,
+            ExplorerTargetKind::Collection
+        );
+        assert_eq!(
+            build_resolved_at_uri(
+                "at://did:plc:alice/app.bsky.feed.post/abc123",
+                "did:plc:alice",
+                None,
+                None,
+                &record
+            )
+            .target_kind,
+            ExplorerTargetKind::Record
+        );
     }
 }

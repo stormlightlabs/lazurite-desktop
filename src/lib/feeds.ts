@@ -1,3 +1,4 @@
+import { asArray, asRecord } from "./type-guards";
 import type {
   BlockedPost,
   EmbedView,
@@ -22,20 +23,8 @@ export const TIMELINE_ROUTE = "/timeline";
 
 export const THREAD_ROUTE_BASE = "/timeline/thread";
 
-export function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  return value as Record<string, unknown>;
-}
-
 export function asPostRecord(value: unknown): PostRecord {
   return (asRecord(value) ?? {}) as PostRecord;
-}
-
-function asArray(value: unknown) {
-  return Array.isArray(value) ? value : null;
 }
 
 function isProfileViewBasic(value: unknown): boolean {

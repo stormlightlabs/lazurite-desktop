@@ -8,6 +8,7 @@ import {
   useParams,
 } from "@solidjs/router";
 import { type Component, createEffect, type JSX, type ParentProps, Show } from "solid-js";
+import { ExplorerPanel } from "./components/explorer/ExplorerPanel";
 import { buildThreadRoute, decodeThreadRouteUri, TIMELINE_ROUTE } from "./lib/feeds";
 import type { ActiveSession } from "./lib/types";
 
@@ -19,10 +20,9 @@ type AppRouterProps = {
   renderComposer: (session: ActiveSession) => JSX.Element;
   renderNotifications: (session: ActiveSession) => JSX.Element;
   renderShell: Component<ParentProps>;
-  renderTimeline: (
-    session: ActiveSession,
-    context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null },
-  ) => JSX.Element;
+  renderTimeline: Component<
+    { session: ActiveSession; context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null } }
+  >;
   session: ActiveSession | null;
 };
 
@@ -109,12 +109,7 @@ export function AppRouter(props: AppRouterProps) {
 
   const ExplorerRoute = () => (
     <ProtectedRouteView bootstrapping={props.bootstrapping} session={props.session}>
-      {() => (
-        <FeaturePlaceholder
-          eyebrow="AT Explorer"
-          title="Explorer routing is ready."
-          description="Deep-linked explorer screens can now mount as protected routes once the record and repository views are implemented." />
-      )}
+      {() => <ExplorerPanel />}
     </ProtectedRouteView>
   );
 
@@ -152,9 +147,12 @@ function TimelineRouteView(
   return (
     <ProtectedRouteView bootstrapping={props.bootstrapping} session={props.session}>
       {(session) =>
-        props.renderTimeline(session, {
-          onThreadRouteChange: (uri) => navigate(uri ? buildThreadRoute(uri) : TIMELINE_ROUTE),
-          threadUri: props.threadUri,
+        props.renderTimeline({
+          session,
+          context: {
+            onThreadRouteChange: (uri) => navigate(uri ? buildThreadRoute(uri) : TIMELINE_ROUTE),
+            threadUri: props.threadUri,
+          },
         })}
     </ProtectedRouteView>
   );
