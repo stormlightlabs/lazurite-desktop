@@ -1,4 +1,4 @@
-# Task 11: Multicolumn Views
+# Task 08: Multicolumn Views
 
 Spec: [multicolumn.md](../specs/multicolumn.md)
 
@@ -8,7 +8,7 @@ TweetDeck-style multicolumn layout allowing users to view multiple feeds and/or 
 
 ## Steps
 
-### Backend - `src-tauri/src/columns.rs`
+### Backend - `src-tauri/src/columns.rs` + `src-tauri/src/commands/columns.rs`
 
 - [ ] SQLite migration: `columns` table (`id TEXT PRIMARY KEY, account_did TEXT, kind TEXT, config TEXT, position INTEGER, width TEXT, created_at TEXT`)
   - `kind`: `feed` | `explorer` | `diagnostics` - determines the column type
@@ -47,7 +47,7 @@ TweetDeck-style multicolumn layout allowing users to view multiple feeds and/or 
 
 #### Diagnostics Column
 
-- [ ] Reuse social diagnostics panel from Task 08
+- [ ] Reuse social diagnostics panel from Task 12
 - [ ] Tab navigation within column for lists/labels/blocks/starter packs/backlinks
 - [ ] Compact card layout adapted to column width
 

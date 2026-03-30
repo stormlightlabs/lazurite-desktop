@@ -20,14 +20,15 @@ Tasks are grouped by module. Each references the relevant spec. Polish (keyboard
 ## Phase 4: Power Features
 
 - [Search & Embeddings](./07-search.md) - FTS5, fastembed, sqlite-vec, sync pipeline, result animations
-- [Social Diagnostics](./08-social-diagnostics.md) - Constellation-powered lists, labels, blocks, starter packs, backlinks
+- [Multicolumn Views](./08-multicolumn.md) - TweetDeck-style side-by-side feeds, explorer, and diagnostics panels
+- [Profile](./09-profile.md) - Profile hero, follow/unfollow, follower/following lists, scroll-driven condensation
 
-## Phase 5: Live Data
+## Phase 5: Live Data & Diagnostics
 
-- [Jetstream](./09-jetstream.md) - WebSocket live-tail of AT Protocol firehose, filtered record streaming
-- [Spacedust](./10-spacedust.md) - Real-time backlink notifications via microcosm Spacedust
+- [Jetstream](./10-jetstream.md) - WebSocket live-tail of AT Protocol firehose, filtered record streaming
+- [Spacedust](./11-spacedust.md) - Real-time backlink notifications via microcosm Spacedust
+- [Social Diagnostics](./12-social-diagnostics.md) - Constellation-powered lists, labels, blocks, starter packs, backlinks (depends on Spacedust for live engagement)
 
-## Phase 6: Polish & Release
+## Phase 6: Release
 
-- [Multicolumn Views](./11-multicolumn.md) - TweetDeck-style side-by-side feeds, explorer, and diagnostics panels
-- [Release](./12-release.md) - Cross-platform build (macOS, Windows, Linux), code signing, auto-update, CI/CD
+- [Release](./13-release.md) - Cross-platform build (macOS, Windows, Linux), code signing, auto-update, CI/CD

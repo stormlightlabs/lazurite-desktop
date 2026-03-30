@@ -121,3 +121,9 @@ Focus is indicated by a subtle `primary` glow on the column header (ambient glow
 - Horizontal scroll: smooth scroll-snap with momentum
 - Responsive collapse: `Presence` crossfade when switching between multicolumn and single-column modes
 - Skeleton screens per column while content loads
+
+## Responsive Behavior
+
+- On narrow windows (< 768px), collapse to single-column view with horizontal swipe navigation
+- On smaller widths, multiple columns should collapse into vertical, labeled panes within the single-column layout
+- Columns containing sensitive content (e.g., DMs) should support an autoblur option — allow marking any column as blurrable so content is obscured until hovered or clicked

@@ -8,7 +8,7 @@ import { filterProfileFeed, type ProfileTab } from "$/lib/profile";
 import type { FeedResponse, FeedViewPost, ProfileViewDetailed } from "$/lib/types";
 import { formatCount, normalizeError } from "$/lib/utils/text";
 import { useNavigate } from "@solidjs/router";
-import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js";
+import { createEffect, createMemo, For, Match, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
 
 const FEED_PAGE_SIZE = 30;
@@ -53,8 +53,6 @@ export function ProfilePanel(props: { actor: string | null }) {
   const navigate = useNavigate();
   const session = useAppSession();
   const [state, setState] = createStore<ProfilePanelState>(createProfilePanelState());
-  const [avatarTrackWidth, setAvatarTrackWidth] = createSignal(0);
-  let avatarTrackRef: HTMLDivElement | undefined;
   let requestSequence = 0;
 
   const activeActor = createMemo(() => props.actor?.trim() || session.activeHandle || session.activeDid || "");
@@ -66,10 +64,6 @@ export function ProfilePanel(props: { actor: string | null }) {
   );
   const avatarProgress = createMemo(() => clamp((state.scrollTop - 18) / 180, 0, 1));
   const avatarScale = createMemo(() => 1 - avatarProgress() * 0.34);
-  const avatarShift = createMemo(() => {
-    const scaledSize = 128 * avatarScale();
-    return Math.max((avatarTrackWidth() - scaledSize) / 2, 0) * avatarProgress();
-  });
   const coverOffset = createMemo(() => Math.min(state.scrollTop * 0.28, 88));
   const coverScale = createMemo(() => 1 + Math.min(state.scrollTop / 1600, 0.08));
   const viewLabel = createMemo(() => isSelf() ? "Your profile" : "Viewing profile");
@@ -129,24 +123,6 @@ export function ProfilePanel(props: { actor: string | null }) {
     if (!state.authorFeed.loaded && !state.authorFeed.loading) {
       void loadAuthorPage(requestSequence, actor, false);
     }
-  });
-
-  createEffect(() => {
-    const element = avatarTrackRef;
-    if (!element) {
-      return;
-    }
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) {
-        setAvatarTrackWidth(entry.contentRect.width);
-      }
-    });
-
-    observer.observe(element);
-    setAvatarTrackWidth(element.getBoundingClientRect().width);
-    onCleanup(() => observer.disconnect());
   });
 
   async function loadProfile(sequence: number, actor: string) {
@@ -278,10 +254,6 @@ export function ProfilePanel(props: { actor: string | null }) {
                 <ProfileHero
                   avatarProgress={avatarProgress()}
                   avatarScale={avatarScale()}
-                  avatarShift={avatarShift()}
-                  avatarTrackRef={(element) => {
-                    avatarTrackRef = element;
-                  }}
                   coverOffset={coverOffset()}
                   coverScale={coverScale()}
                   isSelf={isSelf()}
@@ -315,8 +287,6 @@ function ProfileHero(
   props: {
     avatarProgress: number;
     avatarScale: number;
-    avatarShift: number;
-    avatarTrackRef: (element: HTMLDivElement) => void;
     coverOffset: number;
     coverScale: number;
     isSelf: boolean;
@@ -333,7 +303,7 @@ function ProfileHero(
     transform: `translate3d(0, ${props.coverOffset}px, 0) scale(${props.coverScale})`,
   }));
   const avatarStyle = createMemo(() => ({
-    transform: `translate3d(${props.avatarShift}px, ${-10 * props.avatarProgress}px, 0) scale(${props.avatarScale})`,
+    transform: `translate3d(0, ${-10 * props.avatarProgress}px, 0) scale(${props.avatarScale})`,
   }));
 
   return (
@@ -353,9 +323,9 @@ function ProfileHero(
       </div>
 
       <div class="relative z-10 -mt-16 px-6 pb-6 max-[760px]:px-4 max-[520px]:px-3">
-        <div class="sticky top-4 z-20 mb-4" ref={props.avatarTrackRef}>
+        <div class="sticky top-4 z-20 mb-4 flex items-end gap-4">
           <div
-            class="relative h-32 w-32 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_4px_rgba(8,8,8,0.96),0_0_0_6px_rgba(125,175,255,0.22),0_24px_40px_rgba(0,0,0,0.36)] backdrop-blur-sm transition-transform duration-100 ease-out"
+            class="relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_4px_rgba(8,8,8,0.96),0_0_0_6px_rgba(125,175,255,0.22),0_24px_40px_rgba(0,0,0,0.36)] backdrop-blur-sm transition-transform duration-100 ease-out"
             style={avatarStyle()}>
             <Show
               when={props.profile.avatar}
@@ -367,10 +337,14 @@ function ProfileHero(
               {(avatar) => <img alt="" class="h-full w-full object-cover" src={avatar()} />}
             </Show>
           </div>
+
+          <StickyIdentity displayName={displayName()} handle={props.profile.handle} progress={props.avatarProgress} />
         </div>
 
         <div class="grid gap-5 pt-20">
-          <div class="flex flex-wrap items-start justify-between gap-4">
+          <div
+            class="flex flex-wrap items-start justify-between gap-4 transition-opacity duration-100 ease-out"
+            style={{ opacity: 1 - props.avatarProgress }}>
             <ProfileIdentity
               description={props.profile.description ?? null}
               displayName={displayName()}
@@ -401,6 +375,22 @@ function ProfileStat(props: { label: string; value?: number | null }) {
     <div class="grid gap-1">
       <span class="text-lg font-semibold tracking-[-0.02em] text-on-surface">{formatCount(props.value ?? 0)}</span>
       <span class="text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.label}</span>
+    </div>
+  );
+}
+
+function StickyIdentity(props: { displayName: string; handle: string; progress: number }) {
+  const style = createMemo(() => ({
+    opacity: `${props.progress}`,
+    transform: `translate3d(0, ${8 * (1 - props.progress)}px, 0)`,
+  }));
+
+  return (
+    <div class="mb-1 min-w-0 transition-[opacity,transform] duration-100 ease-out" style={style()}>
+      <p class="m-0 truncate text-lg font-semibold leading-tight tracking-[-0.02em] text-on-surface">
+        {props.displayName}
+      </p>
+      <p class="m-0 truncate text-sm leading-tight text-on-surface-variant">@{props.handle.replace(/^@/, "")}</p>
     </div>
   );
 }

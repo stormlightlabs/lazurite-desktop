@@ -1,4 +1,4 @@
-# Task 08: Social Diagnostics
+# Task 12: Social Diagnostics
 
 Spec: [social-diagnostics.md](../specs/social-diagnostics.md)
 

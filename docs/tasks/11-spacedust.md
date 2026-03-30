@@ -1,4 +1,4 @@
-# Task 10: Spacedust
+# Task 11: Spacedust
 
 Spec: TBD (see [Spacedust API docs](../../.sandbox/spacedust.md))
 
@@ -6,7 +6,7 @@ Spec: TBD (see [Spacedust API docs](../../.sandbox/spacedust.md))
 
 [Spacedust](https://spacedust.microcosm.blue/) is a configurable ATProto notifications firehose by microcosm.blue. It streams real-time backlink events (likes, reposts, follows, replies, etc.) for specific subjects, with a built-in 21-second debounce buffer to filter out quickly-undone interactions.
 
-Where Jetstream (Task 09) streams raw firehose records, Spacedust streams *resolved backlinks* - making it ideal for live notification feeds and real-time engagement counters.
+Where Jetstream (Task 10) streams raw firehose records, Spacedust streams *resolved backlinks* - making it ideal for live notification feeds and real-time engagement counters.
 
 ## Tasks
 

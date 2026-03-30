@@ -1,4 +1,4 @@
-# Task 09: Jetstream
+# Task 10: Jetstream
 
 Spec: [explorer.md](../specs/explorer.md)
 
@@ -26,4 +26,4 @@ Spec: [explorer.md](../specs/explorer.md)
 These require update to the spec & more research before implementation.
 
 - [ ] **Frontend**: Firehose Viewer
-- [ ] **Frontend**: Spacedust integration (see [Task 10](./10-spacedust.md))
+- [ ] **Frontend**: Spacedust integration (see [Task 11](./11-spacedust.md))
