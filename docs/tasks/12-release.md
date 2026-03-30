@@ -1,4 +1,4 @@
-# Task 10: Release
+# Task 12: Release
 
 ## Overview
 
@@ -12,20 +12,20 @@ Cross-platform build, signing, packaging, and auto-update pipeline targeting mac
   - macOS: `icon.icns` (16–1024px)
   - Windows: `icon.ico` (16–256px)
   - Linux: `icon.png` at 32, 128, 256, 512px
-- [ ] Update `tauri.conf.json` — `productName`, `identifier`, window title, bundle metadata (description, copyright, category)
+- [ ] Update `tauri.conf.json` - `productName`, `identifier`, window title, bundle metadata (description, copyright, category)
 - [ ] Splash / welcome screen for first-launch flow
 
 ### macOS
 
 - [ ] Code signing via Apple Developer certificate (`APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD` secrets)
 - [ ] Notarization via `notarytool` (`APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` secrets)
-- [ ] DMG packaging — `tauri build` produces `.dmg` by default on macOS
+- [ ] DMG packaging - `tauri build` produces `.dmg` by default on macOS
 - [ ] Universal binary (x86_64 + aarch64) via `--target universal-apple-darwin`
 - [ ] Verify Gatekeeper passes on clean macOS install
 
 ### Windows
 
-- [ ] NSIS installer — `tauri build` default on Windows; configure install path, start menu shortcut, desktop shortcut
+- [ ] NSIS installer - `tauri build` default on Windows; configure install path, start menu shortcut, desktop shortcut
 - [ ] Optional: MSI installer via `bundle > targets` configuration
 - [ ] Code signing via certificate (`WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD` secrets)
   - Evaluate EV vs OV certificate for SmartScreen reputation
@@ -34,13 +34,13 @@ Cross-platform build, signing, packaging, and auto-update pipeline targeting mac
 
 ### Linux
 
-- [ ] AppImage packaging — portable, no-install binary (primary distribution format)
-- [ ] `.deb` package for Debian/Ubuntu — configure dependencies (libwebkit2gtk, libssl)
+- [ ] AppImage packaging - portable, no-install binary (primary distribution format)
+- [ ] `.deb` package for Debian/Ubuntu - configure dependencies (libwebkit2gtk, libssl)
 - [ ] `.rpm` package for Fedora/RHEL
 - [ ] Desktop entry file with icon, categories, and MIME type for `at://` deep links
 - [ ] Verify launch on Ubuntu 22.04+, Fedora 38+, and Arch (via AppImage)
 
-### Auto-Update — `tauri-plugin-updater`
+### Auto-Update - `tauri-plugin-updater`
 
 - [ ] Add `tauri-plugin-updater` to `Cargo.toml` dependencies (currently commented out)
 - [ ] Configure update endpoint pointing to GitHub Releases (`latest.json` / release assets)
@@ -49,7 +49,7 @@ Cross-platform build, signing, packaging, and auto-update pipeline targeting mac
 - [ ] Differential updates where supported (Tauri v2 update mechanism)
 - [ ] Signing update bundles with Tauri's update keypair (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`)
 
-### CI/CD — GitHub Actions
+### CI/CD - GitHub Actions
 
 - [ ] Matrix build workflow: `[macos-latest, windows-latest, ubuntu-latest]`
   - macOS job: build universal binary, sign, notarize, produce `.dmg`

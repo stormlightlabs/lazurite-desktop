@@ -11,8 +11,8 @@ Spec: [auth.md](../specs/auth.md)
   - Start loopback OAuth via `LoopbackConfig`
   - Store session tokens, insert into `accounts` table
   - Return account info to frontend
-- [x] Create Tauri command `logout(did: String)` — revoke tokens, remove from DB
-- [x] Create Tauri command `switch_account(did: String)` — swap active `OAuthSession` in state
+- [x] Create Tauri command `logout(did: String)` - revoke tokens, remove from DB
+- [x] Create Tauri command `switch_account(did: String)` - swap active `OAuthSession` in state
 - [x] Create Tauri command `list_accounts()` → `Vec<Account>`
 - [x] On app launch: restore sessions from DB, auto-refresh tokens for active account
 - [x] Register `at://` scheme via deep-link plugin in `tauri.conf.json`

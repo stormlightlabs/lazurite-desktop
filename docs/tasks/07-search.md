@@ -1,4 +1,4 @@
-# Task 06: Search & Embeddings
+# Task 07: Search & Embeddings
 
 Spec: [search.md](../specs/search.md)
 

@@ -40,7 +40,7 @@ URL-bar style input accepting:
 
 ## Additional Features
 
-- **Backlinks**: show records that reference the current record (requires relay/constellation)
+- **Backlinks** (via Constellation): show records that reference the current record, grouped by interaction type (likes, reposts, replies, quotes) with counts and expandable actor lists. Uses `blue.microcosm.links.getBacklinks` and `getBacklinksCount` endpoints.
 - **Jetstream live view**: stream new records in real-time via `jacquard::jetstream`
 - **CAR export**: download repo as CAR archive via `com.atproto.sync.getRepo`
 - **Moderation labels**: query and display labels via `com.atproto.label.queryLabels`

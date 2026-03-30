@@ -12,17 +12,22 @@ Tasks are grouped by module. Each references the relevant spec. Polish (keyboard
 - [Feeds](./03-feeds.md) - Pinned feed tabs, post rendering, composer, keyboard shortcuts, scroll animations
 - [Notifications](./04-notifications.md) - Mentions, activity, system notifications, badge animations
 
-## Phase 3: Power Features
+## Phase 3: Core Features
 
 - [AT Explorer](./05-explorer.md) - pds.ls-style data browser, at:// deep links, view transitions, keyboard nav
-- [Search & Embeddings](./06-search.md) - FTS5, fastembed, sqlite-vec, sync pipeline, result animations
+- [Settings](./06-settings.md) - Theme, notifications, data export, cache management, account management, Constellation/Spacedust instance, logs
 
-## Phase 4: Long-Form & Polish
+## Phase 4: Power Features
 
-- [Standard.site](./07-standard-site.md) - Publication/document views, subscriptions, reading view transitions
-- [Settings](./08-settings.md) - Theme, notifications, data export, cache management, account management, logs
-- [Multicolumn Views](./09-multicolumn.md) - TweetDeck-style side-by-side feeds and AT Explorer panels
+- [Search & Embeddings](./07-search.md) - FTS5, fastembed, sqlite-vec, sync pipeline, result animations
+- [Social Diagnostics](./08-social-diagnostics.md) - Constellation-powered lists, labels, blocks, starter packs, backlinks
 
-## Phase 5: Release
+## Phase 5: Live Data
 
-- [Release](./10-release.md) - Cross-platform build (macOS, Windows, Linux), code signing, auto-update, CI/CD
+- [Jetstream](./09-jetstream.md) - WebSocket live-tail of AT Protocol firehose, filtered record streaming
+- [Spacedust](./10-spacedust.md) - Real-time backlink notifications via microcosm Spacedust
+
+## Phase 6: Polish & Release
+
+- [Multicolumn Views](./11-multicolumn.md) - TweetDeck-style side-by-side feeds, explorer, and diagnostics panels
+- [Release](./12-release.md) - Cross-platform build (macOS, Windows, Linux), code signing, auto-update, CI/CD
