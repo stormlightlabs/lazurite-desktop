@@ -18,7 +18,9 @@ import { AppRouter } from "./router";
 
 const COMPOSER_WINDOW_LABEL = "composer";
 
-function AppShell(props: ParentProps) {
+type AppShellProps = ParentProps<{ fullWidth?: boolean }>;
+
+function AppShell(props: AppShellProps) {
   const session = useAppSession();
   const shell = useAppShellUi();
 
@@ -30,7 +32,12 @@ function AppShell(props: ParentProps) {
         <AppRail />
 
         <section
-          class="m-5 grid min-h-0 overflow-hidden gap-6 rounded-2xl bg-surface p-6 shadow-[0_24px_40px_rgba(125,175,255,0.05)] max-[1360px]:p-6 max-[1180px]:m-0 max-[1180px]:min-h-[calc(100vh-4.75rem)] max-[1180px]:rounded-none max-[1180px]:p-5 max-[1180px]:overflow-visible max-[900px]:gap-5 max-[900px]:p-4 max-[640px]:gap-4 max-[640px]:p-3"
+          class="grid min-h-0 overflow-hidden bg-surface max-[1180px]:min-h-[calc(100vh-4.75rem)] max-[1180px]:overflow-visible"
+          classList={{
+            "m-5 gap-6 rounded-2xl p-6 shadow-[0_24px_40px_rgba(125,175,255,0.05)] max-[1360px]:p-6 max-[1180px]:m-0 max-[1180px]:rounded-none max-[1180px]:p-5 max-[900px]:gap-5 max-[900px]:p-4 max-[640px]:gap-4 max-[640px]:p-3":
+              !props.fullWidth,
+            "max-[1180px]:m-0 max-[1180px]:rounded-none": props.fullWidth,
+          }}
           aria-busy={session.bootstrapping}>
           {props.children}
         </section>

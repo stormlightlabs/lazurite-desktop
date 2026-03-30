@@ -16,12 +16,13 @@ import { SearchPanel } from "./components/search/SearchPanel";
 import { buildThreadRoute, decodeThreadRouteUri, TIMELINE_ROUTE } from "./lib/feeds";
 
 type TTimelineRouteProps = { context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null } };
+type AppShellProps = ParentProps<{ fullWidth?: boolean }>;
 
 type AppRouterProps = {
   renderAuth: () => JSX.Element;
   renderComposer: () => JSX.Element;
   renderNotifications: () => JSX.Element;
-  renderShell: Component<ParentProps>;
+  renderShell: Component<AppShellProps>;
   renderTimeline: Component<TTimelineRouteProps>;
 };
 
@@ -42,8 +43,12 @@ export function AppRouter(props: AppRouterProps) {
       }
     });
 
+    const fullWidthShell = () => location.pathname === "/explorer";
+
     return (
-      <Show when={standaloneComposerRoute()} fallback={<props.renderShell>{routeProps.children}</props.renderShell>}>
+      <Show
+        when={standaloneComposerRoute()}
+        fallback={<props.renderShell fullWidth={fullWidthShell()}>{routeProps.children}</props.renderShell>}>
         {routeProps.children}
       </Show>
     );

@@ -5,7 +5,7 @@ type RepoViewProps = {
   did: string;
   handle: string;
   pdsUrl: string | null;
-  collections: Array<{ nsid: string; count: number | null }>;
+  collections: Array<{ nsid: string }>;
   onCollectionClick: (collection: string) => void;
   onPdsClick: () => void;
 };
@@ -53,12 +53,7 @@ export function RepoView(props: RepoViewProps) {
                   <Icon kind="folder" class="text-on-surface-variant" />
                   <span class="text-sm">{collection.nsid}</span>
                 </div>
-                <div class="flex items-center gap-3">
-                  <span class="text-xs text-on-surface-variant">
-                    {collection.count === null ? "Count unavailable" : `${collection.count} records`}
-                  </span>
-                  <ArrowIcon direction="right" class="text-on-surface-variant" />
-                </div>
+                <ArrowIcon direction="right" class="text-on-surface-variant" />
               </button>
             )}
           </For>

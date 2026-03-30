@@ -6,7 +6,7 @@ type PDSData = { repos: Array<PDSRepoData>; server: Record<string, unknown>; cur
 
 type PDSRepoData = { did: string; head: string; rev: string; active: boolean; status: string | null };
 
-type RepoViewCollection = { nsid: string; count: number | null };
+type RepoViewCollection = { nsid: string };
 
 type RepoViewData = { collections: Array<RepoViewCollection>; handle: string; did: string; pdsUrl: string | null };
 

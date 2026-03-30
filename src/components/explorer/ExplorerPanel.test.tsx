@@ -71,7 +71,7 @@ describe("ExplorerPanel", () => {
     expect(await screen.findByRole("button", { name: /app\.bsky\.feed\.like/u })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /app\.bsky\.feed\.post/u })).toBeInTheDocument();
     expect(screen.queryByText("0 records")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Count unavailable")).toHaveLength(2);
+    expect(screen.queryByText("Count unavailable")).not.toBeInTheDocument();
   });
 
   it("loads additional collection pages", async () => {

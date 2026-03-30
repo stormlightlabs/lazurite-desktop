@@ -146,6 +146,40 @@ impl PersistentAuthStore {
             .map_err(AppError::from)
     }
 
+    pub fn get_latest_session_id(&self, did: &str) -> Result<Option<String>, AppError> {
+        let connection = self.lock_connection()?;
+        connection
+            .query_row(
+                "
+                SELECT session_id
+                FROM oauth_sessions
+                WHERE did = ?1
+                ORDER BY updated_at DESC, created_at DESC
+                LIMIT 1
+            ",
+                params![did],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(AppError::from)
+    }
+
+    pub fn update_account_session_id(&self, did: &str, session_id: &str) -> Result<(), AppError> {
+        let connection = self.lock_connection()?;
+        let rows_updated = connection.execute(
+            "UPDATE accounts SET session_id = ?2 WHERE did = ?1",
+            params![did, session_id],
+        )?;
+
+        if rows_updated == 0 {
+            return Err(AppError::Validation(format!(
+                "cannot update session_id for unknown account did: {did}"
+            )));
+        }
+
+        Ok(())
+    }
+
     pub fn upsert_account(
         &self, account: &AccountSummary, session_id: &str, make_active: bool,
     ) -> Result<(), AppError> {
@@ -604,7 +638,8 @@ mod tests {
                 handle TEXT,
                 pds_url TEXT,
                 session_id TEXT,
-                active INTEGER NOT NULL DEFAULT 0
+                active INTEGER NOT NULL DEFAULT 0,
+                avatar TEXT
             );
 
             CREATE TABLE oauth_sessions (
@@ -688,5 +723,102 @@ mod tests {
         assert_eq!(payload["handle"], "alice.bsky.social");
         assert_eq!(payload["displayName"], "Alice");
         assert_eq!(payload["avatar"], "https://cdn.example/alice.jpg");
+    }
+
+    #[test]
+    fn latest_session_id_prefers_most_recent_persisted_session() {
+        let store = auth_store_with_schema(
+            "
+            CREATE TABLE accounts (
+                did TEXT PRIMARY KEY,
+                handle TEXT,
+                pds_url TEXT,
+                session_id TEXT,
+                active INTEGER NOT NULL DEFAULT 0,
+                avatar TEXT
+            );
+
+            CREATE TABLE oauth_sessions (
+                did TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                session_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (did, session_id)
+            );
+        ",
+        );
+
+        let connection = store.lock_connection().expect("connection should lock");
+        connection
+            .execute(
+                "INSERT INTO accounts(did, handle, session_id) VALUES (?1, ?2, ?3)",
+                params!["did:plc:alice", "alice.test", "session-old"],
+            )
+            .expect("account should insert");
+        connection
+            .execute(
+                "INSERT INTO oauth_sessions(did, session_id, session_json, updated_at) VALUES (?1, ?2, ?3, '2026-03-29 10:00:00')",
+                params!["did:plc:alice", "session-old", "{}"],
+            )
+            .expect("old oauth session should insert");
+        connection
+            .execute(
+                "INSERT INTO oauth_sessions(did, session_id, session_json, updated_at) VALUES (?1, ?2, ?3, '2026-03-29 11:00:00')",
+                params!["did:plc:alice", "session-new", "{}"],
+            )
+            .expect("new oauth session should insert");
+        drop(connection);
+
+        let latest = store
+            .get_latest_session_id("did:plc:alice")
+            .expect("latest session lookup should succeed");
+
+        assert_eq!(latest.as_deref(), Some("session-new"));
+    }
+
+    #[test]
+    fn update_account_session_id_repoints_stale_account_record() {
+        let store = auth_store_with_schema(
+            "
+            CREATE TABLE accounts (
+                did TEXT PRIMARY KEY,
+                handle TEXT,
+                pds_url TEXT,
+                session_id TEXT,
+                active INTEGER NOT NULL DEFAULT 0,
+                avatar TEXT
+            );
+
+            CREATE TABLE oauth_sessions (
+                did TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                session_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (did, session_id)
+            );
+        ",
+        );
+
+        let connection = store.lock_connection().expect("connection should lock");
+        connection
+            .execute(
+                "INSERT INTO accounts(did, handle, session_id) VALUES (?1, ?2, ?3)",
+                params!["did:plc:alice", "alice.test", "session-old"],
+            )
+            .expect("account should insert");
+        drop(connection);
+
+        store
+            .update_account_session_id("did:plc:alice", "session-new")
+            .expect("session id update should succeed");
+
+        let updated = store
+            .get_account("did:plc:alice")
+            .expect("account lookup should succeed")
+            .expect("account should remain present");
+
+        assert_eq!(updated.session_id.as_deref(), Some("session-new"));
     }
 }

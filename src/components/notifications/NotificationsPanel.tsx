@@ -14,6 +14,10 @@ type Tab = "mentions" | "activity";
 
 const MENTION_REASONS = new Set(["mention", "reply", "quote"]);
 
+function hasUnreadNotifications(items: NotificationView[]) {
+  return items.some((notification) => !notification.isRead);
+}
+
 export function NotificationsPanel() {
   const session = useAppSession();
   // TODO: NotificationsStore via createStore
@@ -21,44 +25,72 @@ export function NotificationsPanel() {
   const [notifications, setNotifications] = createSignal<NotificationView[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
+  let loadRequestId = 0;
+  let markSeenPending = false;
 
   const mentions = createMemo(() => notifications().filter((n) => MENTION_REASONS.has(n.reason)));
   const activity = createMemo(() => notifications().filter((n) => !MENTION_REASONS.has(n.reason)));
   const unreadMentions = createMemo(() => mentions().filter((n) => !n.isRead).length);
   const unreadActivity = createMemo(() => activity().filter((n) => !n.isRead).length);
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const response: ListNotificationsResponse = await listNotifications();
-      setNotifications(response.notifications);
-    } catch (err) {
-      setError(normalizeError(err));
-    } finally {
-      setLoading(false);
+  async function markSeen(options?: { notifications?: NotificationView[]; silent?: boolean }) {
+    const items = options?.notifications ?? notifications();
+    if (!hasUnreadNotifications(items) || markSeenPending) {
+      return;
     }
-  }
 
-  async function markSeen() {
+    markSeenPending = true;
+
     try {
       await updateSeen();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setNotifications((prev) => prev.map((notification) => ({ ...notification, isRead: true })));
       session.markNotificationsSeen();
     } catch (err) {
       const error = normalizeError(err);
-      logger.warn("failed to mark notifications as seen", { keyValues: { error } });
+      if (!options?.silent) {
+        logger.warn("failed to mark notifications as seen", { keyValues: { error } });
+      }
+    } finally {
+      markSeenPending = false;
     }
   }
 
+  async function load(options?: { markSeen?: boolean }) {
+    const requestId = ++loadRequestId;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response: ListNotificationsResponse = await listNotifications();
+      if (requestId !== loadRequestId) {
+        return;
+      }
+
+      setNotifications(response.notifications);
+
+      if (options?.markSeen) {
+        await markSeen({ notifications: response.notifications, silent: true });
+      }
+    } catch (err) {
+      if (requestId === loadRequestId) {
+        setError(normalizeError(err));
+      }
+    } finally {
+      if (requestId === loadRequestId) {
+        setLoading(false);
+      }
+    }
+  }
+
+  function reloadNotifications() {
+    void load({ markSeen: true });
+  }
+
   onMount(() => {
-    void load();
-    void markSeen();
+    reloadNotifications();
 
     let unlisten: (() => void) | undefined;
-    void listen<number>(NOTIFICATIONS_UNREAD_COUNT_EVENT, () => {
-      void load();
-    }).then((dispose) => {
+    void listen<number>(NOTIFICATIONS_UNREAD_COUNT_EVENT, reloadNotifications).then((dispose) => {
       unlisten = dispose;
     });
 

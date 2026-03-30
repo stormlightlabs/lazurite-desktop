@@ -1,11 +1,17 @@
 import { AppTestProviders } from "$/test/providers";
 import { render, screen } from "@solidjs/testing-library";
 import type { Component, ParentProps } from "solid-js";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildThreadRoute } from "./lib/feeds";
 import { AppRouter } from "./router";
 
-const Shell: Component<ParentProps> = (props) => <div>{props.children}</div>;
+const listenMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
+
+const Shell: Component<ParentProps<{ fullWidth?: boolean }>> = (props) => (
+  <div data-testid="shell" data-full-width={props.fullWidth ? "true" : "false"}>{props.children}</div>
+);
 
 function renderRouter(hash: string) {
   globalThis.location.hash = hash;
@@ -39,6 +45,11 @@ function renderRouter(hash: string) {
 }
 
 describe("AppRouter", () => {
+  beforeEach(() => {
+    listenMock.mockReset();
+    listenMock.mockResolvedValue(() => {});
+  });
+
   it("renders the timeline route without a thread uri", async () => {
     const { renderTimeline } = renderRouter("#/timeline");
 
@@ -75,5 +86,14 @@ describe("AppRouter", () => {
 
     expect(renderNotifications).toHaveBeenCalledOnce();
     expect(screen.getByText("notifications")).toBeInTheDocument();
+    expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "false");
+  });
+
+  it("renders the explorer route inside the full-width shell", async () => {
+    renderRouter("#/explorer");
+
+    await screen.findByTestId("shell");
+
+    expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "true");
   });
 });

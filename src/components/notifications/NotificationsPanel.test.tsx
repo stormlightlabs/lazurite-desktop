@@ -104,5 +104,26 @@ describe("NotificationsPanel", () => {
     ));
 
     expect(await screen.findByText("notification fetch failed")).toBeInTheDocument();
+    expect(updateSeenMock).not.toHaveBeenCalled();
+    expect(warnMock).not.toHaveBeenCalled();
+  });
+
+  it("does not warn when automatic mark-seen fails after a successful load", async () => {
+    listNotificationsMock.mockResolvedValue({
+      cursor: null,
+      notifications: [createNotification("mention")],
+      seenAt: null,
+    });
+    updateSeenMock.mockRejectedValue(new Error("transport error"));
+
+    render(() => (
+      <AppTestProviders>
+        <NotificationsPanel />
+      </AppTestProviders>
+    ));
+
+    expect(await screen.findByLabelText("mention author mentioned you")).toBeInTheDocument();
+    await waitFor(() => expect(updateSeenMock).toHaveBeenCalledOnce());
+    expect(warnMock).not.toHaveBeenCalled();
   });
 });

@@ -207,14 +207,11 @@ impl AppState {
             return Ok(existing);
         }
 
-        let session_id = account.session_id.as_deref().ok_or_else(|| {
-            AppError::Validation(format!("account {} does not have a stored oauth session", account.did))
-        })?;
-
         let did = Did::new(&account.did)?;
+        let session_id = self.resolve_restorable_session_id(account, &did).await?;
         let session = if refresh {
             log::info!("restoring session with token refresh for {}", account.handle);
-            match self.oauth_client.restore(&did, session_id).await {
+            match self.oauth_client.restore(&did, &session_id).await {
                 Ok(session) => Arc::new(session),
                 Err(error) if should_fallback_to_persisted_session(&error) => {
                     log::warn!(
@@ -222,13 +219,13 @@ impl AppState {
                         account.handle,
                         error
                     );
-                    self.restore_persisted_session(account, &did, session_id).await?
+                    self.restore_persisted_session(account, &did, &session_id).await?
                 }
                 Err(error) => return Err(AppError::from(error)),
             }
         } else {
             log::debug!("restoring session from persisted data for {}", account.handle);
-            self.restore_persisted_session(account, &did, session_id).await?
+            self.restore_persisted_session(account, &did, &session_id).await?
         };
 
         self.sessions
@@ -238,6 +235,39 @@ impl AppState {
 
         log::info!("session restored successfully for {}", account.handle);
         Ok(session)
+    }
+
+    async fn resolve_restorable_session_id(
+        &self, account: &StoredAccount, did: &Did<'_>,
+    ) -> Result<String, AppError> {
+        let configured_session_id = account.session_id.as_deref().ok_or_else(|| {
+            AppError::Validation(format!("account {} does not have a stored oauth session", account.did))
+        })?;
+
+        if self
+            .auth_store
+            .get_session(did, configured_session_id)
+            .await?
+            .is_some()
+        {
+            return Ok(configured_session_id.to_string());
+        }
+
+        let fallback_session_id = self.auth_store.get_latest_session_id(&account.did)?.ok_or_else(|| {
+            AppError::Validation(format!("missing persisted oauth session for account {}", account.did))
+        })?;
+
+        log::warn!(
+            "account {} referenced missing session {}; falling back to persisted session {}",
+            account.handle,
+            configured_session_id,
+            fallback_session_id
+        );
+
+        self.auth_store
+            .update_account_session_id(&account.did, &fallback_session_id)?;
+
+        Ok(fallback_session_id)
     }
 
     async fn restore_persisted_session(
@@ -343,10 +373,10 @@ impl AppState {
             return Ok(());
         };
 
-        let session_id = account.session_id.as_deref().unwrap();
         let did = Did::new(&account.did)?;
+        let session_id = self.resolve_restorable_session_id(account, &did).await?;
 
-        match self.oauth_client.restore(&did, session_id).await {
+        match self.oauth_client.restore(&did, &session_id).await {
             Ok(session) => {
                 self.sessions
                     .write()

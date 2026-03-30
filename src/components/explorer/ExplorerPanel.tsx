@@ -49,14 +49,14 @@ function resolveParentInput(view: ExplorerViewState): string | null {
   }
   return null;
 }
-function extractCollections(repoData: Record<string, unknown>): Array<{ nsid: string; count: number | null }> {
-  const collections: Array<{ nsid: string; count: number | null }> = [];
+function extractCollections(repoData: Record<string, unknown>): Array<{ nsid: string }> {
+  const collections: Array<{ nsid: string }> = [];
   const collectionsData = repoData.collections;
 
   if (Array.isArray(collectionsData)) {
     for (const collection of collectionsData) {
       if (typeof collection === "string") {
-        collections.push({ nsid: collection, count: null });
+        collections.push({ nsid: collection });
       }
     }
   }
