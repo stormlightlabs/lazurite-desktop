@@ -10,15 +10,15 @@ TweetDeck-style multicolumn layout allowing users to view multiple feeds and/or 
 
 ### Backend - `src-tauri/src/columns.rs` + `src-tauri/src/commands/columns.rs`
 
-- [ ] SQLite migration: `columns` table (`id TEXT PRIMARY KEY, account_did TEXT, kind TEXT, config TEXT, position INTEGER, width TEXT, created_at TEXT`)
+- [x] SQLite migration: `columns` table (`id TEXT PRIMARY KEY, account_did TEXT, kind TEXT, config TEXT, position INTEGER, width TEXT, created_at TEXT`)
   - `kind`: `feed` | `explorer` | `diagnostics` - determines the column type
   - `config`: JSON blob - for feeds: `{ feed_uri, feed_type }`, for explorer: `{ target_uri }`, for diagnostics: `{ did }`
   - `width`: `narrow` | `standard` | `wide`
-- [ ] `get_columns(account_did: String)` - return ordered column list for the active account
-- [ ] `add_column(account_did: String, kind: String, config: String, position: Option<u32>)` - insert at position or append
-- [ ] `remove_column(id: String)` - delete column by ID
-- [ ] `reorder_columns(ids: Vec<String>)` - bulk update positions
-- [ ] `update_column(id: String, config: Option<String>, width: Option<String>)` - modify column settings
+- [x] `get_columns(account_did: String)` - return ordered column list for the active account
+- [x] `add_column(account_did: String, kind: String, config: String, position: Option<u32>)` - insert at position or append
+- [x] `remove_column(id: String)` - delete column by ID
+- [x] `reorder_columns(ids: Vec<String>)` - bulk update positions
+- [x] `update_column(id: String, config: Option<String>, width: Option<String>)` - modify column settings
 
 ### Frontend - Column Layout
 

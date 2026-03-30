@@ -47,6 +47,7 @@ const MIGRATIONS: &[Migration] = &[
         "search_owner_scope",
         include_str!("migrations/007_search_owner_scope.sql"),
     ),
+    Migration::new(8, "columns", include_str!("migrations/008_columns.sql")),
 ];
 
 pub fn initialize_database(app: &AppHandle) -> Result<DbPool, AppError> {
@@ -149,6 +150,7 @@ pub(crate) fn reset_database(connection: &Connection) -> Result<(), AppError> {
         DROP TABLE IF EXISTS oauth_auth_requests;
         DROP TABLE IF EXISTS accounts;
         DROP TABLE IF EXISTS app_settings;
+        DROP TABLE IF EXISTS columns;
         DROP TABLE IF EXISTS schema_migrations;
 
         PRAGMA wal_checkpoint(TRUNCATE);

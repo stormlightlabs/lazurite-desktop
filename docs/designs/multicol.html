@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multicolumn - Lazurite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --surface-container-lowest: #000000;
+      --surface: #0e0e0e;
+      --surface-container: #191919;
+      --surface-container-high: #1f1f1f;
+      --surface-container-highest: rgba(36, 36, 36, 0.7);
+      --surface-bright: rgba(255, 255, 255, 0.05);
+      --primary: #7dafff;
+      --primary-dim: #0073de;
+      --on-primary-fixed: #05080f;
+      --on-surface: #f4f6fb;
+      --on-surface-variant: #ababab;
+      --on-secondary-container: #c9d1dd;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Google Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 14% 12%, rgba(125, 175, 255, 0.22), transparent 32%),
+        radial-gradient(circle at 88% 22%, rgba(0, 115, 222, 0.18), transparent 28%),
+        radial-gradient(circle at 72% 88%, rgba(125, 175, 255, 0.12), transparent 30%),
+        var(--surface-container-lowest);
+      color: var(--on-surface);
+      overflow-x: hidden;
+    }
+
+    .panel {
+      background: rgba(25, 25, 25, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .gradient-btn {
+      background: linear-gradient(135deg, #7dafff 0%, #0073de 100%);
+      color: #05080f;
+    }
+
+    .app-rail {
+      width: 64px;
+      background: var(--surface-container-lowest);
+    }
+
+    .rail-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      transition: all 0.15s ease;
+    }
+
+    .rail-icon.active {
+      color: var(--primary);
+      background: rgba(125, 175, 255, 0.1);
+    }
+
+    .rail-icon:not(.active) {
+      color: var(--on-surface-variant);
+    }
+
+    .rail-icon:not(.active):hover {
+      color: var(--on-surface);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .column {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+      transition: box-shadow 0.2s ease;
+    }
+
+    .column.focused {
+      box-shadow: 0 0 20px rgba(125, 175, 255, 0.15), 0 0 40px rgba(125, 175, 255, 0.08);
+      border-color: rgba(125, 175, 255, 0.3);
+    }
+
+    .column.narrow { width: 320px; }
+    .column.standard { width: 420px; }
+    .column.wide { width: 560px; }
+
+    .column-header {
+      cursor: grab;
+      user-select: none;
+    }
+
+    .column-header:active {
+      cursor: grabbing;
+    }
+
+    .column-content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .column-content::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .column-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .column-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+    }
+
+    .post-card {
+      transition: background 0.15s ease;
+    }
+
+    .post-card:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .icon-btn:hover {
+      color: var(--primary);
+      background: rgba(125, 175, 255, 0.1);
+    }
+
+    .explorer-node {
+      transition: all 0.15s ease;
+    }
+
+    .explorer-node:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .json-key { color: #7dafff; }
+    .json-string { color: #4cd964; }
+    .json-number { color: #ff9500; }
+
+    .add-column-btn {
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .add-column-btn:hover {
+      background: rgba(125, 175, 255, 0.1);
+      border-color: rgba(125, 175, 255, 0.3);
+    }
+
+    .column-picker {
+      animation: scaleIn 0.2s ease;
+    }
+
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .diagnostics-tab {
+      transition: all 0.15s ease;
+    }
+
+    .diagnostics-tab.active {
+      color: var(--primary);
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .diagnostics-tab:not(.active):hover {
+      color: var(--on-surface);
+    }
+  </style>
+</head>
+<body class="flex">
+  <!-- App Rail -->
+  <aside class="app-rail fixed left-0 top-0 h-full flex flex-col items-center py-4 z-50">
+    <div class="mb-6">
+      <svg width="40" height="40" viewBox="0 0 512 512" style="color: #7dafff;">
+        <path fill="currentColor" d="M128 16v99.3l119 118.9V120.1zm256 0L265 120.1v114.1l119-119zM16 128l104 119h114.2L115.3 128zm380.8 0l-119 119h114.1l104-119zM120 265L16 384h99.2l119-119zm157.8 0l119 119h99.1l-104-119zM247 277.8l-119 119V496l119-104.1zm18 0v114.1L384 496v-99.2z"/>
+      </svg>
+    </div>
+
+    <nav class="flex flex-col gap-1 flex-1">
+      <button class="rail-icon" title="Timeline">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="Search">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="Notifications">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="AT Explorer">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 10h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon active" title="Multicolumn">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="18" rx="1"/>
+          <rect x="14" y="3" width="7" height="18" rx="1"/>
+        </svg>
+      </button>
+    </nav>
+
+    <div class="flex flex-col gap-2">
+      <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-transparent hover:border-white/20 transition-colors">
+        <img src="https://placehold.co/40x40/7dafff/05080f?text=U" alt="Current account" class="w-full h-full object-cover">
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 ml-16 flex flex-col h-screen">
+    <!-- Toolbar -->
+    <header class="sticky top-0 z-40 panel backdrop-blur-xl border-b border-white/5 px-4 py-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h1 class="text-lg font-medium">Deck</h1>
+          <span class="text-xs px-2 py-1 rounded-full" style="background: rgba(125, 175, 255, 0.15); color: var(--primary);">4 columns</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all text-white/60 hover:text-white hover:bg-white/5">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>Save Layout</span>
+          </button>
+          <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all text-white/60 hover:text-white hover:bg-white/5">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M4 7V4h3M4 17v3h3M20 7V4h-3M20 17v3h-3M9 9h6v6H9z"/>
+            </svg>
+            <span>Clear All</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Columns Container -->
+    <div class="flex-1 flex overflow-x-auto overflow-y-hidden" id="columns-container">
+      <!-- Column 1: Following Feed -->
+      <div class="column standard focused">
+        <!-- Column Header -->
+        <div class="column-header panel border-b border-white/5 p-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5 cursor-grab">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <circle cx="9" cy="12" r="1"/>
+                <circle cx="9" cy="5" r="1"/>
+                <circle cx="9" cy="19" r="1"/>
+                <circle cx="15" cy="12" r="1"/>
+                <circle cx="15" cy="5" r="1"/>
+                <circle cx="15" cy="19" r="1"/>
+              </svg>
+            </button>
+            <div class="flex items-center gap-2">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+              </svg>
+              <span class="font-medium text-sm">Following</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5" title="Resize">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <path d="M9 3v18"/>
+              </svg>
+            </button>
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5" title="Settings">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="1"/>
+                <circle cx="19" cy="12" r="1"/>
+                <circle cx="5" cy="12" r="1"/>
+              </svg>
+            </button>
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10" title="Close">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Column Content -->
+        <div class="column-content">
+          <!-- Post 1 -->
+          <article class="post-card p-4 border-b border-white/5">
+            <div class="flex gap-3">
+              <div class="w-9 h-9 rounded-full overflow-hidden shrink-0">
+                <img src="https://placehold.co/36x36/7dafff/05080f?text=AC" alt="Author" class="w-full h-full object-cover">
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-medium text-sm">Alice Chen</span>
+                  <span class="text-xs" style="color: var(--on-surface-variant);">@alice.bsky.social</span>
+                  <span class="text-xs" style="color: var(--on-surface-variant);">· 2h</span>
+                </div>
+                <p class="text-sm leading-relaxed" style="color: var(--on-secondary-container);">
+                  Just published a new article about AT Protocol architecture! 🧵
+                </p>
+                <div class="flex items-center gap-4 mt-3">
+                  <button class="flex items-center gap-1 text-xs" style="color: var(--on-surface-variant);">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    12
+                  </button>
+                  <button class="flex items-center gap-1 text-xs" style="color: var(--primary);">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M7 10v12l4-4 4 4V10"/>
+                      <path d="M5 10a7 7 0 0 1 14 0"/>
+                    </svg>
+                    48
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Post 2 -->
+          <article class="post-card p-4 border-b border-white/5">
+            <div class="flex gap-3">
+              <div class="w-9 h-9 rounded-full overflow-hidden shrink-0">
+                <img src="https://placehold.co/36x36/555/fff?text=BM" alt="Author" class="w-full h-full object-cover">
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-medium text-sm">Bob Martinez</span>
+                  <span class="text-xs" style="color: var(--on-surface-variant);">@bob.dev</span>
+                  <span class="text-xs" style="color: var(--on-surface-variant);">· 4h</span>
+                </div>
+                <p class="text-sm leading-relaxed" style="color: var(--on-secondary-container);">
+                  Working on a new Rust project for handling AT Protocol lexicons 🔧
+                </p>
+                <div class="rounded-xl overflow-hidden mt-3 border border-white/5">
+                  <img src="https://placehold.co/380x180/1a1a1a/7dafff?text=Code+Preview" alt="Code" class="w-full object-cover">
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Post 3 -->
+          <article class="post-card p-4 border-b border-white/5">
+            <div class="flex gap-3">
+              <div class="w-9 h-9 rounded-full overflow-hidden shrink-0">
+                <img src="https://placehold.co/36x36/666/fff?text=DK" alt="Author" class="w-full h-full object-cover">
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-medium text-sm">David Kim</span>
+                  <span class="text-xs" style="color: var(--on-surface-variant);">@david.kim</span>
+                  <span class="text-xs" style="color: var(--on-surface-variant);">· 6h</span>
+                </div>
+                <p class="text-sm leading-relaxed" style="color: var(--on-secondary-container);">
+                  Protocols over platforms every time. The future is interoperable.
+                </p>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <!-- Column 2: Discover Feed -->
+      <div class="column standard">
+        <div class="column-header panel border-b border-white/5 p-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5 cursor-grab">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <circle cx="9" cy="12" r="1"/>
+                <circle cx="9" cy="5" r="1"/>
+                <circle cx="9" cy="19" r="1"/>
+                <circle cx="15" cy="12" r="1"/>
+                <circle cx="15" cy="5" r="1"/>
+                <circle cx="15" cy="19" r="1"/>
+              </svg>
+            </button>
+            <div class="flex items-center gap-2">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+              <span class="font-medium text-sm">Discover</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <path d="M9 3v18"/>
+              </svg>
+            </button>
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="1"/>
+                <circle cx="19" cy="12" r="1"/>
+                <circle cx="5" cy="12" r="1"/>
+              </svg>
+            </button>
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="column-content">
+          <article class="post-card p-4 border-b border-white/5">
+            <div class="flex gap-3">
+              <div class="w-9 h-9 rounded-full overflow-hidden shrink-0">
+                <img src="https://placehold.co/36x36/444/fff?text=TC" alt="Author" class="w-full h-full object-cover">
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-medium text-sm">Tech Crunch</span>
+                  <span class="text-xs" style="color: var(--on-surface-variant);">@techcrunch.bsky.social</span>
+                  <span class="text-xs" style="color: var(--on-surface-variant);">· 1h</span>
+                </div>
+                <p class="text-sm leading-relaxed" style="color: var(--on-secondary-container);">
+                  Bluesky reaches 20 million users milestone 🎉
+                </p>
+                <div class="flex items-center gap-4 mt-3">
+                  <button class="flex items-center gap-1 text-xs" style="color: var(--on-surface-variant);">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    234
+                  </button>
+                  <button class="flex items-center gap-1 text-xs" style="color: var(--on-surface-variant);">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                      <path d="M7 10v12l4-4 4 4V10"/>
+                      <path d="M5 10a7 7 0 0 1 14 0"/>
+                    </svg>
+                    1.2K
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="post-card p-4 border-b border-white/5">
+            <div class="flex gap-3">
+              <div class="w-9 h-9 rounded-full overflow-hidden shrink-0">
+                <img src="https://placehold.co/36x36/333/fff?text=RS" alt="Author" class="w-full h-full object-cover">
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-medium text-sm">Rust Society</span>
+                  <span class="text-xs" style="color: var(--on-surface-variant);">@rust-lang.org</span>
+                  <span class="text-xs" style="color: var(--on-surface-variant);">· 3h</span>
+                </div>
+                <p class="text-sm leading-relaxed" style="color: var(--on-secondary-container);">
+                  Rust 1.75 is out with major async improvements! 🦀
+                </p>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <!-- Column 3: AT Explorer -->
+      <div class="column wide">
+        <div class="column-header panel border-b border-white/5 p-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5 cursor-grab">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <circle cx="9" cy="12" r="1"/>
+                <circle cx="9" cy="5" r="1"/>
+                <circle cx="9" cy="19" r="1"/>
+                <circle cx="15" cy="12" r="1"/>
+                <circle cx="15" cy="5" r="1"/>
+                <circle cx="15" cy="19" r="1"/>
+              </svg>
+            </button>
+            <div class="flex items-center gap-2">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 10h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
+              </svg>
+              <span class="font-medium text-sm">AT Explorer</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <path d="M9 3v18"/>
+              </svg>
+            </button>
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="1"/>
+                <circle cx="19" cy="12" r="1"/>
+                <circle cx="5" cy="12" r="1"/>
+              </svg>
+            </button>
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="column-content p-4">
+          <!-- Breadcrumb -->
+          <div class="flex items-center gap-2 text-sm mb-4 pb-3 border-b border-white/5">
+            <button class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/5 transition-colors" style="color: var(--primary);">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <rect x="2" y="2" width="20" height="8" rx="2"/>
+                <rect x="2" y="14" width="20" height="8" rx="2"/>
+              </svg>
+              PDS
+            </button>
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--on-surface-variant);">
+              <path d="m9 18 6-6-6-6"/>
+            </svg>
+            <button class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/5 transition-colors" style="color: var(--primary);">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="10" r="3"/>
+                <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>
+              </svg>
+              Repo
+            </button>
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--on-surface-variant);">
+              <path d="m9 18 6-6-6-6"/>
+            </svg>
+            <span class="px-2 py-1" style="color: var(--on-surface);">app.bsky.feed.post</span>
+          </div>
+
+          <!-- URL Bar -->
+          <div class="flex items-center gap-2 px-3 py-2 rounded-lg mb-4" style="background: rgba(0,0,0,0.4);">
+            <span class="text-xs font-mono" style="color: var(--primary);">at://</span>
+            <input type="text" value="did:plc:abc123/app.bsky.feed.post" class="flex-1 bg-transparent text-xs font-mono outline-none" style="color: var(--on-surface);">
+          </div>
+
+          <!-- Collections List -->
+          <div class="space-y-1">
+            <div class="explorer-node flex items-center gap-3 p-3 rounded-xl cursor-pointer">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <div class="flex-1">
+                <p class="text-sm font-medium">app.bsky.actor.profile</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">1 record</p>
+              </div>
+            </div>
+
+            <div class="explorer-node flex items-center gap-3 p-3 rounded-xl cursor-pointer bg-white/5">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <div class="flex-1">
+                <p class="text-sm font-medium">app.bsky.feed.post</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">1,247 records</p>
+              </div>
+            </div>
+
+            <div class="explorer-node flex items-center gap-3 p-3 rounded-xl cursor-pointer">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <div class="flex-1">
+                <p class="text-sm font-medium">app.bsky.feed.like</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">8,532 records</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- JSON Preview -->
+          <div class="mt-4 rounded-xl border border-white/10 overflow-hidden">
+            <div class="px-3 py-2 border-b border-white/5" style="background: rgba(0,0,0,0.3);">
+              <span class="text-xs font-medium">Record Preview</span>
+            </div>
+            <div class="p-3 overflow-x-auto">
+              <pre class="text-xs font-mono leading-relaxed"><span class="json-key">"$type"</span>: <span class="json-string">"app.bsky.feed.post"</span>,
+<span class="json-key">"text"</span>: <span class="json-string">"Hello AT Protocol!"</span>,
+<span class="json-key">"createdAt"</span>: <span class="json-string">"2024-03-15T10:30:00Z"</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 4: Diagnostics -->
+      <div class="column standard">
+        <div class="column-header panel border-b border-white/5 p-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5 cursor-grab">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <circle cx="9" cy="12" r="1"/>
+                <circle cx="9" cy="5" r="1"/>
+                <circle cx="9" cy="19" r="1"/>
+                <circle cx="15" cy="12" r="1"/>
+                <circle cx="15" cy="5" r="1"/>
+                <circle cx="15" cy="19" r="1"/>
+              </svg>
+            </button>
+            <div class="flex items-center gap-2">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span class="font-medium text-sm">Diagnostics</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <path d="M9 3v18"/>
+              </svg>
+            </button>
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="1"/>
+                <circle cx="19" cy="12" r="1"/>
+                <circle cx="5" cy="12" r="1"/>
+              </svg>
+            </button>
+            <button class="p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="column-content flex flex-col">
+          <!-- Target Input -->
+          <div class="p-4 border-b border-white/5">
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg" style="background: rgba(0,0,0,0.4);">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--on-surface-variant);">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="10" r="3"/>
+                <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>
+              </svg>
+              <input type="text" value="alice.bsky.social" class="flex-1 bg-transparent text-sm outline-none" style="color: var(--on-surface);">
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="flex border-b border-white/5 px-2">
+            <button class="diagnostics-tab active px-3 py-2 text-xs font-medium">Lists</button>
+            <button class="diagnostics-tab px-3 py-2 text-xs font-medium" style="color: var(--on-surface-variant);">Labels</button>
+            <button class="diagnostics-tab px-3 py-2 text-xs font-medium" style="color: var(--on-surface-variant);">Blocks</button>
+            <button class="diagnostics-tab px-3 py-2 text-xs font-medium" style="color: var(--on-surface-variant);">Packs</button>
+          </div>
+
+          <!-- Lists Content -->
+          <div class="flex-1 p-4 space-y-3">
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(125, 175, 255, 0.15);">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                  <path d="M9 11l3 3L22 4"/>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium">Tech Community</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Moderated by @techmods.bsky</p>
+              </div>
+              <span class="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400">Member</span>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(125, 175, 255, 0.15);">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                  <path d="M9 11l3 3L22 4"/>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium">Rust Developers</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Moderated by @rustteam.bsky</p>
+              </div>
+              <span class="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400">Member</span>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(125, 175, 255, 0.15);">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium">Crypto Spammers</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Moderated by @moderators.bsky</p>
+              </div>
+              <span class="text-xs px-2 py-1 rounded-full bg-red-500/20 text-red-400">Blocked</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Column Button -->
+      <div class="add-column-btn w-16 shrink-0 flex flex-col items-center justify-center border-r border-white/5 cursor-pointer" style="background: rgba(25, 25, 25, 0.3);">
+        <div class="w-10 h-10 rounded-xl border border-dashed border-white/20 flex items-center justify-center mb-2">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--on-surface-variant);">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </div>
+        <span class="text-xs" style="color: var(--on-surface-variant);">Add</span>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>

@@ -1,4 +1,5 @@
 mod auth;
+mod columns;
 mod commands;
 mod db;
 mod error;
@@ -121,7 +122,12 @@ pub fn run() {
             cmd::settings::clear_cache,
             cmd::settings::export_data,
             cmd::settings::reset_app,
-            cmd::settings::get_log_entries
+            cmd::settings::get_log_entries,
+            cmd::columns::get_columns,
+            cmd::columns::add_column,
+            cmd::columns::remove_column,
+            cmd::columns::reorder_columns,
+            cmd::columns::update_column
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
