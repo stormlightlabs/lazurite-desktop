@@ -53,6 +53,11 @@ pub async fn get_preferences(state: State<'_, AppState>) -> Result<UserPreferenc
 }
 
 #[tauri::command]
+pub async fn get_profile(actor: String, state: State<'_, AppState>) -> Result<Value, AppError> {
+    feed::get_profile(actor, &state).await
+}
+
+#[tauri::command]
 pub async fn get_feed_generators(uris: Vec<String>, state: State<'_, AppState>) -> Result<Value, AppError> {
     feed::get_feed_generators(uris, &state).await
 }
@@ -83,9 +88,16 @@ pub async fn get_post_thread(uri: String, state: State<'_, AppState>) -> Result<
 
 #[tauri::command]
 pub async fn get_author_feed(
-    did: String, cursor: Option<String>, state: State<'_, AppState>,
+    actor: String, cursor: Option<String>, limit: Option<u32>, state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
-    feed::get_author_feed(did, cursor, &state).await
+    feed::get_author_feed(actor, cursor, limit, &state).await
+}
+
+#[tauri::command]
+pub async fn get_actor_likes(
+    actor: String, cursor: Option<String>, limit: Option<u32>, state: State<'_, AppState>,
+) -> Result<Value, AppError> {
+    feed::get_actor_likes(actor, cursor, limit, &state).await
 }
 
 #[tauri::command]

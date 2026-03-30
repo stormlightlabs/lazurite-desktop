@@ -2,11 +2,13 @@ use super::auth::LazuriteOAuthSession;
 use super::error::{AppError, Result};
 use super::state::AppState;
 use jacquard::api::app_bsky::actor::get_preferences::GetPreferences;
+use jacquard::api::app_bsky::actor::get_profile::GetProfile;
 use jacquard::api::app_bsky::actor::put_preferences::PutPreferences;
 use jacquard::api::app_bsky::actor::{
     FeedViewPref, PreferencesItem, SavedFeed, SavedFeedType, SavedFeedsPrefV2, SavedFeedsPrefV2Builder,
 };
 use jacquard::api::app_bsky::embed::record::Record;
+use jacquard::api::app_bsky::feed::get_actor_likes::GetActorLikes;
 use jacquard::api::app_bsky::feed::get_author_feed::GetAuthorFeed;
 use jacquard::api::app_bsky::feed::get_feed::GetFeed;
 use jacquard::api::app_bsky::feed::get_feed_generators::GetFeedGenerators;
@@ -25,6 +27,7 @@ use jacquard::types::aturi::AtUri;
 use jacquard::types::cid::Cid;
 use jacquard::types::datetime::Datetime;
 use jacquard::types::did::Did;
+use jacquard::types::handle::Handle;
 use jacquard::types::ident::AtIdentifier;
 use jacquard::types::nsid::Nsid;
 use jacquard::types::recordkey::RecordKey;
@@ -80,6 +83,24 @@ fn active_did(state: &AppState) -> Result<String> {
             AppError::Validation("no active account".into())
         })
         .map(|s| s.did.clone())
+}
+
+fn parse_actor_identifier(actor: &str) -> Result<AtIdentifier<'static>> {
+    let trimmed = actor.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::validation("actor must not be empty"));
+    }
+
+    if let Ok(did) = Did::new(trimmed) {
+        return Ok(AtIdentifier::Did(did.into_static()));
+    }
+
+    let normalized_handle = trimmed.trim_start_matches('@');
+    if let Ok(handle) = Handle::new(normalized_handle) {
+        return Ok(AtIdentifier::Handle(handle.into_static()));
+    }
+
+    Err(AppError::validation("actor must be a valid DID or handle"))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -416,10 +437,32 @@ pub async fn get_post_thread(uri: String, state: &AppState) -> Result<serde_json
     serde_json::to_value(&output).map_err(AppError::from)
 }
 
-pub async fn get_author_feed(did: String, cursor: Option<String>, state: &AppState) -> Result<serde_json::Value> {
+pub async fn get_profile(actor: String, state: &AppState) -> Result<serde_json::Value> {
     let session = get_session(state).await?;
-    let actor = AtIdentifier::Did(Did::new(&did)?);
-    let mut req = GetAuthorFeed::new().actor(actor);
+    let actor = parse_actor_identifier(&actor)?;
+
+    let output = session
+        .send(GetProfile::new().actor(actor).build())
+        .await
+        .map_err(|error| {
+            log::error!("getProfile error: {error}");
+            AppError::validation("getProfile")
+        })?
+        .into_output()
+        .map_err(|error| {
+            log::error!("getProfile output error: {error}");
+            AppError::validation("getProfile output")
+        })?;
+
+    serde_json::to_value(output.value).map_err(AppError::from)
+}
+
+pub async fn get_author_feed(
+    actor: String, cursor: Option<String>, limit: Option<u32>, state: &AppState,
+) -> Result<serde_json::Value> {
+    let session = get_session(state).await?;
+    let actor = parse_actor_identifier(&actor)?;
+    let mut req = GetAuthorFeed::new().actor(actor).limit(limit.map(|value| value as i64));
     if let Some(c) = &cursor {
         req = req.cursor(Some(c.as_str().into()));
     }
@@ -435,6 +478,32 @@ pub async fn get_author_feed(did: String, cursor: Option<String>, state: &AppSta
         .map_err(|error| {
             log::error!("getAuthorFeed output error: {error}");
             AppError::validation("getAuthorFeed output")
+        })?;
+
+    serde_json::to_value(&output).map_err(AppError::from)
+}
+
+pub async fn get_actor_likes(
+    actor: String, cursor: Option<String>, limit: Option<u32>, state: &AppState,
+) -> Result<serde_json::Value> {
+    let session = get_session(state).await?;
+    let actor = parse_actor_identifier(&actor)?;
+    let mut req = GetActorLikes::new().actor(actor).limit(limit.map(|value| value as i64));
+    if let Some(c) = &cursor {
+        req = req.cursor(Some(c.as_str().into()));
+    }
+
+    let output = session
+        .send(req.build())
+        .await
+        .map_err(|error| {
+            log::error!("getActorLikes error: {error}");
+            AppError::validation("getActorLikes")
+        })?
+        .into_output()
+        .map_err(|error| {
+            log::error!("getActorLikes output error: {error}");
+            AppError::validation("getActorLikes output")
         })?;
 
     serde_json::to_value(&output).map_err(AppError::from)

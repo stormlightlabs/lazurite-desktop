@@ -3,6 +3,7 @@ import { render, screen } from "@solidjs/testing-library";
 import type { Component, ParentProps } from "solid-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildThreadRoute } from "./lib/feeds";
+import { buildProfileRoute } from "./lib/profile";
 import { AppRouter } from "./router";
 
 const listenMock = vi.hoisted(() => vi.fn());
@@ -17,6 +18,11 @@ function renderRouter(hash: string) {
   globalThis.location.hash = hash;
   const renderComposer = vi.fn(() => <div data-testid="composer-view">composer</div>);
   const renderNotifications = vi.fn(() => <div data-testid="notifications-view">notifications</div>);
+  const renderProfile = vi.fn((props: { actor: string | null }) => (
+    <div data-testid="profile-view">
+      <span>{props.actor ?? "self-profile"}</span>
+    </div>
+  ));
   const renderTimeline = vi.fn((
     props: { context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null } },
   ) => (
@@ -36,12 +42,13 @@ function renderRouter(hash: string) {
         renderAuth={() => <div>Auth</div>}
         renderComposer={renderComposer}
         renderNotifications={renderNotifications}
+        renderProfile={renderProfile}
         renderShell={Shell}
         renderTimeline={renderTimeline} />
     </AppTestProviders>
   ));
 
-  return { renderComposer, renderNotifications, renderTimeline };
+  return { renderComposer, renderNotifications, renderProfile, renderTimeline };
 }
 
 describe("AppRouter", () => {
@@ -95,5 +102,24 @@ describe("AppRouter", () => {
     await screen.findByTestId("shell");
 
     expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "true");
+  });
+
+  it("renders the logged-in profile route", async () => {
+    const { renderProfile } = renderRouter("#/profile");
+
+    await screen.findByTestId("profile-view");
+
+    expect(renderProfile.mock.lastCall?.[0].actor).toBeNull();
+    expect(screen.getByText("self-profile")).toBeInTheDocument();
+  });
+
+  it("passes the decoded actor on other profile routes", async () => {
+    const actor = "alice.bsky.social";
+    const { renderProfile } = renderRouter(`#${buildProfileRoute(actor)}`);
+
+    await screen.findByTestId("profile-view");
+
+    expect(renderProfile.mock.lastCall?.[0].actor).toBe(actor);
+    expect(screen.getByText(actor)).toBeInTheDocument();
   });
 });

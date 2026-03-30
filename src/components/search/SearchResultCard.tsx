@@ -1,4 +1,5 @@
 import { formatRelativeTime } from "$/lib/feeds";
+import { buildProfileRoute } from "$/lib/profile";
 import { escapeForRegex } from "$/lib/utils/text";
 import { createMemo, type JSX, Show } from "solid-js";
 import { Icon } from "../shared/Icon";
@@ -7,6 +8,7 @@ function CardContent(
   props: {
     avatarLabel: string;
     authorHandle: string;
+    profileHref: string;
     time: string;
     isSemantic?: boolean;
     text: string | (string | JSX.Element)[];
@@ -17,9 +19,15 @@ function CardContent(
 ) {
   return (
     <div class="flex gap-3">
-      <Avatar label={props.avatarLabel} />
+      <a class="shrink-0 no-underline" href={`#${props.profileHref}`}>
+        <Avatar label={props.avatarLabel} />
+      </a>
       <div class="min-w-0 flex-1">
-        <CardHeader handle={props.authorHandle} time={props.time} isSemantic={props.isSemantic} />
+        <CardHeader
+          handle={props.authorHandle}
+          profileHref={props.profileHref}
+          time={props.time}
+          isSemantic={props.isSemantic} />
         <TextContent text={props.text} />
         <CardFooter likes={props.likes} replies={props.replies} sourceLabel={props.sourceLabel} />
       </div>
@@ -41,10 +49,14 @@ function Avatar(props: { label: string }) {
   );
 }
 
-function CardHeader(props: { handle: string; time: string; isSemantic?: boolean }) {
+function CardHeader(props: { handle: string; profileHref: string; time: string; isSemantic?: boolean }) {
   return (
     <header class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-      <span class="wrap-break-word text-sm font-semibold text-on-surface">@{props.handle.replace(/^@/, "")}</span>
+      <a
+        class="wrap-break-word text-sm font-semibold text-on-surface no-underline transition hover:text-primary"
+        href={`#${props.profileHref}`}>
+        @{props.handle.replace(/^@/, "")}
+      </a>
       <span class="text-xs text-on-surface-variant">{props.time}</span>
       <SemanticBadge isSemantic={props.isSemantic} />
     </header>
@@ -97,6 +109,7 @@ function StatBadge(props: { kind: "like" | "reply"; value?: number; label: strin
 }
 
 type SearchResultCardProps = {
+  authorDid?: string;
   authorHandle: string;
   source: "like" | "bookmark" | "network";
   text: string;
@@ -110,6 +123,7 @@ type SearchResultCardProps = {
 export function SearchResultCard(props: SearchResultCardProps) {
   const avatarLabel = createMemo(() => props.authorHandle.slice(0, 1).toUpperCase() || "?");
   const formattedTime = createMemo(() => (props.createdAt ? formatRelativeTime(props.createdAt) : "Unknown date"));
+  const profileHref = createMemo(() => buildProfileRoute(props.authorHandle || props.authorDid));
 
   const sourceLabel = createMemo(() => {
     switch (props.source) {
@@ -153,6 +167,7 @@ export function SearchResultCard(props: SearchResultCardProps) {
       <CardContent
         avatarLabel={avatarLabel()}
         authorHandle={props.authorHandle}
+        profileHref={profileHref()}
         time={formattedTime()}
         isSemantic={props.isSemanticMatch}
         text={highlightedText()}

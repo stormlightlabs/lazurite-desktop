@@ -10,6 +10,7 @@ import { FeedWorkspace } from "./components/feeds/FeedWorkspace";
 import { LoginPanel } from "./components/LoginPanel";
 import { NotificationsPanel } from "./components/notifications/NotificationsPanel";
 import { HeaderPanel } from "./components/panels/Header";
+import { ProfilePanel } from "./components/profile/ProfilePanel";
 import { AppRail } from "./components/rail/AppRail";
 import { SessionSpotlight } from "./components/Session";
 import { ErrorToast } from "./components/shared/ErrorToast";
@@ -81,6 +82,7 @@ function AppContent() {
           renderAuth={() => <AuthWorkspace />}
           renderComposer={() => <ComposerWindow />}
           renderNotifications={() => <NotificationsPanel />}
+          renderProfile={(props) => <ProfilePanel actor={props.actor} />}
           renderShell={AppShell}
           renderTimeline={({ context }) => (
             <FeedWorkspace onThreadRouteChange={context.onThreadRouteChange} threadUri={context.threadUri} />

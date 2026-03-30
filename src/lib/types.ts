@@ -35,6 +35,27 @@ export type ProfileViewBasic = {
   viewer?: AuthorViewerState | null;
 };
 
+export type ProfileViewerState = {
+  blockedBy?: boolean | null;
+  followedBy?: string | null;
+  following?: string | null;
+  muted?: boolean | null;
+};
+
+export type ProfileViewDetailed = ProfileViewBasic & {
+  banner?: string | null;
+  createdAt?: string | null;
+  description?: string | null;
+  followersCount?: number | null;
+  followsCount?: number | null;
+  indexedAt?: string | null;
+  pinnedPost?: { cid?: string | null; uri: string } | null;
+  postsCount?: number | null;
+  pronouns?: string | null;
+  viewer?: ProfileViewerState | null;
+  website?: string | null;
+};
+
 export type FeedGeneratorView = {
   uri: string;
   did: string;

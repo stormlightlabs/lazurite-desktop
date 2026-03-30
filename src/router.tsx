@@ -8,8 +8,10 @@ import { ExplorerPanel } from "./components/explorer/ExplorerPanel";
 import { SearchPanel } from "./components/search/SearchPanel";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { buildThreadRoute, decodeThreadRouteUri, TIMELINE_ROUTE } from "./lib/feeds";
+import { decodeProfileRouteActor } from "./lib/profile";
 
 type TTimelineRouteProps = { context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null } };
+type TProfileRouteProps = { actor: string | null };
 
 type AppShellProps = ParentProps<{ fullWidth?: boolean }>;
 
@@ -17,6 +19,7 @@ type AppRouterProps = {
   renderAuth: () => JSX.Element;
   renderComposer: () => JSX.Element;
   renderNotifications: () => JSX.Element;
+  renderProfile: Component<TProfileRouteProps>;
   renderShell: Component<AppShellProps>;
   renderTimeline: Component<TTimelineRouteProps>;
 };
@@ -76,6 +79,22 @@ export function AppRouter(props: AppRouterProps) {
     </ProtectedRouteView>
   );
 
+  const ProfileRoute = () => (
+    <ProtectedRouteView>
+      <Dynamic component={props.renderProfile} actor={null} />
+    </ProtectedRouteView>
+  );
+
+  const ActorProfileRoute = () => {
+    const params = useParams<{ actor: string }>();
+
+    return (
+      <ProtectedRouteView>
+        <Dynamic component={props.renderProfile} actor={decodeProfileRouteActor(params.actor)} />
+      </ProtectedRouteView>
+    );
+  };
+
   const NotificationsRoute = () => <ProtectedRouteView>{props.renderNotifications()}</ProtectedRouteView>;
 
   const ComposerRoute = () => <ProtectedRouteView>{props.renderComposer()}</ProtectedRouteView>;
@@ -104,6 +123,8 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/auth" component={AuthRoute} />
       <Route path="/timeline" component={TimelineRoute} />
       <Route path="/timeline/thread/:threadUri" component={ThreadRoute} />
+      <Route path="/profile" component={ProfileRoute} />
+      <Route path="/profile/:actor" component={ActorProfileRoute} />
       <Route path="/composer" component={ComposerRoute} />
       <Route path="/search" component={SearchRoute} />
       <Route path="/notifications" component={NotificationsRoute} />

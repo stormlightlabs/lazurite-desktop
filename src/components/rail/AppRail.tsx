@@ -33,6 +33,7 @@ function RailNavigation(props: { collapsed: boolean; hasSession: boolean; unread
         when={props.hasSession}
         fallback={<RailButton end compact={props.collapsed} href="/auth" label="Accounts" icon="profile" />}>
         <RailButton end compact={props.collapsed} href="/timeline" label="Timeline" icon="timeline" />
+        <RailButton compact={props.collapsed} href="/profile" label="Profile" icon="profile" />
         <RailButton end compact={props.collapsed} href="/search" label="Search" icon="search" />
         <RailButton
           end

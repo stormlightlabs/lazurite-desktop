@@ -550,6 +550,7 @@ function LocalResultsList(props: { query: string; results: LocalPostResult[] }) 
               transition={{ duration: 0.2, delay: Math.min(index() * 0.03, 0.18) }}
               role="listitem">
               <SearchResultCard
+                authorDid={result.authorDid}
                 authorHandle={result.authorHandle ?? "unknown"}
                 source={result.source}
                 text={result.text ?? ""}
@@ -581,6 +582,7 @@ function NetworkResultsList(props: { query: string; results: NetworkSearchResult
               transition={{ duration: 0.2, delay: Math.min(index() * 0.03, 0.18) }}
               role="listitem">
               <SearchResultCard
+                authorDid={post.author.did}
                 authorHandle={post.author.handle}
                 source="network"
                 text={typeof post.record.text === "string" ? post.record.text : ""}

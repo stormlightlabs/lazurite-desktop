@@ -1,5 +1,6 @@
 import { Icon } from "$/components/shared/Icon";
 import { formatRelativeTime, getAvatarLabel, getDisplayName } from "$/lib/feeds";
+import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { NotificationReason, NotificationView } from "$/lib/types";
 import { createMemo, Match, Show, Switch } from "solid-js";
 
@@ -68,6 +69,7 @@ export function NotificationItem(props: NotificationItemProps) {
   });
   const time = createMemo(() => formatRelativeTime(props.notification.indexedAt));
   const avatarLabel = createMemo(() => getAvatarLabel(props.notification.author));
+  const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.notification.author)));
   const postText = createMemo<string | null>(() => {
     const record = props.notification.record;
     const text = record["text"];
@@ -81,11 +83,18 @@ export function NotificationItem(props: NotificationItemProps) {
       classList={{ "opacity-60": props.notification.isRead }}
       aria-label={`${name()} ${description()}`}>
       <ReasonIcon reason={props.notification.reason} />
-      <AuthorAvatar avatar={props.notification.author.avatar} label={avatarLabel()} />
+      <a class="shrink-0 no-underline" href={`#${profileHref()}`}>
+        <AuthorAvatar avatar={props.notification.author.avatar} label={avatarLabel()} />
+      </a>
 
       <div class="min-w-0 flex-1">
         <p class="m-0 text-sm leading-relaxed text-on-surface">
-          <span class="font-semibold">{name()}</span> <span class="text-on-surface-variant">{description()}</span>
+          <a
+            class="font-semibold text-on-surface no-underline transition hover:text-primary"
+            href={`#${profileHref()}`}>
+            {name()}
+          </a>{" "}
+          <span class="text-on-surface-variant">{description()}</span>
         </p>
 
         <Show when={detail()}>

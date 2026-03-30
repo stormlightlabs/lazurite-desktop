@@ -43,7 +43,11 @@ describe("PostCard", () => {
         item={{
           post: createPost(),
           reply: {
-            parent: { $type: "app.bsky.feed.defs#postView", ...createPost(), author: { ...createPost().author, handle: "bob.test" } },
+            parent: {
+              $type: "app.bsky.feed.defs#postView",
+              ...createPost(),
+              author: { ...createPost().author, handle: "bob.test" },
+            },
             root: { $type: "app.bsky.feed.defs#postView", ...createPost() },
           },
         }}

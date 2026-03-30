@@ -9,6 +9,7 @@ import {
   getQuotedText,
   isReplyItem,
 } from "$/lib/feeds";
+import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { FeedViewPost, ImagesEmbedView, PostView, ProfileViewBasic } from "$/lib/types";
 import { formatCount } from "$/lib/utils/text";
 import { createMemo, For, Match, Show, Switch } from "solid-js";
@@ -29,6 +30,7 @@ type PostCardProps = {
   pulseRepost?: boolean;
   registerRef?: (element: HTMLElement) => void;
   repostPending?: boolean;
+  showActions?: boolean;
 };
 
 export function PostCard(props: PostCardProps) {
@@ -61,18 +63,28 @@ export function PostCard(props: PostCardProps) {
   const likeCount = createMemo(() => formatCount(props.post.likeCount));
   const replyCount = createMemo(() => formatCount(props.post.replyCount));
   const repostCount = createMemo(() => formatCount(props.post.repostCount));
+  const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.post.author)));
+  const articleClickable = createMemo(() => props.showActions === false && !!props.onOpenThread);
 
   return (
     <article
       ref={(element) => props.registerRef?.(element)}
       class="group min-w-0 overflow-hidden rounded-3xl bg-white/2.5 px-5 py-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/4 max-[760px]:px-4 max-[760px]:py-4 max-[520px]:rounded-3xl max-[520px]:px-3.5"
       classList={{
+        "cursor-pointer": articleClickable(),
         "bg-[linear-gradient(135deg,rgba(125,175,255,0.11),rgba(0,115,222,0.06))] shadow-[inset_0_0_0_1px_rgba(125,175,255,0.22),0_0_0_1px_rgba(125,175,255,0.08)]":
           !!props.focused,
       }}
       role="article"
       tabIndex={0}
-      onClick={() => props.onFocus?.()}
+      onClick={() => {
+        if (articleClickable()) {
+          props.onOpenThread?.();
+          return;
+        }
+
+        props.onFocus?.();
+      }}
       onFocus={() => props.onFocus?.()}
       onKeyDown={(event) => {
         if (event.key === "Enter") {
@@ -93,14 +105,24 @@ export function PostCard(props: PostCardProps) {
       </Show>
 
       <div class="flex min-w-0 gap-3">
-        <AuthorAvatar avatar={props.post.author.avatar} label={getAvatarLabel(props.post.author)} />
+        <a class="shrink-0 no-underline" href={`#${profileHref()}`} onClick={(event) => event.stopPropagation()}>
+          <AuthorAvatar avatar={props.post.author.avatar} label={getAvatarLabel(props.post.author)} />
+        </a>
 
         <div class="min-w-0 flex-1">
           <header class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span class="wrap-break-word text-base font-semibold tracking-[-0.01em] text-on-surface">
+            <a
+              class="wrap-break-word text-base font-semibold tracking-[-0.01em] text-on-surface no-underline transition hover:text-primary"
+              href={`#${profileHref()}`}
+              onClick={(event) => event.stopPropagation()}>
               {authorName()}
-            </span>
-            <span class="break-all text-xs text-on-surface-variant">@{props.post.author.handle.replace(/^@/, "")}</span>
+            </a>
+            <a
+              class="break-all text-xs text-on-surface-variant no-underline transition hover:text-primary"
+              href={`#${profileHref()}`}
+              onClick={(event) => event.stopPropagation()}>
+              @{props.post.author.handle.replace(/^@/, "")}
+            </a>
             <span class="text-xs text-on-surface-variant">{createdAt()}</span>
           </header>
 
@@ -114,30 +136,69 @@ export function PostCard(props: PostCardProps) {
 
           <PostEmbeds post={props.post} />
 
-          <footer class="mt-4 flex min-w-0 flex-wrap items-center gap-2 max-[520px]:gap-1">
-            <ActionButton
-              active={isLiked()}
-              busy={!!props.likePending}
-              icon="i-ri-heart-3-line"
-              iconActive="i-ri-heart-3-fill"
-              label={likeCount()}
-              pulse={!!props.pulseLike}
-              onClick={props.onLike} />
-            <ActionButton icon="i-ri-chat-1-line" label={replyCount()} onClick={props.onReply} />
-            <ActionButton
-              active={isReposted()}
-              busy={!!props.repostPending}
-              icon="i-ri-repeat-2-line"
-              iconActive="i-ri-repeat-2-fill"
-              label={repostCount()}
-              pulse={!!props.pulseRepost}
-              onClick={props.onRepost} />
-            <ActionButton icon="i-ri-chat-quote-line" label="Quote" onClick={props.onQuote} />
-            <ActionButton icon="i-ri-node-tree" label="Thread" onClick={props.onOpenThread} />
-          </footer>
+          <Show when={props.showActions !== false}>
+            <PostActions
+              isLiked={isLiked()}
+              isReposted={isReposted()}
+              likeCount={likeCount()}
+              likePending={!!props.likePending}
+              pulseLike={!!props.pulseLike}
+              pulseRepost={!!props.pulseRepost}
+              replyCount={replyCount()}
+              repostCount={repostCount()}
+              repostPending={!!props.repostPending}
+              onLike={props.onLike}
+              onOpenThread={props.onOpenThread}
+              onQuote={props.onQuote}
+              onReply={props.onReply}
+              onRepost={props.onRepost} />
+          </Show>
         </div>
       </div>
     </article>
+  );
+}
+
+function PostActions(
+  props: {
+    isLiked: boolean;
+    isReposted: boolean;
+    likeCount: string;
+    likePending: boolean;
+    pulseLike: boolean;
+    pulseRepost: boolean;
+    replyCount: string;
+    repostCount: string;
+    repostPending: boolean;
+    onLike?: () => void;
+    onOpenThread?: () => void;
+    onQuote?: () => void;
+    onReply?: () => void;
+    onRepost?: () => void;
+  },
+) {
+  return (
+    <footer class="mt-4 flex min-w-0 flex-wrap items-center gap-2 max-[520px]:gap-1">
+      <ActionButton
+        active={props.isLiked}
+        busy={props.likePending}
+        icon="i-ri-heart-3-line"
+        iconActive="i-ri-heart-3-fill"
+        label={props.likeCount}
+        pulse={props.pulseLike}
+        onClick={props.onLike} />
+      <ActionButton icon="i-ri-chat-1-line" label={props.replyCount} onClick={props.onReply} />
+      <ActionButton
+        active={props.isReposted}
+        busy={props.repostPending}
+        icon="i-ri-repeat-2-line"
+        iconActive="i-ri-repeat-2-fill"
+        label={props.repostCount}
+        pulse={props.pulseRepost}
+        onClick={props.onRepost} />
+      <ActionButton icon="i-ri-chat-quote-line" label="Quote" onClick={props.onQuote} />
+      <ActionButton icon="i-ri-node-tree" label="Thread" onClick={props.onOpenThread} />
+    </footer>
   );
 }
 

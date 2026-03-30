@@ -1,0 +1,102 @@
+import { isReplyItem, parseFeedResponse } from "$/lib/feeds";
+import type { FeedResponse, FeedViewPost, ProfileViewDetailed } from "$/lib/types";
+import { asRecord } from "./type-guards";
+
+export type ProfileTab = "posts" | "replies" | "media" | "likes";
+
+export function buildProfileRoute(actor?: string | null) {
+  const trimmed = actor?.trim();
+  if (!trimmed) {
+    return "/profile";
+  }
+
+  return `/profile/${encodeURIComponent(trimmed)}`;
+}
+
+export function decodeProfileRouteActor(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+export function getProfileRouteActor(actor: { did: string; handle?: string | null }) {
+  return actor.handle?.trim() || actor.did;
+}
+
+export function parseProfile(value: unknown): ProfileViewDetailed {
+  const record = asRecord(value);
+  if (!record || typeof record.did !== "string" || typeof record.handle !== "string") {
+    throw new Error("profile payload is invalid");
+  }
+
+  const pinnedPost = asRecord(record.pinnedPost);
+
+  return {
+    avatar: optionalString(record.avatar),
+    banner: optionalString(record.banner),
+    createdAt: optionalString(record.createdAt),
+    description: optionalString(record.description),
+    did: record.did,
+    displayName: optionalString(record.displayName),
+    followersCount: optionalNumber(record.followersCount),
+    followsCount: optionalNumber(record.followsCount),
+    handle: record.handle,
+    indexedAt: optionalString(record.indexedAt),
+    pinnedPost: pinnedPost && typeof pinnedPost.uri === "string"
+      ? { cid: optionalString(pinnedPost.cid), uri: pinnedPost.uri }
+      : null,
+    postsCount: optionalNumber(record.postsCount),
+    pronouns: optionalString(record.pronouns),
+    viewer: parseProfileViewer(record.viewer),
+    website: optionalString(record.website),
+  };
+}
+
+export function parseProfileFeed(value: unknown): FeedResponse {
+  return parseFeedResponse(value);
+}
+
+export function filterProfileFeed(items: FeedViewPost[], tab: ProfileTab) {
+  switch (tab) {
+    case "posts": {
+      return items.filter((item) => !isReplyItem(item));
+    }
+    case "replies": {
+      return items.filter((item) => isReplyItem(item));
+    }
+    case "media": {
+      return items.filter((item) => !!item.post.embed);
+    }
+    default: {
+      return items;
+    }
+  }
+}
+
+function parseProfileViewer(value: unknown) {
+  const record = asRecord(value);
+  if (!record) {
+    return null;
+  }
+
+  return {
+    blockedBy: typeof record.blockedBy === "boolean" ? record.blockedBy : null,
+    followedBy: optionalString(record.followedBy),
+    following: optionalString(record.following),
+    muted: typeof record.muted === "boolean" ? record.muted : null,
+  };
+}
+
+function optionalNumber(value: unknown) {
+  return typeof value === "number" ? value : null;
+}
+
+function optionalString(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
