@@ -108,6 +108,22 @@ impl AppState {
             .clone())
     }
 
+    pub fn clear_runtime_state(&self) -> Result<(), AppError> {
+        self.sessions
+            .write()
+            .map_err(|_| AppError::StatePoisoned("sessions"))?
+            .clear();
+        self.account_list
+            .write()
+            .map_err(|_| AppError::StatePoisoned("account_list"))?
+            .clear();
+        *self
+            .active_session
+            .write()
+            .map_err(|_| AppError::StatePoisoned("active_session"))? = None;
+        Ok(())
+    }
+
     pub async fn login(&self, app: &AppHandle, identifier: String) -> Result<AccountSummary, AppError> {
         log::info!("starting login flow for {}", identifier.trim());
         let session = Arc::new(login_with_loopback(&self.oauth_client, identifier.trim()).await?);
@@ -237,19 +253,12 @@ impl AppState {
         Ok(session)
     }
 
-    async fn resolve_restorable_session_id(
-        &self, account: &StoredAccount, did: &Did<'_>,
-    ) -> Result<String, AppError> {
+    async fn resolve_restorable_session_id(&self, account: &StoredAccount, did: &Did<'_>) -> Result<String, AppError> {
         let configured_session_id = account.session_id.as_deref().ok_or_else(|| {
             AppError::Validation(format!("account {} does not have a stored oauth session", account.did))
         })?;
 
-        if self
-            .auth_store
-            .get_session(did, configured_session_id)
-            .await?
-            .is_some()
-        {
+        if self.auth_store.get_session(did, configured_session_id).await?.is_some() {
             return Ok(configured_session_id.to_string());
         }
 

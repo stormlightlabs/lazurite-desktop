@@ -2,6 +2,7 @@
 
 pub mod explorer;
 pub mod search;
+pub mod settings;
 
 use super::auth::{self, LoginSuggestion};
 use super::error::AppError;

@@ -947,9 +947,9 @@ fn embed_posts(posts: &[(String, String)], models_dir: PathBuf, state: &AppState
 }
 
 pub fn search_posts(query: &str, mode: &str, limit: u32, app: &AppHandle, state: &AppState) -> Result<Vec<PostResult>> {
-    validate_query(&query)?;
+    validate_query(query)?;
     let limit = validate_limit(limit)?;
-    let mode = validate_search_mode(&mode)?;
+    let mode = validate_search_mode(mode)?;
     let owner_did = active_session_did(state)?.ok_or_else(|| AppError::validation("no active account"))?;
 
     let embeddings_enabled = {
@@ -961,7 +961,7 @@ pub fn search_posts(query: &str, mode: &str, limit: u32, app: &AppHandle, state:
         SearchMode::Keyword => None,
         SearchMode::Semantic | SearchMode::Hybrid if embeddings_enabled => {
             let models_dir = resolve_models_dir(app)?;
-            Some(embed_query_text(&query, models_dir)?)
+            Some(embed_query_text(query, models_dir)?)
         }
         SearchMode::Semantic => {
             return Err(AppError::validation(
@@ -975,7 +975,7 @@ pub fn search_posts(query: &str, mode: &str, limit: u32, app: &AppHandle, state:
     run_local_search(
         &conn,
         &owner_did,
-        &query,
+        query,
         mode,
         limit,
         embeddings_enabled,

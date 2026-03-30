@@ -6,6 +6,7 @@ mod explorer;
 mod feed;
 mod notifications;
 mod search;
+mod settings;
 mod state;
 mod tray;
 
@@ -111,7 +112,14 @@ pub fn run() {
             cmd::search::set_embeddings_enabled,
             cmd::search::get_embeddings_enabled,
             cmd::search::get_embeddings_config,
-            cmd::search::prepare_embeddings_model
+            cmd::search::prepare_embeddings_model,
+            cmd::settings::get_settings,
+            cmd::settings::update_setting,
+            cmd::settings::get_cache_size,
+            cmd::settings::clear_cache,
+            cmd::settings::export_data,
+            cmd::settings::reset_app,
+            cmd::settings::get_log_entries
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

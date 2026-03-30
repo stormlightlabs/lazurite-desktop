@@ -8,6 +8,7 @@ export type IconKind =
   | "loader"
   | "logout"
   | "notifications"
+  | "settings"
   | "profile"
   | "refresh"
   | "search"
@@ -132,6 +133,9 @@ export function Icon(props: IconProps) {
         </Match>
         <Match when={local.kind === "download"}>
           <i class="i-ri-download-cloud-line" />
+        </Match>
+        <Match when={local.kind === "settings"}>
+          <i class="i-ri-settings-3-line" />
         </Match>
       </Switch>
     </span>

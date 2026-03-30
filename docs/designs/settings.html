@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Lazurite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --surface-container-lowest: #000000;
+      --surface: #0e0e0e;
+      --surface-container: #191919;
+      --surface-container-high: #1f1f1f;
+      --surface-container-highest: rgba(36, 36, 36, 0.7);
+      --surface-bright: rgba(255, 255, 255, 0.05);
+      --primary: #7dafff;
+      --primary-dim: #0073de;
+      --on-primary-fixed: #05080f;
+      --on-surface: #f4f6fb;
+      --on-surface-variant: #ababab;
+      --on-secondary-container: #c9d1dd;
+      --error: #ff6b6b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Google Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 14% 12%, rgba(125, 175, 255, 0.22), transparent 32%),
+        radial-gradient(circle at 88% 22%, rgba(0, 115, 222, 0.18), transparent 28%),
+        radial-gradient(circle at 72% 88%, rgba(125, 175, 255, 0.12), transparent 30%),
+        var(--surface-container-lowest);
+      color: var(--on-surface);
+    }
+
+    .panel {
+      background: rgba(25, 25, 25, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .gradient-btn {
+      background: linear-gradient(135deg, #7dafff 0%, #0073de 100%);
+      color: #05080f;
+    }
+
+    .app-rail {
+      width: 64px;
+      background: var(--surface-container-lowest);
+    }
+
+    .rail-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      transition: all 0.15s ease;
+    }
+
+    .rail-icon.active {
+      color: var(--primary);
+      background: rgba(125, 175, 255, 0.1);
+    }
+
+    .rail-icon:not(.active) {
+      color: var(--on-surface-variant);
+    }
+
+    .rail-icon:not(.active):hover {
+      color: var(--on-surface);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .settings-card {
+      background: var(--surface-container);
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+    }
+
+    .segmented-control {
+      display: flex;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 0.75rem;
+      padding: 0.25rem;
+    }
+
+    .segmented-control button {
+      flex: 1;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      transition: all 0.15s ease;
+      background: transparent;
+      color: var(--on-surface-variant);
+      border: none;
+      cursor: pointer;
+    }
+
+    .segmented-control button.active {
+      background: rgba(125, 175, 255, 0.2);
+      color: var(--primary);
+    }
+
+    .toggle-switch {
+      width: 48px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .toggle-switch.enabled {
+      background: var(--primary);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.15s ease;
+    }
+
+    .toggle-switch.enabled::after {
+      transform: translateX(24px);
+    }
+
+    .input-field {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      color: var(--on-surface);
+      font-size: 0.875rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .input-field:focus {
+      border-color: rgba(125, 175, 255, 0.5);
+      box-shadow: 0 0 0 3px rgba(125, 175, 255, 0.1);
+    }
+
+    .input-field::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .glass-overlay {
+      background: rgba(36, 36, 36, 0.7);
+      backdrop-filter: blur(20px);
+    }
+
+    .account-item {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      transition: background 0.15s ease;
+    }
+
+    .account-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .danger-btn {
+      background: rgba(255, 107, 107, 0.1);
+      color: var(--error);
+      border: 1px solid rgba(255, 107, 107, 0.3);
+    }
+
+    .danger-btn:hover {
+      background: rgba(255, 107, 107, 0.2);
+    }
+  </style>
+</head>
+<body class="flex">
+  <!-- App Rail -->
+  <aside class="app-rail fixed left-0 top-0 h-full flex flex-col items-center py-4 z-50">
+    <div class="mb-6">
+      <svg width="40" height="40" viewBox="0 0 512 512" style="color: #7dafff;">
+        <path fill="currentColor" d="M128 16v99.3l119 118.9V120.1zm256 0L265 120.1v114.1l119-119zM16 128l104 119h114.2L115.3 128zm380.8 0l-119 119h114.1l104-119zM120 265L16 384h99.2l119-119zm157.8 0l119 119h99.1l-104-119zM247 277.8l-119 119V496l119-104.1zm18 0v114.1L384 496v-99.2z"/>
+      </svg>
+    </div>
+
+    <nav class="flex flex-col gap-1 flex-1">
+      <button class="rail-icon" title="Timeline">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="Search">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="Notifications">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon active" title="Settings">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 10h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
+        </svg>
+      </button>
+    </nav>
+
+    <div class="flex flex-col gap-2">
+      <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-transparent hover:border-white/20 transition-colors">
+        <img src="https://placehold.co/40x40/7dafff/05080f?text=U" alt="Current account" class="w-full h-full object-cover">
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 ml-16">
+    <!-- Header -->
+    <header class="sticky top-0 z-40 panel backdrop-blur-xl border-b border-white/5">
+      <div class="flex items-center justify-between px-6 py-4">
+        <h1 class="text-xl font-medium" style="letter-spacing: -0.02em;">Settings</h1>
+        <button class="p-2 rounded-lg hover:bg-white/5 transition-colors" style="color: var(--on-surface-variant);">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Settings Content -->
+    <div class="px-6 py-8">
+      <div class="max-w-xl mx-auto space-y-8">
+
+        <!-- Section 1: Appearance -->
+        <section class="settings-card">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                <circle cx="12" cy="12" r="5"/>
+                <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+              <h2 class="font-medium">Appearance</h2>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Theme</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Choose your preferred color scheme</p>
+              </div>
+              <div class="segmented-control">
+                <button>Light</button>
+                <button class="active">Dark</button>
+                <button>Auto</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 2: Timeline -->
+        <section class="settings-card">
+          <div class="flex items-center gap-3 mb-4">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+              <rect x="3" y="3" width="7" height="7" rx="1"/>
+              <rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="14" y="14" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/>
+            </svg>
+            <h2 class="font-medium">Timeline</h2>
+          </div>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Auto-refresh interval</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">How often to check for new posts</p>
+              </div>
+              <div class="segmented-control" style="width: 280px;">
+                <button>30s</button>
+                <button class="active">1m</button>
+                <button>2m</button>
+                <button>5m</button>
+                <button>Manual</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 3: Notifications -->
+        <section class="settings-card">
+          <div class="flex items-center gap-3 mb-4">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <h2 class="font-medium">Notifications</h2>
+          </div>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Desktop notifications</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Show OS-level notification popups</p>
+              </div>
+              <div class="toggle-switch enabled"></div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Badge count</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Show unread count on dock icon</p>
+              </div>
+              <div class="toggle-switch enabled"></div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Sound</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Play sound for new notifications</p>
+              </div>
+              <div class="toggle-switch"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 4: Accounts -->
+        <section class="settings-card">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <h2 class="font-medium">Accounts</h2>
+            </div>
+            <button class="gradient-btn px-4 py-2 rounded-full text-sm font-medium">Add account</button>
+          </div>
+          <div class="space-y-3">
+            <!-- Active Account -->
+            <div class="account-item flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="relative">
+                  <div class="w-10 h-10 rounded-full overflow-hidden">
+                    <img src="https://placehold.co/40x40/7dafff/05080f?text=U" alt="Account" class="w-full h-full object-cover">
+                  </div>
+                  <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-black"></div>
+                </div>
+                <div>
+                  <p class="text-sm font-medium">@user.bsky.social</p>
+                  <p class="text-xs" style="color: var(--on-surface-variant);">did:plc:abc123</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-1 rounded-full text-xs" style="background: rgba(125, 175, 255, 0.2); color: var(--primary);">Active</span>
+                <button class="p-2 rounded-lg hover:bg-white/5" style="color: var(--on-surface-variant);">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="1"/>
+                    <circle cx="19" cy="12" r="1"/>
+                    <circle cx="5" cy="12" r="1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <!-- Secondary Account -->
+            <div class="account-item flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full overflow-hidden">
+                  <img src="https://placehold.co/40x40/333/fff?text=A" alt="Account" class="w-full h-full object-cover">
+                </div>
+                <div>
+                  <p class="text-sm font-medium">@alt.bsky.social</p>
+                  <p class="text-xs" style="color: var(--on-surface-variant);">did:plc:xyz789</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button class="px-3 py-1.5 rounded-lg text-xs border border-white/20 hover:bg-white/5">Switch</button>
+                <button class="p-2 rounded-lg hover:bg-white/5" style="color: var(--on-surface-variant);">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="1"/>
+                    <circle cx="19" cy="12" r="1"/>
+                    <circle cx="5" cy="12" r="1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 5: Search & Embeddings -->
+        <section class="settings-card">
+          <div class="flex items-center gap-3 mb-4">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <h2 class="font-medium">Search & Embeddings</h2>
+          </div>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Enable semantic search</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Use AI embeddings for better results</p>
+              </div>
+              <div class="toggle-switch enabled"></div>
+            </div>
+            <div class="p-4 rounded-xl" style="background: rgba(0, 0, 0, 0.3);">
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-sm font-medium">Model: nomic-embed-text-v1.5</p>
+                <span class="px-2 py-1 rounded-lg text-xs" style="background: rgba(125, 175, 255, 0.2); color: var(--primary);">Downloaded</span>
+              </div>
+              <div class="flex items-center gap-2 text-xs" style="color: var(--on-surface-variant);">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span>274 MB on disk</span>
+              </div>
+              <div class="flex gap-2 mt-3">
+                <button class="px-3 py-1.5 rounded-lg text-xs border border-white/20 hover:bg-white/5">Reindex all</button>
+                <button class="px-3 py-1.5 rounded-lg text-xs danger-btn">Remove model</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 6: Services -->
+        <section class="settings-card">
+          <div class="flex items-center gap-3 mb-4">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <h2 class="font-medium">Services</h2>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label class="text-sm font-medium mb-2 block">Constellation URL</label>
+              <div class="flex gap-2">
+                <input type="text" value="https://constellation.microcosm.blue" class="input-field flex-1">
+                <button class="px-4 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/5">Test</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium mb-2 block">Spacedust URL</label>
+              <div class="flex gap-2">
+                <input type="text" value="https://spacedust.microcosm.blue" class="input-field flex-1">
+                <button class="px-4 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/5">Test</button>
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Use Spacedust for real-time</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">WebSocket push notifications</p>
+              </div>
+              <div class="toggle-switch"></div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Instant mode</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Bypass 21s debounce buffer</p>
+              </div>
+              <div class="toggle-switch"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 7: Data -->
+        <section class="settings-card">
+          <div class="flex items-center gap-3 mb-4">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <h2 class="font-medium">Data</h2>
+          </div>
+          <div class="space-y-4">
+            <div class="grid grid-cols-3 gap-3">
+              <div class="p-4 rounded-xl text-center" style="background: rgba(0, 0, 0, 0.3);">
+                <p class="text-lg font-medium">156 MB</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Feeds cache</p>
+              </div>
+              <div class="p-4 rounded-xl text-center" style="background: rgba(0, 0, 0, 0.3);">
+                <p class="text-lg font-medium">274 MB</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Embeddings</p>
+              </div>
+              <div class="p-4 rounded-xl text-center" style="background: rgba(0, 0, 0, 0.3);">
+                <p class="text-lg font-medium">89 MB</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">Search index</p>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button class="px-4 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/5">Clear feeds</button>
+              <button class="px-4 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/5">Clear embeddings</button>
+              <button class="px-4 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/5">Clear all</button>
+            </div>
+            <div class="border-t border-white/10 pt-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium">Export your data</p>
+                  <p class="text-xs" style="color: var(--on-surface-variant);">Download all your data as JSON or CSV</p>
+                </div>
+                <button class="px-4 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/5">Export...</button>
+              </div>
+            </div>
+            <div class="border-t border-white/10 pt-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium danger-btn" style="background: transparent; border: none; padding: 0;">Reset application</p>
+                  <p class="text-xs" style="color: var(--on-surface-variant);">Remove all data and reset to defaults</p>
+                </div>
+                <button class="px-4 py-2 rounded-lg text-sm danger-btn">Reset...</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 8: Logs -->
+        <section class="settings-card">
+          <div class="flex items-center gap-3 mb-4">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+              <line x1="8" y1="6" x2="21" y2="6"/>
+              <line x1="8" y1="12" x2="21" y2="12"/>
+              <line x1="8" y1="18" x2="21" y2="18"/>
+              <line x1="3" y1="6" x2="3.01" y2="6"/>
+              <line x1="3" y1="12" x2="3.01" y2="12"/>
+              <line x1="3" y1="18" x2="3.01" y2="18"/>
+            </svg>
+            <h2 class="font-medium">Logs</h2>
+          </div>
+          <div class="space-y-3">
+            <div class="segmented-control">
+              <button class="active">All</button>
+              <button>Info</button>
+              <button>Warn</button>
+              <button>Error</button>
+            </div>
+            <div class="rounded-xl p-4 font-mono text-xs overflow-auto" style="background: rgba(0, 0, 0, 0.5); max-height: 200px;">
+              <div class="flex gap-3 mb-1">
+                <span style="color: var(--on-surface-variant);">10:23:45</span>
+                <span style="color: #7dafff;">INFO</span>
+                <span style="color: var(--on-secondary-container);">App initialized successfully</span>
+              </div>
+              <div class="flex gap-3 mb-1">
+                <span style="color: var(--on-surface-variant);">10:23:46</span>
+                <span style="color: #7dafff;">INFO</span>
+                <span style="color: var(--on-secondary-container);">Connected to constellation.microcosm.blue</span>
+              </div>
+              <div class="flex gap-3 mb-1">
+                <span style="color: var(--on-surface-variant);">10:24:12</span>
+                <span style="color: #ffd93d;">WARN</span>
+                <span style="color: var(--on-secondary-container);">Rate limit approaching for feed refresh</span>
+              </div>
+              <div class="flex gap-3 mb-1">
+                <span style="color: var(--on-surface-variant);">10:25:01</span>
+                <span style="color: #7dafff;">INFO</span>
+                <span style="color: var(--on-secondary-container);">Sync completed: 47 new posts</span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button class="px-3 py-1.5 rounded-lg text-xs border border-white/20 hover:bg-white/5">Copy all</button>
+              <button class="px-3 py-1.5 rounded-lg text-xs border border-white/20 hover:bg-white/5">Open log file</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 9: About -->
+        <section class="settings-card">
+          <div class="flex items-center gap-3 mb-4">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color: var(--primary);">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <h2 class="font-medium">About</h2>
+          </div>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Version</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">0.1.0-alpha</p>
+              </div>
+              <button class="gradient-btn px-4 py-2 rounded-full text-sm font-medium">Check for updates</button>
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">License</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">MIT License</p>
+              </div>
+              <button class="px-4 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/5">View license</button>
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Source code</p>
+                <p class="text-xs" style="color: var(--on-surface-variant);">github.com/stormlightlabs/lazurite</p>
+              </div>
+              <button class="px-4 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/5">Open</button>
+            </div>
+            <div class="p-4 rounded-xl" style="background: rgba(0, 0, 0, 0.3);">
+              <p class="text-sm font-medium mb-2">Contributors</p>
+              <div class="flex gap-2">
+                <div class="w-8 h-8 rounded-full overflow-hidden" title="@contributor1">
+                  <img src="https://placehold.co/32x32/7dafff/05080f?text=C1" alt="Contributor" class="w-full h-full object-cover">
+                </div>
+                <div class="w-8 h-8 rounded-full overflow-hidden" title="@contributor2">
+                  <img src="https://placehold.co/32x32/333/fff?text=C2" alt="Contributor" class="w-full h-full object-cover">
+                </div>
+                <div class="w-8 h-8 rounded-full overflow-hidden" title="@contributor3">
+                  <img src="https://placehold.co/32x32/555/fff?text=C3" alt="Contributor" class="w-full h-full object-cover">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- Footer spacing -->
+    <div class="h-16"></div>
+  </main>
+
+</body>
+</html>

@@ -134,6 +134,31 @@ fn validate_sqlite_vec(connection: &Connection) -> Result<(), AppError> {
     }
 }
 
+pub(crate) fn reset_database(connection: &Connection) -> Result<(), AppError> {
+    connection.execute_batch(
+        "
+        DROP TRIGGER IF EXISTS posts_ai;
+        DROP TRIGGER IF EXISTS posts_ad;
+        DROP TRIGGER IF EXISTS posts_au;
+
+        DROP TABLE IF EXISTS posts_vec;
+        DROP TABLE IF EXISTS posts_fts;
+        DROP TABLE IF EXISTS posts;
+        DROP TABLE IF EXISTS sync_state;
+        DROP TABLE IF EXISTS oauth_sessions;
+        DROP TABLE IF EXISTS oauth_auth_requests;
+        DROP TABLE IF EXISTS accounts;
+        DROP TABLE IF EXISTS app_settings;
+        DROP TABLE IF EXISTS schema_migrations;
+
+        PRAGMA wal_checkpoint(TRUNCATE);
+        VACUUM;
+    ",
+    )?;
+
+    run_migrations(connection)
+}
+
 #[cfg(test)]
 mod tests {
     use rusqlite::{params, Connection};

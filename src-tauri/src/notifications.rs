@@ -1,5 +1,6 @@
 use super::auth::LazuriteOAuthSession;
 use super::error::{AppError, Result};
+use super::settings::{self, AppSettings};
 use super::state::AppState;
 use jacquard::api::app_bsky::notification::get_unread_count::GetUnreadCount;
 use jacquard::api::app_bsky::notification::list_notifications::ListNotifications;
@@ -146,6 +147,34 @@ fn is_main_window_focused(app: &AppHandle) -> bool {
         .unwrap_or(false)
 }
 
+fn load_notification_settings(state: &AppState) -> AppSettings {
+    match settings::get_settings(state) {
+        Ok(settings) => settings,
+        Err(error) => {
+            log::warn!("failed to load notification settings, using defaults: {error}");
+            AppSettings::default()
+        }
+    }
+}
+
+pub fn clear_unread_badge(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        if let Err(error) = window.set_badge_count(None) {
+            log::debug!("failed to clear unread badge: {error}");
+        }
+    }
+}
+
+fn sync_unread_badge(app: &AppHandle, badge_enabled: bool, count: i64) {
+    let badge_count = if badge_enabled && count > 0 { Some(count) } else { None };
+
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        if let Err(error) = window.set_badge_count(badge_count) {
+            log::debug!("failed to update unread badge: {error}");
+        }
+    }
+}
+
 fn collect_new_mention_notifications(
     notifications_value: &serde_json::Value, notified_uris: &VecDeque<String>,
 ) -> Vec<(String, String)> {
@@ -240,6 +269,7 @@ pub fn spawn_notification_poll_task(app: AppHandle) {
                 last_count = -1;
                 last_did = None;
                 notified_uris.clear();
+                clear_unread_badge(&app);
                 tokio::time::sleep(POLL_INTERVAL).await;
                 continue;
             }
@@ -250,13 +280,17 @@ pub fn spawn_notification_poll_task(app: AppHandle) {
                 notified_uris.clear();
             }
 
+            let notification_settings = load_notification_settings(&state);
+
             match get_unread_count(&state).await {
                 Ok(count) => {
+                    sync_unread_badge(&app, notification_settings.notifications_badge, count);
+
                     if last_count >= 0 && count > last_count {
                         log::info!("new notifications: unread count increased from {last_count} to {count}");
                         let _ = app.emit(NOTIFICATIONS_UNREAD_COUNT_EVENT, count);
 
-                        if !is_main_window_focused(&app) {
+                        if notification_settings.notifications_desktop && !is_main_window_focused(&app) {
                             if let Ok(value) = list_notifications(None, &state).await {
                                 send_mention_system_notifications(&app, &value, &mut notified_uris);
                             }
