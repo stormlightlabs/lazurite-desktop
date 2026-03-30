@@ -5,6 +5,7 @@ mod error;
 mod explorer;
 mod feed;
 mod notifications;
+mod search;
 mod state;
 mod tray;
 
@@ -97,7 +98,15 @@ pub fn run() {
             cmd::explorer::list_records,
             cmd::explorer::get_record,
             cmd::explorer::export_repo_car,
-            cmd::explorer::query_labels
+            cmd::explorer::query_labels,
+            cmd::search::search_posts_network,
+            cmd::search::search_actors,
+            cmd::search::search_starter_packs,
+            cmd::search::sync_posts,
+            cmd::search::get_sync_status,
+            cmd::search::embed_pending_posts,
+            cmd::search::reindex_embeddings,
+            cmd::search::set_embeddings_enabled
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,7 @@
 #![allow(clippy::needless_pass_by_value)]
 
 pub mod explorer;
+pub mod search;
 
 use super::auth::{self, LoginSuggestion};
 use super::error::AppError;
