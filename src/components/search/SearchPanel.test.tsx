@@ -6,10 +6,16 @@ const searchPostsMock = vi.hoisted(() => vi.fn());
 const searchPostsNetworkMock = vi.hoisted(() => vi.fn());
 const getSyncStatusMock = vi.hoisted(() => vi.fn());
 const syncPostsMock = vi.hoisted(() => vi.fn());
+const getEmbeddingsConfigMock = vi.hoisted(() => vi.fn());
+const prepareEmbeddingsModelMock = vi.hoisted(() => vi.fn());
+const setEmbeddingsEnabledMock = vi.hoisted(() => vi.fn());
 
 vi.mock(
   "$/lib/api/search",
   () => ({
+    getEmbeddingsConfig: getEmbeddingsConfigMock,
+    prepareEmbeddingsModel: prepareEmbeddingsModelMock,
+    setEmbeddingsEnabled: setEmbeddingsEnabledMock,
     searchPosts: searchPostsMock,
     searchPostsNetwork: searchPostsNetworkMock,
     getSyncStatus: getSyncStatusMock,
@@ -26,20 +32,38 @@ describe("SearchPanel", () => {
     searchPostsNetworkMock.mockReset();
     getSyncStatusMock.mockReset();
     syncPostsMock.mockReset();
+    getEmbeddingsConfigMock.mockReset();
+    prepareEmbeddingsModelMock.mockReset();
+    setEmbeddingsEnabledMock.mockReset();
 
     getSyncStatusMock.mockResolvedValue([]);
     syncPostsMock.mockResolvedValue({
       did: "did:plc:test",
       source: "like",
-      post_count: 100,
-      last_synced_at: "2026-03-29T12:00:00.000Z",
+      postCount: 100,
+      lastSyncedAt: "2026-03-29T12:00:00.000Z",
     });
+    getEmbeddingsConfigMock.mockResolvedValue({
+      enabled: true,
+      modelName: "nomic-embed-text-v1.5",
+      dimensions: 768,
+      downloaded: true,
+      downloadActive: false,
+    });
+    prepareEmbeddingsModelMock.mockResolvedValue({
+      enabled: true,
+      modelName: "nomic-embed-text-v1.5",
+      dimensions: 768,
+      downloaded: true,
+      downloadActive: false,
+    });
+    setEmbeddingsEnabledMock.mockResolvedValue(void 0);
   });
 
   it("renders the search panel with initial state", async () => {
     render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
 
-    expect(await screen.findByPlaceholderText("Search posts...")).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText("Search your saved & liked posts...")).toBeInTheDocument();
     expect(screen.getByText("Network")).toBeInTheDocument();
     expect(screen.getByText("Keyword")).toBeInTheDocument();
     expect(screen.getByText("Semantic")).toBeInTheDocument();
@@ -70,7 +94,7 @@ describe("SearchPanel", () => {
 
     render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
 
-    const input = await screen.findByPlaceholderText("Search posts...");
+    const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
     fireEvent.input(input, { target: { value: "test query" } });
 
     vi.advanceTimersByTime(350);
@@ -79,42 +103,45 @@ describe("SearchPanel", () => {
       expect(searchPostsNetworkMock).toHaveBeenCalledWith("test query", "top", 25);
     });
 
-    expect(await screen.findByText("Test post content")).toBeInTheDocument();
+    expect(await screen.findByText(/post content/i)).toBeInTheDocument();
   });
 
   it("performs local search in keyword mode", async () => {
+    getSyncStatusMock.mockResolvedValue([{ did: "did:plc:test", source: "like", postCount: 12, lastSyncedAt: null }]);
     searchPostsMock.mockResolvedValue([{
       uri: "at://test",
       cid: "cid-1",
-      author_did: "did:plc:test",
-      author_handle: "test.bsky.social",
+      authorDid: "did:plc:test",
+      authorHandle: "test.bsky.social",
       text: "Local test post",
-      created_at: "2026-03-29T12:00:00.000Z",
-      indexed_at: "2026-03-29T12:00:00.000Z",
+      createdAt: "2026-03-29T12:00:00.000Z",
       source: "like" as const,
+      score: 1,
+      keywordMatch: true,
+      semanticMatch: false,
     }]);
 
     render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
 
     const keywordButton = screen.getByRole("button", { name: /keyword/i });
     fireEvent.click(keywordButton);
+    expect(keywordButton).toHaveAttribute("aria-pressed", "true");
 
-    const input = await screen.findByPlaceholderText("Search posts...");
+    const input = screen.getByPlaceholderText("Search your saved & liked posts...");
     fireEvent.input(input, { target: { value: "test query" } });
 
-    vi.advanceTimersByTime(350);
+    await vi.advanceTimersByTimeAsync(350);
+    await Promise.resolve();
+    await Promise.resolve();
 
-    await waitFor(() => {
-      expect(searchPostsMock).toHaveBeenCalledWith("test query", "keyword", 50);
-    });
-
-    expect(await screen.findByText("Local test post")).toBeInTheDocument();
+    expect(searchPostsMock).toHaveBeenCalledWith("test query", "keyword", 50);
+    expect(screen.getByText("Liked")).toBeInTheDocument();
   });
 
   it("cycles through modes with Tab key", async () => {
     render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
 
-    const input = await screen.findByPlaceholderText("Search posts...");
+    const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
     input.focus();
     fireEvent.keyDown(input, { key: "Tab" });
 
@@ -134,7 +161,7 @@ describe("SearchPanel", () => {
 
     render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
 
-    const input = await screen.findByPlaceholderText("Search posts...");
+    const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
     fireEvent.input(input, { target: { value: "test" } });
     vi.advanceTimersByTime(350);
 
@@ -152,7 +179,7 @@ describe("SearchPanel", () => {
 
     render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
 
-    const input = await screen.findByPlaceholderText("Search posts...");
+    const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
     fireEvent.input(input, { target: { value: "test" } });
     vi.advanceTimersByTime(350);
 
@@ -162,6 +189,7 @@ describe("SearchPanel", () => {
   });
 
   it("shows empty state when no results found", async () => {
+    getSyncStatusMock.mockResolvedValue([{ did: "did:plc:test", source: "like", postCount: 12, lastSyncedAt: null }]);
     searchPostsMock.mockResolvedValue([]);
 
     render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
@@ -169,7 +197,7 @@ describe("SearchPanel", () => {
     const keywordButton = screen.getByRole("button", { name: /keyword/i });
     fireEvent.click(keywordButton);
 
-    const input = await screen.findByPlaceholderText("Search posts...");
+    const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
     fireEvent.input(input, { target: { value: "nonexistent" } });
     vi.advanceTimersByTime(350);
 

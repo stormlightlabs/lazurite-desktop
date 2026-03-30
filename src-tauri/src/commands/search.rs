@@ -17,7 +17,7 @@ pub async fn search_posts_network(
 pub fn search_posts(
     query: String, mode: String, limit: u32, app: AppHandle, state: State<'_, AppState>,
 ) -> Result<Vec<PostResult>, AppError> {
-    search::search_posts(query, mode, limit, &app, &state)
+    search::search_posts(&query, &mode, limit, &app, &state)
 }
 
 #[tauri::command]
@@ -57,4 +57,21 @@ pub fn reindex_embeddings(app: AppHandle, state: State<'_, AppState>) -> Result<
 #[tauri::command]
 pub fn set_embeddings_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), AppError> {
     search::set_embeddings_enabled(enabled, &state)
+}
+
+#[tauri::command]
+pub fn get_embeddings_enabled(state: State<'_, AppState>) -> Result<bool, AppError> {
+    search::get_embeddings_enabled(&state)
+}
+
+#[tauri::command]
+pub fn get_embeddings_config(app: AppHandle, state: State<'_, AppState>) -> Result<search::EmbeddingsConfig, AppError> {
+    search::get_embeddings_config(&app, &state)
+}
+
+#[tauri::command]
+pub fn prepare_embeddings_model(
+    app: AppHandle, state: State<'_, AppState>,
+) -> Result<search::EmbeddingsConfig, AppError> {
+    search::prepare_embeddings_model(&app, &state)
 }

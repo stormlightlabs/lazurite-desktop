@@ -23,3 +23,21 @@ export function normalizeError(err: unknown): string {
     return String(err);
   }
 }
+
+export function formatEtaSeconds(value: number) {
+  if (value < 60) {
+    return `${value}s`;
+  }
+
+  const minutes = Math.floor(value / 60);
+  const seconds = value % 60;
+  return `${minutes}m ${seconds}s`;
+}
+
+export function formatProgress(value: number | null | undefined) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "Pending";
+  }
+
+  return `${Math.round(value)}%`;
+}

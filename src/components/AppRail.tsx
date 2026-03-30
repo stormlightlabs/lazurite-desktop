@@ -40,7 +40,7 @@ function RailNavigation(props: { collapsed: boolean; hasSession: boolean; unread
           href="/notifications"
           label="Notifications"
           icon="notifications" />
-        <RailButton end compact={props.collapsed} href="/explorer" label="Explorer" icon="explorer" />
+        <RailButton end compact={props.collapsed} href="/explorer" label="AT Explorer" icon="explorer" />
       </Show>
     </div>
   );

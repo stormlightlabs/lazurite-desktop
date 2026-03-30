@@ -10,43 +10,51 @@ export type ActorSearchResult = {
   actors: { did: string; handle: string; displayName?: string | null; avatar?: string | null }[];
 };
 
-export type StarterPackSearchResult = {
-  cursor?: string | null;
-  starterPacks: {
-    uri: string;
-    cid: string;
-    record: { name: string; description?: string; createdAt: string };
-    creator: { did: string; handle: string; displayName?: string | null; avatar?: string | null };
-    indexedAt: string;
-  }[];
+type TStarterPack = {
+  uri: string;
+  cid: string;
+  record: { name: string; description?: string; createdAt: string };
+  creator: { did: string; handle: string; displayName?: string | null; avatar?: string | null };
+  indexedAt: string;
 };
+
+export type StarterPackSearchResult = { cursor?: string | null; starterPacks: Array<TStarterPack> };
+
+type TPostSource = "like" | "bookmark";
 
 export type LocalPostResult = {
   uri: string;
   cid: string;
-  author_did: string;
-  author_handle: string;
-  text: string;
-  created_at: string;
-  indexed_at: string;
-  source: "like" | "bookmark";
-  score?: number;
+  authorDid: string;
+  authorHandle?: string | null;
+  text?: string | null;
+  createdAt?: string | null;
+  source: TPostSource;
+  score: number;
+  keywordMatch: boolean;
+  semanticMatch: boolean;
 };
 
 export type SyncStatus = {
   did: string;
-  source: "like" | "bookmark";
+  source: TPostSource;
   cursor?: string | null;
-  last_synced_at?: string | null;
-  post_count?: number;
+  lastSyncedAt?: string | null;
+  postCount?: number;
 };
 
 export type EmbeddingsConfig = {
   enabled: boolean;
-  model_name: string;
+  modelName: string;
   dimensions: number;
   downloaded: boolean;
-  download_progress?: number;
+  downloadActive: boolean;
+  downloadProgress?: number | null;
+  downloadEtaSeconds?: number | null;
+  downloadFile?: string | null;
+  downloadFileIndex?: number | null;
+  downloadFileTotal?: number | null;
+  lastError?: string | null;
 };
 
 export function searchPostsNetwork(
@@ -92,4 +100,16 @@ export function reindexEmbeddings(): Promise<number> {
 
 export function setEmbeddingsEnabled(enabled: boolean): Promise<void> {
   return invoke("set_embeddings_enabled", { enabled });
+}
+
+export function getEmbeddingsEnabled(): Promise<boolean> {
+  return invoke("get_embeddings_enabled");
+}
+
+export function getEmbeddingsConfig(): Promise<EmbeddingsConfig> {
+  return invoke("get_embeddings_config");
+}
+
+export function prepareEmbeddingsModel(): Promise<EmbeddingsConfig> {
+  return invoke("prepare_embeddings_model");
 }

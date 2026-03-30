@@ -3,67 +3,6 @@ import { escapeForRegex } from "$/lib/utils/text";
 import { createMemo, type JSX, Show } from "solid-js";
 import { Icon } from "../shared/Icon";
 
-type SearchResultCardProps = {
-  authorHandle: string;
-  source: "like" | "bookmark" | "network";
-  text: string;
-  createdAt: string;
-  likeCount?: number;
-  replyCount?: number;
-  isSemanticMatch?: boolean;
-  query?: string;
-};
-
-export function SearchResultCard(props: SearchResultCardProps) {
-  const avatarLabel = createMemo(() => props.authorHandle.slice(0, 1).toUpperCase() || "?");
-
-  const formattedTime = createMemo(() => formatRelativeTime(props.createdAt));
-
-  const sourceLabel = createMemo(() => {
-    switch (props.source) {
-      case "like": {
-        return "Liked";
-      }
-      case "bookmark": {
-        return "Bookmarked";
-      }
-      default: {
-        return null;
-      }
-    }
-  });
-
-  const highlightedText = createMemo(() => {
-    if (!props.query || !props.text) {
-      return props.text;
-    }
-
-    const parts = props.text.split(new RegExp(`(${escapeForRegex(props.query)})`, "gi"));
-    return parts.map((part) => {
-      if (part.toLowerCase() === props.query?.toLowerCase()) {
-        return <mark class="rounded bg-primary/20 px-0.5 text-primary">{part}</mark>;
-      }
-      return part;
-    });
-  });
-
-  return (
-    <article
-      class="group cursor-pointer rounded-2xl bg-surface px-5 py-4 transition-colors duration-150 hover:bg-white/3"
-      role="article">
-      <CardContent
-        avatarLabel={avatarLabel()}
-        authorHandle={props.authorHandle}
-        time={formattedTime()}
-        isSemantic={props.isSemanticMatch}
-        text={highlightedText()}
-        likes={props.likeCount}
-        replies={props.replyCount}
-        sourceLabel={sourceLabel()} />
-    </article>
-  );
-}
-
 function CardContent(
   props: {
     avatarLabel: string;
@@ -154,5 +93,72 @@ function StatBadge(props: { kind: "like" | "reply"; value?: number; label: strin
       </Show>
       {props.value} {props.label}
     </span>
+  );
+}
+
+type SearchResultCardProps = {
+  authorHandle: string;
+  source: "like" | "bookmark" | "network";
+  text: string;
+  createdAt: string;
+  likeCount?: number;
+  replyCount?: number;
+  isSemanticMatch?: boolean;
+  query?: string;
+};
+
+export function SearchResultCard(props: SearchResultCardProps) {
+  const avatarLabel = createMemo(() => props.authorHandle.slice(0, 1).toUpperCase() || "?");
+  const formattedTime = createMemo(() => (props.createdAt ? formatRelativeTime(props.createdAt) : "Unknown date"));
+
+  const sourceLabel = createMemo(() => {
+    switch (props.source) {
+      case "like": {
+        return "Liked";
+      }
+      case "bookmark": {
+        return "Bookmarked";
+      }
+      default: {
+        return null;
+      }
+    }
+  });
+
+  const highlightedText = createMemo(() => {
+    if (!props.query || !props.text) {
+      return props.text;
+    }
+
+    const tokens = [...new Set(props.query.split(/\s+/).map((token) => token.trim()).filter(Boolean))];
+    if (tokens.length === 0) {
+      return props.text;
+    }
+
+    const pattern = tokens.toSorted((left, right) => right.length - left.length).map((token) => escapeForRegex(token))
+      .join("|");
+    const parts = props.text.split(new RegExp(`(${pattern})`, "gi"));
+    return parts.map((part) => {
+      if (tokens.some((token) => token.toLowerCase() === part.toLowerCase())) {
+        return <mark class="rounded bg-primary/20 px-0.5 text-primary">{part}</mark>;
+      }
+      return part;
+    });
+  });
+
+  return (
+    <article
+      class="group cursor-pointer rounded-2xl bg-surface px-5 py-4 transition-colors duration-150 hover:bg-white/3"
+      role="article">
+      <CardContent
+        avatarLabel={avatarLabel()}
+        authorHandle={props.authorHandle}
+        time={formattedTime()}
+        isSemantic={props.isSemanticMatch}
+        text={highlightedText()}
+        likes={props.likeCount}
+        replies={props.replyCount}
+        sourceLabel={sourceLabel()} />
+    </article>
   );
 }

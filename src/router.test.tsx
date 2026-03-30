@@ -17,10 +17,15 @@ function renderRouter(hash: string) {
   const renderNotifications = vi.fn((currentSession: ActiveSession) => (
     <div data-testid="notifications-view">{currentSession.handle}</div>
   ));
-  const renderTimeline = vi.fn((currentSession: ActiveSession, context: { threadUri: string | null }) => (
+  const renderTimeline = vi.fn((
+    props: {
+      session: ActiveSession;
+      context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null };
+    },
+  ) => (
     <div data-testid="timeline-view">
-      <span>{currentSession.handle}</span>
-      <span>{context.threadUri ?? "no-thread"}</span>
+      <span>{props.session.handle}</span>
+      <span>{props.context.threadUri ?? "no-thread"}</span>
     </div>
   ));
 
@@ -46,7 +51,7 @@ describe("AppRouter", () => {
     await screen.findByTestId("timeline-view");
 
     expect(renderTimeline).toHaveBeenCalled();
-    expect(renderTimeline.mock.lastCall?.[1].threadUri).toBeNull();
+    expect(renderTimeline.mock.lastCall?.[0].context.threadUri).toBeNull();
     expect(screen.getByText("no-thread")).toBeInTheDocument();
   });
 
@@ -56,7 +61,7 @@ describe("AppRouter", () => {
 
     await screen.findByTestId("timeline-view");
 
-    expect(renderTimeline.mock.lastCall?.[1].threadUri).toBe(threadUri);
+    expect(renderTimeline.mock.lastCall?.[0].context.threadUri).toBe(threadUri);
     expect(screen.getByText(threadUri)).toBeInTheDocument();
   });
 

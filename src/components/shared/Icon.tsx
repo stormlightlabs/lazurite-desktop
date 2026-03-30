@@ -30,7 +30,8 @@ export type IconKind =
   | "danger"
   | "repost"
   | "reply"
-  | "follow";
+  | "follow"
+  | "download";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -128,6 +129,9 @@ export function Icon(props: IconProps) {
         </Match>
         <Match when={local.kind === "follow"}>
           <i class="i-ri-user-add-line" />
+        </Match>
+        <Match when={local.kind === "download"}>
+          <i class="i-ri-download-cloud-line" />
         </Match>
       </Switch>
     </span>

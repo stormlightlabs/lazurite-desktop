@@ -108,7 +108,10 @@ pub fn run() {
             cmd::search::get_sync_status,
             cmd::search::embed_pending_posts,
             cmd::search::reindex_embeddings,
-            cmd::search::set_embeddings_enabled
+            cmd::search::set_embeddings_enabled,
+            cmd::search::get_embeddings_enabled,
+            cmd::search::get_embeddings_config,
+            cmd::search::prepare_embeddings_model
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

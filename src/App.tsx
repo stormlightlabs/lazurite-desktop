@@ -332,7 +332,7 @@ function App() {
             activeHandle={session.handle}
             onError={(message) => setApp("errorMessage", message)} />
         )}
-        renderTimeline={(session, context) => (
+        renderTimeline={({ session, context }) => (
           <FeedWorkspace
             activeAvatar={activeAccount()?.avatar}
             activeSession={session}
