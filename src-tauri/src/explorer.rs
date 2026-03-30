@@ -9,9 +9,10 @@ use jacquard::api::com_atproto::sync::get_repo::GetRepo;
 use jacquard::api::com_atproto::sync::list_repos::ListRepos;
 use jacquard::client::{Agent, UnauthenticatedSession};
 use jacquard::deps::fluent_uri::Uri;
-use jacquard::identity::JacquardResolver;
+use jacquard::identity::{resolver::IdentityResolver, JacquardResolver};
 use jacquard::types::aturi::AtUri;
 use jacquard::types::did::Did;
+use jacquard::types::did_doc::DidDocument;
 use jacquard::types::handle::Handle;
 use jacquard::types::ident::AtIdentifier;
 use jacquard::types::nsid::Nsid;
@@ -166,7 +167,7 @@ pub async fn describe_repo(did: String) -> Result<Value> {
 }
 
 pub async fn list_records(did: String, collection: String, cursor: Option<String>) -> Result<Value> {
-    let client = public_client();
+    let client = client_for_repo_did(&did).await?;
     let request = ListRecords::new()
         .repo(parse_at_identifier(&did)?)
         .collection(parse_collection(&collection)?)
@@ -185,7 +186,7 @@ pub async fn list_records(did: String, collection: String, cursor: Option<String
 }
 
 pub async fn get_record(did: String, collection: String, rkey: String) -> Result<Value> {
-    let client = public_client();
+    let client = client_for_repo_did(&did).await?;
     let request = GetRecord::new()
         .repo(parse_at_identifier(&did)?)
         .collection(parse_collection(&collection)?)
@@ -205,7 +206,7 @@ pub async fn get_record(did: String, collection: String, rkey: String) -> Result
 
 pub async fn export_repo_car(did: String, app: &AppHandle) -> Result<RepoCarExport> {
     let parsed_did = Did::new(&did)?.into_static();
-    let client = public_client();
+    let client = client_for_repo_did(parsed_did.as_str()).await?;
     let output = client
         .send(GetRepo::new().did(parsed_did.clone()).build())
         .await
@@ -262,13 +263,31 @@ async fn client_for_base_uri(base_uri: &str) -> Result<ExplorerClient> {
     Ok(client)
 }
 
+async fn client_for_repo(repo: &str) -> Result<ExplorerClient> {
+    match parse_at_identifier(repo)? {
+        AtIdentifier::Did(did) => client_for_repo_did(did.as_str()).await,
+        AtIdentifier::Handle(handle) => {
+            let did = resolve_handle_to_did(handle.as_str()).await?;
+            client_for_repo_did(&did).await
+        }
+    }
+}
+
+async fn client_for_repo_did(did: &str) -> Result<ExplorerClient> {
+    let metadata = resolve_repo_metadata(did).await?;
+    let pds_url = metadata
+        .pds_url
+        .ok_or_else(|| AppError::validation(format!("missing PDS endpoint for repo {did}")))?;
+    client_for_base_uri(&pds_url).await
+}
+
 async fn resolve_at_uri_input(input: &str) -> Result<ResolvedExplorerInput> {
     let parsed = AtUri::new(input)?;
     let (did, handle) = match parsed.authority() {
         AtIdentifier::Did(did) => (did.to_string(), None),
         AtIdentifier::Handle(handle) => (resolve_handle_to_did(handle.as_str()).await?, Some(handle.to_string())),
     };
-    let repo_metadata = describe_repo_metadata(&did).await?;
+    let repo_metadata = resolve_repo_metadata(&did).await?;
 
     Ok(build_resolved_at_uri(
         input,
@@ -282,7 +301,7 @@ async fn resolve_at_uri_input(input: &str) -> Result<ResolvedExplorerInput> {
 async fn resolve_handle_input(input: &str) -> Result<ResolvedExplorerInput> {
     let normalized_handle = normalize_handle(input).ok_or_else(|| AppError::validation("invalid handle input"))?;
     let did = resolve_handle_to_did(&normalized_handle).await?;
-    let repo_metadata = describe_repo_metadata(&did).await?;
+    let repo_metadata = resolve_repo_metadata(&did).await?;
 
     Ok(ResolvedExplorerInput {
         input: input.trim().to_string(),
@@ -300,7 +319,7 @@ async fn resolve_handle_input(input: &str) -> Result<ResolvedExplorerInput> {
 
 async fn resolve_did_input(input: &str) -> Result<ResolvedExplorerInput> {
     let did = Did::new(input.trim())?.to_string();
-    let repo_metadata = describe_repo_metadata(&did).await?;
+    let repo_metadata = resolve_repo_metadata(&did).await?;
 
     Ok(ResolvedExplorerInput {
         input: input.trim().to_string(),
@@ -319,7 +338,7 @@ async fn resolve_did_input(input: &str) -> Result<ResolvedExplorerInput> {
 async fn describe_repo_output(
     repo: &str,
 ) -> Result<jacquard::api::com_atproto::repo::describe_repo::DescribeRepoOutput<'static>> {
-    let client = public_client();
+    let client = client_for_repo(repo).await?;
     client
         .send(DescribeRepo::new().repo(parse_at_identifier(repo)?).build())
         .await
@@ -335,11 +354,35 @@ struct RepoMetadata {
     pds_url: Option<String>,
 }
 
-async fn describe_repo_metadata(did: &str) -> Result<RepoMetadata> {
-    let output = describe_repo_output(did).await?;
-    let did_doc = serde_json::to_value(&output.did_doc)?;
+async fn resolve_repo_metadata(did: &str) -> Result<RepoMetadata> {
+    let did_doc = resolve_did_document(did).await?;
+    Ok(repo_metadata_from_did_doc(&did_doc))
+}
 
-    Ok(RepoMetadata { handle: Some(output.handle.to_string()), pds_url: extract_pds_url_from_did_doc_json(&did_doc) })
+async fn resolve_did_document(did: &str) -> Result<DidDocument<'static>> {
+    let client = public_client();
+    let parsed_did = Did::new(did)?.into_static();
+
+    client
+        .resolve_did_doc(&parsed_did)
+        .await
+        .map_err(|error| AppError::validation(format!("resolveDid request failed: {error}")))?
+        .into_owned()
+        .map_err(|error| AppError::validation(format!("resolveDid output failed: {error}")))
+}
+
+fn repo_metadata_from_did_doc(did_doc: &DidDocument<'_>) -> RepoMetadata {
+    let handle = did_doc.also_known_as.as_ref().and_then(|aliases| {
+        aliases.iter().find_map(|alias| {
+            let candidate = alias.as_ref().strip_prefix("at://")?;
+            Handle::new(candidate).ok().map(|handle| handle.to_string())
+        })
+    });
+    let pds_url = did_doc
+        .pds_endpoint()
+        .and_then(|uri| normalize_pds_url(uri.as_str()).ok());
+
+    RepoMetadata { handle, pds_url }
 }
 
 async fn resolve_handle_to_did(handle: &str) -> Result<String> {
@@ -469,27 +512,6 @@ fn parse_record_key(rkey: &str) -> Result<RecordKey<Rkey<'static>>> {
         .map_err(AppError::from)
 }
 
-fn extract_pds_url_from_did_doc_json(did_doc: &Value) -> Option<String> {
-    did_doc
-        .get("service")
-        .and_then(Value::as_array)
-        .and_then(|services| {
-            services.iter().find_map(|service| {
-                let service_type = service.get("type").and_then(Value::as_str)?;
-                if service_type != "AtprotoPersonalDataServer" {
-                    return None;
-                }
-
-                match service.get("serviceEndpoint") {
-                    Some(Value::String(url)) => Some(url.clone()),
-                    Some(Value::Object(object)) => object.get("url").and_then(Value::as_str).map(str::to_owned),
-                    _ => None,
-                }
-            })
-        })
-        .and_then(|url| normalize_pds_url(&url).ok())
-}
-
 fn resolve_car_export_path(app: &AppHandle, did: &str) -> Result<PathBuf> {
     let mut app_data_dir = app
         .path()
@@ -516,11 +538,12 @@ fn sanitize_did_for_filename(did: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_resolved_at_uri, canonical_at_uri, detect_input_kind, extract_pds_url_from_did_doc_json,
-        normalize_handle, normalize_pds_url, repo_car_filename, sanitize_did_for_filename, ExplorerInputKind,
+        build_resolved_at_uri, canonical_at_uri, detect_input_kind, normalize_handle, normalize_pds_url,
+        repo_car_filename, repo_metadata_from_did_doc, sanitize_did_for_filename, ExplorerInputKind,
         ExplorerTargetKind,
     };
     use jacquard::types::aturi::AtUri;
+    use jacquard::types::did_doc::DidDocument;
 
     #[test]
     fn detects_all_supported_input_kinds() {
@@ -570,34 +593,28 @@ mod tests {
     }
 
     #[test]
-    fn extracts_pds_url_from_did_doc_shapes() {
-        let string_endpoint = serde_json::json!({
-            "service": [
-                {
-                    "type": "AtprotoPersonalDataServer",
-                    "serviceEndpoint": "https://pds.example.com/"
-                }
-            ]
-        });
-        let object_endpoint = serde_json::json!({
-            "service": [
-                {
-                    "type": "AtprotoPersonalDataServer",
-                    "serviceEndpoint": {
-                        "url": "https://pds.object.example.com/xrpc"
+    fn extracts_repo_metadata_from_did_documents() {
+        let did_doc: DidDocument<'_> = serde_json::from_str(
+            r##"{
+                "id": "did:plc:alice",
+                "alsoKnownAs": ["at://alice.bsky.social"],
+                "service": [
+                    {
+                        "id": "#pds",
+                        "type": "AtprotoPersonalDataServer",
+                        "serviceEndpoint": {
+                            "url": "https://pds.object.example.com/xrpc"
+                        }
                     }
-                }
-            ]
-        });
+                ]
+            }"##,
+        )
+        .expect("did document should parse");
 
-        assert_eq!(
-            extract_pds_url_from_did_doc_json(&string_endpoint),
-            Some("https://pds.example.com".to_string())
-        );
-        assert_eq!(
-            extract_pds_url_from_did_doc_json(&object_endpoint),
-            Some("https://pds.object.example.com".to_string())
-        );
+        let metadata = repo_metadata_from_did_doc(&did_doc);
+
+        assert_eq!(metadata.handle, Some("alice.bsky.social".to_string()));
+        assert_eq!(metadata.pds_url, Some("https://pds.object.example.com".to_string()));
     }
 
     #[test]

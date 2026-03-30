@@ -127,7 +127,7 @@ function App() {
 
   function markPotentialExpiry(error: unknown) {
     const message = String(error).toLowerCase();
-    if (message.includes("refresh failed") || message.includes("session does not exist")) {
+    if (message.includes("refresh failed permanently") || message.includes("session does not exist")) {
       setApp("reauthNeeded", true);
     }
   }

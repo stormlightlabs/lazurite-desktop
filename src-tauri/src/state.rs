@@ -6,6 +6,7 @@ use super::auth::{LazuriteOAuthClient, LazuriteOAuthSession, PersistentAuthStore
 use super::db::DbPool;
 use super::error::AppError;
 use jacquard::oauth::authstore::ClientAuthStore;
+use jacquard::oauth::error::OAuthError;
 use jacquard::types::did::Did;
 use jacquard::IntoStatic;
 use serde::Serialize;
@@ -213,16 +214,21 @@ impl AppState {
         let did = Did::new(&account.did)?;
         let session = if refresh {
             log::info!("restoring session with token refresh for {}", account.handle);
-            Arc::new(self.oauth_client.restore(&did, session_id).await?)
+            match self.oauth_client.restore(&did, session_id).await {
+                Ok(session) => Arc::new(session),
+                Err(error) if should_fallback_to_persisted_session(&error) => {
+                    log::warn!(
+                        "token refresh unavailable for {} during restore: {}; using persisted session data",
+                        account.handle,
+                        error
+                    );
+                    self.restore_persisted_session(account, &did, session_id).await?
+                }
+                Err(error) => return Err(AppError::from(error)),
+            }
         } else {
             log::debug!("restoring session from persisted data for {}", account.handle);
-            let session_data = self.auth_store.get_session(&did, session_id).await?.ok_or_else(|| {
-                AppError::Validation(format!("missing persisted oauth session for account {}", account.did))
-            })?;
-            Arc::new(restore_session_from_data(
-                &self.oauth_client,
-                session_data.into_static(),
-            ))
+            self.restore_persisted_session(account, &did, session_id).await?
         };
 
         self.sessions
@@ -232,6 +238,19 @@ impl AppState {
 
         log::info!("session restored successfully for {}", account.handle);
         Ok(session)
+    }
+
+    async fn restore_persisted_session(
+        &self, account: &StoredAccount, did: &Did<'_>, session_id: &str,
+    ) -> Result<Arc<LazuriteOAuthSession>, AppError> {
+        let session_data = self.auth_store.get_session(did, session_id).await?.ok_or_else(|| {
+            AppError::Validation(format!("missing persisted oauth session for account {}", account.did))
+        })?;
+
+        Ok(Arc::new(restore_session_from_data(
+            &self.oauth_client,
+            session_data.into_static(),
+        )))
     }
 
     async fn restore_sessions(&self) -> Result<(), AppError> {
@@ -286,32 +305,29 @@ impl AppState {
             None => return Ok(()),
         };
 
-        let session_id = match account.session_id.as_deref() {
-            Some(id) => id,
-            None => return Ok(()),
+        let session = match self.ensure_session(&account, false).await {
+            Ok(session) => session,
+            Err(error) => {
+                log::warn!("active session could not be loaded for {}: {error}", active.handle);
+                self.invalidate_active_session(app)?;
+                return Err(AppError::validation(format!("session unavailable: {error}")));
+            }
         };
 
-        remove_cached_session(&self.sessions, &active.did)?;
-
-        let did = Did::new(&active.did)?;
-        match self.oauth_client.restore(&did, session_id).await {
-            Ok(session) => {
-                self.sessions
-                    .write()
-                    .map_err(|error| {
-                        log::error!("failed to acquire sessions write lock: {error}");
-                        AppError::StatePoisoned("sessions")
-                    })?
-                    .insert(active.did.clone(), Arc::new(session));
+        match session.refresh().await {
+            Ok(_) => {
                 log::info!("token refresh succeeded for {}", active.handle);
                 Ok(())
             }
+            Err(error) if oauth_error_requires_reauth(&error) => {
+                log::warn!("token refresh failed permanently for {}: {error}", active.handle);
+                remove_cached_session(&self.sessions, &active.did)?;
+                self.invalidate_active_session(app)?;
+                Err(AppError::validation(format!("refresh failed permanently: {error}")))
+            }
             Err(error) => {
-                log::warn!("token refresh failed for {}: {error}", active.handle);
-                self.auth_store.clear_active_account()?;
-                self.refresh_account_cache()?;
-                app.emit(super::auth::ACCOUNT_SWITCHED_EVENT, None::<ActiveSession>)?;
-                Err(AppError::validation(format!("refresh failed: {error}")))
+                log::warn!("token refresh unavailable for {}: {error}", active.handle);
+                Err(AppError::validation(format!("refresh unavailable: {error}")))
             }
         }
     }
@@ -371,5 +387,55 @@ impl AppState {
                 tokio::time::sleep(REFRESH_INTERVAL).await;
             }
         });
+    }
+
+    fn invalidate_active_session(&self, app: &AppHandle) -> Result<(), AppError> {
+        self.auth_store.clear_active_account()?;
+        self.refresh_account_cache()?;
+        app.emit(super::auth::ACCOUNT_SWITCHED_EVENT, None::<ActiveSession>)?;
+        Ok(())
+    }
+}
+
+fn oauth_error_requires_reauth(error: &OAuthError) -> bool {
+    match error {
+        OAuthError::Session(error) => error.is_permanent(),
+        OAuthError::Request(error) => error.is_permanent(),
+        _ => false,
+    }
+}
+
+fn should_fallback_to_persisted_session(error: &OAuthError) -> bool {
+    matches!(error, OAuthError::Session(error) if !error.is_permanent())
+        || matches!(error, OAuthError::Request(error) if !error.is_permanent())
+        || matches!(error, OAuthError::Resolver(_))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{oauth_error_requires_reauth, should_fallback_to_persisted_session};
+    use jacquard::oauth::error::OAuthError;
+    use jacquard::oauth::request::RequestError;
+    use jacquard::oauth::session::Error as OAuthSessionError;
+
+    #[test]
+    fn transient_session_errors_fall_back_to_persisted_data() {
+        let error = OAuthError::Session(OAuthSessionError::ServerAgent(RequestError::http_status(
+            reqwest::StatusCode::BAD_GATEWAY,
+        )));
+        assert!(should_fallback_to_persisted_session(&error));
+        assert!(!oauth_error_requires_reauth(&error));
+    }
+
+    #[test]
+    fn permanent_session_errors_require_reauth() {
+        let not_found = OAuthError::Session(OAuthSessionError::SessionNotFound);
+        let refresh_failed = OAuthError::Session(OAuthSessionError::RefreshFailed(RequestError::no_refresh_token()));
+
+        assert!(!should_fallback_to_persisted_session(&not_found));
+        assert!(oauth_error_requires_reauth(&not_found));
+
+        assert!(!should_fallback_to_persisted_session(&refresh_failed));
+        assert!(oauth_error_requires_reauth(&refresh_failed));
     }
 }
