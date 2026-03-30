@@ -1,3 +1,4 @@
+import type { SearchMode } from "$/lib/api/search";
 import type { ExplorerTargetKind } from "$/lib/api/types/explorer";
 import { type JSX, Match, splitProps, Switch } from "solid-js";
 
@@ -19,7 +20,17 @@ export type IconKind =
   | "quote"
   | "close"
   | "folder"
-  | "file";
+  | "file"
+  | "like"
+  | "heart"
+  | "db"
+  | "complete"
+  | "explore"
+  | "compass"
+  | "danger"
+  | "repost"
+  | "reply"
+  | "follow";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -91,6 +102,33 @@ export function Icon(props: IconProps) {
         <Match when={local.kind === "file"}>
           <i class="i-ri-file-line" />
         </Match>
+        <Match when={local.kind === "like"}>
+          <i class="i-ri-thumb-up-line" />
+        </Match>
+        <Match when={local.kind === "heart"}>
+          <i class="i-ri-heart-line" />
+        </Match>
+        <Match when={local.kind === "db"}>
+          <i class="i-ri-database-2-line" />
+        </Match>
+        <Match when={local.kind === "explore" || local.kind === "compass"}>
+          <i class="i-ri-compass-discover-line" />
+        </Match>
+        <Match when={local.kind === "complete"}>
+          <i class="i-ri-check-double-line" />
+        </Match>
+        <Match when={local.kind === "danger"}>
+          <i class="i-ri-error-warning-line" />
+        </Match>
+        <Match when={local.kind === "reply"}>
+          <i class="i-ri-chat-3-line" />
+        </Match>
+        <Match when={local.kind === "repost"}>
+          <i class="i-ri-repeat-2-line" />
+        </Match>
+        <Match when={local.kind === "follow"}>
+          <i class="i-ri-user-add-line" />
+        </Match>
       </Switch>
     </span>
   );
@@ -132,6 +170,27 @@ export function ExplorerLevelIcon(props: { level: ExplorerTargetKind; class?: st
         </Match>
         <Match when={props.level === "record"}>
           <i class="i-ri-file-line" />
+        </Match>
+      </Switch>
+    </span>
+  );
+}
+
+export function SearchModeIcon(props: { mode: SearchMode; class?: string }) {
+  return (
+    <span class="flex items-center justify-center" classList={{ [props.class ?? ""]: !!props.class }}>
+      <Switch>
+        <Match when={props.mode === "network"}>
+          <i class="i-ri-global-line" />
+        </Match>
+        <Match when={props.mode === "keyword"}>
+          <i class="i-ri-search-line" />
+        </Match>
+        <Match when={props.mode === "semantic"}>
+          <i class="i-ri-bubble-chart-line" />
+        </Match>
+        <Match when={props.mode === "hybrid"}>
+          <i class="i-ri-stack-line" />
         </Match>
       </Switch>
     </span>

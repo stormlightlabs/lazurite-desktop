@@ -9,6 +9,7 @@ import {
 } from "@solidjs/router";
 import { type Component, createEffect, type JSX, type ParentProps, Show } from "solid-js";
 import { ExplorerPanel } from "./components/explorer/ExplorerPanel";
+import { SearchPanel } from "./components/search/SearchPanel";
 import { buildThreadRoute, decodeThreadRouteUri, TIMELINE_ROUTE } from "./lib/feeds";
 import type { ActiveSession } from "./lib/types";
 
@@ -86,12 +87,7 @@ export function AppRouter(props: AppRouterProps) {
 
   const SearchRoute = () => (
     <ProtectedRouteView bootstrapping={props.bootstrapping} session={props.session}>
-      {() => (
-        <FeaturePlaceholder
-          eyebrow="Search"
-          title="Local search is on deck."
-          description="Keyword, semantic, and hybrid search routes are wired now. This view stays behind auth until the indexed search workflow lands." />
-      )}
+      {(session) => <SearchPanel session={session} />}
     </ProtectedRouteView>
   );
 
@@ -186,20 +182,5 @@ function RouteLoadingState() {
         <p class="m-0 text-base text-on-surface">Restoring your workspace.</p>
       </div>
     </div>
-  );
-}
-
-function FeaturePlaceholder(props: { description: string; eyebrow: string; title: string }) {
-  return (
-    <article class="grid min-h-168 content-start gap-8 rounded-4xl bg-[linear-gradient(160deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-8 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
-      <div class="flex items-baseline justify-between gap-4">
-        <p class="overline-copy text-sm text-primary">{props.eyebrow}</p>
-        <p class="overline-copy text-xs text-on-surface-variant">Authenticated route</p>
-      </div>
-      <div class="grid max-w-xl gap-4">
-        <h1 class="m-0 text-[clamp(2.6rem,5vw,4.3rem)] tracking-tighter text-on-surface">{props.title}</h1>
-        <p class="m-0 max-w-136 text-base leading-7 text-on-secondary-container">{props.description}</p>
-      </div>
-    </article>
   );
 }

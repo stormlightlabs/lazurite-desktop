@@ -6,6 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import * as logger from "@tauri-apps/plugin-log";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
+import { Icon } from "../shared/Icon";
 import { NotificationItem } from "./NotificationItem";
 
 type Tab = "mentions" | "activity";
@@ -102,9 +103,7 @@ function NotificationsHeader(
           class="inline-flex h-10 items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 text-sm font-medium text-on-surface-variant transition duration-150 hover:-translate-y-px hover:text-on-surface"
           onClick={() => props.onMarkSeen()}
           title="Mark all as read">
-          <span class="flex items-center" aria-hidden="true">
-            <i class="i-ri-check-double-line" />
-          </span>
+          <Icon kind="complete" aria-hidden="true" />
           Mark all read
         </button>
       </div>

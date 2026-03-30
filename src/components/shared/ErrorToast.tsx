@@ -1,5 +1,6 @@
 import { Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
+import { Icon } from "./Icon";
 
 type ErrorToastProps = { message: string | null; onDismiss: () => void };
 
@@ -16,17 +17,13 @@ export function ErrorToast(props: ErrorToastProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.94 }}
             transition={{ duration: 0.2 }}>
-            <span class="flex items-center text-error" aria-hidden="true">
-              <i class="i-ri-error-warning-line" />
-            </span>
+            <Icon kind="danger" aria-hidden="true" class="text-error" />
             <p class="m-0 text-[0.875rem] text-on-surface">{message()}</p>
             <button
               type="button"
               class="cursor-pointer rounded-full border-0 bg-transparent p-[0.35rem] text-inherit hover:bg-surface-bright"
               onClick={props.onDismiss}>
-              <span class="flex items-center" aria-hidden="true">
-                <i class="i-ri-close-line" />
-              </span>
+              <Icon kind="close" aria-hidden="true" />
               <span class="sr-only">Dismiss error</span>
             </button>
           </Motion.div>

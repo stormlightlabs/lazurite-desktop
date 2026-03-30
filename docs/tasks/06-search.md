@@ -56,8 +56,8 @@ Spec: [search.md](../specs/search.md)
 
 #### Search UI
 
-- [ ] search bar (`/` or `CTRL/CMD + F` to focus) with mode selector (network / keyword / semantic / hybrid), `Motion` sliding indicator underline
-- [ ] search results with staggered `Motion` fade-in, highlighted keyword matches
+- [x] search bar (`/` or `CTRL/CMD + F` to focus) with mode selector (network / keyword / semantic / hybrid), `Motion` sliding indicator underline
+- [x] search results with staggered `Motion` fade-in, highlighted keyword matches
 
 #### Embeddings
 

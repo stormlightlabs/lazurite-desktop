@@ -34,9 +34,7 @@ function UrlInputForm(props: { value: string; onInput: (value: string) => void; 
   return (
     <form onSubmit={handleSubmit} class="flex-1 relative">
       <div class="flex items-center gap-3 px-4 py-2 rounded-xl bg-black/40 shadow-[inset_0_0_0_1px_rgba(125,175,255,0.12)]">
-        <span class="flex items-center text-primary/80">
-          <i class="i-ri-compass-discover-line" />
-        </span>
+        <Icon kind="explore" class="text-primary/80" />
         <input
           data-explorer-input
           type="text"
