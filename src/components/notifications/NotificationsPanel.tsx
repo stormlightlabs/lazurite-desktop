@@ -1,3 +1,4 @@
+import { useAppSession } from "$/contexts/app-session";
 import { listNotifications, updateSeen } from "$/lib/api/notifications";
 import { NOTIFICATIONS_UNREAD_COUNT_EVENT } from "$/lib/constants/events";
 import type { ListNotificationsResponse, NotificationView } from "$/lib/types";
@@ -13,9 +14,9 @@ type Tab = "mentions" | "activity";
 
 const MENTION_REASONS = new Set(["mention", "reply", "quote"]);
 
-type NotificationsPanelProps = { onMarkSeen: () => void };
-
-export function NotificationsPanel(props: NotificationsPanelProps) {
+export function NotificationsPanel() {
+  const session = useAppSession();
+  // TODO: NotificationsStore via createStore
   const [tab, setTab] = createSignal<Tab>("mentions");
   const [notifications, setNotifications] = createSignal<NotificationView[]>([]);
   const [loading, setLoading] = createSignal(true);
@@ -43,7 +44,7 @@ export function NotificationsPanel(props: NotificationsPanelProps) {
     try {
       await updateSeen();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      props.onMarkSeen();
+      session.markNotificationsSeen();
     } catch (err) {
       const error = normalizeError(err);
       logger.warn("failed to mark notifications as seen", { keyValues: { error } });

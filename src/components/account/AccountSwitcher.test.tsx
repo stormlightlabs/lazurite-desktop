@@ -1,3 +1,4 @@
+import { AppTestProviders } from "$/test/providers";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { describe, expect, it, vi } from "vitest";
 import { AccountSwitcher } from "./AccountSwitcher";
@@ -13,17 +14,16 @@ const ACCOUNT = {
 describe("AccountSwitcher", () => {
   it("renders the stored account when no active session exists", () => {
     render(() => (
-      <AccountSwitcher
-        activeAccount={null}
-        activeSession={null}
-        accounts={[ACCOUNT]}
-        busyDid={null}
-        logoutDid={null}
-        open={false}
-        onClose={vi.fn()}
-        onLogout={vi.fn()}
-        onSwitch={vi.fn()}
-        onToggle={vi.fn()} />
+      <AppTestProviders
+        session={{
+          accounts: [ACCOUNT],
+          activeAccount: null,
+          activeSession: null,
+          hasSession: false,
+          primaryAccount: ACCOUNT,
+        }}>
+        <AccountSwitcher />
+      </AppTestProviders>
     ));
 
     expect(screen.getByText("alice.test")).toBeInTheDocument();
@@ -31,29 +31,27 @@ describe("AccountSwitcher", () => {
   });
 
   it("closes the menu on outside pointerdown instead of toggling", () => {
-    const onClose = vi.fn();
-    const onToggle = vi.fn();
+    const closeSwitcher = vi.fn();
+    const toggleSwitcher = vi.fn();
 
     render(() => (
       <>
-        <AccountSwitcher
-          activeAccount={ACCOUNT}
-          activeSession={{ did: ACCOUNT.did, handle: ACCOUNT.handle }}
-          accounts={[ACCOUNT]}
-          busyDid={null}
-          logoutDid={null}
-          open
-          onClose={onClose}
-          onLogout={vi.fn()}
-          onSwitch={vi.fn()}
-          onToggle={onToggle} />
+        <AppTestProviders
+          session={{
+            accounts: [ACCOUNT],
+            activeAccount: ACCOUNT,
+            activeSession: { did: ACCOUNT.did, handle: ACCOUNT.handle },
+          }}
+          shell={{ closeSwitcher, showSwitcher: true, toggleSwitcher }}>
+          <AccountSwitcher />
+        </AppTestProviders>
         <div data-testid="outside">outside</div>
       </>
     ));
 
     fireEvent.pointerDown(screen.getByTestId("outside"));
 
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(onToggle).not.toHaveBeenCalled();
+    expect(closeSwitcher).toHaveBeenCalledTimes(1);
+    expect(toggleSwitcher).not.toHaveBeenCalled();
   });
 });

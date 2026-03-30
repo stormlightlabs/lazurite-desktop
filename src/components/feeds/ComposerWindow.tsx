@@ -1,3 +1,4 @@
+import { useAppSession } from "$/contexts/app-session";
 import { createPost } from "$/lib/api/feeds";
 import { POST_CREATED_EVENT } from "$/lib/constants/events";
 import { emitTo } from "@tauri-apps/api/event";
@@ -5,13 +6,12 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSignal } from "solid-js";
 import { ComposerSurface } from "./FeedComposer";
 
-type ComposerWindowProps = { activeAvatar?: string | null; activeHandle: string; onError: (message: string) => void };
-
 async function closeWindow() {
   await getCurrentWindow().close();
 }
 
-export function ComposerWindow(props: ComposerWindowProps) {
+export function ComposerWindow() {
+  const session = useAppSession();
   const [pending, setPending] = createSignal(false);
   const [text, setText] = createSignal("");
 
@@ -27,7 +27,7 @@ export function ComposerWindow(props: ComposerWindowProps) {
       await emitTo("main", POST_CREATED_EVENT, null);
       await closeWindow();
     } catch (error) {
-      props.onError(`Failed to create post: ${String(error)}`);
+      session.reportError(`Failed to create post: ${String(error)}`);
     } finally {
       setPending(false);
     }
@@ -36,8 +36,8 @@ export function ComposerWindow(props: ComposerWindowProps) {
   return (
     <div class="min-h-screen bg-[radial-gradient(circle_at_top,rgba(125,175,255,0.12),transparent_32%),#000]">
       <ComposerSurface
-        activeAvatar={props.activeAvatar}
-        activeHandle={props.activeHandle}
+        activeAvatar={session.activeAvatar}
+        activeHandle={session.activeHandle}
         layout="window"
         pending={pending()}
         quoteTarget={null}

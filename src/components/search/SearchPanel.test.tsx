@@ -1,3 +1,4 @@
+import { AppTestProviders } from "$/test/providers";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchPanel } from "./SearchPanel";
@@ -24,6 +25,14 @@ vi.mock(
 );
 
 vi.mock("@tauri-apps/plugin-log", () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }));
+
+function renderSearchPanel() {
+  render(() => (
+    <AppTestProviders>
+      <SearchPanel />
+    </AppTestProviders>
+  ));
+}
 
 describe("SearchPanel", () => {
   beforeEach(() => {
@@ -61,7 +70,7 @@ describe("SearchPanel", () => {
   });
 
   it("renders the search panel with initial state", async () => {
-    render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
+    renderSearchPanel();
 
     expect(await screen.findByPlaceholderText("Search your saved & liked posts...")).toBeInTheDocument();
     expect(screen.getByText("Network")).toBeInTheDocument();
@@ -71,7 +80,7 @@ describe("SearchPanel", () => {
   });
 
   it("switches search modes when clicking mode buttons", async () => {
-    render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
+    renderSearchPanel();
 
     const keywordButton = screen.getByRole("button", { name: /keyword/i });
     fireEvent.click(keywordButton);
@@ -92,7 +101,7 @@ describe("SearchPanel", () => {
       }],
     });
 
-    render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
+    renderSearchPanel();
 
     const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
     fireEvent.input(input, { target: { value: "test query" } });
@@ -121,7 +130,7 @@ describe("SearchPanel", () => {
       semanticMatch: false,
     }]);
 
-    render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
+    renderSearchPanel();
 
     const keywordButton = screen.getByRole("button", { name: /keyword/i });
     fireEvent.click(keywordButton);
@@ -139,7 +148,7 @@ describe("SearchPanel", () => {
   });
 
   it("cycles through modes with Tab key", async () => {
-    render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
+    renderSearchPanel();
 
     const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
     input.focus();
@@ -159,7 +168,7 @@ describe("SearchPanel", () => {
       }],
     });
 
-    render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
+    renderSearchPanel();
 
     const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
     fireEvent.input(input, { target: { value: "test" } });
@@ -177,7 +186,7 @@ describe("SearchPanel", () => {
   it("displays error state when search fails", async () => {
     searchPostsNetworkMock.mockRejectedValue(new Error("Search failed"));
 
-    render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
+    renderSearchPanel();
 
     const input = await screen.findByPlaceholderText("Search your saved & liked posts...");
     fireEvent.input(input, { target: { value: "test" } });
@@ -192,7 +201,7 @@ describe("SearchPanel", () => {
     getSyncStatusMock.mockResolvedValue([{ did: "did:plc:test", source: "like", postCount: 12, lastSyncedAt: null }]);
     searchPostsMock.mockResolvedValue([]);
 
-    render(() => <SearchPanel session={{ did: "did:plc:test", handle: "test.bsky.social" }} />);
+    renderSearchPanel();
 
     const keywordButton = screen.getByRole("button", { name: /keyword/i });
     fireEvent.click(keywordButton);

@@ -1,3 +1,4 @@
+import { useAppSession } from "$/contexts/app-session";
 import type { AccountSummary, ActiveSession } from "$/lib/types";
 import { createMemo, Show } from "solid-js";
 import { Presence } from "solid-motionone";
@@ -44,32 +45,27 @@ export function SessionProfile(props: { session: ActiveSession; activeAccount: A
   );
 }
 
-type SessionSpotlightProps = {
-  activeSession: ActiveSession | null;
-  activeAccount: AccountSummary | null;
-  bootstrapping: boolean;
-  reauthNeeded: boolean;
-  onReauth: () => void;
-};
-
-export function SessionSpotlight(props: SessionSpotlightProps) {
-  const bootstrapping = () => props.bootstrapping;
-  const activeSession = () => props.activeSession;
+export function SessionSpotlight() {
+  const session = useAppSession();
+  const displayAccount = createMemo(() =>
+    session.activeAccount ?? (session.reauthNeeded ? session.primaryAccount : null)
+  );
   const label = createMemo(() => {
-    if (bootstrapping()) {
+    if (session.bootstrapping) {
       return "Reconnecting";
     }
 
-    if (activeSession()) {
+    if (session.activeSession) {
       return "Connected";
     }
 
-    if (props.reauthNeeded && props.activeAccount) {
+    if (session.reauthNeeded && displayAccount()) {
       return "Expired";
     }
 
     return "Ready";
   });
+
   return (
     <article class="panel-surface grid gap-5 p-5">
       <div class="flex items-baseline justify-between gap-3">
@@ -78,14 +74,14 @@ export function SessionSpotlight(props: SessionSpotlightProps) {
       </div>
 
       <SessionBody
-        activeSession={props.activeSession}
-        activeAccount={props.activeAccount}
-        bootstrapping={props.bootstrapping}
-        reauthNeeded={props.reauthNeeded} />
+        activeAccount={displayAccount()}
+        activeSession={session.activeSession}
+        bootstrapping={session.bootstrapping}
+        reauthNeeded={session.reauthNeeded} />
 
       <Presence>
-        <Show when={props.reauthNeeded}>
-          <ReauthBanner onReauth={props.onReauth} />
+        <Show when={session.reauthNeeded}>
+          <ReauthBanner onReauth={() => void session.reauthorizePrimaryAccount()} />
         </Show>
       </Presence>
     </article>
@@ -109,7 +105,7 @@ export function SessionBody(
             {(account) => <SessionExpiredState account={account()} />}
           </Show>
         }>
-        {(session) => <SessionProfile session={session()} activeAccount={props.activeAccount} />}
+        {(currentSession) => <SessionProfile session={currentSession()} activeAccount={props.activeAccount} />}
       </Show>
     </Show>
   );

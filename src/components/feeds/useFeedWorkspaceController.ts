@@ -44,7 +44,6 @@ import {
 } from "./workspace-state";
 
 export type FeedWorkspaceProps = {
-  activeAvatar?: string | null;
   activeSession: ActiveSession;
   onError: (message: string) => void;
   onThreadRouteChange: (uri: string | null) => void;
@@ -725,3 +724,5 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     workspace,
   };
 }
+
+export type FeedWorkspaceController = ReturnType<typeof useFeedWorkspaceController>;

@@ -1,4 +1,5 @@
-import type { AccountSummary, ActiveSession } from "$/lib/types";
+import { useAppSession } from "$/contexts/app-session";
+import { useAppShellUi } from "$/contexts/app-shell-ui";
 import { Show } from "solid-js";
 import { AccountSwitcher } from "./account/AccountSwitcher";
 import { RailButton } from "./RailButton";
@@ -46,48 +47,24 @@ function RailNavigation(props: { collapsed: boolean; hasSession: boolean; unread
   );
 }
 
-export function AppRail(
-  props: {
-    activeAccount: AccountSummary | null;
-    activeSession: ActiveSession | null;
-    accounts: AccountSummary[];
-    collapsed: boolean;
-    hasSession: boolean;
-    logoutDid: string | null;
-    narrow: boolean;
-    openSwitcher: boolean;
-    unreadNotifications: number;
-    onCloseSwitcher: () => void;
-    switchingDid: string | null;
-    onLogout: (did: string) => void;
-    onSwitch: (did: string) => void;
-    onToggleCollapse: () => void;
-    onToggleSwitcher: () => void;
-  },
-) {
+export function AppRail() {
+  const session = useAppSession();
+  const shell = useAppShellUi();
+
   return (
     <aside
       class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:grid max-[1180px]:min-h-0 max-[1180px]:grid-cols-[auto_minmax(0,1fr)_auto] max-[1180px]:items-center max-[1180px]:gap-x-4 max-[1180px]:gap-y-3 max-[1180px]:p-4"
-      classList={{ "items-center px-4": props.collapsed && !props.narrow, "gap-5": props.collapsed && !props.narrow }}
+      classList={{
+        "items-center px-4": shell.railCondensed && !shell.narrowViewport,
+        "gap-5": shell.railCondensed && !shell.narrowViewport,
+      }}
       aria-label="Primary navigation">
-      <RailHeader collapsed={props.collapsed} onToggleCollapse={props.onToggleCollapse} />
+      <RailHeader collapsed={shell.railCondensed} onToggleCollapse={shell.toggleRailCollapsed} />
       <RailNavigation
-        collapsed={props.collapsed}
-        hasSession={props.hasSession}
-        unreadNotifications={props.unreadNotifications} />
-      <AccountSwitcher
-        activeAccount={props.activeAccount}
-        activeSession={props.activeSession}
-        accounts={props.accounts}
-        busyDid={props.switchingDid}
-        compact={props.collapsed || props.narrow}
-        logoutDid={props.logoutDid}
-        narrow={props.narrow}
-        open={props.openSwitcher}
-        onClose={props.onCloseSwitcher}
-        onToggle={props.onToggleSwitcher}
-        onSwitch={props.onSwitch}
-        onLogout={props.onLogout} />
+        collapsed={shell.railCondensed}
+        hasSession={session.hasSession}
+        unreadNotifications={session.unreadNotifications} />
+      <AccountSwitcher />
     </aside>
   );
 }

@@ -1,44 +1,38 @@
+import { AppTestProviders } from "$/test/providers";
 import { render, screen } from "@solidjs/testing-library";
 import type { Component, ParentProps } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { buildThreadRoute } from "./lib/feeds";
-import type { ActiveSession } from "./lib/types";
 import { AppRouter } from "./router";
-
-const session: ActiveSession = { did: "did:plc:alice", handle: "alice.test" };
 
 const Shell: Component<ParentProps> = (props) => <div>{props.children}</div>;
 
 function renderRouter(hash: string) {
   globalThis.location.hash = hash;
-  const renderComposer = vi.fn((currentSession: ActiveSession) => (
-    <div data-testid="composer-view">{currentSession.handle}</div>
-  ));
-  const renderNotifications = vi.fn((currentSession: ActiveSession) => (
-    <div data-testid="notifications-view">{currentSession.handle}</div>
-  ));
+  const renderComposer = vi.fn(() => <div data-testid="composer-view">composer</div>);
+  const renderNotifications = vi.fn(() => <div data-testid="notifications-view">notifications</div>);
   const renderTimeline = vi.fn((
-    props: {
-      session: ActiveSession;
-      context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null };
-    },
+    props: { context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null } },
   ) => (
     <div data-testid="timeline-view">
-      <span>{props.session.handle}</span>
       <span>{props.context.threadUri ?? "no-thread"}</span>
     </div>
   ));
 
   render(() => (
-    <AppRouter
-      bootstrapping={false}
-      hasSession
-      renderAuth={() => <div>Auth</div>}
-      renderComposer={renderComposer}
-      renderNotifications={renderNotifications}
-      renderShell={Shell}
-      renderTimeline={renderTimeline}
-      session={session} />
+    <AppTestProviders
+      session={{
+        activeDid: "did:plc:alice",
+        activeHandle: "alice.test",
+        activeSession: { did: "did:plc:alice", handle: "alice.test" },
+      }}>
+      <AppRouter
+        renderAuth={() => <div>Auth</div>}
+        renderComposer={renderComposer}
+        renderNotifications={renderNotifications}
+        renderShell={Shell}
+        renderTimeline={renderTimeline} />
+    </AppTestProviders>
   ));
 
   return { renderComposer, renderNotifications, renderTimeline };
@@ -71,7 +65,7 @@ describe("AppRouter", () => {
     await screen.findByTestId("composer-view");
 
     expect(renderComposer).toHaveBeenCalledOnce();
-    expect(screen.getByText(session.handle)).toBeInTheDocument();
+    expect(screen.getByText("composer")).toBeInTheDocument();
   });
 
   it("renders the notifications route inside the protected shell", async () => {
@@ -80,6 +74,6 @@ describe("AppRouter", () => {
     await screen.findByTestId("notifications-view");
 
     expect(renderNotifications).toHaveBeenCalledOnce();
-    expect(screen.getByText(session.handle)).toBeInTheDocument();
+    expect(screen.getByText("notifications")).toBeInTheDocument();
   });
 });

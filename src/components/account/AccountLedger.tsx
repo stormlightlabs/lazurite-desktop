@@ -1,41 +1,35 @@
 import { AvatarBadge } from "$/components/AvatarBadge";
+import { useAppSession } from "$/contexts/app-session";
 import type { AccountSummary } from "$/lib/types";
 import { For, Show } from "solid-js";
 import { Motion } from "solid-motionone";
 import { AccountSwitchButton, LogoutButton } from "./AccountButtons";
 
-type AccountLedgerProps = {
-  accounts: AccountSummary[];
-  activeDid: string | null;
-  busyDid: string | null;
-  logoutDid: string | null;
-  onSwitch: (did: string) => void;
-  onLogout: (did: string) => void;
-};
+export function AccountLedger() {
+  const session = useAppSession();
 
-export function AccountLedger(props: AccountLedgerProps) {
   return (
     <article class="panel-surface grid gap-5 p-5">
       <div class="flex items-baseline justify-between gap-3">
         <p class="overline-copy text-[0.75rem] text-on-surface-variant">Accounts</p>
-        <p class="m-0 text-xs leading-[1.55] text-on-surface-variant">{props.accounts.length} added</p>
+        <p class="m-0 text-xs leading-[1.55] text-on-surface-variant">{session.accounts.length} added</p>
       </div>
 
       <Show
-        when={props.accounts.length > 0}
+        when={session.accounts.length > 0}
         fallback={
           <p class="overline-copy text-xs text-on-surface-variant">Your accounts will appear here once you sign in.</p>
         }>
         <div class="grid gap-3" role="list">
-          <For each={props.accounts}>
+          <For each={session.accounts}>
             {(account) => (
               <AccountLedgerCard
                 account={account}
-                activeDid={props.activeDid}
-                busyDid={props.busyDid}
-                logoutDid={props.logoutDid}
-                onSwitch={props.onSwitch}
-                onLogout={props.onLogout} />
+                activeDid={session.activeDid}
+                busyDid={session.switchingDid}
+                logoutDid={session.logoutDid}
+                onSwitch={(did) => void session.switchAccount(did)}
+                onLogout={(did) => void session.logout(did)} />
             )}
           </For>
         </div>

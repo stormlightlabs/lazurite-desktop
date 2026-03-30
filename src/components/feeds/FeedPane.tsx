@@ -1,10 +1,11 @@
 import { Icon } from "$/components/shared/Icon";
+import { useAppSession } from "$/contexts/app-session";
 import { getFeedName } from "$/lib/feeds";
-import type { FeedGeneratorView, FeedViewPost, PostView, SavedFeedItem } from "$/lib/types";
+import type { FeedGeneratorView, SavedFeedItem } from "$/lib/types";
 import { ComposerLauncher } from "./FeedComposer";
 import { FeedContent } from "./FeedContent";
 import { FeedTabBar } from "./FeedTabs";
-import type { FeedState } from "./types";
+import type { FeedWorkspaceController } from "./useFeedWorkspaceController";
 
 function FeedHeaderActions(props: { onCompose: () => void; onRefresh: () => void }) {
   return (
@@ -29,57 +30,34 @@ function FeedHeaderActions(props: { onCompose: () => void; onRefresh: () => void
 }
 
 function FeedScroller(
-  props: {
-    activeFeedId: string;
-    activeFeedState: FeedState | undefined;
-    activeAvatar?: string | null;
-    activeHandle: string;
-    focusedIndex: number;
-    generators: Record<string, FeedGeneratorView>;
-    likePendingByUri: Record<string, boolean>;
-    likePulseUri: string | null;
-    onCompose: () => void;
-    onFocusIndex: (index: number) => void;
-    onLike: (post: PostView) => Promise<void>;
-    onOpenThread: (uri: string) => Promise<void>;
-    onQuote: (post: PostView) => void;
-    onReply: (post: PostView, root: PostView) => void;
-    onRepost: (post: PostView) => Promise<void>;
-    postRefs: Map<string, HTMLElement>;
-    repostPendingByUri: Record<string, boolean>;
-    repostPulseUri: string | null;
-    scrollerRef: (element: HTMLDivElement) => void;
-    sentinelRef: (element: HTMLDivElement) => void;
-    setScrollTop: (top: number) => void;
-    visibleItems: FeedViewPost[];
-  },
+  props: { controller: FeedWorkspaceController; activeAvatar?: string | null; activeHandle: string },
 ) {
   return (
     <div
-      ref={(element) => props.scrollerRef(element)}
+      ref={(element) => props.controller.registerScroller(element)}
       class="feed-scroll-region min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain px-6 pb-8 pt-4 max-[760px]:px-4 max-[520px]:px-3"
-      onScroll={(event) => props.setScrollTop(event.currentTarget.scrollTop)}>
+      onScroll={(event) => props.controller.rememberScrollTop(event.currentTarget.scrollTop)}>
       <ComposerLauncher
         activeAvatar={props.activeAvatar}
         activeHandle={props.activeHandle}
-        onCompose={props.onCompose} />
+        onCompose={props.controller.openComposer} />
       <FeedContent
-        activeFeedId={props.activeFeedId}
-        activeFeedState={props.activeFeedState}
-        focusedIndex={props.focusedIndex}
-        likePendingByUri={props.likePendingByUri}
-        likePulseUri={props.likePulseUri}
-        onFocusIndex={props.onFocusIndex}
-        onLike={props.onLike}
-        onOpenThread={props.onOpenThread}
-        onQuote={props.onQuote}
-        onReply={props.onReply}
-        onRepost={props.onRepost}
-        postRefs={props.postRefs}
-        repostPendingByUri={props.repostPendingByUri}
-        repostPulseUri={props.repostPulseUri}
-        sentinelRef={props.sentinelRef}
-        visibleItems={props.visibleItems} />
+        activeFeedId={props.controller.activeFeed().id}
+        activeFeedState={props.controller.activeFeedState()}
+        focusedIndex={props.controller.workspace.focusedIndex}
+        likePendingByUri={props.controller.workspace.likePendingByUri}
+        likePulseUri={props.controller.workspace.likePulseUri}
+        onFocusIndex={props.controller.setFocusedIndex}
+        onLike={props.controller.toggleLike}
+        onOpenThread={props.controller.openThread}
+        onQuote={props.controller.openQuoteComposer}
+        onReply={props.controller.openReplyComposer}
+        onRepost={props.controller.toggleRepost}
+        postRefs={props.controller.postRefs}
+        repostPendingByUri={props.controller.workspace.repostPendingByUri}
+        repostPulseUri={props.controller.workspace.repostPulseUri}
+        sentinelRef={props.controller.registerSentinel}
+        visibleItems={props.controller.visibleItems()} />
     </div>
   );
 }
@@ -105,98 +83,34 @@ function FeedPaneTitle(
   );
 }
 
-function FeedPaneHeader(
-  props: {
-    activeFeed: SavedFeedItem;
-    generators: Record<string, FeedGeneratorView>;
-    onCompose: () => void;
-    onFeedSelect: (feedId: string) => void;
-    onRefresh: () => void;
-    onToggleDrawer: () => void;
-    pinnedFeeds: SavedFeedItem[];
-  },
-) {
+function FeedPaneHeader(props: { controller: FeedWorkspaceController }) {
   return (
     <header class="sticky top-0 z-20 overflow-hidden rounded-t-4xl bg-[rgba(14,14,14,0.94)] px-6 pb-3 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)] max-[960px]:px-5 max-[960px]:pb-4 max-[960px]:pt-4 max-[760px]:px-4 max-[520px]:px-3">
       <FeedPaneTitle
-        activeFeed={props.activeFeed}
-        generators={props.generators}
-        onCompose={props.onCompose}
-        onRefresh={props.onRefresh} />
+        activeFeed={props.controller.activeFeed()}
+        generators={props.controller.workspace.generators}
+        onCompose={props.controller.openComposer}
+        onRefresh={() => void props.controller.refreshActiveFeed()} />
       <FeedTabBar
-        activeFeedId={props.activeFeed.id}
-        generators={props.generators}
-        onFeedSelect={props.onFeedSelect}
-        onToggleDrawer={props.onToggleDrawer}
-        pinnedFeeds={props.pinnedFeeds} />
+        activeFeedId={props.controller.activeFeed().id}
+        generators={props.controller.workspace.generators}
+        onFeedSelect={props.controller.switchFeed}
+        onToggleDrawer={props.controller.toggleFeedsDrawer}
+        pinnedFeeds={props.controller.pinnedFeeds().slice(0, 9)} />
     </header>
   );
 }
 
-export function FeedPane(
-  props: {
-    activeFeed: SavedFeedItem;
-    activeFeedId: string;
-    activeFeedState: FeedState | undefined;
-    activeAvatar?: string | null;
-    activeHandle: string;
-    focusedIndex: number;
-    generators: Record<string, FeedGeneratorView>;
-    likePendingByUri: Record<string, boolean>;
-    likePulseUri: string | null;
-    onCompose: () => void;
-    onFeedSelect: (feedId: string) => void;
-    onFocusIndex: (index: number) => void;
-    onLike: (post: PostView) => Promise<void>;
-    onOpenThread: (uri: string) => Promise<void>;
-    onQuote: (post: PostView) => void;
-    onRefresh: () => void;
-    onReply: (post: PostView, root: PostView) => void;
-    onRepost: (post: PostView) => Promise<void>;
-    onToggleDrawer: () => void;
-    pinnedFeeds: SavedFeedItem[];
-    postRefs: Map<string, HTMLElement>;
-    repostPendingByUri: Record<string, boolean>;
-    repostPulseUri: string | null;
-    scrollerRef: (element: HTMLDivElement) => void;
-    sentinelRef: (element: HTMLDivElement) => void;
-    setScrollTop: (top: number) => void;
-    visibleItems: FeedViewPost[];
-  },
-) {
+export function FeedPane(props: { controller: FeedWorkspaceController }) {
+  const session = useAppSession();
+
   return (
     <section class="grid min-h-0 min-w-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)] rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
-      <FeedPaneHeader
-        activeFeed={props.activeFeed}
-        generators={props.generators}
-        onCompose={props.onCompose}
-        onFeedSelect={props.onFeedSelect}
-        onRefresh={props.onRefresh}
-        onToggleDrawer={props.onToggleDrawer}
-        pinnedFeeds={props.pinnedFeeds} />
+      <FeedPaneHeader controller={props.controller} />
       <FeedScroller
-        activeFeedId={props.activeFeedId}
-        activeFeedState={props.activeFeedState}
-        activeAvatar={props.activeAvatar}
-        activeHandle={props.activeHandle}
-        focusedIndex={props.focusedIndex}
-        generators={props.generators}
-        likePendingByUri={props.likePendingByUri}
-        likePulseUri={props.likePulseUri}
-        onCompose={props.onCompose}
-        onFocusIndex={props.onFocusIndex}
-        onLike={props.onLike}
-        onOpenThread={props.onOpenThread}
-        onQuote={props.onQuote}
-        onReply={props.onReply}
-        onRepost={props.onRepost}
-        postRefs={props.postRefs}
-        repostPendingByUri={props.repostPendingByUri}
-        repostPulseUri={props.repostPulseUri}
-        scrollerRef={props.scrollerRef}
-        sentinelRef={props.sentinelRef}
-        setScrollTop={props.setScrollTop}
-        visibleItems={props.visibleItems} />
+        controller={props.controller}
+        activeAvatar={session.activeAvatar}
+        activeHandle={session.activeHandle ?? ""} />
     </section>
   );
 }

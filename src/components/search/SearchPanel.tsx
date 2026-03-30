@@ -1,4 +1,5 @@
 import { Icon, SearchModeIcon } from "$/components/shared/Icon";
+import { useAppSession } from "$/contexts/app-session";
 import {
   type EmbeddingsConfig,
   getEmbeddingsConfig,
@@ -10,7 +11,6 @@ import {
   type SyncStatus,
 } from "$/lib/api/search";
 import { formatRelativeTime } from "$/lib/feeds";
-import type { ActiveSession } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
@@ -37,9 +37,8 @@ function ModeLabel(props: { mode: SearchMode }) {
   );
 }
 
-type SearchPanelProps = { session: ActiveSession };
-
-export function SearchPanel(props: SearchPanelProps) {
+export function SearchPanel() {
+  const session = useAppSession();
   const [mode, setMode] = createSignal<SearchMode>("network");
   const [query, setQuery] = createSignal("");
   const [results, setResults] = createSignal<LocalPostResult[]>([]);
@@ -231,7 +230,7 @@ export function SearchPanel(props: SearchPanelProps) {
       </section>
 
       <aside class="grid content-start gap-4 overflow-y-auto">
-        <SyncStatusPanel did={props.session.did} onStatusChange={setSyncStatus} />
+        <Show when={session.activeDid}>{(did) => <SyncStatusPanel did={did()} onStatusChange={setSyncStatus} />}</Show>
         <EmbeddingsSettings
           onConfigChange={(nextConfig) => {
             setEmbeddingsConfig(nextConfig);

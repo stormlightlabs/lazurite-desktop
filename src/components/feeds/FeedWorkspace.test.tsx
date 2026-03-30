@@ -1,3 +1,4 @@
+import { AppTestProviders } from "$/test/providers";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FeedWorkspace } from "./FeedWorkspace";
@@ -107,7 +108,10 @@ describe("FeedWorkspace", () => {
     });
 
     const { container } = render(() => (
-      <FeedWorkspace activeSession={ACTIVE_SESSION} onError={vi.fn()} onThreadRouteChange={vi.fn()} threadUri={null} />
+      <AppTestProviders
+        session={{ activeDid: ACTIVE_SESSION.did, activeHandle: ACTIVE_SESSION.handle, activeSession: ACTIVE_SESSION }}>
+        <FeedWorkspace onThreadRouteChange={vi.fn()} threadUri={null} />
+      </AppTestProviders>
     ));
 
     await screen.findByText("Page 1");

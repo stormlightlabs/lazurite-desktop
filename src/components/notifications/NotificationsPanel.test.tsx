@@ -1,3 +1,4 @@
+import { AppTestProviders } from "$/test/providers";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotificationsPanel } from "./NotificationsPanel";
@@ -43,12 +44,16 @@ describe("NotificationsPanel", () => {
       seenAt: null,
     });
 
-    const onMarkSeen = vi.fn();
-    render(() => <NotificationsPanel onMarkSeen={onMarkSeen} />);
+    const markNotificationsSeen = vi.fn();
+    render(() => (
+      <AppTestProviders session={{ markNotificationsSeen }}>
+        <NotificationsPanel />
+      </AppTestProviders>
+    ));
 
     await screen.findByLabelText("mention author mentioned you");
     await waitFor(() => expect(updateSeenMock).toHaveBeenCalledOnce());
-    await waitFor(() => expect(onMarkSeen).toHaveBeenCalledOnce());
+    await waitFor(() => expect(markNotificationsSeen).toHaveBeenCalledOnce());
 
     expect(screen.queryByLabelText("like author liked your post")).not.toBeInTheDocument();
 
@@ -75,7 +80,11 @@ describe("NotificationsPanel", () => {
       return Promise.resolve(() => {});
     });
 
-    render(() => <NotificationsPanel onMarkSeen={vi.fn()} />);
+    render(() => (
+      <AppTestProviders>
+        <NotificationsPanel />
+      </AppTestProviders>
+    ));
 
     await screen.findByLabelText("mention author mentioned you");
 
@@ -88,7 +97,11 @@ describe("NotificationsPanel", () => {
   it("shows the error state when loading fails", async () => {
     listNotificationsMock.mockRejectedValue(new Error("notification fetch failed"));
 
-    render(() => <NotificationsPanel onMarkSeen={vi.fn()} />);
+    render(() => (
+      <AppTestProviders>
+        <NotificationsPanel />
+      </AppTestProviders>
+    ));
 
     expect(await screen.findByText("notification fetch failed")).toBeInTheDocument();
   });
