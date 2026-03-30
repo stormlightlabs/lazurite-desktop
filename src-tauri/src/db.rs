@@ -42,6 +42,11 @@ const MIGRATIONS: &[Migration] = &[
     Migration::new(4, "account_avatars", include_str!("migrations/004_account_avatars.sql")),
     Migration::new(5, "sync_state", include_str!("migrations/005_sync_state.sql")),
     Migration::new(6, "app_settings", include_str!("migrations/006_app_settings.sql")),
+    Migration::new(
+        7,
+        "search_owner_scope",
+        include_str!("migrations/007_search_owner_scope.sql"),
+    ),
 ];
 
 pub fn initialize_database(app: &AppHandle) -> Result<DbPool, AppError> {

@@ -29,6 +29,7 @@ pub fn run() {
 
             AppState::spawn_token_refresh_task(app.handle().clone());
             notifications::spawn_notification_poll_task(app.handle().clone());
+            search::spawn_search_sync_task(app.handle().clone());
 
             let app_handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
@@ -100,6 +101,7 @@ pub fn run() {
             cmd::explorer::export_repo_car,
             cmd::explorer::query_labels,
             cmd::search::search_posts_network,
+            cmd::search::search_posts,
             cmd::search::search_actors,
             cmd::search::search_starter_packs,
             cmd::search::sync_posts,

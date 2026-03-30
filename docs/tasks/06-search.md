@@ -44,13 +44,13 @@ Spec: [search.md](../specs/search.md)
 
 #### Search Result Context
 
-- [ ] Implement `search_posts(query, mode, limit)`:
+- [x] Implement `search_posts(query, mode, limit)`:
   - `keyword`: FTS5 MATCH query (always available)
   - `semantic`: embed query string → vec similarity search (requires embeddings enabled)
   - `hybrid`: run both, merge via reciprocal rank fusion (falls back to keyword-only if embeddings disabled)
-- [ ] `get_sync_status(did)` → last sync time, post counts, cursor state
-- [ ] Model management: download `nomic-embed-text-v1.5` ONNX on first use to `<app_data_dir>/models/` (skipped when embeddings disabled)
-- [ ] Background sync: trigger after login, then every 15 min
+- [x] `get_sync_status(did)` → last sync time, post counts, cursor state
+- [x] Model management: download `nomic-embed-text-v1.5` ONNX on first use to `<app_data_dir>/models/` (skipped when embeddings disabled)
+- [x] Background sync: trigger after login, then every 15 min
 
 ### Frontend
 

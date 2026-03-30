@@ -11,10 +11,16 @@ use jacquard::types::ident::AtIdentifier;
 use jacquard::xrpc::XrpcClient;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_log::log;
+
+const DEFAULT_RRF_K: f64 = 60.0;
+const SEARCH_SYNC_CHECK_INTERVAL: Duration = Duration::from_secs(5);
+const SEARCH_SYNC_INTERVAL: Duration = Duration::from_secs(15 * 60);
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +31,32 @@ pub struct SyncStatus {
     pub last_synced_at: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PostResult {
+    pub uri: String,
+    pub cid: String,
+    pub author_did: String,
+    pub author_handle: Option<String>,
+    pub text: Option<String>,
+    pub created_at: Option<String>,
+    pub source: String,
+    pub score: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SearchMode {
+    Keyword,
+    Semantic,
+    Hybrid,
+}
+
+#[derive(Clone, Debug)]
+struct SearchRow {
+    storage_key: String,
+    post: PostResult,
+}
+
 fn validate_query(query: &str) -> Result<()> {
     if query.trim().is_empty() {
         return Err(AppError::validation("search query must not be empty"));
@@ -32,11 +64,45 @@ fn validate_query(query: &str) -> Result<()> {
     Ok(())
 }
 
+fn validate_limit(limit: u32) -> Result<usize> {
+    match limit {
+        0 => Err(AppError::validation("search limit must be greater than zero")),
+        _ => Ok(limit as usize),
+    }
+}
+
+fn validate_search_mode(mode: &str) -> Result<SearchMode> {
+    match mode {
+        "keyword" => Ok(SearchMode::Keyword),
+        "semantic" => Ok(SearchMode::Semantic),
+        "hybrid" => Ok(SearchMode::Hybrid),
+        _ => Err(AppError::validation(
+            "search mode must be 'keyword', 'semantic', or 'hybrid'",
+        )),
+    }
+}
+
 fn validate_source(source: &str) -> Result<()> {
     match source {
         "like" | "bookmark" => Ok(()),
         _ => Err(AppError::validation("source must be 'like' or 'bookmark'")),
     }
+}
+
+fn storage_key(owner_did: &str, source: &str, uri: &str) -> String {
+    format!("{owner_did}|{source}|{uri}")
+}
+
+fn active_session_did(state: &AppState) -> Result<Option<String>> {
+    Ok(state
+        .active_session
+        .read()
+        .map_err(|error| {
+            log::error!("active_session poisoned: {error}");
+            AppError::StatePoisoned("active_session")
+        })?
+        .as_ref()
+        .map(|session| session.did.clone()))
 }
 
 async fn get_session(state: &AppState) -> Result<Arc<LazuriteOAuthSession>> {
@@ -95,7 +161,7 @@ fn db_save_sync_state(conn: &Connection, did: &str, source: &str, cursor: Option
 
 /// Upsert a single `FeedViewPost` JSON item into the `posts` table.
 /// On conflict (same uri) updates mutable fields but keeps indexed_at.
-fn db_upsert_post(conn: &Connection, feed_item: &serde_json::Value, source: &str) -> Result<()> {
+fn db_upsert_post(conn: &Connection, owner_did: &str, feed_item: &serde_json::Value, source: &str) -> Result<()> {
     let post = feed_item.get("post").unwrap_or(feed_item);
 
     let uri = post
@@ -119,16 +185,20 @@ fn db_upsert_post(conn: &Connection, feed_item: &serde_json::Value, source: &str
     let text = record.and_then(|r| r.get("text")).and_then(|v| v.as_str());
     let created_at = record.and_then(|r| r.get("createdAt")).and_then(|v| v.as_str());
     let json_record = record.map(|r| r.to_string());
+    let storage_key = storage_key(owner_did, source, uri);
 
     conn.execute(
-        "INSERT INTO posts(uri, cid, author_did, author_handle, text, created_at, json_record, source)
-         VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-         ON CONFLICT(uri) DO UPDATE SET
+        "INSERT INTO posts(storage_key, owner_did, uri, cid, author_did, author_handle, text, created_at, json_record, source)
+         VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+         ON CONFLICT(storage_key) DO UPDATE SET
            cid           = excluded.cid,
            author_handle = excluded.author_handle,
            text          = excluded.text,
+           created_at    = excluded.created_at,
            json_record   = excluded.json_record",
         params![
+            storage_key,
+            owner_did,
             uri,
             cid,
             author_did,
@@ -142,19 +212,21 @@ fn db_upsert_post(conn: &Connection, feed_item: &serde_json::Value, source: &str
     Ok(())
 }
 
-fn db_post_count(conn: &Connection, source: &str) -> Result<i64> {
-    conn.query_row("SELECT COUNT(*) FROM posts WHERE source = ?1", params![source], |row| {
-        row.get(0)
-    })
+fn db_post_count(conn: &Connection, owner_did: &str, source: &str) -> Result<i64> {
+    conn.query_row(
+        "SELECT COUNT(*) FROM posts WHERE owner_did = ?1 AND source = ?2",
+        params![owner_did, source],
+        |row| row.get(0),
+    )
     .map_err(AppError::from)
 }
 
-fn db_sync_status(conn: &Connection, source: &str) -> Result<SyncStatus> {
-    let post_count = db_post_count(conn, source)?;
+fn db_sync_status(conn: &Connection, did: &str, source: &str) -> Result<SyncStatus> {
+    let post_count = db_post_count(conn, did, source)?;
     let (cursor, last_synced_at) = conn
         .query_row(
-            "SELECT cursor, last_synced_at FROM sync_state WHERE source = ?1",
-            params![source],
+            "SELECT cursor, last_synced_at FROM sync_state WHERE did = ?1 AND source = ?2",
+            params![did, source],
             |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?)),
         )
         .optional()?
@@ -306,7 +378,7 @@ pub async fn sync_posts(did: String, source: String, state: &AppState) -> Result
         {
             let conn = state.auth_store.lock_connection()?;
             for item in &feed {
-                db_upsert_post(&conn, item, &source)?;
+                db_upsert_post(&conn, &did, item, &source)?;
             }
             db_save_sync_state(&conn, &did, &source, next_cursor.as_deref())?;
         }
@@ -326,36 +398,28 @@ pub async fn sync_posts(did: String, source: String, state: &AppState) -> Result
     }
 
     let conn = state.auth_store.lock_connection()?;
-    db_sync_status(&conn, &source)
+    db_sync_status(&conn, &did, &source)
 }
 
 /// Returns sync status for all sources for the given DID.
 pub fn get_sync_status(did: &str, state: &AppState) -> Result<Vec<SyncStatus>> {
     let conn = state.auth_store.lock_connection()?;
-    let mut stmt = conn.prepare(
-        "SELECT ss.source,
-                COUNT(p.uri)      AS post_count,
-                ss.cursor,
-                ss.last_synced_at
-         FROM sync_state ss
-         LEFT JOIN posts p ON p.source = ss.source
-         WHERE ss.did = ?1
-         GROUP BY ss.source",
-    )?;
-
-    let rows = stmt.query_map(params![did], |row| {
-        Ok(SyncStatus {
-            source: row.get(0)?,
-            post_count: row.get(1)?,
-            cursor: row.get(2)?,
-            last_synced_at: row.get(3)?,
-        })
-    })?;
-
-    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(AppError::from)
+    ["like", "bookmark"]
+        .into_iter()
+        .map(|source| db_sync_status(&conn, did, source))
+        .collect()
 }
 
 const EMBED_BATCH_SIZE: usize = 32;
+
+fn build_embedding_model(models_dir: PathBuf) -> Result<TextEmbedding> {
+    TextEmbedding::try_new(
+        TextInitOptions::new(EmbeddingModel::NomicEmbedTextV15)
+            .with_cache_dir(models_dir)
+            .with_show_download_progress(false),
+    )
+    .map_err(|error| AppError::validation(format!("failed to init embedding model: {error}")))
+}
 
 fn resolve_models_dir(app: &AppHandle) -> Result<PathBuf> {
     let mut dir = app
@@ -387,33 +451,225 @@ fn db_set_embeddings_enabled(conn: &Connection, enabled: bool) -> Result<()> {
     Ok(())
 }
 
-/// Returns (uri, text) for posts that have no embedding yet.
+fn db_keyword_search(conn: &Connection, owner_did: &str, query: &str, limit: usize) -> Result<Vec<SearchRow>> {
+    let match_query = build_fts_match_query(query);
+    let mut stmt = conn.prepare(
+        "SELECT p.storage_key,
+                p.uri,
+                p.cid,
+                p.author_did,
+                p.author_handle,
+                p.text,
+                p.created_at,
+                p.source,
+                bm25(posts_fts) AS rank
+         FROM posts_fts
+         JOIN posts p ON p.rowid = posts_fts.rowid
+         WHERE p.owner_did = ?1
+           AND posts_fts MATCH ?2
+         ORDER BY rank ASC, p.created_at DESC, p.uri ASC
+         LIMIT ?3",
+    )?;
+
+    let rows = stmt.query_map(
+        params![owner_did, match_query, limit as i64],
+        search_row_from_keyword_row,
+    )?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(AppError::from)
+}
+
+fn db_semantic_search(
+    conn: &Connection, owner_did: &str, query_embedding: &[f32], limit: usize,
+) -> Result<Vec<SearchRow>> {
+    let bytes: Vec<u8> = query_embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+    let mut stmt = conn.prepare(
+        "SELECT p.storage_key,
+                p.uri,
+                p.cid,
+                p.author_did,
+                p.author_handle,
+                p.text,
+                p.created_at,
+                p.source,
+                v.distance
+         FROM posts_vec v
+         JOIN posts p ON p.storage_key = v.storage_key
+         WHERE p.owner_did = ?1
+           AND v.embedding MATCH ?2
+           AND v.k = ?3
+         ORDER BY v.distance ASC, p.created_at DESC, p.uri ASC
+        ",
+    )?;
+
+    let rows = stmt.query_map(
+        params![owner_did, bytes.as_slice(), limit as i64],
+        search_row_from_semantic_row,
+    )?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(AppError::from)
+}
+
+fn search_row_from_keyword_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchRow> {
+    let raw_rank = row.get::<_, f64>(8)?;
+    Ok(SearchRow {
+        storage_key: row.get(0)?,
+        post: PostResult {
+            uri: row.get(1)?,
+            cid: row.get(2)?,
+            author_did: row.get(3)?,
+            author_handle: row.get(4)?,
+            text: row.get(5)?,
+            created_at: row.get(6)?,
+            source: row.get(7)?,
+            score: -raw_rank,
+        },
+    })
+}
+
+fn search_row_from_semantic_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchRow> {
+    let distance = row.get::<_, f64>(8)?;
+    Ok(SearchRow {
+        storage_key: row.get(0)?,
+        post: PostResult {
+            uri: row.get(1)?,
+            cid: row.get(2)?,
+            author_did: row.get(3)?,
+            author_handle: row.get(4)?,
+            text: row.get(5)?,
+            created_at: row.get(6)?,
+            source: row.get(7)?,
+            score: 1.0 / (1.0 + distance),
+        },
+    })
+}
+
+fn build_fts_match_query(query: &str) -> String {
+    let tokens: Vec<String> = query
+        .split_whitespace()
+        .filter(|token| !token.is_empty())
+        .map(|token| format!("\"{}\"", token.replace('"', "\"\"")))
+        .collect();
+
+    if tokens.is_empty() {
+        format!("\"{}\"", query.trim().replace('"', "\"\""))
+    } else {
+        tokens.join(" AND ")
+    }
+}
+
+fn rrf_merge(keyword_rows: Vec<SearchRow>, semantic_rows: Vec<SearchRow>, limit: usize) -> Vec<PostResult> {
+    let mut fused: HashMap<String, SearchRow> = HashMap::new();
+    let mut scores: HashMap<String, f64> = HashMap::new();
+
+    for rows in [keyword_rows, semantic_rows] {
+        for (rank, row) in rows.into_iter().enumerate() {
+            let score = 1.0 / (DEFAULT_RRF_K + rank as f64 + 1.0);
+            scores
+                .entry(row.storage_key.clone())
+                .and_modify(|value| *value += score)
+                .or_insert(score);
+            fused.entry(row.storage_key.clone()).or_insert(row);
+        }
+    }
+
+    let mut rows: Vec<SearchRow> = fused
+        .into_iter()
+        .filter_map(|(key, mut row)| {
+            scores.get(&key).map(|score| {
+                row.post.score = *score;
+                row
+            })
+        })
+        .collect();
+
+    rows.sort_by(|left, right| {
+        right
+            .post
+            .score
+            .total_cmp(&left.post.score)
+            .then_with(|| right.post.created_at.cmp(&left.post.created_at))
+            .then_with(|| left.post.uri.cmp(&right.post.uri))
+    });
+
+    rows.into_iter().take(limit).map(|row| row.post).collect()
+}
+
+fn run_local_search(
+    conn: &Connection, owner_did: &str, query: &str, mode: SearchMode, limit: usize, embeddings_enabled: bool,
+    query_embedding: Option<&[f32]>,
+) -> Result<Vec<PostResult>> {
+    match mode {
+        SearchMode::Keyword => {
+            db_keyword_search(conn, owner_did, query, limit).map(|rows| rows.into_iter().map(|row| row.post).collect())
+        }
+        SearchMode::Semantic => {
+            if !embeddings_enabled {
+                return Err(AppError::validation(
+                    "semantic search is unavailable while embeddings are disabled",
+                ));
+            }
+
+            let query_embedding =
+                query_embedding.ok_or_else(|| AppError::validation("semantic search query embedding missing"))?;
+            db_semantic_search(conn, owner_did, query_embedding, limit)
+                .map(|rows| rows.into_iter().map(|row| row.post).collect())
+        }
+        SearchMode::Hybrid => {
+            let candidate_limit = limit.saturating_mul(4).min(100);
+            let keyword_rows = db_keyword_search(conn, owner_did, query, candidate_limit)?;
+
+            if !embeddings_enabled {
+                return Ok(keyword_rows.into_iter().take(limit).map(|row| row.post).collect());
+            }
+
+            let Some(query_embedding) = query_embedding else {
+                return Err(AppError::validation("hybrid search query embedding missing"));
+            };
+
+            let semantic_rows = db_semantic_search(conn, owner_did, query_embedding, candidate_limit)?;
+            Ok(rrf_merge(keyword_rows, semantic_rows, limit))
+        }
+    }
+}
+
+fn embed_query_text(query: &str, models_dir: PathBuf) -> Result<Vec<f32>> {
+    let mut model = build_embedding_model(models_dir)?;
+    let embeddings = model
+        .embed(vec![query.to_owned()], Some(1))
+        .map_err(|error| AppError::validation(format!("embedding error: {error}")))?;
+
+    embeddings
+        .into_iter()
+        .next()
+        .ok_or_else(|| AppError::validation("embedding model returned no query embedding"))
+}
+
+/// Returns (storage_key, text) for posts that have no embedding yet.
 fn db_posts_without_embeddings(conn: &Connection) -> Result<Vec<(String, String)>> {
     let mut stmt = conn.prepare(
-        "SELECT p.uri, p.text
+        "SELECT p.storage_key, p.text
          FROM posts p
          WHERE p.text IS NOT NULL
            AND p.text != ''
-           AND p.uri NOT IN (SELECT uri FROM posts_vec)",
+           AND p.storage_key NOT IN (SELECT storage_key FROM posts_vec)",
     )?;
 
     let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(AppError::from)
 }
 
-/// Returns (uri, text) for ALL posts that have non-empty text.
+/// Returns (storage_key, text) for ALL posts that have non-empty text.
 fn db_all_posts_with_text(conn: &Connection) -> Result<Vec<(String, String)>> {
-    let mut stmt = conn.prepare("SELECT uri, text FROM posts WHERE text IS NOT NULL AND text != ''")?;
+    let mut stmt = conn.prepare("SELECT storage_key, text FROM posts WHERE text IS NOT NULL AND text != ''")?;
 
     let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(AppError::from)
 }
 
-fn db_upsert_embedding(conn: &Connection, uri: &str, embedding: &[f32]) -> Result<()> {
+fn db_upsert_embedding(conn: &Connection, storage_key: &str, embedding: &[f32]) -> Result<()> {
     let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
     conn.execute(
-        "INSERT OR REPLACE INTO posts_vec(uri, embedding) VALUES(?1, ?2)",
-        params![uri, bytes.as_slice()],
+        "INSERT OR REPLACE INTO posts_vec(storage_key, embedding) VALUES(?1, ?2)",
+        params![storage_key, bytes.as_slice()],
     )?;
     Ok(())
 }
@@ -423,12 +679,7 @@ fn embed_posts(posts: &[(String, String)], models_dir: PathBuf, state: &AppState
         return Ok(0);
     }
 
-    let mut model = TextEmbedding::try_new(
-        TextInitOptions::new(EmbeddingModel::NomicEmbedTextV15)
-            .with_cache_dir(models_dir)
-            .with_show_download_progress(false),
-    )
-    .map_err(|error| AppError::validation(format!("failed to init embedding model: {error}")))?;
+    let mut model = build_embedding_model(models_dir)?;
 
     let mut total = 0usize;
 
@@ -439,13 +690,52 @@ fn embed_posts(posts: &[(String, String)], models_dir: PathBuf, state: &AppState
             .map_err(|error| AppError::validation(format!("embedding error: {error}")))?;
 
         let conn = state.auth_store.lock_connection()?;
-        for ((uri, _), embedding) in chunk.iter().zip(embeddings.iter()) {
-            db_upsert_embedding(&conn, uri, embedding)?;
+        for ((storage_key, _), embedding) in chunk.iter().zip(embeddings.iter()) {
+            db_upsert_embedding(&conn, storage_key, embedding)?;
         }
         total += chunk.len();
     }
 
     Ok(total)
+}
+
+pub fn search_posts(
+    query: String, mode: String, limit: u32, app: &AppHandle, state: &AppState,
+) -> Result<Vec<PostResult>> {
+    validate_query(&query)?;
+    let limit = validate_limit(limit)?;
+    let mode = validate_search_mode(&mode)?;
+    let owner_did = active_session_did(state)?.ok_or_else(|| AppError::validation("no active account"))?;
+
+    let embeddings_enabled = {
+        let conn = state.auth_store.lock_connection()?;
+        db_get_embeddings_enabled(&conn)?
+    };
+
+    let query_embedding = match mode {
+        SearchMode::Keyword => None,
+        SearchMode::Semantic | SearchMode::Hybrid if embeddings_enabled => {
+            let models_dir = resolve_models_dir(app)?;
+            Some(embed_query_text(&query, models_dir)?)
+        }
+        SearchMode::Semantic => {
+            return Err(AppError::validation(
+                "semantic search is unavailable while embeddings are disabled",
+            ));
+        }
+        SearchMode::Hybrid => None,
+    };
+
+    let conn = state.auth_store.lock_connection()?;
+    run_local_search(
+        &conn,
+        &owner_did,
+        &query,
+        mode,
+        limit,
+        embeddings_enabled,
+        query_embedding.as_deref(),
+    )
 }
 
 /// Embed all posts that do not yet have an embedding. Skipped when embeddings are disabled.
@@ -493,20 +783,89 @@ pub fn set_embeddings_enabled(enabled: bool, state: &AppState) -> Result<()> {
     db_set_embeddings_enabled(&conn, enabled)
 }
 
+fn sync_due(active_did: Option<&str>, last_synced_did: Option<&str>, last_synced_at: Option<Instant>) -> bool {
+    match active_did {
+        None => false,
+        Some(did) if Some(did) != last_synced_did => true,
+        Some(_) => last_synced_at
+            .map(|instant| instant.elapsed() >= SEARCH_SYNC_INTERVAL)
+            .unwrap_or(true),
+    }
+}
+
+/// Keeps the active account's local search index warm by syncing likes on login/account switch
+/// and then re-syncing every 15 minutes. Embeddings are refreshed for newly synced posts.
+pub fn spawn_search_sync_task(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut last_synced_did: Option<String> = None;
+        let mut last_synced_at: Option<Instant> = None;
+
+        loop {
+            let state = app.state::<AppState>();
+            let active_did = match active_session_did(&state) {
+                Ok(value) => value,
+                Err(error) => {
+                    log::warn!("search sync failed to read active session: {error}");
+                    tokio::time::sleep(SEARCH_SYNC_CHECK_INTERVAL).await;
+                    continue;
+                }
+            };
+
+            if active_did.is_none() {
+                last_synced_did = None;
+                last_synced_at = None;
+                tokio::time::sleep(SEARCH_SYNC_CHECK_INTERVAL).await;
+                continue;
+            }
+
+            if sync_due(active_did.as_deref(), last_synced_did.as_deref(), last_synced_at) {
+                let did = active_did.clone().unwrap_or_default();
+                match sync_posts(did.clone(), "like".to_owned(), &state).await {
+                    Ok(status) => {
+                        log::info!(
+                            "background search sync complete for {} likes: {} post(s)",
+                            did,
+                            status.post_count
+                        );
+                        if let Err(error) = embed_pending_posts(&app, &state) {
+                            log::warn!("background embedding pass failed for {did}: {error}");
+                        }
+                        last_synced_did = Some(did);
+                        last_synced_at = Some(Instant::now());
+                    }
+                    Err(error) => {
+                        log::warn!("background search sync failed: {error}");
+                    }
+                }
+            }
+
+            tokio::time::sleep(SEARCH_SYNC_CHECK_INTERVAL).await;
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        db_get_embeddings_enabled, db_load_sync_cursor, db_post_count, db_save_sync_state, db_set_embeddings_enabled,
-        db_upsert_post, validate_query, validate_source,
+        build_fts_match_query, db_get_embeddings_enabled, db_load_sync_cursor, db_post_count, db_save_sync_state,
+        db_semantic_search, db_set_embeddings_enabled, db_sync_status, db_upsert_embedding, db_upsert_post,
+        run_local_search, storage_key, sync_due, validate_limit, validate_query, validate_search_mode, validate_source,
+        SearchMode,
     };
-    use rusqlite::Connection;
+    use rusqlite::{ffi::sqlite3_auto_extension, Connection};
+    use sqlite_vec::sqlite3_vec_init;
 
-    /// Minimal schema for unit tests w/o FTS/vec tables.
     fn test_db() -> Connection {
+        unsafe {
+            sqlite3_auto_extension(Some(std::mem::transmute(sqlite3_vec_init as *const ())));
+        }
+
         let conn = Connection::open_in_memory().expect("in-memory db should open");
         conn.execute_batch(
             "CREATE TABLE posts (
-               uri TEXT PRIMARY KEY,
+               storage_key TEXT PRIMARY KEY,
+               owner_did TEXT NOT NULL,
+               uri TEXT NOT NULL,
                cid TEXT NOT NULL,
                author_did TEXT NOT NULL,
                author_handle TEXT,
@@ -514,8 +873,30 @@ mod tests {
                created_at TEXT,
                indexed_at TEXT DEFAULT CURRENT_TIMESTAMP,
                json_record TEXT,
-               source TEXT NOT NULL
+               source TEXT NOT NULL,
+               UNIQUE(owner_did, source, uri)
              );
+             CREATE VIRTUAL TABLE posts_fts USING fts5(
+               text,
+               content=posts,
+               content_rowid=rowid
+             );
+             CREATE VIRTUAL TABLE posts_vec USING vec0(
+               storage_key TEXT PRIMARY KEY,
+               embedding float[3]
+             );
+             CREATE TRIGGER posts_ai AFTER INSERT ON posts BEGIN
+               INSERT INTO posts_fts(rowid, text) VALUES (new.rowid, new.text);
+             END;
+             CREATE TRIGGER posts_ad AFTER DELETE ON posts BEGIN
+               INSERT INTO posts_fts(posts_fts, rowid, text)
+               VALUES('delete', old.rowid, old.text);
+             END;
+             CREATE TRIGGER posts_au AFTER UPDATE ON posts BEGIN
+               INSERT INTO posts_fts(posts_fts, rowid, text)
+               VALUES('delete', old.rowid, old.text);
+               INSERT INTO posts_fts(rowid, text) VALUES (new.rowid, new.text);
+             END;
              CREATE TABLE sync_state (
                did TEXT NOT NULL,
                source TEXT NOT NULL,
@@ -532,15 +913,25 @@ mod tests {
         conn
     }
 
-    fn feed_item(uri: &str, cid: &str, did: &str, handle: &str, text: &str) -> serde_json::Value {
+    fn feed_item(uri: &str, cid: &str, did: &str, handle: &str, text: &str, created_at: &str) -> serde_json::Value {
         serde_json::json!({
             "post": {
                 "uri": uri,
                 "cid": cid,
                 "author": { "did": did, "handle": handle },
-                "record": { "$type": "app.bsky.feed.post", "text": text, "createdAt": "2024-01-01T00:00:00Z" }
+                "record": { "$type": "app.bsky.feed.post", "text": text, "createdAt": created_at }
             }
         })
+    }
+
+    fn insert_post(conn: &Connection, owner_did: &str, uri: &str, source: &str, text: &str, created_at: &str) {
+        let item = feed_item(uri, "cid", "did:plc:author", "author.test", text, created_at);
+        db_upsert_post(conn, owner_did, &item, source).expect("post should insert");
+    }
+
+    fn insert_embedding(conn: &Connection, owner_did: &str, source: &str, uri: &str, embedding: &[f32]) {
+        let key = storage_key(owner_did, source, uri);
+        db_upsert_embedding(conn, &key, embedding).expect("embedding should insert");
     }
 
     #[test]
@@ -559,6 +950,16 @@ mod tests {
     }
 
     #[test]
+    fn zero_limit_is_rejected() {
+        assert!(validate_limit(0).is_err());
+    }
+
+    #[test]
+    fn non_zero_limit_is_accepted() {
+        assert_eq!(validate_limit(5).unwrap(), 5);
+    }
+
+    #[test]
     fn single_char_query_is_accepted() {
         assert!(validate_query("a").is_ok());
     }
@@ -572,6 +973,18 @@ mod tests {
     fn valid_sources_are_accepted() {
         assert!(validate_source("like").is_ok());
         assert!(validate_source("bookmark").is_ok());
+    }
+
+    #[test]
+    fn valid_search_modes_are_accepted() {
+        assert_eq!(validate_search_mode("keyword").unwrap(), SearchMode::Keyword);
+        assert_eq!(validate_search_mode("semantic").unwrap(), SearchMode::Semantic);
+        assert_eq!(validate_search_mode("hybrid").unwrap(), SearchMode::Hybrid);
+    }
+
+    #[test]
+    fn unknown_search_mode_is_rejected() {
+        assert!(validate_search_mode("network").is_err());
     }
 
     #[test]
@@ -628,21 +1041,26 @@ mod tests {
     }
 
     #[test]
-    fn upsert_inserts_new_post() {
-        let conn = test_db();
-        let item = feed_item(
-            "at://did:plc:a/app.bsky.feed.post/1",
-            "cid1",
-            "did:plc:a",
-            "alice",
-            "hello",
-        );
-        db_upsert_post(&conn, &item, "like").unwrap();
-        assert_eq!(db_post_count(&conn, "like").unwrap(), 1);
+    fn build_fts_match_query_quotes_each_token() {
+        assert_eq!(build_fts_match_query("rust sqlite"), "\"rust\" AND \"sqlite\"");
     }
 
     #[test]
-    fn upsert_is_idempotent_for_same_uri() {
+    fn upsert_inserts_new_post_for_owner_and_source() {
+        let conn = test_db();
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://did:plc:a/app.bsky.feed.post/1",
+            "like",
+            "hello world",
+            "2024-01-01T00:00:00Z",
+        );
+        assert_eq!(db_post_count(&conn, "did:plc:alice", "like").unwrap(), 1);
+    }
+
+    #[test]
+    fn upsert_is_scoped_by_owner_did() {
         let conn = test_db();
         let item = feed_item(
             "at://did:plc:a/app.bsky.feed.post/1",
@@ -650,10 +1068,12 @@ mod tests {
             "did:plc:a",
             "alice",
             "hello",
+            "2024-01-01T00:00:00Z",
         );
-        db_upsert_post(&conn, &item, "like").unwrap();
-        db_upsert_post(&conn, &item, "like").unwrap();
-        assert_eq!(db_post_count(&conn, "like").unwrap(), 1);
+        db_upsert_post(&conn, "did:plc:alice", &item, "like").unwrap();
+        db_upsert_post(&conn, "did:plc:bob", &item, "like").unwrap();
+        assert_eq!(db_post_count(&conn, "did:plc:alice", "like").unwrap(), 1);
+        assert_eq!(db_post_count(&conn, "did:plc:bob", "like").unwrap(), 1);
     }
 
     #[test]
@@ -665,8 +1085,9 @@ mod tests {
             "did:plc:a",
             "alice",
             "original",
+            "2024-01-01T00:00:00Z",
         );
-        db_upsert_post(&conn, &original, "like").unwrap();
+        db_upsert_post(&conn, "did:plc:alice", &original, "like").unwrap();
 
         let updated = feed_item(
             "at://did:plc:a/app.bsky.feed.post/1",
@@ -674,13 +1095,18 @@ mod tests {
             "did:plc:a",
             "alice",
             "updated",
+            "2024-01-02T00:00:00Z",
         );
-        db_upsert_post(&conn, &updated, "like").unwrap();
+        db_upsert_post(&conn, "did:plc:alice", &updated, "like").unwrap();
 
         let text: String = conn
             .query_row(
-                "SELECT text FROM posts WHERE uri = ?1",
-                ["at://did:plc:a/app.bsky.feed.post/1"],
+                "SELECT text FROM posts WHERE storage_key = ?1",
+                [storage_key(
+                    "did:plc:alice",
+                    "like",
+                    "at://did:plc:a/app.bsky.feed.post/1",
+                )],
                 |r| r.get(0),
             )
             .unwrap();
@@ -696,12 +1122,17 @@ mod tests {
             "did:plc:a",
             "alice",
             "hi",
+            "2024-01-01T00:00:00Z",
         );
-        db_upsert_post(&conn, &item, "bookmark").unwrap();
+        db_upsert_post(&conn, "did:plc:alice", &item, "bookmark").unwrap();
         let source: String = conn
             .query_row(
-                "SELECT source FROM posts WHERE uri = ?1",
-                ["at://did:plc:a/app.bsky.feed.post/1"],
+                "SELECT source FROM posts WHERE storage_key = ?1",
+                [storage_key(
+                    "did:plc:alice",
+                    "bookmark",
+                    "at://did:plc:a/app.bsky.feed.post/1",
+                )],
                 |r| r.get(0),
             )
             .unwrap();
@@ -712,26 +1143,39 @@ mod tests {
     fn upsert_rejects_item_missing_uri() {
         let conn = test_db();
         let bad = serde_json::json!({ "post": { "cid": "cid1", "author": { "did": "x" } } });
-        assert!(db_upsert_post(&conn, &bad, "like").is_err());
+        assert!(db_upsert_post(&conn, "did:plc:alice", &bad, "like").is_err());
     }
 
     #[test]
-    fn post_count_is_per_source() {
+    fn post_count_is_per_owner_and_source() {
         let conn = test_db();
-        db_upsert_post(
+        insert_post(
             &conn,
-            &feed_item("at://a/app.bsky.feed.post/1", "c1", "did:plc:a", "a", "t"),
+            "did:plc:alice",
+            "at://a/app.bsky.feed.post/1",
             "like",
-        )
-        .unwrap();
-        db_upsert_post(
+            "rust sqlite",
+            "2024-01-01T00:00:00Z",
+        );
+        insert_post(
             &conn,
-            &feed_item("at://a/app.bsky.feed.post/2", "c2", "did:plc:a", "a", "t"),
+            "did:plc:alice",
+            "at://a/app.bsky.feed.post/2",
             "bookmark",
-        )
-        .unwrap();
-        assert_eq!(db_post_count(&conn, "like").unwrap(), 1);
-        assert_eq!(db_post_count(&conn, "bookmark").unwrap(), 1);
+            "saved post",
+            "2024-01-02T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:bob",
+            "at://a/app.bsky.feed.post/3",
+            "like",
+            "other account",
+            "2024-01-03T00:00:00Z",
+        );
+        assert_eq!(db_post_count(&conn, "did:plc:alice", "like").unwrap(), 1);
+        assert_eq!(db_post_count(&conn, "did:plc:alice", "bookmark").unwrap(), 1);
+        assert_eq!(db_post_count(&conn, "did:plc:bob", "like").unwrap(), 1);
     }
 
     #[test]
@@ -766,5 +1210,220 @@ mod tests {
         db_set_embeddings_enabled(&conn, false).unwrap();
         db_set_embeddings_enabled(&conn, false).unwrap();
         assert!(!db_get_embeddings_enabled(&conn).unwrap());
+    }
+
+    #[test]
+    fn keyword_search_returns_owner_scoped_matches() {
+        let conn = test_db();
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/1",
+            "like",
+            "rust sqlite vectors",
+            "2024-01-01T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:bob",
+            "at://bob/app.bsky.feed.post/1",
+            "like",
+            "rust sqlite vectors",
+            "2024-01-02T00:00:00Z",
+        );
+
+        let results = run_local_search(
+            &conn,
+            "did:plc:alice",
+            "rust sqlite",
+            SearchMode::Keyword,
+            10,
+            true,
+            None,
+        )
+        .expect("keyword search should succeed");
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].uri, "at://alice/app.bsky.feed.post/1");
+    }
+
+    #[test]
+    fn semantic_search_returns_nearest_embeddings() {
+        let conn = test_db();
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/1",
+            "like",
+            "rust vectors",
+            "2024-01-01T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/2",
+            "like",
+            "sql joins",
+            "2024-01-02T00:00:00Z",
+        );
+        insert_embedding(
+            &conn,
+            "did:plc:alice",
+            "like",
+            "at://alice/app.bsky.feed.post/1",
+            &[1.0, 0.0, 0.0],
+        );
+        insert_embedding(
+            &conn,
+            "did:plc:alice",
+            "like",
+            "at://alice/app.bsky.feed.post/2",
+            &[0.0, 1.0, 0.0],
+        );
+
+        let results =
+            db_semantic_search(&conn, "did:plc:alice", &[1.0, 0.0, 0.0], 10).expect("semantic search should succeed");
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].post.uri, "at://alice/app.bsky.feed.post/1");
+        assert!(results[0].post.score > results[1].post.score);
+    }
+
+    #[test]
+    fn semantic_search_requires_embeddings_when_disabled() {
+        let conn = test_db();
+        let error = run_local_search(
+            &conn,
+            "did:plc:alice",
+            "rust",
+            SearchMode::Semantic,
+            10,
+            false,
+            Some(&[1.0, 0.0, 0.0]),
+        )
+        .expect_err("semantic search should fail when embeddings are disabled");
+
+        assert!(error.to_string().contains("semantic search is unavailable"));
+    }
+
+    #[test]
+    fn hybrid_search_falls_back_to_keyword_when_embeddings_are_disabled() {
+        let conn = test_db();
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/1",
+            "like",
+            "rust sqlite",
+            "2024-01-01T00:00:00Z",
+        );
+
+        let results = run_local_search(&conn, "did:plc:alice", "rust", SearchMode::Hybrid, 10, false, None)
+            .expect("hybrid fallback should succeed");
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].uri, "at://alice/app.bsky.feed.post/1");
+    }
+
+    #[test]
+    fn hybrid_search_merges_keyword_and_semantic_results() {
+        let conn = test_db();
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/1",
+            "like",
+            "rust sqlite search",
+            "2024-01-01T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/2",
+            "like",
+            "semantic-only match",
+            "2024-01-02T00:00:00Z",
+        );
+        insert_embedding(
+            &conn,
+            "did:plc:alice",
+            "like",
+            "at://alice/app.bsky.feed.post/1",
+            &[0.5, 0.5, 0.0],
+        );
+        insert_embedding(
+            &conn,
+            "did:plc:alice",
+            "like",
+            "at://alice/app.bsky.feed.post/2",
+            &[1.0, 0.0, 0.0],
+        );
+
+        let results = run_local_search(
+            &conn,
+            "did:plc:alice",
+            "rust",
+            SearchMode::Hybrid,
+            10,
+            true,
+            Some(&[1.0, 0.0, 0.0]),
+        )
+        .expect("hybrid search should succeed");
+
+        let uris: Vec<&str> = results.iter().map(|result| result.uri.as_str()).collect();
+        assert!(uris.contains(&"at://alice/app.bsky.feed.post/1"));
+        assert!(uris.contains(&"at://alice/app.bsky.feed.post/2"));
+    }
+
+    #[test]
+    fn sync_status_returns_counts_for_both_sources_per_did() {
+        let conn = test_db();
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/1",
+            "like",
+            "liked post",
+            "2024-01-01T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/2",
+            "bookmark",
+            "saved post",
+            "2024-01-02T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:bob",
+            "at://bob/app.bsky.feed.post/3",
+            "like",
+            "bob post",
+            "2024-01-03T00:00:00Z",
+        );
+        db_save_sync_state(&conn, "did:plc:alice", "like", Some("cursor-like")).unwrap();
+
+        let like_status = db_sync_status(&conn, "did:plc:alice", "like").unwrap();
+        let bookmark_status = db_sync_status(&conn, "did:plc:alice", "bookmark").unwrap();
+
+        assert_eq!(like_status.post_count, 1);
+        assert_eq!(like_status.cursor.as_deref(), Some("cursor-like"));
+        assert_eq!(bookmark_status.post_count, 1);
+        assert!(bookmark_status.cursor.is_none());
+    }
+
+    #[test]
+    fn sync_due_is_true_for_new_active_account() {
+        assert!(sync_due(Some("did:plc:alice"), None, None));
+    }
+
+    #[test]
+    fn sync_due_is_false_when_recent_sync_exists() {
+        assert!(!sync_due(
+            Some("did:plc:alice"),
+            Some("did:plc:alice"),
+            Some(std::time::Instant::now()),
+        ));
     }
 }
