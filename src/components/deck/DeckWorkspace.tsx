@@ -14,7 +14,7 @@ type DeckState = { addPanelOpen: boolean; columns: Column[]; error: string | nul
 
 function DeckToolbar(props: { columnCount: number; onAdd: () => void }) {
   return (
-    <div class="flex shrink-0 items-center justify-between gap-4 pb-4">
+    <div class="flex shrink-0 items-center justify-between gap-4 pb-5">
       <div class="min-w-0">
         <p class="m-0 text-xl font-semibold tracking-tight text-on-surface">Deck</p>
         <p class="m-0 mt-0.5 text-xs uppercase tracking-[0.12em] text-on-surface-variant">
@@ -38,7 +38,7 @@ function DeckToolbar(props: { columnCount: number; onAdd: () => void }) {
 
 function EmptyDeck(props: { onAdd: () => void }) {
   return (
-    <div class="flex h-64 flex-col items-center justify-center gap-4 text-center">
+    <div class="flex h-full min-h-104 flex-col items-center justify-center gap-4 rounded-[1.75rem] bg-white/3 px-6 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
       <span class="flex items-center text-[2.5rem] text-on-surface-variant opacity-30">
         <i class="i-ri-layout-column-line" />
       </span>
@@ -72,12 +72,11 @@ function ColumnList(
   },
 ) {
   return (
-    <div class="flex h-full min-h-96 gap-3 pb-2">
+    <div class="flex h-full min-h-0 items-stretch gap-4 pb-3">
       <For each={props.columns}>
         {(column) => (
           <Motion.div
-            class="flex shrink-0"
-            style={{ height: "calc(100vh - 12rem)" }}
+            class="flex h-full shrink-0"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.18, easing: [0.34, 1.56, 0.64, 1] }}>
@@ -228,12 +227,12 @@ export function DeckWorkspace() {
   });
 
   return (
-    <div class="relative flex min-h-0 min-w-0 flex-col">
+    <div class="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-6 py-5 max-[900px]:px-4 max-[900px]:py-4 max-[640px]:px-3 max-[640px]:py-3">
       <DeckToolbar columnCount={state.columns.length} onAdd={() => setState("addPanelOpen", true)} />
 
-      <div class="min-h-0 flex-1 overflow-x-auto overscroll-contain">
+      <div class="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-contain">
         <Show when={state.loading}>
-          <div class="flex h-64 items-center justify-center">
+          <div class="flex h-full min-h-80 items-center justify-center">
             <Icon iconClass="i-ri-loader-4-line animate-spin text-2xl text-on-surface-variant" />
           </div>
         </Show>

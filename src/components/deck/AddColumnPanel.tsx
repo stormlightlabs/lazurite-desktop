@@ -3,7 +3,8 @@ import { getPreferences } from "$/lib/api/feeds";
 import { getFeedName } from "$/lib/feeds";
 import type { SavedFeedItem } from "$/lib/types";
 import * as logger from "@tauri-apps/plugin-log";
-import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
+import { createEffect, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { Portal } from "solid-js/web";
 import { Motion, Presence } from "solid-motionone";
 import { Icon } from "../shared/Icon";
 
@@ -177,8 +178,13 @@ function PanelContent(
 
 function AddColumnPanelHeader(props: { onClose: () => void }) {
   return (
-    <div class="flex shrink-0 items-center justify-between gap-3 border-b border-white/5 px-5 py-4">
-      <p class="m-0 text-sm font-semibold text-on-surface">Add column</p>
+    <div class="flex shrink-0 items-center justify-between gap-3 px-5 py-4 shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)]">
+      <div>
+        <p id="add-column-panel-title" class="m-0 text-sm font-semibold text-on-surface">Add column</p>
+        <p class="m-0 mt-1 text-xs uppercase tracking-[0.12em] text-on-surface-variant">
+          Feed, explorer, or diagnostics
+        </p>
+      </div>
       <button
         type="button"
         class="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent text-on-surface-variant transition duration-150 hover:bg-white/6 hover:text-on-surface"
@@ -187,6 +193,69 @@ function AddColumnPanelHeader(props: { onClose: () => void }) {
         <Icon kind="close" />
       </button>
     </div>
+  );
+}
+
+function AddColumnPanelTabs(
+  props: {
+    activeTab: PanelTab;
+    onTabChange: (tab: PanelTab) => void;
+    tabs: Array<{ icon: string; id: PanelTab; label: string }>;
+  },
+) {
+  return (
+    <div class="flex shrink-0 gap-1 px-5 py-3">
+      <For each={props.tabs}>
+        {(tab) => (
+          <button
+            type="button"
+            class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border-0 px-3 py-2 text-xs font-medium transition duration-150"
+            classList={{
+              "bg-primary/15 text-primary": props.activeTab === tab.id,
+              "bg-transparent text-on-surface-variant hover:bg-white/5 hover:text-on-surface":
+                props.activeTab !== tab.id,
+            }}
+            onClick={() => props.onTabChange(tab.id)}>
+            <span class="flex items-center">
+              <i class={tab.icon} />
+            </span>
+            {tab.label}
+          </button>
+        )}
+      </For>
+    </div>
+  );
+}
+
+function AddColumnPanelBody(
+  props: {
+    activeTab: PanelTab;
+    onClose: () => void;
+    onDiagnosticsSubmit: (did: string) => void;
+    onExplorerSubmit: (uri: string) => void;
+    onFeedSelect: (feed: SavedFeedItem) => void;
+    onTabChange: (tab: PanelTab) => void;
+    tabs: Array<{ icon: string; id: PanelTab; label: string }>;
+  },
+) {
+  return (
+    <Motion.aside
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-column-panel-title"
+      class="relative z-10 flex h-full w-full max-w-88 flex-col bg-(--surface-container-highest) shadow-[-18px_0_48px_rgba(0,0,0,0.38)] backdrop-blur-[20px]"
+      initial={{ opacity: 0, x: 32 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 40 }}
+      transition={{ duration: 0.22, easing: [0.32, 0.72, 0, 1] }}>
+      <AddColumnPanelHeader onClose={props.onClose} />
+      <AddColumnPanelTabs activeTab={props.activeTab} tabs={props.tabs} onTabChange={props.onTabChange} />
+      <PanelContent
+        tab={props.activeTab}
+        onFeedSelect={props.onFeedSelect}
+        onExplorerSubmit={props.onExplorerSubmit}
+        onDiagnosticsSubmit={props.onDiagnosticsSubmit} />
+    </Motion.aside>
   );
 }
 
@@ -214,57 +283,45 @@ export function AddColumnPanel(props: AddColumnPanelProps) {
     { icon: "i-ri-stethoscope-line", id: "diagnostics", label: "Diagnostics" },
   ];
 
+  createEffect(() => {
+    if (!props.open) {
+      setActiveTab("feed");
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        props.onClose();
+      }
+    };
+
+    globalThis.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => globalThis.removeEventListener("keydown", handleKeyDown));
+  });
+
   return (
     <Presence exitBeforeEnter>
       <Show when={props.open}>
-        {/* Backdrop */}
-        <Motion.div
-          class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          onClick={() => props.onClose()} />
+        <Portal>
+          <div class="fixed inset-0 z-50 flex justify-end">
+            <Motion.div
+              class="absolute inset-0 bg-black/45 backdrop-blur-[20px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={() => props.onClose()} />
 
-        {/* Panel */}
-        <Motion.aside
-          class="fixed right-0 top-0 z-50 flex h-full w-80 flex-col bg-surface-container shadow-[-8px_0_32px_rgba(0,0,0,0.4)]"
-          initial={{ x: "100%" }}
-          animate={{ x: "0%" }}
-          exit={{ x: "100%" }}
-          transition={{ duration: 0.22, easing: [0.32, 0.72, 0, 1] }}>
-          {/* Header */}
-          <AddColumnPanelHeader onClose={props.onClose} />
-
-          {/* Tabs */}
-          <div class="flex shrink-0 gap-1 px-4 py-3">
-            <For each={tabs}>
-              {(tab) => (
-                <button
-                  type="button"
-                  class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border-0 px-3 py-2 text-xs font-medium transition duration-150"
-                  classList={{
-                    "bg-primary/15 text-primary": activeTab() === tab.id,
-                    "bg-transparent text-on-surface-variant hover:bg-white/5 hover:text-on-surface":
-                      activeTab() !== tab.id,
-                  }}
-                  onClick={() => setActiveTab(tab.id)}>
-                  <span class="flex items-center">
-                    <i class={tab.icon} />
-                  </span>
-                  {tab.label}
-                </button>
-              )}
-            </For>
+            <AddColumnPanelBody
+              activeTab={activeTab()}
+              tabs={tabs}
+              onClose={props.onClose}
+              onTabChange={setActiveTab}
+              onFeedSelect={handleFeedSelect}
+              onExplorerSubmit={handleExplorerSubmit}
+              onDiagnosticsSubmit={handleDiagnosticsSubmit} />
           </div>
-
-          {/* Content */}
-          <PanelContent
-            tab={activeTab()}
-            onFeedSelect={handleFeedSelect}
-            onExplorerSubmit={handleExplorerSubmit}
-            onDiagnosticsSubmit={handleDiagnosticsSubmit} />
-        </Motion.aside>
+        </Portal>
       </Show>
     </Presence>
   );
