@@ -1,4 +1,4 @@
-# Task 07: Search & Embeddings
+# Milestone 07: Search & Embeddings
 
 Spec: [search.md](../specs/search.md)
 

@@ -4,6 +4,7 @@ import { HashRouter, Navigate, Route, useLocation, useNavigate, useParams } from
 import type { RouteSectionProps } from "@solidjs/router";
 import { type Component, createEffect, type JSX, type ParentProps, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
+import { DeckWorkspace } from "./components/deck/DeckWorkspace";
 import { ExplorerPanel } from "./components/explorer/ExplorerPanel";
 import { SearchPanel } from "./components/search/SearchPanel";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
@@ -41,7 +42,7 @@ export function AppRouter(props: AppRouterProps) {
       }
     });
 
-    const fullWidthShell = () => location.pathname === "/explorer";
+    const fullWidthShell = () => location.pathname === "/explorer" || location.pathname === "/deck";
 
     return (
       <Show
@@ -99,6 +100,12 @@ export function AppRouter(props: AppRouterProps) {
 
   const ComposerRoute = () => <ProtectedRouteView>{props.renderComposer()}</ProtectedRouteView>;
 
+  const DeckRoute = () => (
+    <ProtectedRouteView>
+      <DeckWorkspace />
+    </ProtectedRouteView>
+  );
+
   const ExplorerRoute = () => (
     <ProtectedRouteView>
       <ExplorerPanel />
@@ -128,6 +135,7 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/composer" component={ComposerRoute} />
       <Route path="/search" component={SearchRoute} />
       <Route path="/notifications" component={NotificationsRoute} />
+      <Route path="/deck" component={DeckRoute} />
       <Route path="/explorer" component={ExplorerRoute} />
       <Route path="/settings" component={SettingsRoute} />
       <Route path="*404" component={NotFoundRoute} />

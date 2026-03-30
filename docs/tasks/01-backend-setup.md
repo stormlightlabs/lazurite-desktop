@@ -1,4 +1,4 @@
-# Task 01: Rust Backend Setup
+# Milestone 01: Rust Backend Setup
 
 Spec: [mvp.md](../specs/mvp.md)
 

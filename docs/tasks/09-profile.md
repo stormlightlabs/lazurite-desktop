@@ -1,8 +1,8 @@
-# Task 09: Profile
+# Milestone 09: Profile
 
 Spec: [profile.md](../specs/profile.md)
 
-Depends on: Task 03 (Feeds - post card, feed loading), Task 02 (Auth - session, account context)
+Depends on: Milestone 03 (Feeds - post card, feed loading), Milestone 02 (Auth - session, account context)
 
 ## Steps
 

@@ -1,4 +1,4 @@
-# Task 04: Notifications
+# Milestone 04: Notifications
 
 Spec: [feeds.md](../specs/feeds.md)
 

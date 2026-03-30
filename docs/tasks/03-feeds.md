@@ -1,4 +1,4 @@
-# Task 03: Feeds
+# Milestone 03: Feeds
 
 Spec: [feeds.md](../specs/feeds.md)
 

@@ -1,4 +1,4 @@
-# Task 06: Settings
+# Milestone 06: Settings
 
 Spec: [settings.md](../specs/settings.md)
 
@@ -22,7 +22,7 @@ Spec: [settings.md](../specs/settings.md)
   2. **Timeline** - Refresh interval selector (30s, 1m, 2m, 5m, manual)
   3. **Notifications** - Toggle desktop notifications, badge count, notification sound
   4. **Data** - Clear cache (with size display), export (JSON/CSV), reset app (with confirmation dialog)
-  5. **Accounts** - List active accounts, add/remove account flows (reuses OAuth from Task 02)
+  5. **Accounts** - List active accounts, add/remove account flows (reuses OAuth from Milestone 02)
   6. **Logs** - Collapsible log viewer with level filtering (`info`, `warn`, `error`)
   7. **Services** - Constellation instance URL, Spacedust instance URL
   8. **About** - Version info, license (MIT), contributors, support links

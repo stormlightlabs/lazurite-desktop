@@ -1,4 +1,4 @@
-# Task 02: Auth & Accounts
+# Milestone 02: Auth & Accounts
 
 Spec: [auth.md](../specs/auth.md)
 

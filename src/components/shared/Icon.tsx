@@ -50,7 +50,10 @@ export type IconKind =
   | "notifications"
   | "user"
   | "services"
-  | "theme";
+  | "theme"
+  | "deck"
+  | "list"
+  | "rss";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -154,6 +157,15 @@ export function Icon(props: IconProps) {
         </Match>
         <Match when={local.kind === "settings"}>
           <i class="i-ri-settings-3-line" />
+        </Match>
+        <Match when={local.kind === "deck"}>
+          <i class="i-ri-layout-column-line" />
+        </Match>
+        <Match when={local.kind === "list"}>
+          <i class="i-ri-list-check-3-line" />
+        </Match>
+        <Match when={local.kind === "rss"}>
+          <i class="i-ri-rss-line" />
         </Match>
       </Switch>
     </span>

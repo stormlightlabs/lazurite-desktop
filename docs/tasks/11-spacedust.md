@@ -1,4 +1,4 @@
-# Task 11: Spacedust
+# Milestone 11: Spacedust
 
 Spec: TBD (see [Spacedust API docs](../../.sandbox/spacedust.md))
 

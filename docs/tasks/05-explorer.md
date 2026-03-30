@@ -1,4 +1,4 @@
-# Task 05: AT Explorer
+# Milestone 05: AT Explorer
 
 Spec: [explorer.md](../specs/explorer.md)
 

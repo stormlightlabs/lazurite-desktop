@@ -1,4 +1,4 @@
-# Task 10: Jetstream
+# Milestone 10: Jetstream
 
 Spec: [explorer.md](../specs/explorer.md)
 

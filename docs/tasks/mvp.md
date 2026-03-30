@@ -1,4 +1,4 @@
-# Lazurite Desktop - MVP Task Breakdown (v0.1.0)
+# Lazurite Desktop - MVP Milestone Breakdown (v0.1.0)
 
 Tasks are grouped by module. Each references the relevant spec. Polish (keyboard shortcuts, animations via `solid-motionone`, loading states, accessibility) is built into each task - not deferred.
 

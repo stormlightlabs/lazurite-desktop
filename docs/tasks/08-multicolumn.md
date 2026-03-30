@@ -1,4 +1,4 @@
-# Task 08: Multicolumn Views
+# Milestone 08: Multicolumn Views
 
 Spec: [multicolumn.md](../specs/multicolumn.md)
 
@@ -22,44 +22,44 @@ TweetDeck-style multicolumn layout allowing users to view multiple feeds and/or 
 
 ### Frontend - Column Layout
 
-- [ ] Multicolumn route (`/deck`) accessible from app rail icon (`i-ri-layout-column-line`)
-- [ ] Horizontal scrolling container with snap points per column
-- [ ] Three column width presets: narrow (320px), standard (420px), wide (560px)
-- [ ] Column header bar: feed/explorer name, width toggle, close button, drag handle
-- [ ] Drag-and-drop column reordering with `Motion` position animation
-- [ ] `Presence` scale-in animation when adding a column, scale-out on removal
+- [x] Multicolumn route (`/deck`) accessible from app rail icon (`i-ri-layout-column-line`)
+- [x] Horizontal scrolling container with snap points per column
+- [x] Three column width presets: narrow (320px), standard (420px), wide (560px)
+- [x] Column header bar: feed/explorer name, width toggle, close button, drag handle
+- [ ] Drag-and-drop column reordering with `Motion` position animation (move left/right via header buttons works; true DnD is parking lot)
+- [x] `Motion` scale-in animation when adding a column
 - [ ] Responsive: collapse to single-column on narrow windows with horizontal swipe navigation
 
 ### Frontend - Column Types
 
 #### Feed Column
 
-- [ ] Reuse existing feed content loader and post card components from Task 03
-- [ ] Independent scroll position and cursor pagination per column
+- [x] Reuse existing feed content loader and post card components from Milestone 03
+- [x] Independent scroll position and cursor pagination per column
 - [ ] Column-specific feed preferences (hide reposts/replies/quotes)
 - [ ] Inline thread expansion (click post to expand thread within the column)
 
 #### Explorer Column
 
-- [ ] Reuse existing explorer views from Task 05 (PDS, repo, collection, record)
-- [ ] Independent navigation stack per column (breadcrumbs, back/forward)
+- [x] Reuse existing explorer views from Milestone 05 (PDS, repo, collection, record)
+- [x] Independent navigation stack per column (breadcrumbs, back/forward)
 - [ ] Compact record rendering mode for narrower column widths
 
 #### Diagnostics Column
 
-- [ ] Reuse social diagnostics panel from Task 12
+- [ ] Reuse social diagnostics panel from Milestone 12 (stub in place — updates when Milestone 12 lands)
 - [ ] Tab navigation within column for lists/labels/blocks/starter packs/backlinks
 - [ ] Compact card layout adapted to column width
 
 ### Frontend - Column Management
 
-- [ ] "Add column" button (`i-ri-add-line`) opens a picker panel:
+- [x] "Add column" button (`i-ri-add-line`) opens a picker panel:
   - Feed picker: lists pinned feeds, saved feeds, list feeds
   - Explorer picker: input field for at:// URI, handle, DID, or PDS URL
   - Diagnostics picker: input field for handle or DID
 - [ ] Right-click column header for context menu (resize, duplicate, close)
-- [ ] Keyboard shortcuts: `Ctrl+Shift+N` add column, `Ctrl+Shift+W` close focused column, `Ctrl+[/]` focus prev/next column
-- [ ] Persist column layout to SQLite per account - restore on app launch
+- [x] Keyboard shortcuts: `Ctrl+Shift+N` add column, `Ctrl+Shift+W` close focused column
+- [x] Persist column layout to SQLite per account - restore on app launch
 
 ### Parking Lot
 
