@@ -2,6 +2,8 @@ import type { SearchMode } from "$/lib/api/search";
 import type { ExplorerTargetKind } from "$/lib/api/types/explorer";
 import { type JSX, Match, splitProps, Switch } from "solid-js";
 
+export type ActionIconKind = "add" | "edit" | "delete" | "save" | "cancel";
+
 export type SettingsIconKind =
   | "computer"
   | "info"
@@ -53,7 +55,8 @@ export type IconKind =
   | "theme"
   | "deck"
   | "list"
-  | "rss";
+  | "rss"
+  | "messages";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -167,6 +170,9 @@ export function Icon(props: IconProps) {
         <Match when={local.kind === "rss"}>
           <i class="i-ri-rss-line" />
         </Match>
+        <Match when={local.kind === "messages"}>
+          <i class="i-ri-message-3-line" />
+        </Match>
       </Switch>
     </span>
   );
@@ -263,6 +269,31 @@ export function SearchModeIcon(props: { mode: SearchMode; class?: string }) {
         </Match>
         <Match when={props.mode === "hybrid"}>
           <i class="i-ri-stack-line" />
+        </Match>
+      </Switch>
+    </span>
+  );
+}
+
+export function ActionIcon(props: Omit<IconProps, "kind"> & { kind: ActionIconKind }) {
+  const [local, rest] = splitProps(props, ["class", "iconClass", "kind", "name"]);
+  return (
+    <span class="flex items-center justify-center" classList={{ [local.class ?? ""]: !!local.class }} {...rest}>
+      <Switch>
+        <Match when={local.kind === "add"}>
+          <i class="i-ri-add-line" />
+        </Match>
+        <Match when={local.kind === "edit"}>
+          <i class="i-ri-edit-line" />
+        </Match>
+        <Match when={local.kind === "delete"}>
+          <i class="i-ri-delete-line" />
+        </Match>
+        <Match when={local.kind === "save"}>
+          <i class="i-ri-save-line" />
+        </Match>
+        <Match when={local.kind === "cancel"}>
+          <i class="i-ri-close-line" />
         </Match>
       </Switch>
     </span>

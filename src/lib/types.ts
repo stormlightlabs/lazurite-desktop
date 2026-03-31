@@ -56,6 +56,8 @@ export type ProfileViewDetailed = ProfileViewBasic & {
   website?: string | null;
 };
 
+export type ActorListResponse = { cursor?: string | null; actors: ProfileViewBasic[] };
+
 export type FeedGeneratorView = {
   uri: string;
   did: string;
@@ -249,3 +251,42 @@ export type LogLevelFilter = "all" | "info" | "warn" | "error";
 export type RefreshInterval = 30 | 60 | 120 | 300 | 0;
 
 export type Theme = "light" | "dark" | "auto";
+
+// ── DMs / Conversations ──────────────────────────────────────────────────────
+
+export type MessageViewSender = { did: string };
+
+export type MessageView = {
+  $type?: "chat.bsky.convo.defs#messageView";
+  id: string;
+  text: string;
+  sender: MessageViewSender;
+  sentAt: string;
+  rev: string;
+};
+
+export type DeletedMessageView = {
+  $type?: "chat.bsky.convo.defs#deletedMessageView";
+  id: string;
+  rev: string;
+  sender: MessageViewSender;
+  sentAt: string;
+};
+
+export type ConvoLastMessage = MessageView | DeletedMessageView;
+
+export type ConvoView = {
+  id: string;
+  members: ProfileViewBasic[];
+  lastMessage?: ConvoLastMessage | null;
+  unreadCount: number;
+  muted: boolean;
+  rev: string;
+  status?: string | null;
+};
+
+export type ListConvosResponse = { convos: ConvoView[]; cursor?: string | null };
+
+export type GetConvoForMembersResponse = { convo: ConvoView };
+
+export type GetMessagesResponse = { messages: Array<MessageView | DeletedMessageView>; cursor?: string | null };

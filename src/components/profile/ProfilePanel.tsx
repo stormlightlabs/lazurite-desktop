@@ -2,10 +2,19 @@ import { PostCard } from "$/components/feeds/PostCard";
 import { ProfileSkeleton } from "$/components/ProfileSkeleton";
 import { Icon } from "$/components/shared/Icon";
 import { useAppSession } from "$/contexts/app-session";
-import { getActorLikes, getAuthorFeed, getProfile } from "$/lib/api/profile";
+import {
+  followActor,
+  getActorLikes,
+  getAuthorFeed,
+  getFollowers,
+  getFollows,
+  getProfile,
+  unfollowActor,
+} from "$/lib/api/profile";
+import { buildMessagesRoute } from "$/lib/conversations";
 import { buildThreadRoute, getAvatarLabel, getDisplayName } from "$/lib/feeds";
-import { filterProfileFeed, type ProfileTab } from "$/lib/profile";
-import type { FeedResponse, FeedViewPost, ProfileViewDetailed } from "$/lib/types";
+import { buildProfileRoute, filterProfileFeed, getProfileRouteActor, type ProfileTab } from "$/lib/profile";
+import type { ActorListResponse, FeedResponse, FeedViewPost, ProfileViewBasic, ProfileViewDetailed } from "$/lib/types";
 import { formatCount, normalizeError } from "$/lib/utils/text";
 import { useNavigate } from "@solidjs/router";
 import { createEffect, createMemo, For, Match, Show, Switch } from "solid-js";
@@ -23,9 +32,20 @@ type FeedState = {
   loadingMore: boolean;
 };
 
+type ActorListState = {
+  actors: ProfileViewBasic[];
+  cursor: string | null;
+  error: string | null;
+  kind: "followers" | "follows" | null;
+  loading: boolean;
+  loadingMore: boolean;
+};
+
 type ProfilePanelState = {
   activeTab: ProfileTab;
+  actorList: ActorListState;
   authorFeed: FeedState;
+  followLoading: boolean;
   likesFeed: FeedState;
   profile: ProfileViewDetailed | null;
   profileError: string | null;
@@ -37,10 +57,16 @@ function createFeedState(): FeedState {
   return { cursor: null, error: null, items: [], loaded: false, loading: false, loadingMore: false };
 }
 
+function createActorListState(): ActorListState {
+  return { actors: [], cursor: null, error: null, kind: null, loading: false, loadingMore: false };
+}
+
 function createProfilePanelState(): ProfilePanelState {
   return {
     activeTab: "posts",
+    actorList: createActorListState(),
     authorFeed: createFeedState(),
+    followLoading: false,
     likesFeed: createFeedState(),
     profile: null,
     profileError: null,
@@ -240,8 +266,114 @@ export function ProfilePanel(props: { actor: string | null }) {
     navigate(buildThreadRoute(uri));
   }
 
+  async function handleFollow() {
+    const profile = state.profile;
+    if (!profile || state.followLoading) {
+      return;
+    }
+
+    const prevViewer = profile.viewer;
+    const prevFollowersCount = profile.followersCount ?? 0;
+    setState("followLoading", true);
+    setState("profile", "viewer", { ...prevViewer, following: "optimistic" });
+    setState("profile", "followersCount", prevFollowersCount + 1);
+
+    try {
+      const result = await followActor(profile.did);
+      setState("profile", "viewer", { ...state.profile?.viewer, following: result.uri });
+    } catch {
+      setState("profile", "viewer", prevViewer ?? null);
+      setState("profile", "followersCount", prevFollowersCount);
+    } finally {
+      setState("followLoading", false);
+    }
+  }
+
+  async function handleUnfollow() {
+    const profile = state.profile;
+    const followUri = profile?.viewer?.following;
+    if (!profile || !followUri || state.followLoading || followUri === "optimistic") {
+      return;
+    }
+
+    const prevViewer = profile.viewer;
+    const prevFollowersCount = profile.followersCount ?? 0;
+    setState("followLoading", true);
+    setState("profile", "viewer", { ...prevViewer, following: null });
+    setState("profile", "followersCount", Math.max(0, prevFollowersCount - 1));
+
+    try {
+      await unfollowActor(followUri);
+    } catch {
+      setState("profile", "viewer", prevViewer ?? null);
+      setState("profile", "followersCount", prevFollowersCount);
+    } finally {
+      setState("followLoading", false);
+    }
+  }
+
+  function handleMessage() {
+    const profile = state.profile;
+    if (!profile || profile.did === session.activeDid) {
+      return;
+    }
+
+    navigate(buildMessagesRoute(profile.did));
+  }
+
+  function openActorList(kind: "followers" | "follows") {
+    const actor = activeActor();
+    if (!actor) {
+      return;
+    }
+
+    setState("actorList", { actors: [], cursor: null, error: null, kind, loading: true, loadingMore: false });
+    void loadActorListPage(actor, kind, false);
+  }
+
+  function closeActorList() {
+    setState("actorList", createActorListState());
+  }
+
+  async function loadActorListPage(actor: string, kind: "followers" | "follows", loadMore: boolean) {
+    const current = state.actorList;
+    const cursor = loadMore ? current.cursor : null;
+
+    setState("actorList", loadMore ? "loadingMore" : "loading", true);
+
+    try {
+      const response: ActorListResponse = kind === "followers"
+        ? await getFollowers(actor, cursor)
+        : await getFollows(actor, cursor);
+
+      const nextActors = loadMore ? [...current.actors, ...response.actors] : response.actors;
+      setState("actorList", {
+        actors: nextActors,
+        cursor: response.cursor ?? null,
+        error: null,
+        kind,
+        loading: false,
+        loadingMore: false,
+      });
+    } catch (error) {
+      setState("actorList", "error", normalizeError(error));
+      setState("actorList", "loading", false);
+      setState("actorList", "loadingMore", false);
+    }
+  }
+
+  function handleActorListLoadMore() {
+    const { kind } = state.actorList;
+    const actor = activeActor();
+    if (!actor || !kind) {
+      return;
+    }
+
+    void loadActorListPage(actor, kind, true);
+  }
+
   return (
-    <section class="grid min-h-0 overflow-hidden rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+    <section class="relative grid min-h-0 overflow-hidden rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
       <div
         class="min-h-0 overflow-y-auto overscroll-contain"
         onScroll={(event) => setState("scrollTop", event.currentTarget.scrollTop)}>
@@ -256,8 +388,14 @@ export function ProfilePanel(props: { actor: string | null }) {
                   avatarScale={avatarScale()}
                   coverOffset={coverOffset()}
                   coverScale={coverScale()}
+                  followLoading={state.followLoading}
                   isSelf={isSelf()}
                   joinedLabel={joinedLabel()}
+                  onFollow={handleFollow}
+                  onMessage={handleMessage}
+                  onOpenFollowers={() => openActorList("followers")}
+                  onOpenFollows={() => openActorList("follows")}
+                  onUnfollow={handleUnfollow}
                   pinnedPostHref={pinnedPostHref()}
                   profile={profile()}
                   profileBadges={profileBadges()}
@@ -279,6 +417,17 @@ export function ProfilePanel(props: { actor: string | null }) {
           </Show>
         </Show>
       </div>
+
+      <Show when={state.actorList.kind}>
+        <ActorListOverlay
+          actorList={state.actorList}
+          onClose={closeActorList}
+          onLoadMore={handleActorListLoadMore}
+          onSelectActor={(actor) => {
+            closeActorList();
+            navigate(buildProfileRoute(getProfileRouteActor(actor)));
+          }} />
+      </Show>
     </section>
   );
 }
@@ -289,8 +438,14 @@ function ProfileHero(
     avatarScale: number;
     coverOffset: number;
     coverScale: number;
+    followLoading: boolean;
     isSelf: boolean;
     joinedLabel: string | null;
+    onFollow: () => void;
+    onMessage: () => void;
+    onOpenFollowers: () => void;
+    onOpenFollows: () => void;
+    onUnfollow: () => void;
     pinnedPostHref: string | null;
     profile: ProfileViewDetailed;
     profileBadges: string[];
@@ -299,11 +454,13 @@ function ProfileHero(
 ) {
   const avatarLabel = createMemo(() => getAvatarLabel(props.profile));
   const displayName = createMemo(() => getDisplayName(props.profile));
+  const isFollowing = createMemo(() => !!props.profile.viewer?.following);
   const bannerStyle = createMemo(() => ({
     transform: `translate3d(0, ${props.coverOffset}px, 0) scale(${props.coverScale})`,
   }));
   const avatarStyle = createMemo(() => ({
-    transform: `translate3d(0, ${-10 * props.avatarProgress}px, 0) scale(${props.avatarScale})`,
+    transform: `scale(${props.avatarScale})`,
+    "transform-origin": "bottom left",
   }));
 
   return (
@@ -323,7 +480,7 @@ function ProfileHero(
       </div>
 
       <div class="relative z-10 -mt-16 px-6 pb-6 max-[760px]:px-4 max-[520px]:px-3">
-        <div class="sticky top-4 z-20 mb-4 flex items-end gap-4">
+        <div class="sticky top-4 z-20 mb-4 flex items-center gap-3">
           <div
             class="relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_4px_rgba(8,8,8,0.96),0_0_0_6px_rgba(125,175,255,0.22),0_24px_40px_rgba(0,0,0,0.36)] backdrop-blur-sm transition-transform duration-100 ease-out"
             style={avatarStyle()}>
@@ -350,7 +507,14 @@ function ProfileHero(
               displayName={displayName()}
               handle={props.profile.handle}
               viewLabel={props.viewLabel} />
-            <ProfileBadgeRow badges={props.profileBadges} isSelf={props.isSelf} />
+            <ProfileHeroActions
+              badges={props.profileBadges}
+              followLoading={props.followLoading}
+              isFollowing={isFollowing()}
+              isSelf={props.isSelf}
+              onFollow={props.onFollow}
+              onMessage={props.onMessage}
+              onUnfollow={props.onUnfollow} />
           </div>
 
           <ProfileMetaRow
@@ -360,8 +524,8 @@ function ProfileHero(
             website={props.profile.website ?? null} />
 
           <div class="flex flex-wrap gap-6">
-            <ProfileStat label="Following" value={props.profile.followsCount} />
-            <ProfileStat label="Followers" value={props.profile.followersCount} />
+            <ProfileStat label="Following" value={props.profile.followsCount} onClick={props.onOpenFollows} />
+            <ProfileStat label="Followers" value={props.profile.followersCount} onClick={props.onOpenFollowers} />
             <ProfileStat label="Posts" value={props.profile.postsCount} />
           </div>
         </div>
@@ -370,12 +534,97 @@ function ProfileHero(
   );
 }
 
-function ProfileStat(props: { label: string; value?: number | null }) {
+function FollowButton(props: { isFollowing: boolean; loading: boolean; onFollow: () => void; onUnfollow: () => void }) {
   return (
-    <div class="grid gap-1">
-      <span class="text-lg font-semibold tracking-[-0.02em] text-on-surface">{formatCount(props.value ?? 0)}</span>
-      <span class="text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.label}</span>
+    <Show
+      when={props.isFollowing}
+      fallback={
+        <button
+          class="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/20 bg-transparent px-5 text-sm font-medium text-on-surface transition duration-150 ease-out hover:bg-white/5 disabled:opacity-50"
+          disabled={props.loading}
+          type="button"
+          onClick={props.onFollow}>
+          <Show when={props.loading}>
+            <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
+          </Show>
+          Follow
+        </button>
+      }>
+      <button
+        class="group inline-flex min-h-9 items-center gap-2 rounded-full bg-primary/15 px-5 text-sm font-medium text-primary shadow-[inset_0_0_0_1px_rgba(125,175,255,0.25)] transition duration-150 ease-out hover:bg-red-500/15 hover:text-red-400 hover:shadow-[inset_0_0_0_1px_rgba(239,68,68,0.25)] disabled:opacity-50"
+        disabled={props.loading}
+        type="button"
+        onClick={() => props.onUnfollow()}>
+        <Show when={props.loading}>
+          <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
+        </Show>
+        <span class="group-hover:hidden">Following</span>
+        <span class="hidden group-hover:inline">Unfollow</span>
+      </button>
+    </Show>
+  );
+}
+
+function MessageButton(props: { onClick: () => void }) {
+  return (
+    <button
+      class="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/12 bg-white/6 px-4 text-sm font-medium text-on-surface transition duration-150 ease-out hover:bg-white/10"
+      type="button"
+      onClick={() => props.onClick()}>
+      <Icon kind="messages" class="text-base" />
+      Message
+    </button>
+  );
+}
+
+function ProfileHeroActions(
+  props: {
+    badges: string[];
+    followLoading: boolean;
+    isFollowing: boolean;
+    isSelf: boolean;
+    onFollow: () => void;
+    onMessage: () => void;
+    onUnfollow: () => void;
+  },
+) {
+  return (
+    <div class="flex flex-col items-end gap-2">
+      <Show when={!props.isSelf}>
+        <div class="flex flex-wrap justify-end gap-2">
+          <MessageButton onClick={props.onMessage} />
+          <FollowButton
+            isFollowing={props.isFollowing}
+            loading={props.followLoading}
+            onFollow={props.onFollow}
+            onUnfollow={props.onUnfollow} />
+        </div>
+      </Show>
+      <ProfileBadgeRow badges={props.badges} isSelf={props.isSelf} />
     </div>
+  );
+}
+
+function ProfileStat(props: { label: string; onClick?: () => void; value?: number | null }) {
+  return (
+    <Show
+      when={props.onClick}
+      fallback={
+        <div class="grid gap-1">
+          <span class="text-lg font-semibold tracking-[-0.02em] text-on-surface">{formatCount(props.value ?? 0)}</span>
+          <span class="text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.label}</span>
+        </div>
+      }>
+      {(onClick) => (
+        <button
+          class="grid gap-1 text-left transition duration-150 ease-out hover:opacity-80"
+          type="button"
+          onClick={onClick()}>
+          <span class="text-lg font-semibold tracking-[-0.02em] text-on-surface">{formatCount(props.value ?? 0)}</span>
+          <span class="text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.label}</span>
+        </button>
+      )}
+    </Show>
   );
 }
 
@@ -640,6 +889,136 @@ function ProfileFeedMessage(props: { body: string; title: string }) {
         <p class="m-0 text-lg font-semibold tracking-[-0.02em] text-on-surface">{props.title}</p>
         <p class="m-0 text-sm leading-relaxed text-on-surface-variant">{props.body}</p>
       </div>
+    </div>
+  );
+}
+
+function ActorListOverlay(
+  props: {
+    actorList: ActorListState;
+    onClose: () => void;
+    onLoadMore: () => void;
+    onSelectActor: (actor: ProfileViewBasic) => void;
+  },
+) {
+  const title = createMemo(() => props.actorList.kind === "followers" ? "Followers" : "Following");
+
+  return (
+    <div class="absolute inset-0 z-50 flex flex-col overflow-hidden rounded-4xl bg-[rgba(8,8,8,0.88)] backdrop-blur-xl">
+      <ActorListHeader onClose={props.onClose} title={title()} />
+
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <ActorListContent actorList={props.actorList} onSelectActor={props.onSelectActor} title={title()} />
+
+        <Show when={props.actorList.cursor}>
+          <ActorListLoadMoreButton loadingMore={props.actorList.loadingMore} onLoadMore={props.onLoadMore} />
+        </Show>
+      </div>
+    </div>
+  );
+}
+
+function ActorListHeader(props: { onClose: () => void; title: string }) {
+  return (
+    <div class="flex shrink-0 items-center justify-between border-b border-white/5 px-5 py-4">
+      <p class="m-0 text-base font-semibold text-on-surface">{props.title}</p>
+      <button
+        class="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/6 text-on-surface-variant transition hover:bg-white/10 hover:text-on-surface"
+        type="button"
+        onClick={() => props.onClose()}>
+        <Icon iconClass="i-ri-close-line" class="text-base" />
+      </button>
+    </div>
+  );
+}
+
+function ActorListLoadMoreButton(props: { loadingMore: boolean; onLoadMore: () => void }) {
+  return (
+    <div class="flex justify-center py-4">
+      <button
+        class="inline-flex min-h-10 items-center gap-2 rounded-full border-0 bg-white/6 px-5 text-sm font-medium text-on-surface transition hover:-translate-y-px hover:bg-white/10 disabled:translate-y-0 disabled:opacity-70"
+        disabled={props.loadingMore}
+        type="button"
+        onClick={() => props.onLoadMore()}>
+        <Show when={props.loadingMore}>
+          <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
+        </Show>
+        {props.loadingMore ? "Loading..." : "Load more"}
+      </button>
+    </div>
+  );
+}
+
+function ActorListContent(
+  props: { actorList: ActorListState; onSelectActor: (actor: ProfileViewBasic) => void; title: string },
+) {
+  return (
+    <Show when={!props.actorList.loading} fallback={<ActorListSkeleton />}>
+      <Show
+        when={!props.actorList.error}
+        fallback={
+          <div class="grid place-items-center py-12 text-sm text-on-surface-variant">{props.actorList.error}</div>
+        }>
+        <Show
+          when={props.actorList.actors.length > 0}
+          fallback={
+            <div class="grid place-items-center py-12 text-sm text-on-surface-variant">
+              No {props.title.toLowerCase()} yet.
+            </div>
+          }>
+          <div class="divide-y divide-white/5">
+            <For each={props.actorList.actors}>
+              {(actor) => <ActorCard actor={actor} onSelect={() => props.onSelectActor(actor)} />}
+            </For>
+          </div>
+        </Show>
+      </Show>
+    </Show>
+  );
+}
+
+function ActorCard(props: { actor: ProfileViewBasic; onSelect: () => void }) {
+  const label = createMemo(() => getAvatarLabel(props.actor));
+  const name = createMemo(() => getDisplayName(props.actor));
+
+  return (
+    <button
+      class="flex w-full items-center gap-3 border-0 bg-transparent px-5 py-3 text-left transition hover:bg-white/4"
+      type="button"
+      onClick={() => props.onSelect()}>
+      <div class="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-container-high">
+        <Show
+          when={props.actor.avatar}
+          fallback={
+            <div class="flex h-full w-full items-center justify-center text-sm font-semibold text-on-surface">
+              {label()}
+            </div>
+          }>
+          {(avatar) => <img alt="" class="h-full w-full object-cover" src={avatar()} />}
+        </Show>
+      </div>
+      <div class="min-w-0 flex-1">
+        <p class="m-0 truncate text-sm font-medium text-on-surface">{name()}</p>
+        <p class="m-0 truncate text-xs text-on-surface-variant">@{props.actor.handle}</p>
+      </div>
+    </button>
+  );
+}
+
+function ActorListSkeleton() {
+  return (
+    <div class="divide-y divide-white/5">
+      <For each={Array.from({ length: 6 })}>
+        {() => (
+          <div class="flex items-center gap-3 px-5 py-3">
+            <span class="skeleton-block h-10 w-10 shrink-0 rounded-full" />
+            <div class="grid flex-1 gap-1.5">
+              <span class="skeleton-block h-3.5 w-32 rounded-full" />
+              <span class="skeleton-block h-3 w-24 rounded-full" />
+            </div>
+          </div>
+        )}
+      </For>
     </div>
   );
 }

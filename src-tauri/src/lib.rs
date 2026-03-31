@@ -1,6 +1,7 @@
 mod auth;
 mod columns;
 mod commands;
+mod conversations;
 mod db;
 mod error;
 mod explorer;
@@ -92,6 +93,10 @@ pub fn run() {
             cmd::unlike_post,
             cmd::repost,
             cmd::unrepost,
+            cmd::follow_actor,
+            cmd::unfollow_actor,
+            cmd::get_followers,
+            cmd::get_follows,
             cmd::update_saved_feeds,
             cmd::update_feed_view_pref,
             cmd::list_notifications,
@@ -127,7 +132,12 @@ pub fn run() {
             cmd::columns::add_column,
             cmd::columns::remove_column,
             cmd::columns::reorder_columns,
-            cmd::columns::update_column
+            cmd::columns::update_column,
+            cmd::list_convos,
+            cmd::get_convo_for_members,
+            cmd::get_messages,
+            cmd::send_message,
+            cmd::update_read
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

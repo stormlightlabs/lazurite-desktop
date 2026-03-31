@@ -2,6 +2,7 @@ import { AppTestProviders } from "$/test/providers";
 import { render, screen } from "@solidjs/testing-library";
 import type { Component, ParentProps } from "solid-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildMessagesRoute } from "./lib/conversations";
 import { buildThreadRoute } from "./lib/feeds";
 import { buildProfileRoute } from "./lib/profile";
 import { AppRouter } from "./router";
@@ -31,6 +32,10 @@ function renderRouter(hash: string) {
     </div>
   ));
 
+  const renderMessages = vi.fn((props: { memberDid: string | null }) => (
+    <div data-testid="messages-view">{props.memberDid ?? "messages"}</div>
+  ));
+
   render(() => (
     <AppTestProviders
       session={{
@@ -41,6 +46,7 @@ function renderRouter(hash: string) {
       <AppRouter
         renderAuth={() => <div>Auth</div>}
         renderComposer={renderComposer}
+        renderMessages={renderMessages}
         renderNotifications={renderNotifications}
         renderProfile={renderProfile}
         renderShell={Shell}
@@ -48,7 +54,7 @@ function renderRouter(hash: string) {
     </AppTestProviders>
   ));
 
-  return { renderComposer, renderNotifications, renderProfile, renderTimeline };
+  return { renderComposer, renderMessages, renderNotifications, renderProfile, renderTimeline };
 }
 
 describe("AppRouter", () => {
@@ -94,6 +100,16 @@ describe("AppRouter", () => {
     expect(renderNotifications).toHaveBeenCalledOnce();
     expect(screen.getByText("notifications")).toBeInTheDocument();
     expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "false");
+  });
+
+  it("passes the decoded member did on targeted message routes", async () => {
+    const memberDid = "did:plc:bob";
+    const { renderMessages } = renderRouter(`#${buildMessagesRoute(memberDid)}`);
+
+    await screen.findByTestId("messages-view");
+
+    expect(renderMessages.mock.lastCall?.[0].memberDid).toBe(memberDid);
+    expect(screen.getByText(memberDid)).toBeInTheDocument();
   });
 
   it("renders the explorer route inside the full-width shell", async () => {

@@ -8,6 +8,7 @@ import { AccountLedger } from "./components/account/AccountLedger";
 import { ComposerWindow } from "./components/feeds/ComposerWindow";
 import { FeedWorkspace } from "./components/feeds/FeedWorkspace";
 import { LoginPanel } from "./components/LoginPanel";
+import { MessagesPanel } from "./components/messages/MessagesPanel";
 import { NotificationsPanel } from "./components/notifications/NotificationsPanel";
 import { HeaderPanel } from "./components/panels/Header";
 import { ProfilePanel } from "./components/profile/ProfilePanel";
@@ -81,6 +82,7 @@ function AppContent() {
         <AppRouter
           renderAuth={() => <AuthWorkspace />}
           renderComposer={() => <ComposerWindow />}
+          renderMessages={(props) => <MessagesPanel memberDid={props.memberDid} />}
           renderNotifications={() => <NotificationsPanel />}
           renderProfile={(props) => <ProfilePanel actor={props.actor} />}
           renderShell={AppShell}

@@ -8,10 +8,12 @@ import { DeckWorkspace } from "./components/deck/DeckWorkspace";
 import { ExplorerPanel } from "./components/explorer/ExplorerPanel";
 import { SearchPanel } from "./components/search/SearchPanel";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
+import { decodeMessagesRouteMemberDid } from "./lib/conversations";
 import { buildThreadRoute, decodeThreadRouteUri, TIMELINE_ROUTE } from "./lib/feeds";
 import { decodeProfileRouteActor } from "./lib/profile";
 
 type TTimelineRouteProps = { context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null } };
+type TMessagesRouteProps = { memberDid: string | null };
 type TProfileRouteProps = { actor: string | null };
 
 type AppShellProps = ParentProps<{ fullWidth?: boolean }>;
@@ -19,6 +21,7 @@ type AppShellProps = ParentProps<{ fullWidth?: boolean }>;
 type AppRouterProps = {
   renderAuth: () => JSX.Element;
   renderComposer: () => JSX.Element;
+  renderMessages: Component<TMessagesRouteProps>;
   renderNotifications: () => JSX.Element;
   renderProfile: Component<TProfileRouteProps>;
   renderShell: Component<AppShellProps>;
@@ -98,6 +101,22 @@ export function AppRouter(props: AppRouterProps) {
 
   const NotificationsRoute = () => <ProtectedRouteView>{props.renderNotifications()}</ProtectedRouteView>;
 
+  const MessagesRoute = () => (
+    <ProtectedRouteView>
+      <Dynamic component={props.renderMessages} memberDid={null} />
+    </ProtectedRouteView>
+  );
+
+  const MemberMessagesRoute = () => {
+    const params = useParams<{ memberDid: string }>();
+
+    return (
+      <ProtectedRouteView>
+        <Dynamic component={props.renderMessages} memberDid={decodeMessagesRouteMemberDid(params.memberDid)} />
+      </ProtectedRouteView>
+    );
+  };
+
   const ComposerRoute = () => <ProtectedRouteView>{props.renderComposer()}</ProtectedRouteView>;
 
   const DeckRoute = () => (
@@ -135,6 +154,8 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/composer" component={ComposerRoute} />
       <Route path="/search" component={SearchRoute} />
       <Route path="/notifications" component={NotificationsRoute} />
+      <Route path="/messages" component={MessagesRoute} />
+      <Route path="/messages/:memberDid" component={MemberMessagesRoute} />
       <Route path="/deck" component={DeckRoute} />
       <Route path="/explorer" component={ExplorerRoute} />
       <Route path="/settings" component={SettingsRoute} />

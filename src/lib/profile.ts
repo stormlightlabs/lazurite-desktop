@@ -1,6 +1,6 @@
 import { isReplyItem, parseFeedResponse } from "$/lib/feeds";
-import type { FeedResponse, FeedViewPost, ProfileViewDetailed } from "$/lib/types";
-import { asRecord } from "./type-guards";
+import type { ActorListResponse, FeedResponse, FeedViewPost, ProfileViewBasic, ProfileViewDetailed } from "$/lib/types";
+import { asArray, asRecord } from "./type-guards";
 
 export type ProfileTab = "posts" | "replies" | "media" | "likes";
 
@@ -60,6 +60,33 @@ export function parseProfile(value: unknown): ProfileViewDetailed {
 
 export function parseProfileFeed(value: unknown): FeedResponse {
   return parseFeedResponse(value);
+}
+
+export function parseActorList(value: unknown, listKey: "followers" | "follows"): ActorListResponse {
+  const record = asRecord(value);
+  if (!record) {
+    throw new Error("actor list payload is invalid");
+  }
+
+  const rawActors = asArray(record[listKey]) ?? [];
+  const actors = rawActors.map((item) => parseProfileBasic(item)).filter(Boolean) as ProfileViewBasic[];
+
+  return { cursor: optionalString(record.cursor), actors };
+}
+
+function parseProfileBasic(value: unknown): ProfileViewBasic | null {
+  const record = asRecord(value);
+  if (!record || typeof record.did !== "string" || typeof record.handle !== "string") {
+    return null;
+  }
+
+  return {
+    did: record.did,
+    handle: record.handle,
+    displayName: optionalString(record.displayName),
+    avatar: optionalString(record.avatar),
+    viewer: asRecord(record.viewer) ? { following: optionalString(asRecord(record.viewer)?.following) } : null,
+  };
 }
 
 export function filterProfileFeed(items: FeedViewPost[], tab: ProfileTab) {

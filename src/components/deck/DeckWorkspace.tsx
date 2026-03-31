@@ -6,7 +6,7 @@ import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, For, onCleanup, onMount, Show } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { Motion } from "solid-motionone";
-import { Icon } from "../shared/Icon";
+import { ActionIcon, Icon } from "../shared/Icon";
 import { AddColumnPanel } from "./AddColumnPanel";
 import { DeckColumn } from "./DeckColumn";
 
@@ -52,9 +52,7 @@ function EmptyDeck(props: { onAdd: () => void }) {
         type="button"
         class="inline-flex h-9 items-center gap-2 rounded-full border-0 bg-primary/15 px-4 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25"
         onClick={() => props.onAdd()}>
-        <span class="flex items-center">
-          <i class="i-ri-add-line" />
-        </span>
+        <ActionIcon kind="add" />
         Add first column
       </button>
     </div>

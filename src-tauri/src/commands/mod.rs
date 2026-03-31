@@ -6,6 +6,7 @@ pub mod search;
 pub mod settings;
 
 use super::auth::{self, LoginSuggestion};
+use super::conversations;
 use super::error::AppError;
 use super::feed::{self, CreateRecordResult, EmbedInput, FeedViewPrefItem, ReplyRefInput, UserPreferences};
 use super::notifications;
@@ -129,6 +130,30 @@ pub async fn unrepost(repost_uri: String, state: State<'_, AppState>) -> Result<
 }
 
 #[tauri::command]
+pub async fn follow_actor(did: String, state: State<'_, AppState>) -> Result<CreateRecordResult, AppError> {
+    feed::follow_actor(did, &state).await
+}
+
+#[tauri::command]
+pub async fn unfollow_actor(follow_uri: String, state: State<'_, AppState>) -> Result<(), AppError> {
+    feed::unfollow_actor(follow_uri, &state).await
+}
+
+#[tauri::command]
+pub async fn get_followers(
+    actor: String, cursor: Option<String>, limit: Option<u32>, state: State<'_, AppState>,
+) -> Result<Value, AppError> {
+    feed::get_followers(actor, cursor, limit, &state).await
+}
+
+#[tauri::command]
+pub async fn get_follows(
+    actor: String, cursor: Option<String>, limit: Option<u32>, state: State<'_, AppState>,
+) -> Result<Value, AppError> {
+    feed::get_follows(actor, cursor, limit, &state).await
+}
+
+#[tauri::command]
 pub async fn update_saved_feeds(feeds: Vec<feed::SavedFeedItem>, state: State<'_, AppState>) -> Result<(), AppError> {
     feed::update_saved_feeds(feed::UpdateSavedFeedsInput { feeds }, &state).await
 }
@@ -151,4 +176,35 @@ pub async fn update_seen(state: State<'_, AppState>) -> Result<(), AppError> {
 #[tauri::command]
 pub async fn get_unread_count(state: State<'_, AppState>) -> Result<i64, AppError> {
     notifications::get_unread_count(&state).await
+}
+
+#[tauri::command]
+pub async fn list_convos(
+    cursor: Option<String>, limit: Option<u32>, state: State<'_, AppState>,
+) -> Result<Value, AppError> {
+    conversations::list_convos(cursor, limit, &state).await
+}
+
+#[tauri::command]
+pub async fn get_convo_for_members(members: Vec<String>, state: State<'_, AppState>) -> Result<Value, AppError> {
+    conversations::get_convo_for_members(members, &state).await
+}
+
+#[tauri::command]
+pub async fn get_messages(
+    convo_id: String, cursor: Option<String>, limit: Option<u32>, state: State<'_, AppState>,
+) -> Result<Value, AppError> {
+    conversations::get_messages(convo_id, cursor, limit, &state).await
+}
+
+#[tauri::command]
+pub async fn send_message(convo_id: String, text: String, state: State<'_, AppState>) -> Result<Value, AppError> {
+    conversations::send_message(convo_id, text, &state).await
+}
+
+#[tauri::command]
+pub async fn update_read(
+    convo_id: String, message_id: Option<String>, state: State<'_, AppState>,
+) -> Result<(), AppError> {
+    conversations::update_read(convo_id, message_id, &state).await
 }

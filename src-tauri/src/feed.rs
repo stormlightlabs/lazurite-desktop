@@ -18,6 +18,9 @@ use jacquard::api::app_bsky::feed::get_timeline::GetTimeline;
 use jacquard::api::app_bsky::feed::like::Like;
 use jacquard::api::app_bsky::feed::post::{Post, PostEmbed, ReplyRef};
 use jacquard::api::app_bsky::feed::repost::Repost;
+use jacquard::api::app_bsky::graph::follow::Follow;
+use jacquard::api::app_bsky::graph::get_followers::GetFollowers;
+use jacquard::api::app_bsky::graph::get_follows::GetFollows;
 use jacquard::api::com_atproto::repo::create_record::CreateRecord;
 use jacquard::api::com_atproto::repo::delete_record::DeleteRecord;
 use jacquard::api::com_atproto::repo::strong_ref::StrongRef;
@@ -708,6 +711,118 @@ pub async fn unrepost(repost_uri: String, state: &AppState) -> Result<()> {
         })?;
 
     Ok(())
+}
+
+pub async fn follow_actor(did: String, state: &AppState) -> Result<CreateRecordResult> {
+    let session = get_session(state).await?;
+    let active_did = active_did(state)?;
+
+    let follow = Follow::new().created_at(Datetime::now()).subject(Did::new(&did)?).build();
+
+    let record_json = serde_json::to_value(&follow)?;
+    let record_data =
+        Data::from_json_owned(record_json).map_err(|_| AppError::validation("serialize follow"))?;
+
+    let repo = AtIdentifier::Did(Did::new(&active_did)?);
+    let collection = Nsid::new("app.bsky.graph.follow").map_err(|_| AppError::validation("nsid"))?;
+
+    let output = session
+        .send(CreateRecord::new().repo(repo).collection(collection).record(record_data).build())
+        .await
+        .map_err(|error| {
+            log::error!("createRecord (follow) error: {error}");
+            AppError::validation("Could not follow this account.")
+        })?
+        .into_output()
+        .map_err(|error| {
+            log::error!("createRecord (follow) output error: {error}");
+            AppError::validation("Could not follow this account.")
+        })?;
+
+    Ok(CreateRecordResult { uri: output.uri.to_string(), cid: output.cid.to_string() })
+}
+
+pub async fn unfollow_actor(follow_uri: String, state: &AppState) -> Result<()> {
+    let session = get_session(state).await?;
+    let did = active_did(state)?;
+
+    let at_uri =
+        AtUri::new(&follow_uri).map_err(|_| AppError::validation("invalid follow URI"))?;
+    let RecordKey(rkey) =
+        at_uri.rkey().ok_or_else(|| AppError::Validation("follow URI has no rkey".into()))?;
+    let rkey_str = rkey.to_string();
+
+    let repo = AtIdentifier::Did(Did::new(&did)?);
+    let collection =
+        Nsid::new("app.bsky.graph.follow").map_err(|_| AppError::validation("nsid"))?;
+    let rkey = RecordKey::any(&rkey_str).map_err(|_| AppError::validation("invalid rkey"))?;
+
+    session
+        .send(DeleteRecord::new().repo(repo).collection(collection).rkey(rkey).build())
+        .await
+        .map_err(|error| {
+            log::error!("deleteRecord (unfollow) error: {error}");
+            AppError::validation("Could not unfollow this account.")
+        })?
+        .into_output()
+        .map_err(|error| {
+            log::error!("deleteRecord (unfollow) output error: {error}");
+            AppError::validation("Could not unfollow this account.")
+        })?;
+
+    Ok(())
+}
+
+pub async fn get_followers(
+    actor: String, cursor: Option<String>, limit: Option<u32>, state: &AppState,
+) -> Result<serde_json::Value> {
+    let session = get_session(state).await?;
+    let actor = parse_actor_identifier(&actor)?;
+    let mut req = GetFollowers::new().actor(actor).limit(limit.map(|value| value as i64));
+    if let Some(c) = &cursor {
+        req = req.cursor(Some(c.as_str().into()));
+    }
+
+    let output = session
+        .send(req.build())
+        .await
+        .map_err(|error| {
+            log::error!("getFollowers error: {error}");
+            AppError::validation("Could not load followers.")
+        })?
+        .into_output()
+        .map_err(|error| {
+            log::error!("getFollowers output error: {error}");
+            AppError::validation("Could not load followers.")
+        })?;
+
+    serde_json::to_value(&output).map_err(AppError::from)
+}
+
+pub async fn get_follows(
+    actor: String, cursor: Option<String>, limit: Option<u32>, state: &AppState,
+) -> Result<serde_json::Value> {
+    let session = get_session(state).await?;
+    let actor = parse_actor_identifier(&actor)?;
+    let mut req = GetFollows::new().actor(actor).limit(limit.map(|value| value as i64));
+    if let Some(c) = &cursor {
+        req = req.cursor(Some(c.as_str().into()));
+    }
+
+    let output = session
+        .send(req.build())
+        .await
+        .map_err(|error| {
+            log::error!("getFollows error: {error}");
+            AppError::validation("Could not load following.")
+        })?
+        .into_output()
+        .map_err(|error| {
+            log::error!("getFollows output error: {error}");
+            AppError::validation("Could not load following.")
+        })?;
+
+    serde_json::to_value(&output).map_err(AppError::from)
 }
 
 fn strong_ref_from_input(input: &StrongRefInput) -> Result<StrongRef<'static>> {
