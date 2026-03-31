@@ -56,7 +56,8 @@ export type IconKind =
   | "deck"
   | "list"
   | "rss"
-  | "messages";
+  | "messages"
+  | "unpin";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -173,6 +174,9 @@ export function Icon(props: IconProps) {
         <Match when={local.kind === "messages"}>
           <i class="i-ri-message-3-line" />
         </Match>
+        <Match when={local.kind === "unpin"}>
+          <i class="i-ri-unpin-line" />
+        </Match>
       </Switch>
     </span>
   );
@@ -212,20 +216,23 @@ export function SettingsIcon(props: IconProps & { kind: SettingsIconKind }) {
   );
 }
 
-export function ArrowIcon(props: { class?: string; direction: "up" | "down" | "left" | "right" }) {
+export function ArrowIcon(
+  props: JSX.HTMLAttributes<HTMLSpanElement> & { class?: string; direction: "up" | "down" | "left" | "right" },
+) {
+  const [local, rest] = splitProps(props, ["class", "direction"]);
   return (
-    <span class="flex items-center justify-center" classList={{ [props.class ?? ""]: !!props.class }}>
+    <span class="flex items-center justify-center" classList={{ [local.class ?? ""]: !!local.class }} {...rest}>
       <Switch>
-        <Match when={props.direction === "up"}>
+        <Match when={local.direction === "up"}>
           <i class="i-ri-arrow-up-s-line" />
         </Match>
-        <Match when={props.direction === "down"}>
+        <Match when={local.direction === "down"}>
           <i class="i-ri-arrow-down-s-line" />
         </Match>
-        <Match when={props.direction === "left"}>
+        <Match when={local.direction === "left"}>
           <i class="i-ri-arrow-left-s-line" />
         </Match>
-        <Match when={props.direction === "right"}>
+        <Match when={local.direction === "right"}>
           <i class="i-ri-arrow-right-s-line" />
         </Match>
       </Switch>

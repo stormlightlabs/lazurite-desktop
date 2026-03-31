@@ -1,5 +1,5 @@
 import { Icon } from "$/components/shared/Icon";
-import { Show } from "solid-js";
+import { For, Show } from "solid-js";
 
 export function LoadingMoreIndicator(props: { loading: boolean }) {
   return (
@@ -31,9 +31,9 @@ function SkeletonCard() {
         <div class="min-w-0 flex-1">
           <div class="skeleton-block h-4 w-48 rounded-full" />
           <div class="mt-3 grid gap-2">
-            <div class="skeleton-block h-3.5 w-full rounded-full" />
-            <div class="skeleton-block h-3.5 w-[88%] rounded-full" />
-            <div class="skeleton-block h-3.5 w-[70%] rounded-full" />
+            <For each={["w-full", "w-[90%]", "w-[95%]"]}>
+              {w => <span class={`skeleton-block h-3.5 ${w} rounded-full`} />}
+            </For>
           </div>
         </div>
       </div>
@@ -44,9 +44,7 @@ function SkeletonCard() {
 export function FeedSkeleton() {
   return (
     <div class="grid gap-3">
-      <SkeletonCard />
-      <SkeletonCard />
-      <SkeletonCard />
+      <For each={Array.from({ length: 3 })}>{() => <SkeletonCard />}</For>
     </div>
   );
 }

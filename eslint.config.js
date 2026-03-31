@@ -39,6 +39,7 @@ export default defineConfig(
       "unicorn/prefer-top-level-await": "off",
       "unicorn/prevent-abbreviations": "off",
       "unicorn/prefer-ternary": "off",
+      "unicorn/switch-case-braces": "warn",
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
     },
   },

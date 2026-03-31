@@ -84,3 +84,4 @@ Spec: [social-diagnostics.md](../specs/social-diagnostics.md)
 
 - [ ] Network relationship diff over time (requires historical snapshots)
 - [ ] Profile/identity history timeline (handle/DID/PDS changes)
+- [ ] Starter Pack search?

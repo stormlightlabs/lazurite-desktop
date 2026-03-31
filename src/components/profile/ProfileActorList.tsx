@@ -1,8 +1,8 @@
+import { Icon } from "$/components/shared/Icon";
 import { getAvatarLabel, getDisplayName } from "$/lib/feeds";
 import type { ProfileViewBasic } from "$/lib/types";
 import { createMemo, For, onMount, Show } from "solid-js";
 import { Motion } from "solid-motionone";
-import { Icon } from "../shared/Icon";
 import type { ActorListState } from "./profile-state";
 
 function ActorListHeader(props: { onClose: () => void; title: string }) {
@@ -30,25 +30,27 @@ function ActorListLoadMoreButton(props: { loadingMore: boolean; onLoadMore: () =
         disabled={props.loadingMore}
         type="button"
         onClick={() => props.onLoadMore()}>
-        <Show when={props.loadingMore}>
-          <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
+        <Show when={props.loadingMore} fallback={<span>Load more</span>}>
+          <>
+            <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
+            <span>Loading...</span>
+          </>
         </Show>
-        {props.loadingMore ? "Loading..." : "Load more"}
       </button>
     </div>
   );
 }
 
-function ActorListContent(
-  props: {
-    actorList: ActorListState;
-    onFollowActor: (actor: ProfileViewBasic) => void;
-    onSelectActor: (actor: ProfileViewBasic) => void;
-    onUnfollowActor: (actor: ProfileViewBasic) => void;
-    sessionDid: string | null;
-    title: string;
-  },
-) {
+type ActorListContentProps = {
+  actorList: ActorListState;
+  onFollowActor: (actor: ProfileViewBasic) => void;
+  onSelectActor: (actor: ProfileViewBasic) => void;
+  onUnfollowActor: (actor: ProfileViewBasic) => void;
+  sessionDid: string | null;
+  title: string;
+};
+
+function ActorListContent(props: ActorListContentProps) {
   return (
     <Show when={!props.actorList.loading} fallback={<ActorListSkeleton />}>
       <Show
@@ -82,16 +84,16 @@ function ActorListContent(
   );
 }
 
-function ActorCard(
-  props: {
-    actor: ProfileViewBasic;
-    followLoading: boolean;
-    isSelf: boolean;
-    onFollow: () => void;
-    onSelect: () => void;
-    onUnfollow: () => void;
-  },
-) {
+type ActorCardProps = {
+  actor: ProfileViewBasic;
+  followLoading: boolean;
+  isSelf: boolean;
+  onFollow: () => void;
+  onSelect: () => void;
+  onUnfollow: () => void;
+};
+
+function ActorCard(props: ActorCardProps) {
   const label = createMemo(() => getAvatarLabel(props.actor));
   const name = createMemo(() => getDisplayName(props.actor));
   const isFollowing = createMemo(() => !!props.actor.viewer?.following);
@@ -191,9 +193,9 @@ function ActorListSkeleton() {
             <div class="flex items-start gap-3">
               <span class="skeleton-block h-11 w-11 shrink-0 rounded-full" />
               <div class="grid flex-1 gap-1.5">
-                <span class="skeleton-block h-3.5 w-32 rounded-full" />
-                <span class="skeleton-block h-3 w-24 rounded-full" />
-                <span class="skeleton-block h-3 w-full rounded-full" />
+                <For each={["w-32", "w-24", "w-full"]}>
+                  {(w) => <span class={`skeleton-block h-3.5 ${w} rounded-full`} />}
+                </For>
               </div>
             </div>
           </div>
@@ -203,17 +205,17 @@ function ActorListSkeleton() {
   );
 }
 
-export function ActorListOverlay(
-  props: {
-    actorList: ActorListState;
-    onClose: () => void;
-    onFollowActor: (actor: ProfileViewBasic) => void;
-    onLoadMore: () => void;
-    onSelectActor: (actor: ProfileViewBasic) => void;
-    onUnfollowActor: (actor: ProfileViewBasic) => void;
-    sessionDid: string | null;
-  },
-) {
+type ActorListOverlayProps = {
+  actorList: ActorListState;
+  onClose: () => void;
+  onFollowActor: (actor: ProfileViewBasic) => void;
+  onLoadMore: () => void;
+  onSelectActor: (actor: ProfileViewBasic) => void;
+  onUnfollowActor: (actor: ProfileViewBasic) => void;
+  sessionDid: string | null;
+};
+
+export function ActorListOverlay(props: ActorListOverlayProps) {
   const title = createMemo(() => props.actorList.kind === "followers" ? "Followers" : "Following");
   let overlayRef: HTMLDivElement | undefined;
 

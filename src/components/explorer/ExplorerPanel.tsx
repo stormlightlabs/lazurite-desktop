@@ -481,7 +481,7 @@ function ExplorerSkeleton() {
       <div class="h-8 w-1/3 rounded-lg bg-white/5" />
       <div class="h-4 w-1/4 rounded bg-white/5" />
       <div class="grid gap-2 mt-4">
-        <For each={[1, 2, 3, 4, 5]}>{() => <div class="h-16 rounded-xl bg-white/5" />}</For>
+        <For each={Array.from({ length: 5 })}>{() => <div class="h-16 rounded-xl bg-white/5" />}</For>
       </div>
     </div>
   );

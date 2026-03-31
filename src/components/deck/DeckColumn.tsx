@@ -170,7 +170,14 @@ function FeedBodyContent(props: FeedBodyContentProps) {
   );
 }
 
-function ColumnBody(props: { column: Column; feedColumn?: ResolvedFeedColumn; onOpenThread: (uri: string) => void }) {
+function ColumnBody(
+  props: {
+    column: Column;
+    feedColumn?: ResolvedFeedColumn;
+    onClose: (id: string) => void;
+    onOpenThread: (uri: string) => void;
+  },
+) {
   const diagnosticsConfig = () => parseDiagnosticsConfig(props.column.config);
   const searchConfig = () => parseSearchConfig(props.column.config);
   const profileConfig = () => parseProfileConfig(props.column.config);
@@ -186,7 +193,7 @@ function ColumnBody(props: { column: Column; feedColumn?: ResolvedFeedColumn; on
         </div>
       </Match>
       <Match when={props.column.kind === "diagnostics"}>
-        <DiagnosticsColumn did={diagnosticsConfig()?.did ?? ""} />
+        <DiagnosticsColumn did={diagnosticsConfig()?.did ?? ""} onClose={() => props.onClose(props.column.id)} />
       </Match>
       <Match when={props.column.kind === "messages"}>
         <BlurredMessagesBody />
@@ -252,7 +259,11 @@ export function DeckColumn(props: DeckColumnProps) {
         onMoveRight={() => props.onMoveRight(props.column.id)}
         onWidthCycle={() => props.onWidthChange(props.column.id, cycleWidth(props.column.width))} />
       <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
-        <ColumnBody column={props.column} feedColumn={props.feedColumn} onOpenThread={props.onOpenThread} />
+        <ColumnBody
+          column={props.column}
+          feedColumn={props.feedColumn}
+          onClose={props.onClose}
+          onOpenThread={props.onOpenThread} />
       </div>
     </section>
   );

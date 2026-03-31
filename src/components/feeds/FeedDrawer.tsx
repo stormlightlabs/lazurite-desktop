@@ -1,4 +1,4 @@
-import { Icon } from "$/components/shared/Icon";
+import { ArrowIcon, Icon } from "$/components/shared/Icon";
 import { getFeedName } from "$/lib/feeds";
 import type { FeedGeneratorView, SavedFeedItem } from "$/lib/types";
 import { For, Show } from "solid-js";
@@ -48,8 +48,12 @@ function DrawerContent(
 ) {
   return (
     <>
-      <PinnedFeedsSection {...props} />
-      <UnpinnedFeedsSection {...props} />
+      <Show when={props.pinnedFeeds.length > 0}>
+        <PinnedFeedsSection {...props} />
+      </Show>
+      <Show when={props.drawerFeeds.length > 0}>
+        <UnpinnedFeedsSection {...props} />
+      </Show>
       <Show when={props.pinnedFeeds.length === 0 && props.drawerFeeds.length === 0}>
         <p class="mt-8 text-center text-sm text-on-surface-variant">No saved feeds yet.</p>
       </Show>
@@ -67,27 +71,25 @@ function PinnedFeedsSection(
   },
 ) {
   return (
-    <Show when={props.pinnedFeeds.length > 0}>
-      <div class="mt-6">
-        <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Pinned Feeds</p>
-        <div class="mt-3 grid gap-2">
-          <For each={props.pinnedFeeds}>
-            {(feed, index) => (
-              <DrawerPinnedFeedRow
-                feed={feed}
-                generator={props.generators[feed.value]}
-                index={index()}
-                isFirst={index() === 0}
-                isLast={index() === props.pinnedFeeds.length - 1}
-                onSelect={() => props.onSelectFeed(feed.id)}
-                onUnpin={() => props.onUnpinFeed(feed.id)}
-                onMoveUp={() => props.onReorderPinned(feed.id, "up")}
-                onMoveDown={() => props.onReorderPinned(feed.id, "down")} />
-            )}
-          </For>
-        </div>
+    <div class="mt-6">
+      <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Pinned Feeds</p>
+      <div class="mt-3 grid gap-2">
+        <For each={props.pinnedFeeds}>
+          {(feed, index) => (
+            <DrawerPinnedFeedRow
+              feed={feed}
+              generator={props.generators[feed.value]}
+              index={index()}
+              isFirst={index() === 0}
+              isLast={index() === props.pinnedFeeds.length - 1}
+              onSelect={() => props.onSelectFeed(feed.id)}
+              onUnpin={() => props.onUnpinFeed(feed.id)}
+              onMoveUp={() => props.onReorderPinned(feed.id, "up")}
+              onMoveDown={() => props.onReorderPinned(feed.id, "down")} />
+          )}
+        </For>
       </div>
-    </Show>
+    </div>
   );
 }
 
@@ -100,22 +102,20 @@ function UnpinnedFeedsSection(
   },
 ) {
   return (
-    <Show when={props.drawerFeeds.length > 0}>
-      <div class="mt-6">
-        <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Saved Feeds</p>
-        <div class="mt-3 grid gap-2">
-          <For each={props.drawerFeeds}>
-            {(feed) => (
-              <DrawerUnpinnedFeedRow
-                feed={feed}
-                generator={props.generators[feed.value]}
-                onSelect={() => props.onSelectFeed(feed.id)}
-                onPin={() => props.onPinFeed(feed.id)} />
-            )}
-          </For>
-        </div>
+    <div class="mt-6">
+      <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Saved Feeds</p>
+      <div class="mt-3 grid gap-2">
+        <For each={props.drawerFeeds}>
+          {(feed) => (
+            <DrawerUnpinnedFeedRow
+              feed={feed}
+              generator={props.generators[feed.value]}
+              onSelect={() => props.onSelectFeed(feed.id)}
+              onPin={() => props.onPinFeed(feed.id)} />
+          )}
+        </For>
       </div>
-    </Show>
+    </div>
   );
 }
 
@@ -149,14 +149,13 @@ function DrawerPinnedFeedRow(
     onMoveDown: () => void;
   },
 ) {
+  const feedName = () => getFeedName(props.feed, props.generator?.displayName);
   return (
     <div class="flex items-center gap-2 rounded-2xl bg-white/4 px-3 py-3 transition duration-150 ease-out hover:bg-white/6">
       <button class="flex min-w-0 flex-1 items-center gap-3 text-left" type="button" onClick={() => props.onSelect()}>
         <FeedChipAvatar feed={props.feed} generator={props.generator} />
         <div class="min-w-0 flex-1">
-          <p class="m-0 truncate text-[0.88rem] font-semibold text-on-surface">
-            {getFeedName(props.feed, props.generator?.displayName)}
-          </p>
+          <p class="m-0 truncate text-[0.88rem] font-semibold text-on-surface">{feedName()}</p>
           <p class="m-0 break-all text-xs text-on-surface-variant">{props.feed.value}</p>
         </div>
       </button>
@@ -167,7 +166,7 @@ function DrawerPinnedFeedRow(
           disabled={props.isFirst}
           title="Move up"
           onClick={() => props.onMoveUp()}>
-          <Icon aria-hidden="true" iconClass="i-ri-arrow-up-line" />
+          <ArrowIcon direction="up" aria-hidden="true" />
         </button>
         <button
           class="inline-flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface disabled:opacity-30"
@@ -175,14 +174,14 @@ function DrawerPinnedFeedRow(
           disabled={props.isLast}
           title="Move down"
           onClick={() => props.onMoveDown()}>
-          <Icon aria-hidden="true" iconClass="i-ri-arrow-down-line" />
+          <ArrowIcon direction="down" aria-hidden="true" />
         </button>
         <button
           class="inline-flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-primary"
           type="button"
           title="Unpin from tabs"
           onClick={() => props.onUnpin()}>
-          <Icon aria-hidden="true" iconClass="i-ri-unpin-line" />
+          <Icon aria-hidden="true" kind="unpin" />
         </button>
       </div>
     </div>
@@ -192,14 +191,13 @@ function DrawerPinnedFeedRow(
 function DrawerUnpinnedFeedRow(
   props: { feed: SavedFeedItem; generator?: FeedGeneratorView; onSelect: () => void; onPin: () => void },
 ) {
+  const feedName = () => getFeedName(props.feed, props.generator?.displayName);
   return (
     <div class="flex items-center gap-2 rounded-2xl bg-white/4 px-3 py-3 transition duration-150 ease-out hover:bg-white/6">
       <button class="flex min-w-0 flex-1 items-center gap-3 text-left" type="button" onClick={() => props.onSelect()}>
         <FeedChipAvatar feed={props.feed} generator={props.generator} />
         <div class="min-w-0 flex-1">
-          <p class="m-0 truncate text-[0.88rem] font-semibold text-on-surface">
-            {getFeedName(props.feed, props.generator?.displayName)}
-          </p>
+          <p class="m-0 truncate text-[0.88rem] font-semibold text-on-surface">{feedName()}</p>
           <p class="m-0 break-all text-xs text-on-surface-variant">{props.feed.value}</p>
         </div>
       </button>
