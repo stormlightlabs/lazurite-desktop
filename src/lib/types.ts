@@ -32,6 +32,7 @@ export type ProfileViewBasic = {
   handle: string;
   displayName?: string | null;
   avatar?: string | null;
+  description?: string | null;
   viewer?: AuthorViewerState | null;
 };
 
@@ -251,8 +252,6 @@ export type LogLevelFilter = "all" | "info" | "warn" | "error";
 export type RefreshInterval = 30 | 60 | 120 | 300 | 0;
 
 export type Theme = "light" | "dark" | "auto";
-
-// ── DMs / Conversations ──────────────────────────────────────────────────────
 
 export type MessageViewSender = { did: string };
 

@@ -8,7 +8,7 @@ Cross-platform build, signing, packaging, and auto-update pipeline targeting mac
 
 ### App Identity & Branding
 
-- [ ] Final app icon set: generate all required sizes from source SVG
+- [x] Final app icon set: generate all required sizes from source SVG
   - macOS: `icon.icns` (16–1024px)
   - Windows: `icon.ico` (16–256px)
   - Linux: `icon.png` at 32, 128, 256, 512px

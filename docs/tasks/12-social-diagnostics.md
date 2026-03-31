@@ -13,7 +13,7 @@ Spec: [social-diagnostics.md](../specs/social-diagnostics.md)
 - [ ] `get_many_to_many_counts(subject: String, source: String, path_to_other: String)` - `blue.microcosm.links.getManyToManyCounts`
 - [ ] `get_many_to_many(subject: String, source: String, path_to_other: String, limit: Option<u32>)` - `blue.microcosm.links.getManyToMany`
 
-### Backend - Diagnostics Commands (`src-tauri/src/commands/diagnostics.rs`)
+### Backend - Diagnostics Commands (`src-tauri/src/diagnostics.rs` & `src-tauri/src/commands/diagnostics.rs`)
 
 - [ ] `get_account_lists(did: String)` - query Constellation for `app.bsky.graph.listitem:subject` backlinks, extract list URIs, hydrate via `app.bsky.graph.getList`
 - [ ] `get_account_labels(did: String)` - query `com.atproto.label.queryLabels` (Bluesky API)

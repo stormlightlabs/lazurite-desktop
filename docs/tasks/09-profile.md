@@ -11,16 +11,16 @@ Depends on: Milestone 03 (Feeds - post card, feed loading), Milestone 02 (Auth -
 - [x] `get_profile(actor: String)` - `app.bsky.actor.getProfile`
 - [x] `get_author_feed(actor: String, cursor: Option<String>, limit: Option<u32>)` - `app.bsky.feed.getAuthorFeed`
 - [x] `get_actor_likes(actor: String, cursor: Option<String>, limit: Option<u32>)` - `app.bsky.feed.getActorLikes`
-- [ ] `follow_actor(did: String)` - create `app.bsky.graph.follow` record, return record URI
-- [ ] `unfollow_actor(uri: String)` - delete follow record via `com.atproto.repo.deleteRecord`
-- [ ] `get_followers(actor: String, cursor: Option<String>, limit: Option<u32>)` - `app.bsky.graph.getFollowers`
-- [ ] `get_follows(actor: String, cursor: Option<String>, limit: Option<u32>)` - `app.bsky.graph.getFollows`
+- [x] `follow_actor(did: String)` - create `app.bsky.graph.follow` record, return record URI
+- [x] `unfollow_actor(uri: String)` - delete follow record via `com.atproto.repo.deleteRecord`
+- [x] `get_followers(actor: String, cursor: Option<String>, limit: Option<u32>)` - `app.bsky.graph.getFollowers`
+- [x] `get_follows(actor: String, cursor: Option<String>, limit: Option<u32>)` - `app.bsky.graph.getFollows`
 
 ### Frontend - Profile Hero & Scroll Behavior
 
 - [x] Profile hero section: banner image with parallax, avatar, display name, handle, bio, metadata row, stat counters
 - [x] Scroll-driven avatar condensation: avatar shrinks from 128px and shifts right as user scrolls
-- [ ] **Fix**: Avatar, display name, and handle must move together as a joined group on scroll — as the avatar shrinks, the name and handle slide up beside it to form a compact sticky header
+- [x] **Fix**: Avatar, display name, and handle must move together as a joined group on scroll — as the avatar shrinks, the name and handle slide up beside it to form a compact sticky header
 - [x] Badge row for relationship indicators (Following, Follows you, Muted, etc.)
 - [x] Responsive: reduced padding on narrow widths, shorter banner on medium widths
 
@@ -36,17 +36,17 @@ Depends on: Milestone 03 (Feeds - post card, feed loading), Milestone 02 (Auth -
 
 ### Frontend - Follow / Unfollow
 
-- [ ] Follow/unfollow button on non-self profiles
-- [ ] Visual states: "Follow" (outline), "Following" (filled), "Unfollow" (hover state)
-- [ ] Optimistic UI update with rollback on error
-- [ ] Badge row updates immediately on follow/unfollow
+- [x] Follow/unfollow button on non-self profiles
+- [x] Visual states: "Follow" (outline), "Following" (filled), "Unfollow" (hover state)
+- [x] Optimistic UI update with rollback on error
+- [x] Badge row updates immediately on follow/unfollow
 
 ### Frontend - Following & Follower Lists
 
-- [ ] Tappable follower/following stat counts open list overlay
-- [ ] Paginated actor list with compact cards (avatar, name, handle, bio snippet, follow button)
-- [ ] `Presence` slide-up overlay with backdrop blur
-- [ ] Cursor-based pagination with infinite scroll or "Load more"
+- [x] Tappable follower/following stat counts open list overlay
+- [x] Paginated actor list with compact cards (avatar, name, handle, bio snippet, follow button)
+- [x] `Presence` slide-up overlay with backdrop blur
+- [x] Cursor-based pagination with infinite scroll or "Load more"
 
 ### Parking Lot
 

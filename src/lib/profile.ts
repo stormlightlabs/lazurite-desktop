@@ -1,6 +1,6 @@
 import { isReplyItem, parseFeedResponse } from "$/lib/feeds";
 import type { ActorListResponse, FeedResponse, FeedViewPost, ProfileViewBasic, ProfileViewDetailed } from "$/lib/types";
-import { asArray, asRecord } from "./type-guards";
+import { asArray, asRecord, optionalNumber, optionalString } from "./type-guards";
 
 export type ProfileTab = "posts" | "replies" | "media" | "likes";
 
@@ -85,6 +85,7 @@ function parseProfileBasic(value: unknown): ProfileViewBasic | null {
     handle: record.handle,
     displayName: optionalString(record.displayName),
     avatar: optionalString(record.avatar),
+    description: optionalString(record.description),
     viewer: asRecord(record.viewer) ? { following: optionalString(asRecord(record.viewer)?.following) } : null,
   };
 }
@@ -118,12 +119,4 @@ function parseProfileViewer(value: unknown) {
     following: optionalString(record.following),
     muted: typeof record.muted === "boolean" ? record.muted : null,
   };
-}
-
-function optionalNumber(value: unknown) {
-  return typeof value === "number" ? value : null;
-}
-
-function optionalString(value: unknown) {
-  return typeof value === "string" ? value : null;
 }

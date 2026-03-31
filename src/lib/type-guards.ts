@@ -28,3 +28,11 @@ export function asRecord(value: unknown): Record<string, unknown> | null {
 export function asArray(value: unknown) {
   return Array.isArray(value) ? value : null;
 }
+
+export function optionalNumber(value: unknown) {
+  return typeof value === "number" ? value : null;
+}
+
+export function optionalString(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
