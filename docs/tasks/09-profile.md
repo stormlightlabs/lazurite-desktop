@@ -47,9 +47,3 @@ Depends on: Milestone 03 (Feeds - post card, feed loading), Milestone 02 (Auth -
 - [x] Paginated actor list with compact cards (avatar, name, handle, bio snippet, follow button)
 - [x] `Presence` slide-up overlay with backdrop blur
 - [x] Cursor-based pagination with infinite scroll or "Load more"
-
-### Parking Lot
-
-- [ ] DM button (requires `chat.bsky.convo.*` implementation)
-- [ ] Profile edit screen (display name, bio, avatar, banner, website, pronouns)
-- [ ] Mute / block actions from profile view

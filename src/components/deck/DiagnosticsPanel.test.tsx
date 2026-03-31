@@ -8,6 +8,7 @@ const getAccountLabelsMock = vi.hoisted(() => vi.fn());
 const getAccountBlockedByMock = vi.hoisted(() => vi.fn());
 const getAccountBlockingMock = vi.hoisted(() => vi.fn());
 const getAccountStarterPacksMock = vi.hoisted(() => vi.fn());
+const getRecordBacklinksMock = vi.hoisted(() => vi.fn());
 
 vi.mock(
   "$/lib/api/diagnostics",
@@ -17,6 +18,7 @@ vi.mock(
     getAccountLabels: getAccountLabelsMock,
     getAccountLists: getAccountListsMock,
     getAccountStarterPacks: getAccountStarterPacksMock,
+    getRecordBacklinks: getRecordBacklinksMock,
   }),
 );
 
@@ -35,6 +37,7 @@ describe("DiagnosticsPanel", () => {
     getAccountBlockedByMock.mockReset();
     getAccountBlockingMock.mockReset();
     getAccountStarterPacksMock.mockReset();
+    getRecordBacklinksMock.mockReset();
 
     getAccountListsMock.mockResolvedValue({
       lists: [{
@@ -55,7 +58,7 @@ describe("DiagnosticsPanel", () => {
     });
     getAccountLabelsMock.mockResolvedValue({
       labels: [{ src: "did:plc:labeler", val: "!hide" }],
-      sourceProfiles: {},
+      sourceProfiles: { "did:plc:labeler": { displayName: "Safety Service", handle: "safety.service" } },
       cursor: null,
     });
     getAccountBlockedByMock.mockResolvedValue({
@@ -76,6 +79,12 @@ describe("DiagnosticsPanel", () => {
       }],
       total: 1,
       truncated: false,
+    });
+    getRecordBacklinksMock.mockResolvedValue({
+      likes: { cursor: null, records: [], total: 0 },
+      quotes: { cursor: null, records: [], total: 0 },
+      replies: { cursor: null, records: [], total: 0 },
+      reposts: { cursor: null, records: [], total: 0 },
     });
   });
 
@@ -103,7 +112,7 @@ describe("DiagnosticsPanel", () => {
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: "Blocks" }));
-    expect(await screen.findByText("Blocked by")).toBeInTheDocument();
+    expect(await screen.findByText("Boundaries around you")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /show details/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /show details/i }));
@@ -112,5 +121,15 @@ describe("DiagnosticsPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Starter Packs" }));
     expect(await screen.findByText("Newcomers")).toBeInTheDocument();
     expect(screen.getByText("8 members")).toBeInTheDocument();
+  });
+
+  it("explains backlinks when no record URI is selected", async () => {
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Backlinks" }));
+
+    expect(await screen.findByText(/Backlinks are record-specific engagement context/i)).toBeInTheDocument();
+    expect(screen.getByText(/Open a post or record to inspect the public references pointing at it/i))
+      .toBeInTheDocument();
   });
 });

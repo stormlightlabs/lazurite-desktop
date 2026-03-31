@@ -1,3 +1,4 @@
+import { RecordBacklinksPanel } from "$/components/diagnostics/RecordBacklinksPanel";
 import { useAppSession } from "$/contexts/app-session";
 import {
   type DiagnosticBlockItem,
@@ -11,6 +12,8 @@ import {
   getAccountLists,
   getAccountStarterPacks,
 } from "$/lib/api/diagnostics";
+import { asRecord, getStringProperty } from "$/lib/type-guards";
+import { shouldIgnoreKey } from "$/lib/utils/events";
 import { normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
@@ -20,21 +23,28 @@ import { Icon } from "../shared/Icon";
 
 type DiagnosticsTab = "lists" | "labels" | "blocks" | "starterPacks" | "backlinks";
 
-type DiagnosticsPanelProps = { did: string; onClose: () => void };
+type DiagnosticsPanelProps = {
+  did?: string | null;
+  embedded?: boolean;
+  onClose?: () => void;
+  onOpenExplorerTarget?: (target: string) => void;
+  recordUri?: string | null;
+};
 
 type DiagnosticsState = {
-  lists: DiagnosticList[];
-  listsError: string | null;
-  listsLoading: boolean;
-  labels: DiagnosticLabel[];
-  labelsError: string | null;
-  labelsLoading: boolean;
   blockedBy: DiagnosticDidProfile[];
   blockedByError: string | null;
   blockedByLoading: boolean;
   blocking: DiagnosticBlockItem[];
   blockingError: string | null;
   blockingLoading: boolean;
+  labels: DiagnosticLabel[];
+  labelsError: string | null;
+  labelsLoading: boolean;
+  labelsSourceProfiles: Record<string, unknown>;
+  lists: DiagnosticList[];
+  listsError: string | null;
+  listsLoading: boolean;
   starterPacks: DiagnosticStarterPack[];
   starterPacksError: string | null;
   starterPacksLoading: boolean;
@@ -59,12 +69,34 @@ function createInitialState(): DiagnosticsState {
     labels: [],
     labelsError: null,
     labelsLoading: true,
+    labelsSourceProfiles: {},
     lists: [],
     listsError: null,
     listsLoading: true,
     starterPacks: [],
     starterPacksError: null,
     starterPacksLoading: true,
+  };
+}
+
+function createIdleState(): DiagnosticsState {
+  return {
+    blockedBy: [],
+    blockedByError: null,
+    blockedByLoading: false,
+    blocking: [],
+    blockingError: null,
+    blockingLoading: false,
+    labels: [],
+    labelsError: null,
+    labelsLoading: false,
+    labelsSourceProfiles: {},
+    lists: [],
+    listsError: null,
+    listsLoading: false,
+    starterPacks: [],
+    starterPacksError: null,
+    starterPacksLoading: false,
   };
 }
 
@@ -105,18 +137,96 @@ function initials(name: string) {
   return name.trim().slice(0, 1).toUpperCase() || "?";
 }
 
+function formatHandle(handle: string | null | undefined) {
+  if (!handle) {
+    return "Unknown";
+  }
+
+  return handle.startsWith("did:") || handle.startsWith("@") ? handle : `@${handle}`;
+}
+
+function getDiagnosticEntryHandle(item: DiagnosticBlockItem | DiagnosticDidProfile) {
+  if (item.profile?.handle) {
+    return item.profile.handle;
+  }
+
+  if ("did" in item) {
+    return item.did;
+  }
+
+  return item.subjectDid ?? item.profile?.did ?? "Unknown";
+}
+
+function getLabelDefinition(value: string | null | undefined) {
+  switch ((value || "").toLowerCase()) {
+    case "!hide": {
+      return "Hidden content label.";
+    }
+    case "!hide-media": {
+      return "Media visibility label.";
+    }
+    case "!hide-replies": {
+      return "Replies visibility label.";
+    }
+    case "!no-unauthenticated": {
+      return "Requires a signed-in view.";
+    }
+    case "!warn": {
+      return "Advisory moderation label.";
+    }
+    default: {
+      return "Service-applied moderation metadata.";
+    }
+  }
+}
+
+function getLabelEffect(label: DiagnosticLabel) {
+  if (label.neg) {
+    return "This label negates a previous moderation decision.";
+  }
+
+  switch ((label.val || "").toLowerCase()) {
+    case "!hide":
+    case "!hide-media":
+    case "!hide-replies": {
+      return "It can change how the record or account is shown in supporting clients.";
+    }
+    case "!no-unauthenticated": {
+      return "It can limit visibility for signed-out browsing.";
+    }
+    default: {
+      return "Its exact effect depends on the labeling service and client policy.";
+    }
+  }
+}
+
+function getSourceProfileName(sourceProfiles: Record<string, unknown>, src: string | null | undefined) {
+  if (!src) {
+    return "Unknown service";
+  }
+
+  const profile = asRecord(sourceProfiles[src]);
+  if (!profile) {
+    return src;
+  }
+
+  return getStringProperty(profile, "displayName") ?? formatHandle(getStringProperty(profile, "handle")) ?? src;
+}
+
 export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
   const session = useAppSession();
   const [state, setState] = createStore<DiagnosticsState>(createInitialState());
   const [activeTab, setActiveTab] = createSignal<DiagnosticsTab>("lists");
   const [blocksExpanded, setBlocksExpanded] = createSignal(false);
-  const activeDid = createMemo(() => props.did.trim() || session.activeDid || "");
+  const activeDid = createMemo(() => props.did?.trim() || session.activeDid || "");
+  const activeRecordUri = createMemo(() => props.recordUri?.trim() || "");
   const isSelf = createMemo(() => activeDid() === session.activeDid);
   let requestId = 0;
 
   createEffect(() => {
     const did = activeDid();
     if (!did) {
+      setState(createIdleState());
       return;
     }
 
@@ -132,16 +242,21 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
   });
 
   function handleKeyDown(event: KeyboardEvent) {
-    if (event.key >= "1" && event.key <= "5" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    if (shouldIgnoreKey(event) || event.altKey || event.shiftKey) {
+      return;
+    }
+
+    if (event.key >= "1" && event.key <= "5") {
       event.preventDefault();
       const nextTab = DIAGNOSTICS_TABS[Number(event.key) - 1]?.value;
       if (nextTab) {
         setActiveTab(nextTab);
       }
+      return;
     }
 
     if (event.key === "Escape") {
-      props.onClose();
+      props.onClose?.();
     }
   }
 
@@ -167,32 +282,41 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
     try {
       const response = await getAccountLabels(did);
       if (currentRequest !== requestId) return;
-      setState({ labels: response.labels, labelsError: null, labelsLoading: false });
+      setState({
+        labels: response.labels,
+        labelsError: null,
+        labelsLoading: false,
+        labelsSourceProfiles: response.sourceProfiles,
+      });
     } catch (error) {
       const message = normalizeError(error);
       if (currentRequest !== requestId) return;
-      setState({ labelsError: message, labelsLoading: false });
+      setState({ labelsError: message, labelsLoading: false, labelsSourceProfiles: {} });
       logger.warn("failed to load diagnostics labels", { keyValues: { did, error: message } });
     }
   }
 
   async function loadBlocks(currentRequest: number, did: string) {
-    try {
-      const [blockedBy, blocking] = await Promise.all([getAccountBlockedBy(did, 25), getAccountBlocking(did)]);
-      if (currentRequest !== requestId) return;
-      setState({
-        blockedBy: blockedBy.items,
-        blockedByError: null,
-        blockedByLoading: false,
-        blocking: blocking.items,
-        blockingError: null,
-        blockingLoading: false,
-      });
-    } catch (error) {
-      const message = normalizeError(error);
-      if (currentRequest !== requestId) return;
-      setState({ blockedByError: message, blockedByLoading: false, blockingError: message, blockingLoading: false });
-      logger.warn("failed to load diagnostics blocks", { keyValues: { did, error: message } });
+    const [blockedBy, blocking] = await Promise.allSettled([getAccountBlockedBy(did, 25), getAccountBlocking(did)]);
+
+    if (currentRequest !== requestId) {
+      return;
+    }
+
+    if (blockedBy.status === "fulfilled") {
+      setState({ blockedBy: blockedBy.value.items, blockedByError: null, blockedByLoading: false });
+    } else {
+      const message = normalizeError(blockedBy.reason);
+      setState({ blockedByError: message, blockedByLoading: false });
+      logger.warn("failed to load diagnostics blocked-by data", { keyValues: { did, error: message } });
+    }
+
+    if (blocking.status === "fulfilled") {
+      setState({ blocking: blocking.value.items, blockingError: null, blockingLoading: false });
+    } else {
+      const message = normalizeError(blocking.reason);
+      setState({ blockingError: message, blockingLoading: false });
+      logger.warn("failed to load diagnostics blocking data", { keyValues: { did, error: message } });
     }
   }
 
@@ -211,18 +335,30 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
 
   return (
     <article class="grid min-h-0 grid-rows-[auto_auto_1fr] overflow-hidden rounded-4xl bg-surface-container shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
-      <DiagnosticsHeader did={activeDid()} isSelf={isSelf()} onClose={props.onClose} />
+      <DiagnosticsHeader
+        did={activeDid()}
+        embedded={props.embedded ?? false}
+        isSelf={isSelf()}
+        onClose={props.onClose} />
       <DiagnosticsTabs activeTab={activeTab()} onSelectTab={setActiveTab} />
       <DiagnosticsViewport
         activeTab={activeTab()}
         blocksExpanded={blocksExpanded()}
+        isSelf={isSelf()}
+        onOpenExplorerTarget={props.onOpenExplorerTarget}
+        onRetryBlockedBy={() => void loadBlocks(requestId, activeDid())}
+        onRetryBlocking={() => void loadBlocks(requestId, activeDid())}
+        onRetryLabels={() => void loadLabels(requestId, activeDid())}
+        onRetryLists={() => void loadLists(requestId, activeDid())}
+        onRetryStarterPacks={() => void loadStarterPacks(requestId, activeDid())}
         onToggleBlocks={() => setBlocksExpanded((value) => !value)}
+        recordUri={activeRecordUri()}
         state={state} />
     </article>
   );
 }
 
-function DiagnosticsHeader(props: { did: string; isSelf: boolean; onClose: () => void }) {
+function DiagnosticsHeader(props: { did: string; embedded: boolean; isSelf: boolean; onClose?: () => void }) {
   return (
     <header class="grid gap-4 px-6 pb-4 pt-6">
       <div class="flex items-start justify-between gap-4">
@@ -230,16 +366,18 @@ function DiagnosticsHeader(props: { did: string; isSelf: boolean; onClose: () =>
           <p class="overline-copy text-xs text-on-surface-variant">Context</p>
           <h1 class="m-0 text-xl font-semibold tracking-tight text-on-surface">Social Diagnostics</h1>
           <p class="m-0 text-sm text-on-surface-variant">
-            {props.isSelf ? "Your boundaries and footprint" : "Public social context for this account"}
+            {props.isSelf ? "Your boundaries and public footprint" : "Public social context for this account"}
           </p>
         </div>
-        <button
-          type="button"
-          class="inline-flex h-10 w-10 items-center justify-center rounded-full border-0 bg-surface-container-high text-on-surface-variant transition duration-150 hover:-translate-y-px hover:text-on-surface"
-          onClick={() => props.onClose()}
-          title="Close diagnostics panel">
-          <Icon kind="close" aria-hidden="true" />
-        </button>
+        <Show when={!props.embedded && props.onClose}>
+          <button
+            type="button"
+            class="inline-flex h-10 w-10 items-center justify-center rounded-full border-0 bg-surface-container-high text-on-surface-variant transition duration-150 hover:-translate-y-px hover:text-on-surface"
+            onClick={() => props.onClose?.()}
+            title="Close diagnostics panel">
+            <Icon kind="close" aria-hidden="true" />
+          </button>
+        </Show>
       </div>
 
       <p class="m-0 break-all rounded-2xl bg-surface-container-high px-4 py-3 font-mono text-xs text-on-surface-variant">
@@ -281,22 +419,39 @@ function DiagnosticsTabs(props: { activeTab: DiagnosticsTab; onSelectTab: (tab: 
 }
 
 function DiagnosticsViewport(
-  props: { activeTab: DiagnosticsTab; blocksExpanded: boolean; onToggleBlocks: () => void; state: DiagnosticsState },
+  props: {
+    activeTab: DiagnosticsTab;
+    blocksExpanded: boolean;
+    isSelf: boolean;
+    onOpenExplorerTarget?: (target: string) => void;
+    onRetryBlockedBy: () => void;
+    onRetryBlocking: () => void;
+    onRetryLabels: () => void;
+    onRetryLists: () => void;
+    onRetryStarterPacks: () => void;
+    onToggleBlocks: () => void;
+    recordUri: string;
+    state: DiagnosticsState;
+  },
 ) {
   return (
     <div class="min-h-0 overflow-y-auto px-3 pb-3">
       <Presence>
         <Show when={props.activeTab === "lists"} keyed>
           <DiagnosticsListsTab
-            lists={props.state.lists}
             error={props.state.listsError}
-            loading={props.state.listsLoading} />
+            lists={props.state.lists}
+            loading={props.state.listsLoading}
+            onOpenExplorerTarget={props.onOpenExplorerTarget}
+            onRetry={props.onRetryLists} />
         </Show>
         <Show when={props.activeTab === "labels"} keyed>
           <DiagnosticsLabelsTab
-            labels={props.state.labels}
             error={props.state.labelsError}
-            loading={props.state.labelsLoading} />
+            labels={props.state.labels}
+            loading={props.state.labelsLoading}
+            onRetry={props.onRetryLabels}
+            sourceProfiles={props.state.labelsSourceProfiles} />
         </Show>
         <Show when={props.activeTab === "blocks"} keyed>
           <DiagnosticsBlocksTab
@@ -307,28 +462,46 @@ function DiagnosticsViewport(
             blockingError={props.state.blockingError}
             blockingLoading={props.state.blockingLoading}
             expanded={props.blocksExpanded}
+            isSelf={props.isSelf}
+            onRetryBlockedBy={props.onRetryBlockedBy}
+            onRetryBlocking={props.onRetryBlocking}
             onToggleExpanded={props.onToggleBlocks} />
         </Show>
         <Show when={props.activeTab === "starterPacks"} keyed>
           <DiagnosticsStarterPacksTab
             error={props.state.starterPacksError}
             loading={props.state.starterPacksLoading}
+            onOpenExplorerTarget={props.onOpenExplorerTarget}
+            onRetry={props.onRetryStarterPacks}
             starterPacks={props.state.starterPacks} />
         </Show>
         <Show when={props.activeTab === "backlinks"} keyed>
-          <DiagnosticsBacklinksTab />
+          <section class="grid gap-3">
+            <DiagnosticsTabIntro
+              description="Backlinks are record-specific engagement context. Open a record to inspect likes, reposts, replies, and quote posts."
+              title="Backlinks" />
+            <RecordBacklinksPanel uri={props.recordUri || null} />
+          </section>
         </Show>
       </Presence>
     </div>
   );
 }
 
-function DiagnosticsListsTab(props: { lists: DiagnosticList[]; error: string | null; loading: boolean }) {
+function DiagnosticsListsTab(
+  props: {
+    error: string | null;
+    lists: DiagnosticList[];
+    loading: boolean;
+    onOpenExplorerTarget?: (target: string) => void;
+    onRetry: () => void;
+  },
+) {
   return (
     <section class="grid gap-3">
       <DiagnosticsTabIntro
         title="Lists"
-        description="Lists are ordinary social structure. The view keeps purpose and membership context visible without scoring or judgment." />
+        description="Lists are ordinary social structure. Purpose, owner context, and membership stay visible without scoring or judgment." />
       <Switch
         fallback={
           <div class="grid gap-4">
@@ -341,7 +514,9 @@ function DiagnosticsListsTab(props: { lists: DiagnosticList[]; error: string | n
                 <div class="grid gap-3">
                   <p class="m-0 text-xs uppercase tracking-[0.14em] text-on-surface-variant">{group.label}</p>
                   <div class="grid gap-3">
-                    <For each={group.items}>{(list) => <ListCard list={list} />}</For>
+                    <For each={group.items}>
+                      {(list) => <ListCard list={list} onOpenExplorerTarget={props.onOpenExplorerTarget} />}
+                    </For>
                   </div>
                 </div>
               )}
@@ -351,13 +526,21 @@ function DiagnosticsListsTab(props: { lists: DiagnosticList[]; error: string | n
         <Match when={props.loading}>
           <DiagnosticsListSkeleton />
         </Match>
-        <Match when={props.error}>{error => <DiagnosticsError message={error()} />}</Match>
+        <Match when={props.error}>{(error) => <DiagnosticsError message={error()} onRetry={props.onRetry} />}</Match>
       </Switch>
     </section>
   );
 }
 
-function DiagnosticsLabelsTab(props: { labels: DiagnosticLabel[]; error: string | null; loading: boolean }) {
+function DiagnosticsLabelsTab(
+  props: {
+    error: string | null;
+    labels: DiagnosticLabel[];
+    loading: boolean;
+    onRetry: () => void;
+    sourceProfiles: Record<string, unknown>;
+  },
+) {
   return (
     <section class="grid gap-3">
       <DiagnosticsTabIntro
@@ -372,17 +555,22 @@ function DiagnosticsLabelsTab(props: { labels: DiagnosticLabel[]; error: string 
             transition={{ duration: 0.16 }}>
             <For
               fallback={
-                <DiagnosticsEmptyState copy="Labels are service-applied metadata that can affect visibility. This account currently has no visible labels." />
+                <DiagnosticsEmptyState copy="Labels are service-applied metadata that can affect visibility. No visible labels are being returned for this account right now." />
               }
               each={props.labels}>
-              {(label, index) => <LabelChip label={label} index={index()} />}
+              {(label, index) => (
+                <LabelChip
+                  index={index()}
+                  label={label}
+                  sourceName={getSourceProfileName(props.sourceProfiles, label.src)} />
+              )}
             </For>
           </Motion.div>
         }>
         <Match when={props.loading}>
           <DiagnosticsLabelSkeleton />
         </Match>
-        <Match when={props.error}>{error => <DiagnosticsError message={error()} />}</Match>
+        <Match when={props.error}>{(error) => <DiagnosticsError message={error()} onRetry={props.onRetry} />}</Match>
       </Switch>
     </section>
   );
@@ -397,6 +585,9 @@ function DiagnosticsBlocksTab(
     blockingError: string | null;
     blockingLoading: boolean;
     expanded: boolean;
+    isSelf: boolean;
+    onRetryBlockedBy: () => void;
+    onRetryBlocking: () => void;
     onToggleExpanded: () => void;
   },
 ) {
@@ -406,14 +597,14 @@ function DiagnosticsBlocksTab(
   return (
     <section class="grid gap-3">
       <DiagnosticsTabIntro
-        title={"Blocks"}
-        description={"Blocking is a normal boundary. Counts are shown first; details are revealed only on request."} />
+        description="Blocking is a normal social boundary. Counts stay in the summary row; specific accounts appear only after a deliberate action."
+        title={props.isSelf ? "Your Boundaries" : "Blocks"} />
       <div class="grid gap-3 sm:grid-cols-2">
-        <StatCard label="Blocked by" value={blockedByCount()} />
-        <StatCard label="Blocking" value={blockingCount()} />
+        <StatCard label={props.isSelf ? "Boundaries around you" : "Blocked by"} value={blockedByCount()} />
+        <StatCard label={props.isSelf ? "Your boundaries" : "Blocking"} value={blockingCount()} />
       </div>
       <div class="rounded-3xl bg-white/3 p-4 text-sm leading-relaxed text-on-surface-variant">
-        {"Blocks are a normal part of social media. This data is public on the AT Protocol."}
+        Blocks are a normal part of social media. This data is public on the AT Protocol.
       </div>
       <button
         type="button"
@@ -432,15 +623,17 @@ function DiagnosticsBlocksTab(
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.18 }}>
             <DiagnosticsBlock
-              kind="blockedBy"
+              error={props.blockedByError}
               items={props.blockedBy}
               loading={props.blockedByLoading}
-              error={props.blockedByError} />
+              onRetry={props.onRetryBlockedBy}
+              title={props.isSelf ? "Boundaries around you" : "Blocked by"} />
             <DiagnosticsBlock
-              kind="blocking"
+              error={props.blockingError}
               items={props.blocking}
               loading={props.blockingLoading}
-              error={props.blockingError} />
+              onRetry={props.onRetryBlocking}
+              title={props.isSelf ? "Your boundaries" : "Blocking"} />
           </Motion.div>
         </Show>
       </Presence>
@@ -450,42 +643,46 @@ function DiagnosticsBlocksTab(
 
 function DiagnosticsBlock(
   props: {
-    kind: "blockedBy" | "blocking";
+    error: string | null;
     items: DiagnosticBlockItem[] | DiagnosticDidProfile[];
     loading: boolean;
-    error: string | null;
+    onRetry: () => void;
+    title: string;
   },
 ) {
   const items = createMemo(() =>
-    props.items.map(item => ({
+    props.items.map((item) => ({
       avatar: item.profile?.avatar ?? null,
       description: item.profile?.description ?? null,
       displayName: item.profile?.displayName ?? null,
-      handle: (item.profile?.handle ?? item.profile?.did) ?? "Unknown",
+      handle: getDiagnosticEntryHandle(item),
     }))
   );
 
   return (
-    <Switch
-      fallback={
-        <BlockProfileList title={props.kind === "blockedBy" ? "Blocked by" : "Your boundaries"} items={items()} />
-      }>
+    <Switch fallback={<BlockProfileList items={items()} title={props.title} />}>
       <Match when={props.loading}>
         <DiagnosticsBlockSkeleton />
       </Match>
-      <Match when={props.error}>{error => <DiagnosticsError message={error()} />}</Match>
+      <Match when={props.error}>{(error) => <DiagnosticsError message={error()} onRetry={props.onRetry} />}</Match>
     </Switch>
   );
 }
 
 function DiagnosticsStarterPacksTab(
-  props: { starterPacks: DiagnosticStarterPack[]; error: string | null; loading: boolean },
+  props: {
+    error: string | null;
+    loading: boolean;
+    onOpenExplorerTarget?: (target: string) => void;
+    onRetry: () => void;
+    starterPacks: DiagnosticStarterPack[];
+  },
 ) {
   return (
     <section class="grid gap-3">
       <DiagnosticsTabIntro
         title="Starter Packs"
-        description="Starter packs show how people are discovering this account. They stay compact and factual." />
+        description="Starter packs show how people are discovering this account. The cards stay compact and factual." />
       <Switch
         fallback={
           <div class="grid gap-3">
@@ -494,38 +691,20 @@ function DiagnosticsStarterPacksTab(
               fallback={
                 <DiagnosticsEmptyState copy="Starter packs are discovery context and may not exist for every account." />
               }>
-              {(pack) => <StarterPackCard pack={pack} />}
+              {(pack) => <StarterPackCard onOpenExplorerTarget={props.onOpenExplorerTarget} pack={pack} />}
             </For>
           </div>
         }>
         <Match when={props.loading}>
           <DiagnosticsStarterPackSkeleton />
         </Match>
-        <Match when={props.error}>
-          <DiagnosticsError message={props.error} />
-        </Match>
+        <Match when={props.error}>{(error) => <DiagnosticsError message={error()} onRetry={props.onRetry} />}</Match>
       </Switch>
     </section>
   );
 }
 
-function DiagnosticsBacklinksTab() {
-  return (
-    <section class="grid gap-3">
-      <DiagnosticsTabIntro
-        title="Backlinks"
-        description="Record backlinks are shown in AT Explorer record view, grouped by likes, reposts, replies, and quotes." />
-      <div class="grid gap-3 sm:grid-cols-2">
-        <BacklinkPreviewCard title="Likes" copy="Record references tied to likes." />
-        <BacklinkPreviewCard title="Reposts" copy="Record references tied to reposts." />
-        <BacklinkPreviewCard title="Replies" copy="Direct replies to a record." />
-        <BacklinkPreviewCard title="Quotes" copy="Records that embed the URI." />
-      </div>
-    </section>
-  );
-}
-
-function DiagnosticsTabIntro(props: { title: string; description: string }) {
+function DiagnosticsTabIntro(props: { description: string; title: string }) {
   return (
     <div class="grid gap-1 rounded-3xl bg-white/3 p-4">
       <h2 class="m-0 text-base font-semibold text-on-surface">{props.title}</h2>
@@ -534,8 +713,21 @@ function DiagnosticsTabIntro(props: { title: string; description: string }) {
   );
 }
 
-function DiagnosticsError(props: { message: string | null }) {
-  return <div class="rounded-3xl bg-white/3 p-4 text-sm text-on-surface-variant">{props.message}</div>;
+function DiagnosticsError(props: { message: string | null; onRetry?: () => void }) {
+  return (
+    <div class="grid gap-3 rounded-3xl bg-white/3 p-4 text-sm text-on-surface-variant">
+      <p class="m-0">{props.message}</p>
+      <Show when={props.onRetry}>
+        <button
+          type="button"
+          class="inline-flex w-fit items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface transition duration-150 hover:-translate-y-px"
+          onClick={() => props.onRetry?.()}>
+          <Icon kind="refresh" aria-hidden="true" />
+          Retry
+        </button>
+      </Show>
+    </div>
+  );
 }
 
 function DiagnosticsEmptyState(props: { copy: string }) {
@@ -551,77 +743,103 @@ function StatCard(props: { label: string; value: number }) {
   );
 }
 
-function LabelChip(props: { label: DiagnosticLabel; index: number }) {
-  const copy = () => [props.label.val ?? "label", props.label.src ?? "unknown service"].join(" · ");
+function LabelChip(props: { index: number; label: DiagnosticLabel; sourceName: string }) {
+  const title = createMemo(() =>
+    [
+      `Label: ${props.label.val ?? "Unknown"}`,
+      `Definition: ${getLabelDefinition(props.label.val)}`,
+      `Source: ${props.sourceName}`,
+      `Effect: ${getLabelEffect(props.label)}`,
+    ].join("\n")
+  );
 
   return (
     <Motion.span
-      class="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-2 text-sm text-on-surface-variant"
+      class="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-2 text-sm text-on-secondary-container"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      title={copy()}
-      transition={{ duration: 0.14, delay: Math.min(props.index * 0.02, 0.12) }}>
-      <span class="h-2 w-2 rounded-full bg-white/25" />
+      title={title()}
+      transition={{ delay: Math.min(props.index * 0.02, 0.12), duration: 0.14 }}>
+      <span class="h-2 w-2 rounded-full bg-white/20" />
       <span>{props.label.val ?? "label"}</span>
-      <span class="text-xs text-on-surface-variant/80">{props.label.src ?? "unknown service"}</span>
+      <span class="text-xs text-on-surface-variant/90">{props.sourceName}</span>
     </Motion.span>
   );
 }
 
-function ListCard(props: { list: DiagnosticList }) {
-  const title = () => props.list.title ?? props.list.name ?? "Untitled list";
+function ListCard(props: { list: DiagnosticList; onOpenExplorerTarget?: (target: string) => void }) {
   const count = () => props.list.memberCount ?? props.list.listItemCount ?? 0;
+  const title = () => props.list.title ?? props.list.name ?? "Untitled list";
 
   return (
     <div class="rounded-3xl bg-white/3 p-4 transition duration-150 hover:bg-white/5">
-      <div class="flex items-start justify-between gap-4">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div class="min-w-0">
-          <p class="m-0 text-base font-semibold text-on-surface">{title()}</p>
-          <p class="m-0 mt-1 text-sm text-on-surface-variant">
-            {props.list.creator?.handle ? `@${props.list.creator.handle}` : "Unknown owner"}
-          </p>
+          <div class="flex flex-wrap items-center gap-2">
+            <p class="m-0 text-base font-semibold text-on-surface">{title()}</p>
+            <span class="rounded-full bg-primary/12 px-3 py-1 text-xs text-primary">
+              {purposeLabel(props.list.purpose)}
+            </span>
+          </div>
+          <p class="m-0 mt-1 text-sm text-on-surface-variant">Owner: {formatHandle(props.list.creator?.handle)}</p>
           <p class="m-0 mt-3 text-sm leading-relaxed text-on-surface-variant">
             {props.list.description ?? "No description provided."}
           </p>
         </div>
-        <div class="grid justify-items-end gap-2 shrink-0 text-right">
-          <span class="rounded-full bg-white/5 px-3 py-1 text-xs text-on-surface-variant">
-            {purposeLabel(props.list.purpose)}
-          </span>
+
+        <div class="grid shrink-0 justify-items-start gap-2 text-left lg:justify-items-end lg:text-right">
           <span class="text-xs text-on-surface-variant">{count()} members</span>
+          <Show when={props.list.uri}>
+            {uri => (
+              <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 py-2 text-sm text-on-surface transition duration-150 hover:-translate-y-px"
+                disabled={!props.onOpenExplorerTarget}
+                onClick={() => props.onOpenExplorerTarget?.(uri())}>
+                <Icon kind="ext-link" aria-hidden="true" />
+                Open list
+              </button>
+            )}
+          </Show>
         </div>
       </div>
     </div>
   );
 }
 
-function StarterPackCard(props: { pack: DiagnosticStarterPack }) {
-  const title = () => props.pack.title ?? props.pack.name ?? props.pack.record?.name ?? "Starter pack";
+function StarterPackCard(props: { onOpenExplorerTarget?: (target: string) => void; pack: DiagnosticStarterPack }) {
   const count = () => props.pack.listItemCount ?? props.pack.record?.listItemsSample?.length ?? 0;
+  const title = () => props.pack.title ?? props.pack.name ?? props.pack.record?.name ?? "Starter pack";
 
   return (
     <div class="rounded-3xl bg-white/3 p-4 transition duration-150 hover:bg-white/5">
-      <div class="flex items-start justify-between gap-4">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="min-w-0">
           <p class="m-0 text-base font-semibold text-on-surface">{title()}</p>
           <p class="m-0 mt-1 text-sm text-on-surface-variant">
-            {props.pack.creator?.handle ? `@${props.pack.creator.handle}` : "Unknown creator"}
+            Creator: {formatHandle(props.pack.creator?.handle ?? null)}
           </p>
           <p class="m-0 mt-3 text-sm leading-relaxed text-on-surface-variant">
             {props.pack.description ?? props.pack.record?.description ?? "No description provided."}
           </p>
         </div>
-        <span class="rounded-full bg-white/5 px-3 py-1 text-xs text-on-surface-variant">{count()} members</span>
-      </div>
-    </div>
-  );
-}
 
-function BacklinkPreviewCard(props: { copy: string; title: string }) {
-  return (
-    <div class="rounded-3xl bg-white/3 p-4">
-      <p class="m-0 text-base font-semibold text-on-surface">{props.title}</p>
-      <p class="m-0 mt-2 text-sm text-on-surface-variant">{props.copy}</p>
+        <div class="grid shrink-0 justify-items-start gap-2 sm:justify-items-end">
+          <span class="rounded-full bg-white/5 px-3 py-1 text-xs text-on-surface-variant">{count()} members</span>
+          <Show when={props.pack.uri}>
+            {uri => (
+              <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 py-2 text-sm text-on-surface transition duration-150 hover:-translate-y-px"
+                disabled={!props.onOpenExplorerTarget}
+                onClick={() => props.onOpenExplorerTarget?.(uri())}>
+                <Icon kind="ext-link" aria-hidden="true" />
+                AT Explorer
+              </button>
+            )}
+          </Show>
+        </div>
+      </div>
     </div>
   );
 }
@@ -637,10 +855,14 @@ function BlockProfileList(
       <p class="m-0 text-sm font-semibold text-on-surface">{props.title}</p>
       <div class="grid gap-3">
         <For each={props.items}>
-          {(item) => {
+          {(item, index) => {
             const name = () => item.displayName ?? item.handle;
             return (
-              <div class="flex items-start gap-3 rounded-2xl bg-black/20 p-3">
+              <Motion.div
+                class="flex items-start gap-3 rounded-2xl bg-black/20 p-3"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(index() * 0.04, 0.16), duration: 0.16 }}>
                 <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 text-xs font-semibold text-on-surface-variant">
                   <Show when={item.avatar} fallback={<span>{initials(name())}</span>}>
                     {(src) => <img alt="" class="h-full w-full object-cover" src={src()} />}
@@ -648,14 +870,14 @@ function BlockProfileList(
                 </div>
                 <div class="min-w-0">
                   <p class="m-0 text-sm font-medium text-on-surface">{name()}</p>
-                  <p class="m-0 text-xs text-on-surface-variant">{item.handle}</p>
+                  <p class="m-0 text-xs text-on-surface-variant">{formatHandle(item.handle)}</p>
                   <Show when={item.description}>
                     {(description) => (
                       <p class="m-0 mt-2 text-xs leading-relaxed text-on-surface-variant">{description()}</p>
                     )}
                   </Show>
                 </div>
-              </div>
+              </Motion.div>
             );
           }}
         </For>
@@ -667,7 +889,15 @@ function BlockProfileList(
 function DiagnosticsListSkeleton() {
   return (
     <div class="grid gap-4">
-      <For each={Array.from({ length: 3 })}>{() => <div class="h-28 rounded-3xl bg-white/3" />}</For>
+      <For each={Array.from({ length: 3 })}>
+        {() => (
+          <div class="grid h-32 gap-3 rounded-3xl bg-white/3 p-4">
+            <div class="h-4 w-28 rounded-full bg-white/6" />
+            <div class="h-4 w-44 rounded-full bg-white/6" />
+            <div class="h-4 w-full rounded-full bg-white/6" />
+          </div>
+        )}
+      </For>
     </div>
   );
 }
@@ -675,7 +905,7 @@ function DiagnosticsListSkeleton() {
 function DiagnosticsLabelSkeleton() {
   return (
     <div class="flex flex-wrap gap-2">
-      <For each={Array.from({ length: 5 })}>{() => <div class="h-10 w-28 rounded-full bg-white/3" />}</For>
+      <For each={Array.from({ length: 5 })}>{() => <div class="h-10 w-32 rounded-full bg-white/3" />}</For>
     </div>
   );
 }
@@ -683,7 +913,15 @@ function DiagnosticsLabelSkeleton() {
 function DiagnosticsStarterPackSkeleton() {
   return (
     <div class="grid gap-3">
-      <For each={Array.from({ length: 2 })}>{() => <div class="h-24 rounded-3xl bg-white/3" />}</For>
+      <For each={Array.from({ length: 2 })}>
+        {() => (
+          <div class="grid h-28 gap-3 rounded-3xl bg-white/3 p-4">
+            <div class="h-4 w-40 rounded-full bg-white/6" />
+            <div class="h-4 w-28 rounded-full bg-white/6" />
+            <div class="h-4 w-full rounded-full bg-white/6" />
+          </div>
+        )}
+      </For>
     </div>
   );
 }
@@ -691,7 +929,7 @@ function DiagnosticsStarterPackSkeleton() {
 function DiagnosticsBlockSkeleton() {
   return (
     <div class="grid gap-3">
-      <For each={Array.from({ length: 2 })}>{() => <div class="h-20 rounded-3xl bg-white/3" />}</For>
+      <For each={Array.from({ length: 2 })}>{() => <div class="h-24 rounded-3xl bg-white/3" />}</For>
     </div>
   );
 }

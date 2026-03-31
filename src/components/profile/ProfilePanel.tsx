@@ -1,3 +1,4 @@
+import { DiagnosticsPanel } from "$/components/deck/DiagnosticsPanel";
 import { ProfileSkeleton } from "$/components/ProfileSkeleton";
 import { useAppSession } from "$/contexts/app-session";
 import {
@@ -10,6 +11,7 @@ import {
   unfollowActor,
 } from "$/lib/api/profile";
 import { buildMessagesRoute } from "$/lib/conversations";
+import { queueExplorerTarget } from "$/lib/explorer-navigation";
 import { buildThreadRoute } from "$/lib/feeds";
 import { buildProfileRoute, filterProfileFeed, getProfileRouteActor, type ProfileTab } from "$/lib/profile";
 import type { ActorListResponse, FeedResponse, FeedViewPost, ProfileViewBasic } from "$/lib/types";
@@ -27,7 +29,7 @@ import { ProfileHero } from "./ProfileHero";
 
 const FEED_PAGE_SIZE = 30;
 
-const PROFILE_TABS: ProfileTab[] = ["posts", "replies", "media", "likes"];
+const PROFILE_TABS: ProfileTab[] = ["posts", "replies", "media", "likes", "context"];
 
 export function ProfilePanel(props: { actor: string | null; embedded?: boolean }) {
   const navigate = useNavigate();
@@ -90,6 +92,10 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
   createEffect(() => {
     const actor = activeActor();
     if (!actor || state.profileLoading || !!state.profileError) {
+      return;
+    }
+
+    if (state.activeTab === "context") {
       return;
     }
 
@@ -218,6 +224,11 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
 
   function openThread(uri: string) {
     navigate(buildThreadRoute(uri));
+  }
+
+  function openExplorerTarget(target: string) {
+    queueExplorerTarget(target);
+    void navigate("/explorer");
   }
 
   async function handleFollow() {
@@ -411,15 +422,23 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
 
                 <ProfileTabs activeTab={state.activeTab} onSelect={selectTab} />
 
-                <ProfileFeedSection
-                  activeTab={state.activeTab}
-                  cursor={activeFeedState().cursor}
-                  error={activeFeedState().error}
-                  items={visibleItems()}
-                  loading={activeFeedState().loading}
-                  loadingMore={activeFeedState().loadingMore}
-                  onLoadMore={handleLoadMore}
-                  onOpenThread={openThread} />
+                <Show
+                  when={state.activeTab === "context"}
+                  fallback={
+                    <ProfileFeedSection
+                      activeTab={state.activeTab}
+                      cursor={activeFeedState().cursor}
+                      error={activeFeedState().error}
+                      items={visibleItems()}
+                      loading={activeFeedState().loading}
+                      loadingMore={activeFeedState().loadingMore}
+                      onLoadMore={handleLoadMore}
+                      onOpenThread={openThread} />
+                  }>
+                  <div class="px-3 pb-4 max-[520px]:px-2">
+                    <DiagnosticsPanel did={profile().did} embedded onOpenExplorerTarget={openExplorerTarget} />
+                  </div>
+                </Show>
               </>
             )}
           </Show>

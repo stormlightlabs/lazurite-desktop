@@ -2,7 +2,7 @@ import { isReplyItem, parseFeedResponse } from "$/lib/feeds";
 import type { ActorListResponse, FeedResponse, FeedViewPost, ProfileViewBasic, ProfileViewDetailed } from "$/lib/types";
 import { asArray, asRecord, optionalNumber, optionalString } from "./type-guards";
 
-export type ProfileTab = "posts" | "replies" | "media" | "likes";
+export type ProfileTab = "posts" | "replies" | "media" | "likes" | "context";
 
 export function buildProfileRoute(actor?: string | null) {
   const trimmed = actor?.trim();
@@ -100,6 +100,9 @@ export function filterProfileFeed(items: FeedViewPost[], tab: ProfileTab) {
     }
     case "media": {
       return items.filter((item) => !!item.post.embed);
+    }
+    case "context": {
+      return [];
     }
     default: {
       return items;

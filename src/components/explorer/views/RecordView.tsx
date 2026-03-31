@@ -1,3 +1,4 @@
+import { RecordBacklinksPanel } from "$/components/diagnostics/RecordBacklinksPanel";
 import { type JsonValue, JsonValueAs } from "$/components/explorer/types";
 import { ArrowIcon, Icon } from "$/components/shared/Icon";
 import { getStringProperty, isRecordLike, isString } from "$/lib/type-guards";
@@ -203,6 +204,10 @@ export function RecordView(props: RecordViewProps) {
       </CollapsibleSection>
 
       <KnownRecordPreview record={props.record} />
+
+      <CollapsibleSection title="Backlinks">
+        <RecordBacklinksPanel uri={props.uri} />
+      </CollapsibleSection>
 
       <Show when={props.labels.length > 0}>
         <CollapsibleSection title="Moderation Labels">

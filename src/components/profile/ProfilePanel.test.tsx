@@ -6,6 +6,12 @@ import { ProfilePanel } from "./ProfilePanel";
 const followActorMock = vi.hoisted(() => vi.fn());
 const getActorLikesMock = vi.hoisted(() => vi.fn());
 const getAuthorFeedMock = vi.hoisted(() => vi.fn());
+const getAccountBlockedByMock = vi.hoisted(() => vi.fn());
+const getAccountBlockingMock = vi.hoisted(() => vi.fn());
+const getAccountLabelsMock = vi.hoisted(() => vi.fn());
+const getAccountListsMock = vi.hoisted(() => vi.fn());
+const getAccountStarterPacksMock = vi.hoisted(() => vi.fn());
+const getRecordBacklinksMock = vi.hoisted(() => vi.fn());
 const getFollowersMock = vi.hoisted(() => vi.fn());
 const getFollowsMock = vi.hoisted(() => vi.fn());
 const getProfileMock = vi.hoisted(() => vi.fn());
@@ -22,6 +28,18 @@ vi.mock(
     getFollows: getFollowsMock,
     getProfile: getProfileMock,
     unfollowActor: unfollowActorMock,
+  }),
+);
+
+vi.mock(
+  "$/lib/api/diagnostics",
+  () => ({
+    getAccountBlockedBy: getAccountBlockedByMock,
+    getAccountBlocking: getAccountBlockingMock,
+    getAccountLabels: getAccountLabelsMock,
+    getAccountLists: getAccountListsMock,
+    getAccountStarterPacks: getAccountStarterPacksMock,
+    getRecordBacklinks: getRecordBacklinksMock,
   }),
 );
 
@@ -77,6 +95,27 @@ describe("ProfilePanel", () => {
     getProfileMock.mockResolvedValue(createProfile());
     getAuthorFeedMock.mockResolvedValue({ cursor: null, feed: [] });
     getActorLikesMock.mockResolvedValue({ cursor: null, feed: [] });
+    getAccountListsMock.mockResolvedValue({
+      lists: [{
+        description: "Builders and product people.",
+        memberCount: 12,
+        purpose: "curate",
+        title: "Builders",
+        creator: { handle: "mira.test" },
+      }],
+      total: 1,
+      truncated: false,
+    });
+    getAccountLabelsMock.mockResolvedValue({ labels: [], sourceProfiles: {}, cursor: null });
+    getAccountBlockedByMock.mockResolvedValue({ cursor: null, items: [], total: 0 });
+    getAccountBlockingMock.mockResolvedValue({ cursor: null, items: [] });
+    getAccountStarterPacksMock.mockResolvedValue({ starterPacks: [], total: 0, truncated: false });
+    getRecordBacklinksMock.mockResolvedValue({
+      likes: { cursor: null, records: [], total: 0 },
+      quotes: { cursor: null, records: [], total: 0 },
+      replies: { cursor: null, records: [], total: 0 },
+      reposts: { cursor: null, records: [], total: 0 },
+    });
     getFollowersMock.mockResolvedValue({ actors: [], cursor: null });
     getFollowsMock.mockResolvedValue({ actors: [], cursor: null });
     followActorMock.mockResolvedValue({ cid: "cid-follow", uri: "at://did:plc:alice/app.bsky.graph.follow/1" });
@@ -168,5 +207,18 @@ describe("ProfilePanel", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
+  });
+
+  it("renders diagnostics in the Context tab without making it the default tab", async () => {
+    renderProfilePanel();
+
+    expect(await screen.findByRole("button", { name: "Follow" })).toBeInTheDocument();
+    expect(screen.queryByText("Social Diagnostics")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Context" }));
+
+    expect(await screen.findByText("Social Diagnostics")).toBeInTheDocument();
+    expect(await screen.findByText("Builders")).toBeInTheDocument();
+    expect(screen.getByText("Public social context for this account")).toBeInTheDocument();
   });
 });

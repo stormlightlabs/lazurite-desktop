@@ -45,9 +45,3 @@ Where Jetstream (Task 10) streams raw firehose records, Spacedust streams *resol
 - [ ] Spacedust instance URL configuration (alongside Constellation URL in settings)
 - [ ] Toggle: use Spacedust for real-time notifications (vs. polling `listNotifications`)
 - [ ] Toggle: `instant` mode (bypass 21-second buffer - faster but noisier)
-
-### Parking Lot
-
-- [ ] Spacedust as a column type in multicolumn view (live notification stream)
-- [ ] Aggregate Spacedust events into a "live activity" dashboard
-- [ ] Spacedust for real-time search result updates

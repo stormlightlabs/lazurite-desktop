@@ -1,9 +1,20 @@
 import { render, screen } from "@solidjs/testing-library";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { RecordView } from "./RecordView";
+
+const getRecordBacklinksMock = vi.hoisted(() => vi.fn());
+
+vi.mock("$/lib/api/diagnostics", () => ({ getRecordBacklinks: getRecordBacklinksMock }));
 
 describe("RecordView", () => {
   it("renders falsey JSON values and moderation labels", () => {
+    getRecordBacklinksMock.mockResolvedValue({
+      likes: { cursor: null, records: [], total: 0 },
+      quotes: { cursor: null, records: [], total: 0 },
+      replies: { cursor: null, records: [], total: 0 },
+      reposts: { cursor: null, records: [], total: 0 },
+    });
+
     render(() => (
       <RecordView
         record={{ $type: "app.test.record", empty: "", flagged: false, nested: { count: 0 } }}
@@ -16,6 +27,7 @@ describe("RecordView", () => {
     expect(screen.getByText("\"\"")).toBeInTheDocument();
     expect(screen.getByText("false")).toBeInTheDocument();
     expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.getByText("Backlinks")).toBeInTheDocument();
     expect(screen.getByText("Moderation Labels")).toBeInTheDocument();
     expect(screen.getByText("!warn")).toBeInTheDocument();
   });

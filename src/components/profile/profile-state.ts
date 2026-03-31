@@ -73,6 +73,9 @@ export function tabLabel(tab: ProfileTab) {
     case "media": {
       return "Media";
     }
+    case "context": {
+      return "Context";
+    }
     default: {
       return "Likes";
     }

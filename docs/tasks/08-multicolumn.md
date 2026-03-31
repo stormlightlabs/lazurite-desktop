@@ -81,8 +81,4 @@ TweetDeck-style multicolumn layout allowing users to view multiple feeds and/or 
 
 ### Parking Lot
 
-- [ ] Column templates / saved layouts (e.g., "Research", "Timeline + Notifications")
-- [ ] Notification column type
 - [x] Search results column type
-- [ ] Column-level auto-refresh interval override
-- [ ] Shared scroll sync between related columns

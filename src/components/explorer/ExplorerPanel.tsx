@@ -7,8 +7,10 @@ import {
   queryLabels,
   resolveInput,
 } from "$/lib/api/explorer";
+import { getProfile } from "$/lib/api/profile";
 import type { ExplorerNavigation, ExplorerTargetKind } from "$/lib/api/types/explorer";
 import { NAVIGATION_EVENT } from "$/lib/constants/events";
+import { consumeQueuedExplorerTarget } from "$/lib/explorer-navigation";
 import { listen } from "@tauri-apps/api/event";
 import { createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { produce } from "solid-js/store";
@@ -127,7 +129,10 @@ export function ExplorerPanel() {
         }
         case "repo": {
           if (resolved.did) {
-            const repoData = await describeRepo(resolved.did);
+            const [repoData, profile] = await Promise.all([
+              describeRepo(resolved.did),
+              getProfile(resolved.did).catch(() => null),
+            ]);
             const collections = extractCollections(repoData);
             finalViewState = {
               ...viewState,
@@ -137,6 +142,9 @@ export function ExplorerPanel() {
                 did: resolved.did,
                 handle: resolved.handle || resolved.did,
                 pdsUrl: resolved.pdsUrl,
+                socialSummary: profile
+                  ? { followerCount: profile.followersCount ?? null, followingCount: profile.followsCount ?? null }
+                  : null,
               },
             };
           }
@@ -346,6 +354,7 @@ export function ExplorerPanel() {
 
   onMount(() => {
     let unlisten: (() => void) | undefined;
+    const pendingTarget = consumeQueuedExplorerTarget();
 
     void listen<ExplorerNavigation>(NAVIGATION_EVENT, (event) => {
       const target = event.payload.target;
@@ -355,6 +364,10 @@ export function ExplorerPanel() {
     });
 
     document.addEventListener("keydown", handleKeyDown);
+
+    if (pendingTarget) {
+      void handleResolveInput(pendingTarget);
+    }
 
     onCleanup(() => {
       unlisten?.();
@@ -423,12 +436,13 @@ export function ExplorerPanel() {
 
                   <Match when={view.level === "repo" && view.repoData}>
                     <RepoView
+                      collections={view.repoData!.collections}
                       did={view.repoData!.did}
                       handle={view.repoData!.handle}
-                      pdsUrl={view.repoData!.pdsUrl}
-                      collections={view.repoData!.collections}
                       onCollectionClick={(collection: string) => handleCollectionClick(view.repoData!.did, collection)}
-                      onPdsClick={() => view.repoData?.pdsUrl && void handleResolveInput(view.repoData.pdsUrl)} />
+                      pdsUrl={view.repoData!.pdsUrl}
+                      onPdsClick={() => view.repoData?.pdsUrl && void handleResolveInput(view.repoData.pdsUrl)}
+                      socialSummary={view.repoData!.socialSummary} />
                   </Match>
 
                   <Match when={view.level === "collection" && view.collectionData}>

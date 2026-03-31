@@ -8,7 +8,13 @@ type PDSRepoData = { did: string; head: string; rev: string; active: boolean; st
 
 type RepoViewCollection = { nsid: string };
 
-type RepoViewData = { collections: Array<RepoViewCollection>; handle: string; did: string; pdsUrl: string | null };
+type RepoViewData = {
+  collections: Array<RepoViewCollection>;
+  did: string;
+  handle: string;
+  pdsUrl: string | null;
+  socialSummary?: { followerCount: number | null; followingCount: number | null } | null;
+};
 
 type CollectionViewData = {
   records: Array<Record<string, unknown>>;

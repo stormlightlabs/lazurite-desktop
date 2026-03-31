@@ -6,6 +6,8 @@ const describeRepoMock = vi.hoisted(() => vi.fn());
 const describeServerMock = vi.hoisted(() => vi.fn());
 const exportRepoCarMock = vi.hoisted(() => vi.fn());
 const getRecordMock = vi.hoisted(() => vi.fn());
+const getRecordBacklinksMock = vi.hoisted(() => vi.fn());
+const getProfileMock = vi.hoisted(() => vi.fn());
 const listRecordsMock = vi.hoisted(() => vi.fn());
 const queryLabelsMock = vi.hoisted(() => vi.fn());
 const resolveInputMock = vi.hoisted(() => vi.fn());
@@ -24,6 +26,8 @@ vi.mock(
   }),
 );
 
+vi.mock("$/lib/api/profile", () => ({ getProfile: getProfileMock }));
+vi.mock("$/lib/api/diagnostics", () => ({ getRecordBacklinks: getRecordBacklinksMock }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 
 function renderPanel() {
@@ -36,12 +40,26 @@ describe("ExplorerPanel", () => {
     describeServerMock.mockReset();
     exportRepoCarMock.mockReset();
     getRecordMock.mockReset();
+    getRecordBacklinksMock.mockReset();
+    getProfileMock.mockReset();
     listRecordsMock.mockReset();
     queryLabelsMock.mockReset();
     resolveInputMock.mockReset();
     listenMock.mockReset();
 
     exportRepoCarMock.mockResolvedValue({ did: "did:plc:alice", path: "/tmp/alice.car", bytesWritten: 64 });
+    getProfileMock.mockResolvedValue({
+      did: "did:plc:alice",
+      handle: "alice.test",
+      followersCount: 28,
+      followsCount: 14,
+    });
+    getRecordBacklinksMock.mockResolvedValue({
+      likes: { cursor: null, records: [], total: 3 },
+      quotes: { cursor: null, records: [], total: 1 },
+      replies: { cursor: null, records: [], total: 2 },
+      reposts: { cursor: null, records: [], total: 4 },
+    });
     listenMock.mockResolvedValue(() => {});
     queryLabelsMock.mockResolvedValue({ labels: [] });
   });
@@ -70,6 +88,9 @@ describe("ExplorerPanel", () => {
     expect(resolveInputMock).toHaveBeenCalledWith("@alice.test");
     expect(await screen.findByRole("button", { name: /app\.bsky\.feed\.like/u })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /app\.bsky\.feed\.post/u })).toBeInTheDocument();
+    expect(await screen.findByText("Followers")).toBeInTheDocument();
+    expect(screen.getByText("28")).toBeInTheDocument();
+    expect(screen.getByText("14")).toBeInTheDocument();
     expect(screen.queryByText("0 records")).not.toBeInTheDocument();
     expect(screen.queryByText("Count unavailable")).not.toBeInTheDocument();
   });
@@ -167,5 +188,40 @@ describe("ExplorerPanel", () => {
     expect(resolveInputMock).toHaveBeenCalledWith("https://pds.example.com");
     expect(await screen.findByText("Hosted Repositories")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /did:plc:hosted/u })).toBeInTheDocument();
+  });
+
+  it("shows record backlinks as a supplementary explorer panel", async () => {
+    resolveInputMock.mockResolvedValue({
+      input: "at://did:plc:alice/app.bsky.feed.post/123",
+      inputKind: "atUri",
+      targetKind: "record",
+      normalizedInput: "at://did:plc:alice/app.bsky.feed.post/123",
+      uri: "at://did:plc:alice/app.bsky.feed.post/123",
+      did: "did:plc:alice",
+      handle: "alice.test",
+      pdsUrl: "https://pds.example.com",
+      collection: "app.bsky.feed.post",
+      rkey: "123",
+    });
+    getRecordMock.mockResolvedValue({
+      cid: "cid-123",
+      value: { $type: "app.bsky.feed.post", text: "Explorer record" },
+    });
+    getRecordBacklinksMock.mockResolvedValue({
+      likes: { cursor: null, records: [], total: 3 },
+      quotes: { cursor: null, records: [], total: 1 },
+      replies: { cursor: null, records: [], total: 2 },
+      reposts: { cursor: null, records: [], total: 4 },
+    });
+
+    renderPanel();
+
+    const input = screen.getByPlaceholderText(/at:\/\/did:\.\.\. or @handle or https:\/\/pds/u);
+    fireEvent.input(input, { target: { value: "at://did:plc:alice/app.bsky.feed.post/123" } });
+    fireEvent.submit(input.closest("form")!);
+
+    expect(await screen.findByText("Backlinks")).toBeInTheDocument();
+    expect(await screen.findByText("3 records")).toBeInTheDocument();
+    expect(screen.getByText("4 records")).toBeInTheDocument();
   });
 });

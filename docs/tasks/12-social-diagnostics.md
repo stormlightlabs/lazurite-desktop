@@ -29,59 +29,47 @@ Spec: [social-diagnostics.md](../specs/social-diagnostics.md)
 
 ### Frontend - Diagnostics Panel
 
-- [ ] Tabbed panel component with 5 tabs: Lists, Labels, Blocks, Starter Packs, Backlinks
-- [ ] Tab switching with `Motion` sliding indicator underline
-- [ ] Number key shortcuts (`1`–`5`) for tab switching
-- [ ] `Escape` to close panel
+- [x] Tabbed panel component with 5 tabs: Lists, Labels, Blocks, Starter Packs, Backlinks
+- [x] Tab switching with `Motion` sliding indicator underline
+- [x] Number key shortcuts (`1`–`5`) for tab switching
+- [x] `Escape` to close panel
 
 ### Frontend - Lists Tab
 
-- [ ] List cards: name, owner, description, purpose badge, member count
-- [ ] Grouped by purpose (curation / moderation / reference)
-- [ ] Skeleton loading matching card dimensions
-- [ ] Neutral framing - no aggregate risk scoring or warning badges
+- [x] List cards: name, owner, description, purpose badge, member count
+- [x] Grouped by purpose (curation / moderation / reference)
+- [x] Skeleton loading matching card dimensions
+- [x] Neutral framing - no aggregate risk scoring or warning badges
 
 ### Frontend - Labels Tab
 
-- [ ] Label chips with source attribution (labeling service name)
-- [ ] Uniform muted styling - no severity color-coding
-- [ ] Tooltip with label definition, source, and visibility effect
-- [ ] Explanatory empty state (what labels are, not "no labels found")
-- [ ] `Motion` scale-in on load
+- [x] Label chips with source attribution (labeling service name)
+- [x] Uniform muted styling - no severity color-coding
+- [x] Tooltip with label definition, source, and visibility effect
+- [x] Explanatory empty state (what labels are, not "no labels found")
+- [x] `Motion` scale-in on load
 
 ### Frontend - Blocks Tab
 
-- [ ] Counts-only default view (no names or profile cards on first load)
-- [ ] "Show details" expand with contextualizing copy (*"Blocks are a normal part of social media..."*)
-- [ ] `Presence` height animation on expand with staggered card fade-in
-- [ ] No warning banners, color-coding, or language implying abnormality
-- [ ] Self-view framing: "Your boundaries" (not "Who blocked you")
+- [x] Counts-only default view (no names or profile cards on first load)
+- [x] "Show details" expand with contextualizing copy (*"Blocks are a normal part of social media..."*)
+- [x] `Presence` height animation on expand with staggered card fade-in
+- [x] No warning banners, color-coding, or language implying abnormality
+- [x] Self-view framing: "Your boundaries" (not "Who blocked you")
 
 ### Frontend - Starter Packs Tab
 
-- [ ] Compact starter pack cards: title, creator, description, member count
-- [ ] Link to view in AT Explorer
+- [x] Compact starter pack cards: title, creator, description, member count
+- [x] Link to view in AT Explorer
 
 ### Frontend - Backlinks Tab (Record Context)
 
-- [ ] Grouped by type: likes, reposts, replies, quote posts
-- [ ] Count per type with expandable sections
-- [ ] Individual actor/record cards within sections
+- [x] Grouped by type: likes, reposts, replies, quote posts
+- [x] Count per type with expandable sections
+- [x] Individual actor/record cards within sections
 
 ### Frontend - Integration Points
 
-- [ ] Profile view: "Context" tab (alongside Posts/Replies/Media/Likes) - not the default tab
-- [ ] AT Explorer record view: backlinks supplementary panel (engagement data only, no moderation data)
-- [ ] AT Explorer repo view: follower/following counts from Constellation (no block counts in summaries)
-
-### UX Tone Review
-
-- [ ] Audit all copy for neutral language - no "risk", "warning", "suspicious", "flagged"
-- [ ] Ensure all sensitive sections use progressive disclosure (summary → details on click)
-- [ ] Verify self-view ("my account") uses empowering framing, not anxiety-inducing
-
-### Parking Lot
-
-- [ ] Network relationship diff over time (requires historical snapshots)
-- [ ] Profile/identity history timeline (handle/DID/PDS changes)
-- [ ] Starter Pack search?
+- [x] Profile view: "Context" tab (alongside Posts/Replies/Media/Likes) - not the default tab
+- [x] AT Explorer record view: backlinks supplementary panel (engagement data only, no moderation data)
+- [x] AT Explorer repo view: follower/following counts from Constellation (no block counts in summaries)
