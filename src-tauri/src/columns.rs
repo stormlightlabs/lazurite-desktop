@@ -185,9 +185,9 @@ pub fn update_column(id: &str, config: Option<&str>, width: Option<&str>, state:
 
 fn validate_kind(kind: &str) -> Result<()> {
     match kind {
-        "feed" | "explorer" | "diagnostics" => Ok(()),
+        "feed" | "explorer" | "diagnostics" | "messages" | "search" | "profile" => Ok(()),
         _ => Err(AppError::validation(format!(
-            "invalid column kind '{kind}': must be 'feed', 'explorer', or 'diagnostics'"
+            "invalid column kind '{kind}': must be 'feed', 'explorer', 'diagnostics', 'messages', 'search', or 'profile'"
         ))),
     }
 }

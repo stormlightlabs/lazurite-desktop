@@ -11,8 +11,8 @@ TweetDeck-style multicolumn layout allowing users to view multiple feeds and/or 
 ### Backend - `src-tauri/src/columns.rs` + `src-tauri/src/commands/columns.rs`
 
 - [x] SQLite migration: `columns` table (`id TEXT PRIMARY KEY, account_did TEXT, kind TEXT, config TEXT, position INTEGER, width TEXT, created_at TEXT`)
-  - `kind`: `feed` | `explorer` | `diagnostics` - determines the column type
-  - `config`: JSON blob - for feeds: `{ feed_uri, feed_type }`, for explorer: `{ target_uri }`, for diagnostics: `{ did }`
+  - `kind`: `feed` | `explorer` | `diagnostics` | `messages` | `search` | `profile` - determines the column type
+  - `config`: JSON blob - for feeds: `{ feed_uri, feed_type }`, for explorer: `{ target_uri }`, for diagnostics: `{ did }`, for messages: `{}`, for search: `{ query, mode }`, for profile: `{ actor, handle?, did?, displayName? }`
   - `width`: `narrow` | `standard` | `wide`
 - [x] `get_columns(account_did: String)` - return ordered column list for the active account
 - [x] `add_column(account_did: String, kind: String, config: String, position: Option<u32>)` - insert at position or append
@@ -51,12 +51,30 @@ TweetDeck-style multicolumn layout allowing users to view multiple feeds and/or 
 - [ ] Tab navigation within column for lists/labels/blocks/starter packs/backlinks
 - [ ] Compact card layout adapted to column width
 
+#### Messages Column
+
+- [x] Reuse the existing messages panel inside deck columns
+- [x] Blur DM content until hovered or focused
+
+#### Search Column
+
+- [x] Reuse the existing search panel inside deck columns
+- [x] Persist search query + mode in column config
+
+#### Profile Column
+
+- [x] Reuse the existing profile panel inside deck columns
+- [x] Add profile column creation via actor typeahead
+
 ### Frontend - Column Management
 
 - [x] "Add column" button (`i-ri-add-line`) opens a picker panel:
   - Feed picker: lists pinned feeds, saved feeds, list feeds
   - Explorer picker: input field for at:// URI, handle, DID, or PDS URL
   - Diagnostics picker: input field for handle or DID
+  - Messages picker: opens DM inbox
+  - Search picker: accepts query + mode
+  - Profile picker: typeahead-first actor selection
 - [ ] Right-click column header for context menu (resize, duplicate, close)
 - [x] Keyboard shortcuts: `Ctrl+Shift+N` add column, `Ctrl+Shift+W` close focused column
 - [x] Persist column layout to SQLite per account - restore on app launch
@@ -65,6 +83,6 @@ TweetDeck-style multicolumn layout allowing users to view multiple feeds and/or 
 
 - [ ] Column templates / saved layouts (e.g., "Research", "Timeline + Notifications")
 - [ ] Notification column type
-- [ ] Search results column type
+- [x] Search results column type
 - [ ] Column-level auto-refresh interval override
 - [ ] Shared scroll sync between related columns

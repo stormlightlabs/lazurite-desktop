@@ -1,21 +1,26 @@
 import { ExplorerPanel } from "$/components/explorer/ExplorerPanel";
 import { FeedContent } from "$/components/feeds/FeedContent";
-import type { Column, ColumnWidth } from "$/lib/api/columns";
-import type { PostView } from "$/lib/types";
-import { createMemo, Match, Show, Switch } from "solid-js";
+import { MessagesPanel } from "$/components/messages/MessagesPanel";
+import { ProfilePanel } from "$/components/profile/ProfilePanel";
+import { SearchPanel } from "$/components/search/SearchPanel";
+import type { Column, ColumnWidth } from "$/lib/api/types/columns";
+import type { PostView, SavedFeedItem } from "$/lib/types";
+import { Match, Show, Switch } from "solid-js";
 import { DiagnosticsColumn } from "./DiagnosticsColumn";
 import {
   COLUMN_WIDTH_PX,
   columnTitle,
   cycleWidth,
-  feedConfigToSavedFeedItem,
   parseDiagnosticsConfig,
-  parseFeedConfig,
+  parseProfileConfig,
+  parseSearchConfig,
+  type ResolvedFeedColumn,
 } from "./types";
 import { useFeedColumnState } from "./useFeedColumnState";
 
 type DeckColumnProps = {
   column: Column;
+  feedColumn?: ResolvedFeedColumn;
   onClose: (id: string) => void;
   onMoveLeft: (id: string) => void;
   onMoveRight: (id: string) => void;
@@ -113,33 +118,24 @@ function ColumnHeader(props: ColumnHeaderProps) {
   );
 }
 
-type FeedBodyProps = { columnId: string; config: string; onOpenThread: (uri: string) => void };
+type FeedBodyProps = { feedColumn?: ResolvedFeedColumn; onOpenThread: (uri: string) => void };
 
 function FeedBody(props: FeedBodyProps) {
-  const config = createMemo(() => parseFeedConfig(props.config));
-  const feed = createMemo(() => {
-    const c = config();
-    return c ? feedConfigToSavedFeedItem(c) : null;
-  });
-
   return (
     <Show
-      when={feed()}
+      when={props.feedColumn}
       keyed
       fallback={
         <div class="flex items-center justify-center p-6 text-sm text-on-surface-variant">
           Invalid feed configuration.
         </div>
       }>
-      {(f) => <FeedBodyContent feed={f} onOpenThread={props.onOpenThread} />}
+      {(feedColumn) => <FeedBodyContent feed={feedColumn.feed} onOpenThread={props.onOpenThread} />}
     </Show>
   );
 }
 
-type FeedBodyContentProps = {
-  feed: { id: string; pinned: boolean; type: "feed" | "list" | "timeline"; value: string };
-  onOpenThread: (uri: string) => void;
-};
+type FeedBodyContentProps = { feed: SavedFeedItem; onOpenThread: (uri: string) => void };
 
 function FeedBodyContent(props: FeedBodyContentProps) {
   const { registerSentinel, state, toggleLike, toggleRepost } = useFeedColumnState(() => props.feed);
@@ -174,13 +170,15 @@ function FeedBodyContent(props: FeedBodyContentProps) {
   );
 }
 
-function ColumnBody(props: { column: Column; onOpenThread: (uri: string) => void }) {
+function ColumnBody(props: { column: Column; feedColumn?: ResolvedFeedColumn; onOpenThread: (uri: string) => void }) {
   const diagnosticsConfig = () => parseDiagnosticsConfig(props.column.config);
+  const searchConfig = () => parseSearchConfig(props.column.config);
+  const profileConfig = () => parseProfileConfig(props.column.config);
 
   return (
     <Switch>
       <Match when={props.column.kind === "feed"}>
-        <FeedBody columnId={props.column.id} config={props.column.config} onOpenThread={props.onOpenThread} />
+        <FeedBody feedColumn={props.feedColumn} onOpenThread={props.onOpenThread} />
       </Match>
       <Match when={props.column.kind === "explorer"}>
         <div class="min-h-0 min-w-0 overflow-hidden">
@@ -190,12 +188,56 @@ function ColumnBody(props: { column: Column; onOpenThread: (uri: string) => void
       <Match when={props.column.kind === "diagnostics"}>
         <DiagnosticsColumn did={diagnosticsConfig()?.did ?? ""} />
       </Match>
+      <Match when={props.column.kind === "messages"}>
+        <BlurredMessagesBody />
+      </Match>
+      <Match when={props.column.kind === "search"}>
+        <SearchBody config={searchConfig()?.query ? searchConfig() : null} />
+      </Match>
+      <Match when={props.column.kind === "profile"}>
+        <ProfileBody actor={profileConfig()?.actor ?? profileConfig()?.handle ?? profileConfig()?.did ?? null} />
+      </Match>
     </Switch>
   );
 }
 
+function BlurredMessagesBody() {
+  return (
+    <div class="group relative min-h-0 min-w-0 overflow-hidden">
+      <div class="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-black/55 px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-on-surface-variant backdrop-blur-sm transition duration-150 group-hover:opacity-0 group-focus-within:opacity-0">
+        Hover to reveal
+      </div>
+      <div class="h-full transition duration-200 ease-out blur-[14px] saturate-50 group-hover:blur-none group-hover:saturate-100 group-focus-within:blur-none group-focus-within:saturate-100">
+        <MessagesPanel embedded />
+      </div>
+    </div>
+  );
+}
+
+function SearchBody(props: { config: { mode: "network" | "keyword" | "semantic" | "hybrid"; query: string } | null }) {
+  return (
+    <div class="min-h-0 min-w-0 overflow-hidden px-3 pb-3 pt-3">
+      <SearchPanel embedded initialMode={props.config?.mode} initialQuery={props.config?.query} />
+    </div>
+  );
+}
+
+function ProfileBody(props: { actor: string | null }) {
+  return (
+    <Show
+      when={props.actor}
+      fallback={
+        <div class="flex items-center justify-center p-6 text-sm text-on-surface-variant">
+          Invalid profile configuration.
+        </div>
+      }>
+      {(actor) => <ProfilePanel actor={actor()} embedded />}
+    </Show>
+  );
+}
+
 export function DeckColumn(props: DeckColumnProps) {
-  const title = () => columnTitle(props.column.kind, props.column.config);
+  const title = () => props.feedColumn?.title ?? columnTitle(props.column.kind, props.column.config);
   const widthPx = () => COLUMN_WIDTH_PX[props.column.width];
 
   return (
@@ -210,7 +252,7 @@ export function DeckColumn(props: DeckColumnProps) {
         onMoveRight={() => props.onMoveRight(props.column.id)}
         onWidthCycle={() => props.onWidthChange(props.column.id, cycleWidth(props.column.width))} />
       <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
-        <ColumnBody column={props.column} onOpenThread={props.onOpenThread} />
+        <ColumnBody column={props.column} feedColumn={props.feedColumn} onOpenThread={props.onOpenThread} />
       </div>
     </section>
   );

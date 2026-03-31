@@ -8,7 +8,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { AvatarBadge } from "../AvatarBadge";
 import { Icon } from "../shared/Icon";
 
-type MessagesPanelProps = { memberDid?: string | null };
+type MessagesPanelProps = { embedded?: boolean; memberDid?: string | null };
 
 type MessagesState = {
   convos: ConvoView[];
@@ -611,7 +611,13 @@ export function MessagesPanel(props: MessagesPanelProps) {
 
   return (
     <div class="flex h-full min-h-0 gap-0">
-      <aside class="flex w-80 shrink-0 flex-col overflow-hidden rounded-2xl border-r border-white/5 bg-surface-container/40">
+      <aside
+        class="flex shrink-0 flex-col overflow-hidden border-r border-white/5 bg-surface-container/40"
+        classList={{
+          "rounded-2xl": !props.embedded,
+          "max-w-64 min-w-40 w-[44%]": props.embedded,
+          "w-80": !props.embedded,
+        }}>
         <header class="flex shrink-0 items-center justify-between border-b border-white/5 bg-surface-container/80 px-5 py-4 backdrop-blur-[12px]">
           <div>
             <h1 class="m-0 text-lg font-semibold tracking-tight text-on-surface">Messages</h1>
@@ -667,7 +673,7 @@ export function MessagesPanel(props: MessagesPanelProps) {
         </div>
       </aside>
 
-      <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div class="flex min-w-0 flex-1 flex-col overflow-hidden bg-surface/10">
         <Show when={activeConvo()} keyed fallback={<EmptyChatPane />}>
           {(convo) => (
             <ChatPane

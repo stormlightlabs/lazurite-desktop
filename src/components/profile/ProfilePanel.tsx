@@ -75,7 +75,7 @@ function createProfilePanelState(): ProfilePanelState {
   };
 }
 
-export function ProfilePanel(props: { actor: string | null }) {
+export function ProfilePanel(props: { actor: string | null; embedded?: boolean }) {
   const navigate = useNavigate();
   const session = useAppSession();
   const [state, setState] = createStore<ProfilePanelState>(createProfilePanelState());
@@ -373,7 +373,9 @@ export function ProfilePanel(props: { actor: string | null }) {
   }
 
   return (
-    <section class="relative grid min-h-0 overflow-hidden rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+    <section
+      class="relative grid min-h-0 overflow-hidden bg-[rgba(8,8,8,0.32)]"
+      classList={{ "rounded-4xl shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]": !props.embedded }}>
       <div
         class="min-h-0 overflow-y-auto overscroll-contain"
         onScroll={(event) => setState("scrollTop", event.currentTarget.scrollTop)}>

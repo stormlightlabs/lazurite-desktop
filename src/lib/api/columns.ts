@@ -1,24 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-
-export type ColumnKind = "feed" | "explorer" | "diagnostics";
-
-export type ColumnWidth = "narrow" | "standard" | "wide";
-
-export type Column = {
-  id: string;
-  accountDid: string;
-  kind: ColumnKind;
-  config: string;
-  position: number;
-  width: ColumnWidth;
-  createdAt: string;
-};
-
-export type FeedColumnConfig = { feedUri: string; feedType: "timeline" | "feed" | "list" };
-
-export type ExplorerColumnConfig = { targetUri: string };
-
-export type DiagnosticsColumnConfig = { did: string };
+import type { Column, ColumnKind, ColumnWidth } from "./types/columns";
 
 export function getColumns(accountDid: string) {
   return invoke<Column[]>("get_columns", { accountDid });

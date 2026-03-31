@@ -2,6 +2,7 @@ import { Icon, SearchModeIcon } from "$/components/shared/Icon";
 import { useAppPreferences } from "$/contexts/app-preferences";
 import { useAppSession } from "$/contexts/app-session";
 import {
+  getSyncStatus,
   type LocalPostResult,
   type NetworkSearchResult,
   type SearchMode,
@@ -35,6 +36,8 @@ type SearchPanelState = {
   syncStatus: SyncStatus[];
 };
 
+type SearchPanelProps = { embedded?: boolean; initialMode?: SearchMode; initialQuery?: string };
+
 function ModeLabel(props: { mode: SearchMode }) {
   return (
     <span class="flex items-center gap-1.5">
@@ -49,16 +52,16 @@ function ModeLabel(props: { mode: SearchMode }) {
   );
 }
 
-export function SearchPanel() {
+export function SearchPanel(props: SearchPanelProps = {}) {
   const preferences = useAppPreferences();
   const session = useAppSession();
   const [search, setSearch] = createStore<SearchPanelState>({
     error: null,
     hasSearched: false,
     loading: false,
-    mode: "network",
+    mode: props.initialMode ?? "network",
     networkResults: null,
-    query: "",
+    query: props.initialQuery ?? "",
     resultCount: 0,
     results: [],
     syncStatus: [],
@@ -181,10 +184,24 @@ export function SearchPanel() {
   }
 
   onMount(() => {
-    document.addEventListener("keydown", handleGlobalKeyDown);
+    if (!props.embedded) {
+      document.addEventListener("keydown", handleGlobalKeyDown);
+    }
+    if (props.embedded && session.activeDid) {
+      void getSyncStatus(session.activeDid).then((status) => {
+        setSearch("syncStatus", status);
+      }).catch((error) => {
+        logger.warn("failed to load embedded search sync status", { keyValues: { error: normalizeError(error) } });
+      });
+    }
+    if (search.query.trim()) {
+      void performSearch(search.query, search.mode);
+    }
 
     onCleanup(() => {
-      document.removeEventListener("keydown", handleGlobalKeyDown);
+      if (!props.embedded) {
+        document.removeEventListener("keydown", handleGlobalKeyDown);
+      }
       clearTimeout(debounceTimer);
     });
   });
@@ -199,8 +216,12 @@ export function SearchPanel() {
   });
 
   return (
-    <div class="grid min-h-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-      <section class="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden rounded-4xl bg-surface-container shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
+    <div class="grid min-h-0 gap-6" classList={{ "xl:grid-cols-[minmax(0,1fr)_20rem]": !props.embedded }}>
+      <section
+        class="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden"
+        classList={{
+          "rounded-4xl bg-surface-container shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]": !props.embedded,
+        }}>
         <SearchHeader
           error={search.error}
           hasSearched={search.hasSearched}
@@ -230,13 +251,15 @@ export function SearchPanel() {
           query={search.query} />
       </section>
 
-      <aside class="grid content-start gap-4 overflow-y-auto">
-        <Show when={session.activeDid}>
-          {(did) => <SyncStatusPanel did={did()} onStatusChange={(status) => setSearch("syncStatus", status)} />}
-        </Show>
-        <EmbeddingsSettings />
-        <SearchTipsCard />
-      </aside>
+      <Show when={!props.embedded}>
+        <aside class="grid content-start gap-4 overflow-y-auto">
+          <Show when={session.activeDid}>
+            {(did) => <SyncStatusPanel did={did()} onStatusChange={(status) => setSearch("syncStatus", status)} />}
+          </Show>
+          <EmbeddingsSettings />
+          <SearchTipsCard />
+        </aside>
+      </Show>
     </div>
   );
 }

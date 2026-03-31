@@ -1,6 +1,9 @@
 import { useAppSession } from "$/contexts/app-session";
 import { addColumn, getColumns, removeColumn, reorderColumns, updateColumn } from "$/lib/api/columns";
-import type { Column, ColumnKind, ColumnWidth } from "$/lib/api/columns";
+import { getFeedGenerators, getPreferences } from "$/lib/api/feeds";
+import type { Column, ColumnKind, ColumnWidth } from "$/lib/api/types/columns";
+import { getFeedName } from "$/lib/feeds";
+import type { FeedGeneratorView } from "$/lib/types";
 import { useNavigate } from "@solidjs/router";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, For, onCleanup, onMount, Show } from "solid-js";
@@ -9,8 +12,15 @@ import { Motion } from "solid-motionone";
 import { ActionIcon, Icon } from "../shared/Icon";
 import { AddColumnPanel } from "./AddColumnPanel";
 import { DeckColumn } from "./DeckColumn";
+import { parseFeedConfig, type ResolvedFeedColumn, resolveFeedColumn } from "./types";
 
-type DeckState = { addPanelOpen: boolean; columns: Column[]; error: string | null; loading: boolean };
+type DeckState = {
+  addPanelOpen: boolean;
+  columns: Column[];
+  error: string | null;
+  feedColumns: Record<string, ResolvedFeedColumn>;
+  loading: boolean;
+};
 
 function DeckToolbar(props: { columnCount: number; onAdd: () => void }) {
   return (
@@ -62,6 +72,7 @@ function EmptyDeck(props: { onAdd: () => void }) {
 function ColumnList(
   props: {
     columns: Column[];
+    feedColumns: Record<string, ResolvedFeedColumn>;
     onClose: (id: string) => void;
     onMoveLeft: (id: string) => void;
     onMoveRight: (id: string) => void;
@@ -80,6 +91,7 @@ function ColumnList(
             transition={{ duration: 0.18, easing: [0.34, 1.56, 0.64, 1] }}>
             <DeckColumn
               column={column}
+              feedColumn={props.feedColumns[column.id]}
               onClose={props.onClose}
               onMoveLeft={props.onMoveLeft}
               onMoveRight={props.onMoveRight}
@@ -110,8 +122,15 @@ function createDeckKeyboardHandler(onAddColumn: () => void, onCloseLastColumn: (
 export function DeckWorkspace() {
   const session = useAppSession();
   const navigate = useNavigate();
+  let feedColumnRequest = 0;
 
-  const [state, setState] = createStore<DeckState>({ addPanelOpen: false, columns: [], error: null, loading: true });
+  const [state, setState] = createStore<DeckState>({
+    addPanelOpen: false,
+    columns: [],
+    error: null,
+    feedColumns: {},
+    loading: true,
+  });
 
   const activeDid = () => session.activeDid;
 
@@ -122,6 +141,7 @@ export function DeckWorkspace() {
       const cols = await getColumns(did);
       setState("columns", cols);
       setState("error", null);
+      void hydrateFeedColumns(cols);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(`Failed to load deck columns: ${message}`);
@@ -131,13 +151,80 @@ export function DeckWorkspace() {
     }
   }
 
+  async function hydrateFeedColumns(columns: Column[]) {
+    const currentRequest = ++feedColumnRequest;
+    const parsedFeedColumns = columns.flatMap((column) => {
+      if (column.kind !== "feed") {
+        return [];
+      }
+
+      const config = parseFeedConfig(column.config);
+      return config ? [{ columnId: column.id, config }] : [];
+    });
+
+    if (parsedFeedColumns.length === 0) {
+      setState("feedColumns", {});
+      return;
+    }
+
+    setState(
+      "feedColumns",
+      Object.fromEntries(parsedFeedColumns.map(({ columnId, config }) => [columnId, resolveFeedColumn(config)])),
+    );
+
+    try {
+      const preferences = await getPreferences();
+      const savedFeedTitles = Object.fromEntries(
+        preferences.savedFeeds.map((feed) => [feed.value, getFeedName(feed, void 0)]),
+      );
+
+      const generatorUris = [
+        ...new Set(
+          parsedFeedColumns.filter(({ config }) => config.feedType === "feed").map(({ config }) =>
+            config.feedUri
+          ),
+        ),
+      ];
+      let generators: Record<string, FeedGeneratorView> = {};
+
+      if (generatorUris.length > 0) {
+        const hydrated = await getFeedGenerators(generatorUris);
+        generators = Object.fromEntries(hydrated.feeds.map((generator) => [generator.uri, generator]));
+      }
+
+      const nextFeedColumns = Object.fromEntries(
+        parsedFeedColumns.map((
+          { columnId, config },
+        ) => [
+          columnId,
+          resolveFeedColumn(config, {
+            generator: generators[config.feedUri],
+            savedFeedTitle: savedFeedTitles[config.feedUri],
+          }),
+        ]),
+      );
+
+      if (currentRequest !== feedColumnRequest) {
+        return;
+      }
+
+      setState("feedColumns", nextFeedColumns);
+    } catch (err) {
+      logger.warn(`Failed to hydrate deck feed columns: ${String(err)}`);
+    }
+  }
+
   async function handleAdd(kind: ColumnKind, config: string) {
     const did = activeDid();
     if (!did) return;
     try {
       const col = await addColumn(did, kind, config);
-      setState("columns", (prev) => [...prev, col]);
+      const nextColumns = [...state.columns, col];
+      setState("columns", nextColumns);
       setState("addPanelOpen", false);
+      if (kind === "feed") {
+        void hydrateFeedColumns(nextColumns);
+      }
     } catch (err) {
       logger.error(`Failed to add column: ${String(err)}`);
     }
@@ -146,7 +233,9 @@ export function DeckWorkspace() {
   async function handleClose(id: string) {
     try {
       await removeColumn(id);
-      setState("columns", (prev) => prev.filter((c) => c.id !== id));
+      const nextColumns = state.columns.filter((column) => column.id !== id);
+      setState("columns", nextColumns);
+      void hydrateFeedColumns(nextColumns);
     } catch (err) {
       logger.error(`Failed to remove column: ${String(err)}`);
     }
@@ -248,6 +337,7 @@ export function DeckWorkspace() {
         <Show when={!state.loading && state.columns.length > 0}>
           <ColumnList
             columns={state.columns}
+            feedColumns={state.feedColumns}
             onClose={handleClose}
             onMoveLeft={handleMoveLeft}
             onMoveRight={handleMoveRight}

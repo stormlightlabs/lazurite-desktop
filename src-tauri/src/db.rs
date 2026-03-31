@@ -48,6 +48,11 @@ const MIGRATIONS: &[Migration] = &[
         include_str!("migrations/007_search_owner_scope.sql"),
     ),
     Migration::new(8, "columns", include_str!("migrations/008_columns.sql")),
+    Migration::new(
+        9,
+        "columns_expand_kinds",
+        include_str!("migrations/009_columns_expand_kinds.sql"),
+    ),
 ];
 
 pub fn initialize_database(app: &AppHandle) -> Result<DbPool, AppError> {
@@ -231,5 +236,49 @@ mod tests {
             .expect("oauth session count should query");
 
         assert_eq!(stored_count, 1);
+    }
+
+    #[test]
+    fn migration_nine_expands_column_kinds() {
+        let connection = Connection::open_in_memory().expect("in-memory db should open");
+
+        connection
+            .execute_batch(include_str!("migrations/008_columns.sql"))
+            .expect("columns schema should apply");
+
+        let old_error = connection
+            .execute(
+                "
+                INSERT INTO columns(id, account_did, kind, config, position, width)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            ",
+                params!["column-1", "did:plc:test", "messages", "{}", 0_i64, "standard"],
+            )
+            .expect_err("old schema should reject new column kinds");
+
+        assert!(old_error.to_string().contains("CHECK constraint failed"));
+
+        connection
+            .execute_batch(include_str!("migrations/009_columns_expand_kinds.sql"))
+            .expect("migration nine should apply");
+
+        for (index, kind) in ["messages", "search", "profile"].into_iter().enumerate() {
+            connection
+                .execute(
+                    "
+                    INSERT INTO columns(id, account_did, kind, config, position, width)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                ",
+                    params![
+                        format!("column-next-{index}"),
+                        "did:plc:test",
+                        kind,
+                        "{}",
+                        index as i64,
+                        "standard"
+                    ],
+                )
+                .expect("expanded schema should accept new column kinds");
+        }
     }
 }

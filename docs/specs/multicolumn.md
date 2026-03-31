@@ -1,6 +1,6 @@
 # Multicolumn Views
 
-TweetDeck-style layout allowing users to view multiple feeds, AT Explorer panels, and social diagnostics panels side by side. Each column is an independent, scrollable pane with its own state.
+TweetDeck-style layout allowing users to view multiple feeds, AT Explorer panels, social diagnostics panels, DMs, search views, and profiles side by side. Each column is an independent, scrollable pane with its own state.
 
 ## Layout Model
 
@@ -62,6 +62,30 @@ Displays a social diagnostics panel for a target DID.
 - Tab navigation within the column
 - Compact card layout adapted to column width
 
+### Messages Column
+
+Displays the authenticated user's DM inbox and active conversation.
+
+- Reuses the existing messages panel
+- Sensitive content is blurred by default until the column is hovered or focused
+- Width should remain user-adjustable because compact layouts can still be useful for list-first triage
+
+### Search Column
+
+Displays a saved search query inside the deck.
+
+- Reuses the search panel in an embedded mode
+- Persists the initial query and search mode in column config
+- Supports network and local search modes
+
+### Profile Column
+
+Displays a profile view for a selected actor.
+
+- Reuses the existing profile panel
+- Column picker should prefer actor typeahead to reduce handle/DID entry errors
+- Persist actor selection in column config so the column can be restored on launch
+
 ## Column Management
 
 ### Adding Columns
@@ -71,6 +95,9 @@ Displays a social diagnostics panel for a target DID.
 - **Feed picker**: pinned feeds, saved feeds, list feeds
 - **Explorer picker**: input field accepting at:// URI, handle, DID, or PDS URL
 - **Diagnostics picker**: input field accepting handle or DID
+- **Messages picker**: opens the authenticated user's DM inbox
+- **Search picker**: query + search mode
+- **Profile picker**: actor lookup with typeahead
 
 New columns append to the right by default. Optional position insertion via drag during add.
 
@@ -82,8 +109,8 @@ Column layout is stored per account in SQLite:
 CREATE TABLE columns (
   id TEXT PRIMARY KEY,
   account_did TEXT NOT NULL,
-  kind TEXT NOT NULL,          -- 'feed' | 'explorer' | 'diagnostics'
-  config TEXT NOT NULL,        -- JSON: feed → { feed_uri, feed_type }, explorer → { target_uri }, diagnostics → { did }
+  kind TEXT NOT NULL,          -- 'feed' | 'explorer' | 'diagnostics' | 'messages' | 'search' | 'profile'
+  config TEXT NOT NULL,        -- JSON: feed → { feed_uri, feed_type }, explorer → { target_uri }, diagnostics → { did }, messages → {}, search → { query, mode }, profile → { actor, handle?, did?, display_name? }
   position INTEGER NOT NULL,
   width TEXT NOT NULL DEFAULT 'standard',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
