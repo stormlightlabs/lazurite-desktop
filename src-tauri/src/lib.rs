@@ -1,8 +1,10 @@
 mod auth;
 mod columns;
 mod commands;
+mod constellation;
 mod conversations;
 mod db;
+mod diagnostics;
 mod error;
 mod explorer;
 mod feed;
@@ -122,12 +124,20 @@ pub fn run() {
             cmd::search::get_embeddings_config,
             cmd::search::prepare_embeddings_model,
             cmd::settings::get_settings,
+            cmd::settings::get_constellation_url,
             cmd::settings::update_setting,
+            cmd::settings::set_constellation_url,
             cmd::settings::get_cache_size,
             cmd::settings::clear_cache,
             cmd::settings::export_data,
             cmd::settings::reset_app,
             cmd::settings::get_log_entries,
+            cmd::diagnostics::get_account_lists,
+            cmd::diagnostics::get_account_labels,
+            cmd::diagnostics::get_account_blocked_by,
+            cmd::diagnostics::get_account_blocking,
+            cmd::diagnostics::get_account_starter_packs,
+            cmd::diagnostics::get_record_backlinks,
             cmd::columns::get_columns,
             cmd::columns::add_column,
             cmd::columns::remove_column,

@@ -6,26 +6,26 @@ Spec: [social-diagnostics.md](../specs/social-diagnostics.md)
 
 ### Backend - Constellation Client (`src-tauri/src/constellation.rs`)
 
-- [ ] Constellation HTTP client struct with configurable base URL (default: `https://constellation.microcosm.blue`)
-- [ ] `get_backlinks_count(subject: String, source: String)` - `blue.microcosm.links.getBacklinksCount`
-- [ ] `get_backlinks(subject: String, source: String, limit: Option<u32>)` - `blue.microcosm.links.getBacklinks`
-- [ ] `get_distinct_dids(subject: String, source: String, limit: Option<u32>, cursor: Option<String>)` - `blue.microcosm.links.getDistinct`
-- [ ] `get_many_to_many_counts(subject: String, source: String, path_to_other: String)` - `blue.microcosm.links.getManyToManyCounts`
-- [ ] `get_many_to_many(subject: String, source: String, path_to_other: String, limit: Option<u32>)` - `blue.microcosm.links.getManyToMany`
+- [x] Constellation HTTP client struct with configurable base URL (default: `https://constellation.microcosm.blue`)
+- [x] `get_backlinks_count(subject: String, source: String)` - `blue.microcosm.links.getBacklinksCount`
+- [x] `get_backlinks(subject: String, source: String, limit: Option<u32>)` - `blue.microcosm.links.getBacklinks`
+- [x] `get_distinct_dids(subject: String, source: String, limit: Option<u32>, cursor: Option<String>)` - `blue.microcosm.links.getDistinct`
+- [x] `get_many_to_many_counts(subject: String, source: String, path_to_other: String)` - `blue.microcosm.links.getManyToManyCounts`
+- [x] `get_many_to_many(subject: String, source: String, path_to_other: String, limit: Option<u32>)` - `blue.microcosm.links.getManyToMany`
 
-### Backend - Diagnostics Commands (`src-tauri/src/diagnostics.rs` & `src-tauri/src/commands/diagnostics.rs`)
+### Backend - Diagnostics Commands (`src-tauri/src/commands/diagnostics.rs`)
 
-- [ ] `get_account_lists(did: String)` - query Constellation for `app.bsky.graph.listitem:subject` backlinks, extract list URIs, hydrate via `app.bsky.graph.getList`
-- [ ] `get_account_labels(did: String)` - query `com.atproto.label.queryLabels` (Bluesky API)
-- [ ] `get_account_blocked_by(did: String, limit: Option<u32>, cursor: Option<String>)` - Constellation `getDistinct` for `app.bsky.graph.block:subject`
-- [ ] `get_account_blocking(did: String, cursor: Option<String>)` - `com.atproto.repo.listRecords` on target's `app.bsky.graph.block` collection
-- [ ] `get_account_starter_packs(did: String)` - Constellation backlinks from starter pack collections
-- [ ] `get_record_backlinks(uri: String)` - Constellation backlinks grouped by interaction type (likes, reposts, replies, quotes)
+- [x] `get_account_lists(did: String)` - query Constellation for `app.bsky.graph.listitem:subject` backlinks, extract list URIs, hydrate via `app.bsky.graph.getList`
+- [x] `get_account_labels(did: String)` - query `com.atproto.label.queryLabels` (Bluesky API)
+- [x] `get_account_blocked_by(did: String, limit: Option<u32>, cursor: Option<String>)` - Constellation `getDistinct` for `app.bsky.graph.block:subject`
+- [x] `get_account_blocking(did: String, cursor: Option<String>)` - `com.atproto.repo.listRecords` on target's `app.bsky.graph.block` collection
+- [x] `get_account_starter_packs(did: String)` - Constellation backlinks from starter pack collections
+- [x] `get_record_backlinks(uri: String)` - Constellation backlinks grouped by interaction type (likes, reposts, replies, quotes)
 
 ### Backend - Settings
 
-- [ ] `constellation_url` field in settings table (default: `https://constellation.microcosm.blue`)
-- [ ] `set_constellation_url(url: String)` / `get_constellation_url()` commands
+- [x] `constellation_url` field in settings table (default: `https://constellation.microcosm.blue`)
+- [x] `set_constellation_url(url: String)` / `get_constellation_url()` commands
 
 ### Frontend - Diagnostics Panel
 

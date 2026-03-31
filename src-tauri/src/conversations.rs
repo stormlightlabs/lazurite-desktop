@@ -60,13 +60,10 @@ fn active_did(state: &AppState) -> Result<String> {
 async fn ensure_chat_scope(state: &AppState) -> Result<()> {
     let did = active_did(state)?;
     let parsed_did = Did::new(&did).map_err(|_| AppError::validation("invalid active account DID"))?;
-    let account = state
-        .auth_store
-        .get_account(&did)?
-        .ok_or_else(|| {
-            log::error!("active account missing from auth store");
-            AppError::validation("no active account")
-        })?;
+    let account = state.auth_store.get_account(&did)?.ok_or_else(|| {
+        log::error!("active account missing from auth store");
+        AppError::validation("no active account")
+    })?;
     let session_id = account.session_id.ok_or_else(|| {
         log::error!("active account missing session id");
         AppError::validation("no active account session")
@@ -97,7 +94,7 @@ fn chat_opts() -> CallOptions<'static> {
     CallOptions { atproto_proxy: Some(CHAT_PROXY.into()), ..Default::default() }
 }
 
-fn map_chat_error(error: ClientError, default_message: &'static str, context: &'static str) -> AppError {
+fn map_chat_error(error: &ClientError, default_message: &'static str, context: &'static str) -> AppError {
     if let ClientErrorKind::Http { status } = error.kind() {
         if *status == StatusCode::FORBIDDEN {
             log::warn!("{context} forbidden, likely missing DM scope");
@@ -120,7 +117,7 @@ pub async fn list_convos(cursor: Option<String>, limit: Option<u32>, state: &App
     let output = session
         .send_with_opts(req.build(), chat_opts())
         .await
-        .map_err(|error| map_chat_error(error, "Could not load conversations.", "listConvos error"))?
+        .map_err(|error| map_chat_error(&error, "Could not load conversations.", "listConvos error"))?
         .into_output()
         .map_err(|error| {
             log::error!("listConvos output error: {error}");
@@ -150,7 +147,7 @@ pub async fn get_convo_for_members(members: Vec<String>, state: &AppState) -> Re
     let output = session
         .send_with_opts(req, chat_opts())
         .await
-        .map_err(|error| map_chat_error(error, "Could not open this conversation.", "getConvoForMembers error"))?
+        .map_err(|error| map_chat_error(&error, "Could not open this conversation.", "getConvoForMembers error"))?
         .into_output()
         .map_err(|error| {
             log::error!("getConvoForMembers output error: {error}");
@@ -179,7 +176,7 @@ pub async fn get_messages(
     let output = session
         .send_with_opts(req.build(), chat_opts())
         .await
-        .map_err(|error| map_chat_error(error, "Could not load messages.", "getMessages error"))?
+        .map_err(|error| map_chat_error(&error, "Could not load messages.", "getMessages error"))?
         .into_output()
         .map_err(|error| {
             log::error!("getMessages output error: {error}");
@@ -205,7 +202,7 @@ pub async fn send_message(convo_id: String, text: String, state: &AppState) -> R
     let output = session
         .send_with_opts(req, chat_opts())
         .await
-        .map_err(|error| map_chat_error(error, "Could not send this message.", "sendMessage error"))?
+        .map_err(|error| map_chat_error(&error, "Could not send this message.", "sendMessage error"))?
         .into_output()
         .map_err(|error| {
             log::error!("sendMessage output error: {error}");
@@ -233,7 +230,7 @@ pub async fn update_read(convo_id: String, message_id: Option<String>, state: &A
         .await
         .map_err(|error| {
             map_chat_error(
-                error,
+                &error,
                 "Could not update the read status for this conversation.",
                 "updateRead error",
             )

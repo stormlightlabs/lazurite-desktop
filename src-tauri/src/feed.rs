@@ -717,17 +717,25 @@ pub async fn follow_actor(did: String, state: &AppState) -> Result<CreateRecordR
     let session = get_session(state).await?;
     let active_did = active_did(state)?;
 
-    let follow = Follow::new().created_at(Datetime::now()).subject(Did::new(&did)?).build();
+    let follow = Follow::new()
+        .created_at(Datetime::now())
+        .subject(Did::new(&did)?)
+        .build();
 
     let record_json = serde_json::to_value(&follow)?;
-    let record_data =
-        Data::from_json_owned(record_json).map_err(|_| AppError::validation("serialize follow"))?;
+    let record_data = Data::from_json_owned(record_json).map_err(|_| AppError::validation("serialize follow"))?;
 
     let repo = AtIdentifier::Did(Did::new(&active_did)?);
     let collection = Nsid::new("app.bsky.graph.follow").map_err(|_| AppError::validation("nsid"))?;
 
     let output = session
-        .send(CreateRecord::new().repo(repo).collection(collection).record(record_data).build())
+        .send(
+            CreateRecord::new()
+                .repo(repo)
+                .collection(collection)
+                .record(record_data)
+                .build(),
+        )
         .await
         .map_err(|error| {
             log::error!("createRecord (follow) error: {error}");
@@ -746,15 +754,14 @@ pub async fn unfollow_actor(follow_uri: String, state: &AppState) -> Result<()> 
     let session = get_session(state).await?;
     let did = active_did(state)?;
 
-    let at_uri =
-        AtUri::new(&follow_uri).map_err(|_| AppError::validation("invalid follow URI"))?;
-    let RecordKey(rkey) =
-        at_uri.rkey().ok_or_else(|| AppError::Validation("follow URI has no rkey".into()))?;
+    let at_uri = AtUri::new(&follow_uri).map_err(|_| AppError::validation("invalid follow URI"))?;
+    let RecordKey(rkey) = at_uri
+        .rkey()
+        .ok_or_else(|| AppError::Validation("follow URI has no rkey".into()))?;
     let rkey_str = rkey.to_string();
 
     let repo = AtIdentifier::Did(Did::new(&did)?);
-    let collection =
-        Nsid::new("app.bsky.graph.follow").map_err(|_| AppError::validation("nsid"))?;
+    let collection = Nsid::new("app.bsky.graph.follow").map_err(|_| AppError::validation("nsid"))?;
     let rkey = RecordKey::any(&rkey_str).map_err(|_| AppError::validation("invalid rkey"))?;
 
     session

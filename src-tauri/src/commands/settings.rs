@@ -11,8 +11,18 @@ pub fn get_settings(state: State<'_, AppState>) -> Result<AppSettings, AppError>
 }
 
 #[tauri::command]
+pub fn get_constellation_url(state: State<'_, AppState>) -> Result<String, AppError> {
+    settings::get_constellation_url(&state)
+}
+
+#[tauri::command]
 pub fn update_setting(key: String, value: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), AppError> {
     settings::update_setting(&key, &value, &state, &app)
+}
+
+#[tauri::command]
+pub fn set_constellation_url(url: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), AppError> {
+    settings::set_constellation_url(&url, &state, &app)
 }
 
 #[tauri::command]

@@ -556,6 +556,10 @@ pub fn get_settings(state: &AppState) -> Result<AppSettings> {
     db_get_all_settings(&conn)
 }
 
+pub fn get_constellation_url(state: &AppState) -> Result<String> {
+    Ok(get_settings(state)?.constellation_url)
+}
+
 pub fn update_setting(key: &str, value: &str, state: &AppState, app: &AppHandle) -> Result<()> {
     let valid_key = match SettingsKey::from_str(key) {
         Some(valid_key) if SettingsKey::valid_keys().contains(&valid_key) => valid_key,
@@ -573,6 +577,10 @@ pub fn update_setting(key: &str, value: &str, state: &AppState, app: &AppHandle)
 
     apply_post_persist_side_effects(valid_key, &normalized_value, app);
     Ok(())
+}
+
+pub fn set_constellation_url(url: &str, state: &AppState, app: &AppHandle) -> Result<()> {
+    update_setting(SettingsKey::ConstellationUrl.as_str(), url, state, app)
 }
 
 pub fn get_cache_size(state: &AppState) -> Result<CacheSize> {

@@ -1,6 +1,7 @@
 #![allow(clippy::needless_pass_by_value)]
 
 pub mod columns;
+pub mod diagnostics;
 pub mod explorer;
 pub mod search;
 pub mod settings;

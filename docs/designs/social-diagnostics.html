@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Social Diagnostics - Lazurite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --surface-container-lowest: #000000;
+      --surface: #0e0e0e;
+      --surface-container: #191919;
+      --surface-container-high: #1f1f1f;
+      --surface-container-highest: rgba(36, 36, 36, 0.7);
+      --surface-bright: rgba(255, 255, 255, 0.05);
+      --primary: #7dafff;
+      --primary-dim: #0073de;
+      --on-primary-fixed: #05080f;
+      --on-surface: #f4f6fb;
+      --on-surface-variant: #ababab;
+      --on-secondary-container: #c9d1dd;
+      --outline-variant: rgba(255, 255, 255, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Google Sans", "Segoe UI", sans-serif;
+      background: var(--surface-container-lowest);
+      color: var(--on-surface);
+    }
+
+    .app-rail {
+      width: 64px;
+      background: var(--surface-container-lowest);
+    }
+
+    .rail-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      transition: all 0.15s ease;
+      color: var(--on-surface-variant);
+    }
+
+    .rail-icon.active {
+      color: var(--primary);
+      background: rgba(125, 175, 255, 0.1);
+    }
+
+    .rail-icon:not(.active):hover {
+      color: var(--on-surface);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .surface {
+      background: var(--surface);
+    }
+
+    .panel {
+      background: var(--surface-container);
+    }
+
+    .panel-high {
+      background: var(--surface-container-high);
+    }
+
+    .panel-highest {
+      background: var(--surface-container-highest);
+      backdrop-filter: blur(20px);
+    }
+
+    .soft-outline {
+      box-shadow: 0 0 0 1px var(--outline-variant);
+    }
+
+    .tab-btn {
+      color: var(--on-surface-variant);
+      background: transparent;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.7rem 0.95rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: default;
+      transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn.active {
+      color: var(--on-surface);
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: 0 0 0 1px rgba(125, 175, 255, 0.18) inset;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--on-secondary-container);
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .mini-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.22rem 0.5rem;
+      border-radius: 999px;
+      background: rgba(125, 175, 255, 0.12);
+      color: var(--primary);
+      font-size: 0.72rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 1rem;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+    }
+
+    .list-card:hover,
+    .preview-card:hover {
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .keycap {
+      padding: 0.25rem 0.45rem;
+      border-radius: 0.5rem;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--on-surface-variant);
+      font-size: 0.72rem;
+      font-weight: 500;
+    }
+
+    .metric {
+      padding: 1rem;
+      border-radius: 1rem;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .muted {
+      color: var(--on-surface-variant);
+    }
+
+    .title-tight {
+      letter-spacing: -0.02em;
+    }
+
+    .sticky-shell {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+  </style>
+</head>
+<body class="flex">
+  <aside class="app-rail fixed left-0 top-0 h-full flex flex-col items-center py-4 z-50">
+    <div class="mb-6">
+      <svg width="40" height="40" viewBox="0 0 512 512" style="color: #7dafff;">
+        <path fill="currentColor" d="M128 16v99.3l119 118.9V120.1zm256 0L265 120.1v114.1l119-119zM16 128l104 119h114.2L115.3 128zm380.8 0l-119 119h114.1l104-119zM120 265L16 384h99.2l119-119zm157.8 0l119 119h99.1l-104-119zM247 277.8l-119 119V496l119-104.1zm18 0v114.1L384 496v-99.2z"/>
+      </svg>
+    </div>
+
+    <nav class="flex flex-col gap-1 flex-1">
+      <button class="rail-icon" title="Timeline">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="Search">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon" title="Notifications">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </button>
+
+      <button class="rail-icon active" title="AT Explorer">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 10h-6m-6 0H2.1m16.12 4.24l4.24 4.24M6.34 17.66l-4.24 4.24"/>
+        </svg>
+      </button>
+    </nav>
+
+    <div class="flex flex-col gap-2">
+      <button class="w-10 h-10 rounded-full overflow-hidden transition-colors" style="box-shadow: 0 0 0 1px rgba(255,255,255,0.08);">
+        <img src="https://placehold.co/40x40/7dafff/05080f?text=U" alt="Current account" class="w-full h-full object-cover">
+      </button>
+    </div>
+  </aside>
+
+  <main class="flex-1 ml-16 surface min-h-screen">
+    <header class="sticky-shell panel-highest">
+      <div class="px-6 py-4 flex items-start justify-between gap-6">
+        <div>
+          <p class="text-xs uppercase tracking-[0.22em] muted mb-2">Documentation wireframe</p>
+          <h1 class="text-2xl font-medium title-tight mb-2">Social Diagnostics</h1>
+          <p class="text-sm leading-relaxed max-w-3xl muted">
+            A deliberate context panel for public AT Protocol artifacts. The design keeps counts secondary, uses progressive disclosure for sensitive sections, and frames self-diagnostics as a first-class entry point.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 justify-end text-xs">
+          <span class="keycap">CMD/CTRL + 1-5</span>
+          <span class="keycap">Esc</span>
+          <span class="chip">Opened from profile or AT Explorer</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="px-6 py-8 space-y-8">
+      <section class="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+        <div class="space-y-4">
+          <div class="panel-high rounded-3xl p-5 soft-outline">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div class="flex items-start gap-4 min-w-0">
+                <div class="w-14 h-14 rounded-2xl overflow-hidden shrink-0" style="box-shadow: 0 0 0 1px rgba(255,255,255,0.06);">
+                  <img src="https://placehold.co/56x56/7dafff/05080f?text=AC" alt="Account avatar" class="w-full h-full object-cover">
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs muted mb-1">Viewing</p>
+                  <h2 class="text-lg font-medium title-tight truncate">Alice Chen</h2>
+                  <p class="text-sm muted truncate">@alice.bsky.social · did:plc:abc123</p>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="chip">Self diagnostics</span>
+                <span class="chip">Public protocol data</span>
+                <button class="px-4 py-2 rounded-full text-sm font-medium" style="background: rgba(125,175,255,0.12); color: var(--primary);">Switch account</button>
+                <button class="px-4 py-2 rounded-full text-sm font-medium" style="background: rgba(255,255,255,0.05); color: var(--on-surface);">Open in AT Explorer</button>
+              </div>
+            </div>
+
+            <div class="mt-5 grid sm:grid-cols-3 gap-3">
+              <div class="metric">
+                <p class="text-xs uppercase tracking-[0.18em] muted mb-2">Focus</p>
+                <p class="text-sm">Context before action</p>
+              </div>
+              <div class="metric">
+                <p class="text-xs uppercase tracking-[0.18em] muted mb-2">Disclosure</p>
+                <p class="text-sm">Summary first, details on demand</p>
+              </div>
+              <div class="metric">
+                <p class="text-xs uppercase tracking-[0.18em] muted mb-2">Tone</p>
+                <p class="text-sm">Neutral, factual, non-judgmental</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel rounded-3xl p-4 soft-outline">
+            <div class="flex items-center gap-2 overflow-x-auto pb-1">
+              <button class="tab-btn active">Lists</button>
+              <button class="tab-btn">Labels</button>
+              <button class="tab-btn">Blocks</button>
+              <button class="tab-btn">Starter Packs</button>
+              <button class="tab-btn">Backlinks</button>
+            </div>
+          </div>
+
+          <div class="panel rounded-3xl p-5 soft-outline space-y-5">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div>
+                <p class="text-xs uppercase tracking-[0.18em] muted mb-2">Lists tab</p>
+                <h3 class="text-xl font-medium title-tight">Where this account appears</h3>
+              </div>
+              <p class="text-sm muted max-w-md sm:text-right">
+                Lists are treated as ordinary social structure. The view prioritizes purpose, owner context, and membership details over aggregate counts.
+              </p>
+            </div>
+
+            <div class="grid gap-3">
+              <div class="card p-4 list-card transition-colors">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                      <h4 class="text-sm font-medium">Design systems people</h4>
+                      <span class="mini-chip">Curation</span>
+                    </div>
+                    <p class="text-sm muted leading-relaxed">A curated list of builders and designers working on interface systems, motion, and product craft.</p>
+                    <p class="text-xs muted mt-3">Owner: @mira.studio · 412 members</p>
+                  </div>
+                  <button class="px-4 py-2 rounded-full text-sm" style="background: rgba(255,255,255,0.05); color: var(--on-surface);">Open list</button>
+                </div>
+              </div>
+
+              <div class="card p-4 list-card transition-colors">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                      <h4 class="text-sm font-medium">Moderation boundary set</h4>
+                      <span class="mini-chip">Moderation</span>
+                    </div>
+                    <p class="text-sm muted leading-relaxed">A public moderation list used by a service to describe account-level boundaries. Presented without alarm or rank.</p>
+                    <p class="text-xs muted mt-3">Owner: @safety.service · 18,204 members</p>
+                  </div>
+                  <button class="px-4 py-2 rounded-full text-sm" style="background: rgba(255,255,255,0.05); color: var(--on-surface);">Open list</button>
+                </div>
+              </div>
+
+              <div class="card p-4 list-card transition-colors">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                      <h4 class="text-sm font-medium">Reference: AT builders</h4>
+                      <span class="mini-chip">Reference</span>
+                    </div>
+                    <p class="text-sm muted leading-relaxed">A reference list for people and projects related to the AT ecosystem. Useful as context, not judgment.</p>
+                    <p class="text-xs muted mt-3">Owner: @atlas.lab · 91 members</p>
+                  </div>
+                  <button class="px-4 py-2 rounded-full text-sm" style="background: rgba(255,255,255,0.05); color: var(--on-surface);">Open list</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="space-y-4 lg:sticky lg:top-24">
+          <div class="panel-high rounded-3xl p-5 soft-outline space-y-4">
+            <div>
+              <p class="text-xs uppercase tracking-[0.18em] muted mb-2">How to read it</p>
+              <h3 class="text-lg font-medium title-tight">The panel teaches context, not conclusions</h3>
+            </div>
+            <div class="space-y-3 text-sm leading-relaxed muted">
+              <p>• Counts stay in the summary row. Specific records appear only after a deliberate action.</p>
+              <p>• Labels use uniform chips and source attribution instead of severity colors.</p>
+              <p>• Blocks open with count-only defaults and a plain-language explanation before details.</p>
+            </div>
+          </div>
+
+          <div class="panel rounded-3xl p-5 soft-outline space-y-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-xs uppercase tracking-[0.18em] muted mb-2">Summary</p>
+                <h3 class="text-lg font-medium title-tight">Tab model</h3>
+              </div>
+              <span class="chip">5 tabs</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div class="metric">
+                <p class="muted text-xs mb-1">Lists</p>
+                <p>Curated, moderation, reference</p>
+              </div>
+              <div class="metric">
+                <p class="muted text-xs mb-1">Labels</p>
+                <p>Service, definition, effect</p>
+              </div>
+              <div class="metric">
+                <p class="muted text-xs mb-1">Blocks</p>
+                <p>Counts first, details on request</p>
+              </div>
+              <div class="metric">
+                <p class="muted text-xs mb-1">Starter packs</p>
+                <p>Discovery context</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel rounded-3xl p-5 soft-outline space-y-3">
+            <p class="text-xs uppercase tracking-[0.18em] muted mb-1">Keyboard</p>
+            <div class="space-y-2 text-sm muted">
+              <div class="flex items-center justify-between gap-4"><span>Switch tabs</span><span class="keycap">1-5</span></div>
+              <div class="flex items-center justify-between gap-4"><span>Close panel</span><span class="keycap">Esc</span></div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="space-y-4">
+        <div class="flex items-end justify-between gap-4">
+          <div>
+            <p class="text-xs uppercase tracking-[0.18em] muted mb-2">Tab previews</p>
+            <h3 class="text-xl font-medium title-tight">Secondary states for implementation</h3>
+          </div>
+          <p class="text-sm muted max-w-xl text-right">These compact frames document the content patterns for the remaining tabs so the panel can be built without inventing new UI language.</p>
+        </div>
+
+        <div class="grid xl:grid-cols-2 gap-4">
+          <article class="panel rounded-3xl p-5 soft-outline space-y-4">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs uppercase tracking-[0.18em] muted mb-1">Labels</p>
+                <h4 class="text-lg font-medium title-tight">Moderation metadata</h4>
+              </div>
+              <span class="chip">Muted chips</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="mini-chip" style="background: rgba(255,255,255,0.08); color: var(--on-secondary-container);">!no-unauthenticated</span>
+              <span class="mini-chip" style="background: rgba(255,255,255,0.08); color: var(--on-secondary-container);">!hide-replies</span>
+              <span class="mini-chip" style="background: rgba(255,255,255,0.08); color: var(--on-secondary-container);">labeler: safety.service</span>
+            </div>
+            <p class="text-sm muted leading-relaxed">Tooltip copy should explain the label definition, the labeling service, and the visibility effect. The chip palette stays uniform and neutral.</p>
+          </article>
+
+          <article class="panel rounded-3xl p-5 soft-outline space-y-4">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs uppercase tracking-[0.18em] muted mb-1">Blocks</p>
+                <h4 class="text-lg font-medium title-tight">Summary first</h4>
+              </div>
+              <span class="chip">Counts only</span>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3">
+              <div class="metric">
+                <p class="muted text-xs mb-1">Blocked by</p>
+                <p class="text-2xl font-medium title-tight">18</p>
+              </div>
+              <div class="metric">
+                <p class="muted text-xs mb-1">Blocking</p>
+                <p class="text-2xl font-medium title-tight">2</p>
+              </div>
+            </div>
+            <div class="card p-4 space-y-3">
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-sm">Blocks are a normal part of social media. This data is public on the AT Protocol.</p>
+                <button class="px-4 py-2 rounded-full text-sm" style="background: rgba(255,255,255,0.05); color: var(--on-surface);">Show details</button>
+              </div>
+              <p class="text-sm muted">Expanded details would reveal profile cards only after a deliberate click, with no warning styling.</p>
+            </div>
+          </article>
+
+          <article class="panel rounded-3xl p-5 soft-outline space-y-4">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs uppercase tracking-[0.18em] muted mb-1">Starter packs</p>
+                <h4 class="text-lg font-medium title-tight">Discovery context</h4>
+              </div>
+              <span class="chip">Compact cards</span>
+            </div>
+            <div class="space-y-3">
+              <div class="card p-4 preview-card transition-colors">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium truncate">AT Protocol newcomers</p>
+                    <p class="text-xs muted mt-1 truncate">by @starterpack.co · 54 members</p>
+                  </div>
+                  <button class="px-3 py-1.5 rounded-full text-xs" style="background: rgba(255,255,255,0.05); color: var(--on-surface);">AT Explorer</button>
+                </div>
+              </div>
+              <div class="card p-4 preview-card transition-colors">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium truncate">Indie dev circles</p>
+                    <p class="text-xs muted mt-1 truncate">by @buildclub · 118 members</p>
+                  </div>
+                  <button class="px-3 py-1.5 rounded-full text-xs" style="background: rgba(255,255,255,0.05); color: var(--on-surface);">AT Explorer</button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel rounded-3xl p-5 soft-outline space-y-4">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs uppercase tracking-[0.18em] muted mb-1">Backlinks</p>
+                <h4 class="text-lg font-medium title-tight">Record context</h4>
+              </div>
+              <span class="chip">Grouped by type</span>
+            </div>
+            <div class="space-y-2">
+              <div class="card p-4 preview-card transition-colors flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm font-medium">Replies</p>
+                  <p class="text-xs muted mt-1">Direct replies to this record</p>
+                </div>
+                <span class="text-sm muted">12</span>
+              </div>
+              <div class="card p-4 preview-card transition-colors flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm font-medium">Quotes</p>
+                  <p class="text-xs muted mt-1">Records that embed this URI</p>
+                </div>
+                <span class="text-sm muted">8</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="grid lg:grid-cols-3 gap-4 pb-8">
+        <div class="panel rounded-3xl p-5 soft-outline">
+          <p class="text-xs uppercase tracking-[0.18em] muted mb-2">Profile view</p>
+          <h3 class="text-lg font-medium title-tight mb-3">Context tab, not default</h3>
+          <p class="text-sm muted leading-relaxed">Placed alongside Posts, Replies, Media, and Likes. It should be discoverable without adding unsolicited account warnings anywhere else in the app.</p>
+        </div>
+        <div class="panel rounded-3xl p-5 soft-outline">
+          <p class="text-xs uppercase tracking-[0.18em] muted mb-2">AT Explorer record view</p>
+          <h3 class="text-lg font-medium title-tight mb-3">Supplementary backlinks panel</h3>
+          <p class="text-sm muted leading-relaxed">Use engagement backlinks only here. Moderation-related data stays inside the dedicated diagnostics panel.</p>
+        </div>
+        <div class="panel rounded-3xl p-5 soft-outline">
+          <p class="text-xs uppercase tracking-[0.18em] muted mb-2">Repo view</p>
+          <h3 class="text-lg font-medium title-tight mb-3">Avoid overloading summaries</h3>
+          <p class="text-sm muted leading-relaxed">Follower and following counts can appear in repository context, but block counts should stay in this dedicated panel only.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
