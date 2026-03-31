@@ -1,0 +1,53 @@
+--- upstream/src/scopes.rs
++++ vendor/src/scopes.rs
+@@ -153,6 +153,8 @@
+ pub enum TransitionScope {
+     /// Generic transition operations
+     Generic,
++    /// Bluesky chat / DM transition operations
++    ChatBsky,
+     /// Email transition operations
+     Email,
+ }
+@@ -709,6 +711,7 @@
+     fn parse_transition(suffix: Option<&str>) -> Result<Self, ParseError> {
+         let scope = match suffix {
+             Some("generic") => TransitionScope::Generic,
++            Some("chat.bsky") => TransitionScope::ChatBsky,
+             Some("email") => TransitionScope::Email,
+             Some(other) => return Err(ParseError::InvalidResource(other.to_string())),
+             None => return Err(ParseError::MissingResource),
+@@ -855,6 +858,7 @@
+             Scope::Atproto => "atproto".to_string(),
+             Scope::Transition(scope) => match scope {
+                 TransitionScope::Generic => "transition:generic".to_string(),
++                TransitionScope::ChatBsky => "transition:chat.bsky".to_string(),
+                 TransitionScope::Email => "transition:email".to_string(),
+             },
+             Scope::OpenId => "openid".to_string(),
+@@ -1396,6 +1400,9 @@
+     fn test_transition_scope_parsing() {
+         let scope = Scope::parse("transition:generic").unwrap();
+         assert_eq!(scope, Scope::Transition(TransitionScope::Generic));
++
++        let scope = Scope::parse("transition:chat.bsky").unwrap();
++        assert_eq!(scope, Scope::Transition(TransitionScope::ChatBsky));
+ 
+         let scope = Scope::parse("transition:email").unwrap();
+         assert_eq!(scope, Scope::Transition(TransitionScope::Email));
+@@ -1864,13 +1871,14 @@
+ 
+         // Test with transition scopes
+         let scopes = vec![
++            Scope::Transition(TransitionScope::ChatBsky),
+             Scope::Transition(TransitionScope::Email),
+             Scope::Transition(TransitionScope::Generic),
+             Scope::Atproto,
+         ];
+         assert_eq!(
+             Scope::serialize_multiple(&scopes),
+-            "atproto transition:email transition:generic"
++            "atproto transition:chat.bsky transition:email transition:generic"
+         );
+ 
+         // Test duplicates - they remain in the output (caller's responsibility to dedupe if needed)

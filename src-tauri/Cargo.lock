@@ -3601,8 +3601,6 @@ dependencies = [
 [[package]]
 name = "jacquard-oauth"
 version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca0b3a8b765b3d3f1890233f9f62dda1b1524d1dc9967c310e5b009b93443776"
 dependencies = [
  "base64 0.22.1",
  "bytes",

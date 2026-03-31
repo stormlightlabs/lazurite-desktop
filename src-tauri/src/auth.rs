@@ -32,7 +32,7 @@ const CLIENT_NAME: &str = "Lazurite";
 const CLIENT_METADATA_URL: &str = "https://lazurite.stormlightlabs.org/client-metadata.json";
 const CLIENT_SITE_URL: &str = "https://lazurite.stormlightlabs.org";
 const LOOPBACK_CALLBACK_PATH: &str = "/callback";
-const LOOPBACK_SCOPE: &str = "atproto transition:generic";
+const LOOPBACK_SCOPE: &str = "atproto transition:generic transition:chat.bsky";
 const LOGIN_TYPEAHEAD_LIMIT: usize = 6;
 const LOGIN_TYPEAHEAD_CLIENT: &str = "lazurite-desktop";
 const LOGIN_TYPEAHEAD_PRIMARY_URL: &str = "https://typeahead.waow.tech";
@@ -784,6 +784,7 @@ mod tests {
     };
     use crate::db::DbPool;
     use jacquard::common::deps::fluent_uri::Uri;
+    use jacquard::oauth::scopes::{Scope, TransitionScope};
     use reqwest::StatusCode;
     use rusqlite::{params, Connection};
     use std::sync::{Arc, Mutex};
@@ -905,6 +906,9 @@ mod tests {
             Some("https://lazurite.stormlightlabs.org")
         );
         assert_eq!(metadata.redirect_uris[0].as_str(), "http://127.0.0.1/callback");
+        assert!(metadata.scopes.contains(&Scope::Atproto));
+        assert!(metadata.scopes.contains(&Scope::Transition(TransitionScope::Generic)));
+        assert!(metadata.scopes.contains(&Scope::Transition(TransitionScope::ChatBsky)));
     }
 
     #[test]
