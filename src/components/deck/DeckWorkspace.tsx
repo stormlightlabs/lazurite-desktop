@@ -17,6 +17,7 @@ import { parseFeedConfig, type ResolvedFeedColumn, resolveFeedColumn } from "./t
 type DeckState = {
   addPanelOpen: boolean;
   columns: Column[];
+  dragOverId: string | null;
   error: string | null;
   feedColumns: Record<string, ResolvedFeedColumn>;
   loading: boolean;
@@ -72,8 +73,13 @@ function EmptyDeck(props: { onAdd: () => void }) {
 function ColumnList(
   props: {
     columns: Column[];
+    dragOverId: string | null;
     feedColumns: Record<string, ResolvedFeedColumn>;
     onClose: (id: string) => void;
+    onDragEnd: () => void;
+    onDragOver: (id: string) => void;
+    onDragStart: (id: string) => void;
+    onDrop: (targetId: string) => void;
     onMoveLeft: (id: string) => void;
     onMoveRight: (id: string) => void;
     onOpenThread: (uri: string) => void;
@@ -92,7 +98,12 @@ function ColumnList(
             <DeckColumn
               column={column}
               feedColumn={props.feedColumns[column.id]}
+              isDragOver={props.dragOverId === column.id}
               onClose={props.onClose}
+              onDragEnd={props.onDragEnd}
+              onDragOver={props.onDragOver}
+              onDragStart={props.onDragStart}
+              onDrop={props.onDrop}
               onMoveLeft={props.onMoveLeft}
               onMoveRight={props.onMoveRight}
               onOpenThread={props.onOpenThread}
@@ -123,10 +134,14 @@ export function DeckWorkspace() {
   const session = useAppSession();
   const navigate = useNavigate();
   let feedColumnRequest = 0;
+  // Module-level variable: WebKit dataTransfer.getData() returns empty string on drop,
+  // so we track the dragging column ID here instead.
+  let draggingColumnId: string | null = null;
 
   const [state, setState] = createStore<DeckState>({
     addPanelOpen: false,
     columns: [],
+    dragOverId: null,
     error: null,
     feedColumns: {},
     loading: true,
@@ -296,6 +311,51 @@ export function DeckWorkspace() {
     }
   }
 
+  function handleDragStart(id: string) {
+    draggingColumnId = id;
+  }
+
+  function handleDragEnd() {
+    draggingColumnId = null;
+    setState("dragOverId", null);
+  }
+
+  function handleDragOver(id: string) {
+    if (draggingColumnId && draggingColumnId !== id) {
+      setState("dragOverId", id);
+    }
+  }
+
+  async function handleDrop(targetId: string) {
+    const sourceId = draggingColumnId;
+    draggingColumnId = null;
+    setState("dragOverId", null);
+
+    if (!sourceId || sourceId === targetId) return;
+
+    const cols = state.columns;
+    const fromIdx = cols.findIndex((c) => c.id === sourceId);
+    const toIdx = cols.findIndex((c) => c.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const newOrder = cols.map((c) => c.id);
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, sourceId);
+
+    try {
+      await reorderColumns(newOrder);
+      setState(
+        "columns",
+        produce((draft) => {
+          const item = draft.splice(fromIdx, 1)[0];
+          if (item) draft.splice(toIdx, 0, item);
+        }),
+      );
+    } catch (err) {
+      logger.error(`Failed to reorder columns via drag: ${String(err)}`);
+    }
+  }
+
   function handleOpenThread(uri: string) {
     navigate(`/timeline/thread/${encodeURIComponent(uri)}`);
   }
@@ -337,8 +397,13 @@ export function DeckWorkspace() {
         <Show when={!state.loading && state.columns.length > 0}>
           <ColumnList
             columns={state.columns}
+            dragOverId={state.dragOverId}
             feedColumns={state.feedColumns}
             onClose={handleClose}
+            onDragEnd={handleDragEnd}
+            onDragOver={handleDragOver}
+            onDragStart={handleDragStart}
+            onDrop={handleDrop}
             onMoveLeft={handleMoveLeft}
             onMoveRight={handleMoveRight}
             onOpenThread={handleOpenThread}

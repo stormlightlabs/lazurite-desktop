@@ -45,7 +45,6 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
     state.activeTab === "likes" ? state.likesFeed.items : filterProfileFeed(state.authorFeed.items, state.activeTab)
   );
   const avatarProgress = createMemo(() => clamp((state.scrollTop - 18) / 180, 0, 1));
-  const avatarScale = createMemo(() => 1 - avatarProgress() * 0.34);
   const coverOffset = createMemo(() => Math.min(state.scrollTop * 0.28, 88));
   const coverScale = createMemo(() => 1 + Math.min(state.scrollTop / 1600, 0.08));
   const viewLabel = createMemo(() => isSelf() ? "Your profile" : "Viewing profile");
@@ -404,7 +403,6 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
               <>
                 <ProfileHero
                   avatarProgress={avatarProgress()}
-                  avatarScale={avatarScale()}
                   coverOffset={coverOffset()}
                   coverScale={coverScale()}
                   followLoading={state.followLoading}

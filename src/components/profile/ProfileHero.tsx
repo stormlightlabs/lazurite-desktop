@@ -56,15 +56,10 @@ function ProfileStat(props: { label: string; onClick?: () => void; value?: numbe
 }
 
 function StickyIdentity(props: { displayName: string; handle: string; progress: number }) {
-  const style = createMemo(() => ({
-    opacity: `${Math.min(1, props.progress * 1.35)}`,
-    transform: `translate3d(${(1 - props.progress) * -18}px, ${(1 - props.progress) * 52}px, 0) scale(${
-      0.96 + props.progress * 0.04
-    })`,
-  }));
+  const style = createMemo(() => ({ opacity: `${Math.min(1, props.progress * 1.35)}` }));
 
   return (
-    <div class="mb-1 min-w-0 transition-[opacity,transform] duration-100 ease-out" style={style()}>
+    <div class="mb-1 min-w-0 transition-opacity duration-100 ease-out" style={style()}>
       <p class="m-0 truncate text-lg font-semibold leading-tight tracking-[-0.02em] text-on-surface">
         {props.displayName}
       </p>
@@ -207,7 +202,6 @@ function MessageButton(props: { onClick: () => void }) {
 export function ProfileHero(
   props: {
     avatarProgress: number;
-    avatarScale: number;
     coverOffset: number;
     coverScale: number;
     followLoading: boolean;
@@ -230,10 +224,6 @@ export function ProfileHero(
   const bannerStyle = createMemo(() => ({
     transform: `translate3d(0, ${props.coverOffset}px, 0) scale(${props.coverScale})`,
   }));
-  const avatarStyle = createMemo(() => ({
-    transform: `translate3d(${28 * props.avatarProgress}px, 0, 0) scale(${props.avatarScale})`,
-    "transform-origin": "bottom left",
-  }));
 
   return (
     <header class="relative">
@@ -253,9 +243,7 @@ export function ProfileHero(
 
       <div class="relative z-10 -mt-16 px-6 pb-6 max-[760px]:px-4 max-[520px]:px-3">
         <div class="sticky top-4 z-20 mb-4 flex items-center gap-3">
-          <div
-            class="relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_4px_rgba(8,8,8,0.96),0_0_0_6px_rgba(125,175,255,0.22),0_24px_40px_rgba(0,0,0,0.36)] backdrop-blur-sm transition-transform duration-100 ease-out"
-            style={avatarStyle()}>
+          <div class="relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_4px_rgba(8,8,8,0.96),0_0_0_6px_rgba(125,175,255,0.22),0_24px_40px_rgba(0,0,0,0.36)] backdrop-blur-sm">
             <Show
               when={props.profile.avatar}
               fallback={
@@ -273,10 +261,7 @@ export function ProfileHero(
         <div class="grid gap-5 pt-20">
           <div
             class="flex flex-wrap items-start justify-between gap-4 transition-opacity duration-100 ease-out"
-            style={{
-              opacity: 1 - props.avatarProgress,
-              transform: `translate3d(0, ${props.avatarProgress * -12}px, 0)`,
-            }}>
+            style={{ opacity: 1 - props.avatarProgress }}>
             <ProfileIdentity
               description={props.profile.description ?? null}
               displayName={displayName()}

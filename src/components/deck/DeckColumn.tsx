@@ -5,7 +5,7 @@ import { ProfilePanel } from "$/components/profile/ProfilePanel";
 import { SearchPanel } from "$/components/search/SearchPanel";
 import type { Column, ColumnWidth } from "$/lib/api/types/columns";
 import type { PostView, SavedFeedItem } from "$/lib/types";
-import { Match, Show, Switch } from "solid-js";
+import { createSignal, Match, Show, Switch } from "solid-js";
 import { DiagnosticsColumn } from "./DiagnosticsColumn";
 import {
   COLUMN_WIDTH_PX,
@@ -21,12 +21,26 @@ import { useFeedColumnState } from "./useFeedColumnState";
 type DeckColumnProps = {
   column: Column;
   feedColumn?: ResolvedFeedColumn;
+  isDragOver: boolean;
   onClose: (id: string) => void;
+  onDragEnd: () => void;
+  onDragOver: (id: string) => void;
+  onDragStart: (id: string) => void;
+  onDrop: (targetId: string) => void;
   onMoveLeft: (id: string) => void;
   onMoveRight: (id: string) => void;
   onOpenThread: (uri: string) => void;
   onWidthChange: (id: string, width: ColumnWidth) => void;
 };
+
+function snapToColumnWidth(px: number): ColumnWidth {
+  const narrow = Math.abs(px - COLUMN_WIDTH_PX.narrow);
+  const standard = Math.abs(px - COLUMN_WIDTH_PX.standard);
+  const wide = Math.abs(px - COLUMN_WIDTH_PX.wide);
+  if (narrow <= standard && narrow <= wide) return "narrow";
+  if (standard <= wide) return "standard";
+  return "wide";
+}
 
 function widthLabel(width: ColumnWidth): string {
   switch (width) {
@@ -45,6 +59,8 @@ function widthLabel(width: ColumnWidth): string {
 type ColumnHeaderProps = {
   column: Column;
   onClose: () => void;
+  onDragEnd: () => void;
+  onDragStart: (e: DragEvent) => void;
   onMoveLeft: () => void;
   onMoveRight: () => void;
   onWidthCycle: () => void;
@@ -103,6 +119,9 @@ function ColumnHeader(props: ColumnHeaderProps) {
     <header class="flex shrink-0 items-center gap-2 rounded-t-2xl bg-[rgba(14,14,14,0.94)] px-3 py-2.5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)]">
       <span
         class="flex cursor-grab items-center text-on-surface-variant opacity-40 hover:opacity-80 active:cursor-grabbing"
+        draggable="true"
+        onDragStart={(e) => props.onDragStart(e)}
+        onDragEnd={() => props.onDragEnd()}
         aria-hidden="true"
         title="Drag to reorder">
         <i class="i-ri-draggable" />
@@ -244,27 +263,81 @@ function ProfileBody(props: { actor: string | null }) {
 }
 
 export function DeckColumn(props: DeckColumnProps) {
+  const [resizingWidth, setResizingWidth] = createSignal<number | null>(null);
   const title = () => props.feedColumn?.title ?? columnTitle(props.column.kind, props.column.config);
-  const widthPx = () => COLUMN_WIDTH_PX[props.column.width];
+  const widthPx = () => resizingWidth() ?? COLUMN_WIDTH_PX[props.column.width];
+
+  function handleDragStart(e: DragEvent) {
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+    }
+    props.onDragStart(props.column.id);
+  }
+
+  function handleResizeStart(e: MouseEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = COLUMN_WIDTH_PX[props.column.width];
+
+    function onMove(mv: MouseEvent) {
+      setResizingWidth(Math.max(240, startWidth + mv.clientX - startX));
+    }
+
+    function onUp() {
+      const finalPx = resizingWidth() ?? startWidth;
+      setResizingWidth(null);
+      const snapped = snapToColumnWidth(finalPx);
+      if (snapped !== props.column.width) {
+        props.onWidthChange(props.column.id, snapped);
+      }
+      globalThis.removeEventListener("mousemove", onMove);
+      globalThis.removeEventListener("mouseup", onUp);
+    }
+
+    globalThis.addEventListener("mousemove", onMove);
+    globalThis.addEventListener("mouseup", onUp);
+  }
 
   return (
-    <section
-      class="flex h-full shrink-0 flex-col overflow-hidden rounded-2xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]"
-      style={{ width: `${widthPx()}px` }}>
-      <ColumnHeader
-        column={props.column}
-        title={title()}
-        onClose={() => props.onClose(props.column.id)}
-        onMoveLeft={() => props.onMoveLeft(props.column.id)}
-        onMoveRight={() => props.onMoveRight(props.column.id)}
-        onWidthCycle={() => props.onWidthChange(props.column.id, cycleWidth(props.column.width))} />
-      <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
-        <ColumnBody
+    <div
+      class="relative flex h-full shrink-0 flex-col"
+      style={{ width: `${widthPx()}px` }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        props.onDragOver(props.column.id);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        props.onDrop(props.column.id);
+      }}>
+      <section
+        class="flex h-full w-full flex-col overflow-hidden rounded-2xl bg-[rgba(8,8,8,0.32)] transition-shadow duration-150"
+        classList={{
+          "shadow-[inset_0_0_0_2px_rgba(125,175,255,0.45)]": props.isDragOver,
+          "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]": !props.isDragOver,
+        }}>
+        <ColumnHeader
           column={props.column}
-          feedColumn={props.feedColumn}
-          onClose={props.onClose}
-          onOpenThread={props.onOpenThread} />
+          title={title()}
+          onClose={() => props.onClose(props.column.id)}
+          onDragEnd={props.onDragEnd}
+          onDragStart={handleDragStart}
+          onMoveLeft={() => props.onMoveLeft(props.column.id)}
+          onMoveRight={() => props.onMoveRight(props.column.id)}
+          onWidthCycle={() => props.onWidthChange(props.column.id, cycleWidth(props.column.width))} />
+        <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
+          <ColumnBody
+            column={props.column}
+            feedColumn={props.feedColumn}
+            onClose={props.onClose}
+            onOpenThread={props.onOpenThread} />
+        </div>
+      </section>
+      <div
+        class="absolute -right-1 top-2 bottom-2 z-20 w-2 cursor-col-resize opacity-0 hover:opacity-100 transition-opacity duration-150 flex items-center justify-center"
+        onMouseDown={handleResizeStart}>
+        <div class="h-full w-0.5 rounded-full bg-primary/50" />
       </div>
-    </section>
+    </div>
   );
 }
