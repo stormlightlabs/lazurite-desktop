@@ -3,26 +3,15 @@ import { Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
 import { Icon, type IconKind } from "../shared/Icon";
 
-type RailButtonProps = {
-  badge?: number;
-  compact?: boolean;
-  end?: boolean;
-  href: string;
-  icon: IconKind;
-  label: string;
-};
+type RailButtonVisualProps = { badge?: number; compact?: boolean; icon: IconKind; label: string };
 
-export function RailButton(props: RailButtonProps) {
+type RailButtonProps = RailButtonVisualProps & { end?: boolean; href: string };
+
+type RailActionButtonProps = RailButtonVisualProps & { onClick: () => void };
+
+function RailButtonContent(props: RailButtonVisualProps) {
   return (
-    <A
-      href={props.href}
-      end={props.end}
-      class="relative flex h-11 shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"
-      activeClass="bg-surface-container text-primary"
-      inactiveClass=""
-      classList={{ "w-[2.75rem] justify-center": !!props.compact, "px-3": !props.compact }}
-      aria-label={props.label}
-      title={props.label}>
+    <>
       <div class="relative">
         <Icon kind={props.icon} name={props.label} aria-hidden="true" class="shrink-0 text-[1.25rem]" />
         <Presence>
@@ -41,6 +30,39 @@ export function RailButton(props: RailButtonProps) {
       <Show when={!props.compact}>
         <span class="text-sm font-medium leading-none">{props.label}</span>
       </Show>
+    </>
+  );
+}
+
+const railButtonClass =
+  "relative flex h-11 shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface";
+
+export function RailButton(props: RailButtonProps) {
+  return (
+    <A
+      href={props.href}
+      end={props.end}
+      class={railButtonClass}
+      activeClass="bg-surface-container text-primary"
+      inactiveClass=""
+      classList={{ "w-[2.75rem] justify-center": !!props.compact, "px-3": !props.compact }}
+      aria-label={props.label}
+      title={props.label}>
+      <RailButtonContent {...props} />
     </A>
+  );
+}
+
+export function RailActionButton(props: RailActionButtonProps) {
+  return (
+    <button
+      type="button"
+      class={railButtonClass}
+      classList={{ "w-[2.75rem] justify-center": !!props.compact, "px-3": !props.compact }}
+      aria-label={props.label}
+      title={props.label}
+      onClick={() => props.onClick()}>
+      <RailButtonContent {...props} />
+    </button>
   );
 }

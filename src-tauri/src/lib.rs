@@ -117,6 +117,7 @@ pub fn run() {
             cmd::search::search_starter_packs,
             cmd::search::sync_posts,
             cmd::search::get_sync_status,
+            cmd::search::list_saved_posts,
             cmd::search::embed_pending_posts,
             cmd::search::reindex_embeddings,
             cmd::search::set_embeddings_enabled,

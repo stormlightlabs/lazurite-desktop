@@ -46,6 +46,7 @@
 //!
 //! See [`atproto`] module for AT Protocol-specific metadata helpers.
 
+#![allow(warnings)]
 #![warn(missing_docs)]
 /// AT Protocol-specific OAuth client metadata helpers and builder types.
 pub mod atproto;

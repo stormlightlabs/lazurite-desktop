@@ -10,6 +10,10 @@ import { AppRouter } from "./router";
 const listenMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
+vi.mock(
+  "$/components/saved/SavedPostsPanel",
+  () => ({ SavedPostsPanel: () => <div data-testid="saved-posts-view">saved</div> }),
+);
 
 const Shell: Component<ParentProps<{ fullWidth?: boolean }>> = (props) => (
   <div data-testid="shell" data-full-width={props.fullWidth ? "true" : "false"}>{props.children}</div>
@@ -99,6 +103,15 @@ describe("AppRouter", () => {
 
     expect(renderNotifications).toHaveBeenCalledOnce();
     expect(screen.getByText("notifications")).toBeInTheDocument();
+    expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "false");
+  });
+
+  it("renders the saved posts route inside the protected shell", async () => {
+    renderRouter("#/saved");
+
+    await screen.findByTestId("saved-posts-view");
+
+    expect(screen.getByText("saved")).toBeInTheDocument();
     expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "false");
   });
 

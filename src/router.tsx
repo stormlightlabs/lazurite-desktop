@@ -6,6 +6,7 @@ import { type Component, createEffect, type JSX, type ParentProps, Show } from "
 import { Dynamic } from "solid-js/web";
 import { DeckWorkspace } from "./components/deck/DeckWorkspace";
 import { ExplorerPanel } from "./components/explorer/ExplorerPanel";
+import { SavedPostsPanel } from "./components/saved/SavedPostsPanel";
 import { SearchPanel } from "./components/search/SearchPanel";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { decodeMessagesRouteMemberDid } from "./lib/conversations";
@@ -137,6 +138,12 @@ export function AppRouter(props: AppRouterProps) {
     </ProtectedRouteView>
   );
 
+  const SavedPostsRoute = () => (
+    <ProtectedRouteView>
+      <SavedPostsPanel />
+    </ProtectedRouteView>
+  );
+
   const NotFoundRoute = () => (
     <Show when={session.bootstrapping} fallback={<Navigate href={session.hasSession ? TIMELINE_ROUTE : "/auth"} />}>
       <RouteLoadingState />
@@ -153,6 +160,7 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/profile/:actor" component={ActorProfileRoute} />
       <Route path="/composer" component={ComposerRoute} />
       <Route path="/search" component={SearchRoute} />
+      <Route path="/saved" component={SavedPostsRoute} />
       <Route path="/notifications" component={NotificationsRoute} />
       <Route path="/messages" component={MessagesRoute} />
       <Route path="/messages/:memberDid" component={MemberMessagesRoute} />

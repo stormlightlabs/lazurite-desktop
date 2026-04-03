@@ -4,12 +4,13 @@ import { useAppShellUi } from "$/contexts/app-shell-ui";
 import { createMemo, onCleanup, onMount, Show } from "solid-js";
 import { SwitcherIdentity } from "./AccountSwitcherIdentity";
 import { AccountSwitcherMenuList } from "./AccountSwitcherMenuList";
+import type { AccountIdentity } from "./types";
 
 export function AccountSwitcher() {
   const session = useAppSession();
   const shell = useAppShellUi();
   const previewAccount = createMemo(() => session.activeAccount ?? session.accounts[0] ?? null);
-  const identity = createMemo(() => {
+  const identity = createMemo<AccountIdentity>(() => {
     if (session.activeSession) {
       return {
         avatar: session.activeAvatar,
@@ -68,7 +69,7 @@ export function AccountSwitcher() {
 
   return (
     <div
-      class="relative mt-auto w-full transition-[width,max-width] duration-300 ease-out max-[1180px]:mt-0 max-[1180px]:max-w-none"
+      class="relative w-full transition-[width,max-width] duration-300 ease-out max-[1180px]:max-w-none"
       classList={{
         "z-40": shell.showSwitcher,
         "w-auto": compact(),
@@ -89,13 +90,7 @@ export function AccountSwitcher() {
         aria-expanded={shell.showSwitcher}
         aria-label={session.activeSession ? `Current account ${session.activeSession.handle}` : identity().name}
         onClick={shell.toggleSwitcher}>
-        <SwitcherIdentity
-          avatar={identity().avatar}
-          compact={compact()}
-          label={identity().label}
-          meta={identity().meta}
-          name={identity().name}
-          tone={identity().tone} />
+        <SwitcherIdentity identity={identity()} compact={compact()} />
         <span
           class="absolute flex items-center justify-center text-on-surface-variant"
           classList={{

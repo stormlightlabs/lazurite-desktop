@@ -1,5 +1,5 @@
 use super::db::DbPool;
-use super::error::{AppError, TypeaheadFetchError, TypeaheadFetchErrorKind};
+use super::error::{AppError, Result, TypeaheadFetchError, TypeaheadFetchErrorKind};
 use super::state::{AccountSummary, ActiveSession};
 use jacquard::api::app_bsky::actor::get_profile::GetProfile;
 use jacquard::api::com_atproto::server::get_session::GetSession;
@@ -85,11 +85,11 @@ impl PersistentAuthStore {
         Self { db_pool }
     }
 
-    pub fn lock_connection(&self) -> Result<MutexGuard<'_, rusqlite::Connection>, AppError> {
+    pub fn lock_connection(&self) -> Result<MutexGuard<'_, rusqlite::Connection>> {
         self.db_pool.lock().map_err(|_| AppError::StatePoisoned("db_pool"))
     }
 
-    pub fn load_accounts(&self) -> Result<Vec<StoredAccount>, AppError> {
+    pub fn load_accounts(&self) -> Result<Vec<StoredAccount>> {
         let connection = self.lock_connection()?;
         let mut statement = connection.prepare(
             "
@@ -124,7 +124,7 @@ impl PersistentAuthStore {
         Ok(accounts)
     }
 
-    pub fn get_account(&self, did: &str) -> Result<Option<StoredAccount>, AppError> {
+    pub fn get_account(&self, did: &str) -> Result<Option<StoredAccount>> {
         let connection = self.lock_connection()?;
         connection
             .query_row(
@@ -155,7 +155,7 @@ impl PersistentAuthStore {
             .map_err(AppError::from)
     }
 
-    pub fn get_latest_session_id(&self, did: &str) -> Result<Option<String>, AppError> {
+    pub fn get_latest_session_id(&self, did: &str) -> Result<Option<String>> {
         let connection = self.lock_connection()?;
         connection
             .query_row(
@@ -173,7 +173,7 @@ impl PersistentAuthStore {
             .map_err(AppError::from)
     }
 
-    pub fn update_account_session_id(&self, did: &str, session_id: &str) -> Result<(), AppError> {
+    pub fn update_account_session_id(&self, did: &str, session_id: &str) -> Result<()> {
         let connection = self.lock_connection()?;
         let rows_updated = connection.execute(
             "UPDATE accounts SET session_id = ?2 WHERE did = ?1",
@@ -189,9 +189,7 @@ impl PersistentAuthStore {
         Ok(())
     }
 
-    pub fn upsert_account(
-        &self, account: &AccountSummary, session_id: &str, make_active: bool,
-    ) -> Result<(), AppError> {
+    pub fn upsert_account(&self, account: &AccountSummary, session_id: &str, make_active: bool) -> Result<()> {
         let mut connection = self.lock_connection()?;
         let transaction = connection.transaction()?;
 
@@ -229,7 +227,7 @@ impl PersistentAuthStore {
         Ok(())
     }
 
-    pub fn set_active_account(&self, did: &str) -> Result<(), AppError> {
+    pub fn set_active_account(&self, did: &str) -> Result<()> {
         let mut connection = self.lock_connection()?;
         let transaction = connection.transaction()?;
         transaction.execute("UPDATE accounts SET active = 0 WHERE active = 1", [])?;
@@ -245,13 +243,13 @@ impl PersistentAuthStore {
         Ok(())
     }
 
-    pub fn clear_active_account(&self) -> Result<(), AppError> {
+    pub fn clear_active_account(&self) -> Result<()> {
         let connection = self.lock_connection()?;
         connection.execute("UPDATE accounts SET active = 0 WHERE active = 1", [])?;
         Ok(())
     }
 
-    pub fn prune_orphaned_sessions(&self) -> Result<(), AppError> {
+    pub fn prune_orphaned_sessions(&self) -> Result<()> {
         let connection = self.lock_connection()?;
         connection.execute(
             "
@@ -263,7 +261,7 @@ impl PersistentAuthStore {
         Ok(())
     }
 
-    pub fn delete_persisted_session(&self, did: &str, session_id: &str) -> Result<(), AppError> {
+    pub fn delete_persisted_session(&self, did: &str, session_id: &str) -> Result<()> {
         let connection = self.lock_connection()?;
         connection.execute(
             "DELETE FROM oauth_sessions WHERE did = ?1 AND session_id = ?2",
@@ -272,7 +270,7 @@ impl PersistentAuthStore {
         Ok(())
     }
 
-    pub fn delete_account(&self, did: &str) -> Result<Option<String>, AppError> {
+    pub fn delete_account(&self, did: &str) -> Result<Option<String>> {
         let mut connection = self.lock_connection()?;
         let transaction = connection.transaction()?;
 
@@ -313,7 +311,7 @@ impl PersistentAuthStore {
 impl ClientAuthStore for PersistentAuthStore {
     async fn get_session(
         &self, did: &Did<'_>, session_id: &str,
-    ) -> Result<Option<ClientSessionData<'_>>, SessionStoreError> {
+    ) -> std::result::Result<Option<ClientSessionData<'_>>, SessionStoreError> {
         let connection = self.lock_connection().map_err(app_to_store_error)?;
         let payload: Option<String> = connection
             .query_row(
@@ -334,7 +332,7 @@ impl ClientAuthStore for PersistentAuthStore {
             .map_err(SessionStoreError::from)
     }
 
-    async fn upsert_session(&self, session: ClientSessionData<'_>) -> Result<(), SessionStoreError> {
+    async fn upsert_session(&self, session: ClientSessionData<'_>) -> std::result::Result<(), SessionStoreError> {
         let connection = self.lock_connection().map_err(app_to_store_error)?;
         let payload = serde_json::to_string(&session).map_err(SessionStoreError::from)?;
 
@@ -354,7 +352,7 @@ impl ClientAuthStore for PersistentAuthStore {
         Ok(())
     }
 
-    async fn delete_session(&self, did: &Did<'_>, session_id: &str) -> Result<(), SessionStoreError> {
+    async fn delete_session(&self, did: &Did<'_>, session_id: &str) -> std::result::Result<(), SessionStoreError> {
         let connection = self.lock_connection().map_err(app_to_store_error)?;
         connection
             .execute(
@@ -365,7 +363,9 @@ impl ClientAuthStore for PersistentAuthStore {
         Ok(())
     }
 
-    async fn get_auth_req_info(&self, state: &str) -> Result<Option<AuthRequestData<'_>>, SessionStoreError> {
+    async fn get_auth_req_info(
+        &self, state: &str,
+    ) -> std::result::Result<Option<AuthRequestData<'_>>, SessionStoreError> {
         let connection = self.lock_connection().map_err(app_to_store_error)?;
         let payload: Option<String> = connection
             .query_row(
@@ -382,7 +382,9 @@ impl ClientAuthStore for PersistentAuthStore {
             .map_err(SessionStoreError::from)
     }
 
-    async fn save_auth_req_info(&self, auth_req_info: &AuthRequestData<'_>) -> Result<(), SessionStoreError> {
+    async fn save_auth_req_info(
+        &self, auth_req_info: &AuthRequestData<'_>,
+    ) -> std::result::Result<(), SessionStoreError> {
         let connection = self.lock_connection().map_err(app_to_store_error)?;
         let payload = serde_json::to_string(auth_req_info).map_err(SessionStoreError::from)?;
 
@@ -402,7 +404,7 @@ impl ClientAuthStore for PersistentAuthStore {
         Ok(())
     }
 
-    async fn delete_auth_req_info(&self, state: &str) -> Result<(), SessionStoreError> {
+    async fn delete_auth_req_info(&self, state: &str) -> std::result::Result<(), SessionStoreError> {
         let connection = self.lock_connection().map_err(app_to_store_error)?;
         connection
             .execute("DELETE FROM oauth_auth_requests WHERE state = ?1", params![state])
@@ -420,9 +422,7 @@ pub fn default_client_metadata() -> AtprotoClientMetadata<'static> {
     build_client_metadata("http://127.0.0.1/callback")
 }
 
-pub async fn login_with_loopback(
-    oauth_client: &LazuriteOAuthClient, identifier: &str,
-) -> Result<LazuriteOAuthSession, AppError> {
+pub async fn login_with_loopback(oauth_client: &LazuriteOAuthClient, identifier: &str) -> Result<LazuriteOAuthSession> {
     let config = LoopbackConfig::default();
     let options = AuthorizeOptions::default();
     let bind_addr = loopback_bind_addr(&config)?;
@@ -442,7 +442,7 @@ pub async fn login_with_loopback(
     complete_loopback_login(flow_client, callback_handle, config).await
 }
 
-pub async fn fetch_account_summary(session: &LazuriteOAuthSession, active: bool) -> Result<AccountSummary, AppError> {
+pub async fn fetch_account_summary(session: &LazuriteOAuthSession, active: bool) -> Result<AccountSummary> {
     let response = session
         .send(GetSession)
         .await
@@ -476,7 +476,7 @@ pub fn restore_session_from_data(
     OAuthSession::new(oauth_client.registry.clone(), oauth_client.client.clone(), session_data)
 }
 
-pub fn emit_account_switch(app: &AppHandle, active_session: Option<ActiveSession>) -> Result<(), AppError> {
+pub fn emit_account_switch(app: &AppHandle, active_session: Option<ActiveSession>) -> Result<()> {
     app.emit(ACCOUNT_SWITCHED_EVENT, active_session)?;
     Ok(())
 }
@@ -503,7 +503,7 @@ pub fn account_summaries(accounts: &[StoredAccount]) -> Vec<AccountSummary> {
 
 pub fn remove_cached_session(
     sessions: &RwLock<HashMap<String, std::sync::Arc<LazuriteOAuthSession>>>, did: &str,
-) -> Result<(), AppError> {
+) -> Result<()> {
     sessions
         .write()
         .map_err(|_| AppError::StatePoisoned("sessions"))?
@@ -533,7 +533,7 @@ struct LocalCallbackServerHandle {
 
 async fn complete_loopback_login(
     flow_client: LazuriteOAuthClient, callback_handle: LocalCallbackServerHandle, config: LoopbackConfig,
-) -> Result<LazuriteOAuthSession, AppError> {
+) -> Result<LazuriteOAuthSession> {
     let callback = tokio::time::timeout(Duration::from_millis(config.timeout_ms), callback_handle.callback_rx)
         .await
         .map_err(|_| AppError::validation("oauth loopback callback timed out"))?
@@ -545,7 +545,7 @@ async fn complete_loopback_login(
     Ok(flow_client.callback(callback).await?)
 }
 
-fn loopback_bind_addr(config: &LoopbackConfig) -> Result<SocketAddr, AppError> {
+fn loopback_bind_addr(config: &LoopbackConfig) -> Result<SocketAddr> {
     let port = match config.port {
         LoopbackPort::Fixed(port) => port,
         LoopbackPort::Ephemeral => 0,
@@ -556,7 +556,7 @@ fn loopback_bind_addr(config: &LoopbackConfig) -> Result<SocketAddr, AppError> {
         .map_err(|error| AppError::Validation(format!("invalid loopback bind address: {error}")))
 }
 
-fn start_loopback_callback_server(bind_addr: SocketAddr) -> Result<(SocketAddr, LocalCallbackServerHandle), AppError> {
+fn start_loopback_callback_server(bind_addr: SocketAddr) -> Result<(SocketAddr, LocalCallbackServerHandle)> {
     let listener = TcpListener::bind(bind_addr)?;
     listener.set_nonblocking(true)?;
     let local_addr = listener.local_addr()?;
@@ -627,7 +627,7 @@ fn handle_loopback_stream(
     }
 }
 
-fn parse_loopback_callback(request_target: &str) -> Result<CallbackParams<'static>, AppError> {
+fn parse_loopback_callback(request_target: &str) -> Result<CallbackParams<'static>> {
     let url = reqwest::Url::parse(&format!("http://127.0.0.1{request_target}"))
         .map_err(|error| AppError::validation(format!("invalid loopback callback URL: {error}")))?;
 
@@ -699,7 +699,7 @@ fn app_to_store_error(error: AppError) -> SessionStoreError {
     SessionStoreError::Other(Box::new(error))
 }
 
-pub async fn search_login_suggestions(query: &str) -> Result<Vec<LoginSuggestion>, AppError> {
+pub async fn search_login_suggestions(query: &str) -> Result<Vec<LoginSuggestion>> {
     let Some(normalized_query) = normalize_login_suggestion_query(query) else {
         return Ok(Vec::new());
     };
@@ -721,7 +721,7 @@ pub async fn search_login_suggestions(query: &str) -> Result<Vec<LoginSuggestion
 
 async fn fetch_login_suggestions_from_endpoint(
     client: &reqwest::Client, base_url: &str, query: &str,
-) -> Result<Vec<LoginSuggestion>, TypeaheadFetchError> {
+) -> std::result::Result<Vec<LoginSuggestion>, TypeaheadFetchError> {
     let response = client
         .get(format!("{base_url}/xrpc/app.bsky.actor.searchActorsTypeahead"))
         .header("X-Client", LOGIN_TYPEAHEAD_CLIENT)

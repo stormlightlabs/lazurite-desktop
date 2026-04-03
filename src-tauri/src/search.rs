@@ -63,6 +63,14 @@ pub struct PostResult {
     pub semantic_match: bool,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedPostsPage {
+    pub posts: Vec<PostResult>,
+    pub total: i64,
+    pub next_offset: Option<u32>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SearchMode {
     Keyword,
@@ -321,6 +329,87 @@ fn db_post_count(conn: &Connection, owner_did: &str, source: &str) -> Result<i64
     .map_err(AppError::from)
 }
 
+fn map_saved_post_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PostResult> {
+    Ok(PostResult {
+        uri: row.get(0)?,
+        cid: row.get(1)?,
+        author_did: row.get(2)?,
+        author_handle: row.get(3)?,
+        text: row.get(4)?,
+        created_at: row.get(5)?,
+        source: row.get(6)?,
+        score: 0.0,
+        keyword_match: false,
+        semantic_match: false,
+    })
+}
+
+fn db_list_saved_posts(
+    conn: &Connection, owner_did: &str, source: &str, limit: usize, offset: usize, query: Option<&str>,
+) -> Result<SavedPostsPage> {
+    let trimmed_query = query.map(str::trim).filter(|query| !query.is_empty());
+    let total = match trimmed_query {
+        Some(query) => {
+            let match_query = build_fts_match_query(query);
+            conn.query_row(
+                "SELECT COUNT(*)
+                 FROM posts_fts
+                 JOIN posts p ON p.rowid = posts_fts.rowid
+                 WHERE p.owner_did = ?1
+                   AND p.source = ?2
+                   AND posts_fts MATCH ?3",
+                params![owner_did, source, match_query],
+                |row| row.get(0),
+            )?
+        }
+        None => db_post_count(conn, owner_did, source)?,
+    };
+
+    let posts = match trimmed_query {
+        Some(query) => {
+            let match_query = build_fts_match_query(query);
+            let mut stmt = conn.prepare(
+                "SELECT p.uri, p.cid, p.author_did, p.author_handle, p.text, p.created_at, p.source
+                 FROM posts_fts
+                 JOIN posts p ON p.rowid = posts_fts.rowid
+                 WHERE p.owner_did = ?1
+                   AND p.source = ?2
+                   AND posts_fts MATCH ?3
+                 ORDER BY p.created_at DESC, p.uri DESC
+                 LIMIT ?4 OFFSET ?5",
+            )?;
+
+            let q = stmt.query_map(
+                params![owner_did, source, match_query, limit as i64, offset as i64],
+                map_saved_post_row,
+            )?;
+
+            q.collect::<rusqlite::Result<Vec<_>>>().map_err(AppError::from)?
+        }
+        None => {
+            let mut stmt = conn.prepare(
+                "SELECT uri, cid, author_did, author_handle, text, created_at, source
+                 FROM posts
+                 WHERE owner_did = ?1 AND source = ?2
+                 ORDER BY created_at DESC, uri DESC
+                 LIMIT ?3 OFFSET ?4",
+            )?;
+
+            let q = stmt.query_map(
+                params![owner_did, source, limit as i64, offset as i64],
+                map_saved_post_row,
+            )?;
+
+            q.collect::<rusqlite::Result<Vec<_>>>().map_err(AppError::from)?
+        }
+    };
+
+    let consumed = offset.saturating_add(posts.len());
+    let next_offset = (consumed < total as usize).then_some(consumed as u32);
+
+    Ok(SavedPostsPage { posts, total, next_offset })
+}
+
 fn db_sync_status(conn: &Connection, did: &str, source: &str) -> Result<SyncStatus> {
     let post_count = db_post_count(conn, did, source)?;
     let (cursor, last_synced_at) = conn
@@ -564,6 +653,16 @@ pub fn get_sync_status(did: &str, state: &AppState) -> Result<Vec<SyncStatus>> {
         .into_iter()
         .map(|source| db_sync_status(&conn, did, source))
         .collect()
+}
+
+pub fn list_saved_posts(
+    source: &str, limit: u32, offset: u32, query: Option<&str>, state: &AppState,
+) -> Result<SavedPostsPage> {
+    validate_source(source)?;
+    let limit = validate_limit(limit)?;
+    let owner_did = active_session_did(state)?.ok_or_else(|| AppError::validation("no active account"))?;
+    let conn = state.auth_store.lock_connection()?;
+    db_list_saved_posts(&conn, &owner_did, source, limit, offset as usize, query)
 }
 
 const EMBED_BATCH_SIZE: usize = 32;
@@ -1201,10 +1300,10 @@ pub fn spawn_search_sync_task(app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_fts_match_query, db_get_embeddings_enabled, db_load_sync_cursor, db_post_count, db_save_sync_state,
-        db_semantic_search, db_set_embeddings_enabled, db_sync_status, db_upsert_embedding, db_upsert_post,
-        run_local_search, storage_key, sync_due, validate_limit, validate_query, validate_search_mode, validate_source,
-        SearchMode,
+        build_fts_match_query, db_get_embeddings_enabled, db_list_saved_posts, db_load_sync_cursor, db_post_count,
+        db_save_sync_state, db_semantic_search, db_set_embeddings_enabled, db_sync_status, db_upsert_embedding,
+        db_upsert_post, run_local_search, storage_key, sync_due, validate_limit, validate_query, validate_search_mode,
+        validate_source, SearchMode,
     };
     use rusqlite::{ffi::sqlite3_auto_extension, Connection};
     use sqlite_vec::sqlite3_vec_init;
@@ -1530,6 +1629,119 @@ mod tests {
         assert_eq!(db_post_count(&conn, "did:plc:alice", "like").unwrap(), 1);
         assert_eq!(db_post_count(&conn, "did:plc:alice", "bookmark").unwrap(), 1);
         assert_eq!(db_post_count(&conn, "did:plc:bob", "like").unwrap(), 1);
+    }
+
+    #[test]
+    fn list_saved_posts_is_scoped_and_sorted_by_created_at_then_uri() {
+        let conn = test_db();
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/2",
+            "bookmark",
+            "second",
+            "2024-01-02T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/3",
+            "bookmark",
+            "third",
+            "2024-01-02T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/1",
+            "bookmark",
+            "first",
+            "2024-01-01T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/4",
+            "like",
+            "liked",
+            "2024-01-03T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:bob",
+            "at://bob/app.bsky.feed.post/1",
+            "bookmark",
+            "bob saved",
+            "2024-01-04T00:00:00Z",
+        );
+
+        let page = db_list_saved_posts(&conn, "did:plc:alice", "bookmark", 10, 0, None).unwrap();
+        let uris: Vec<&str> = page.posts.iter().map(|post| post.uri.as_str()).collect();
+
+        assert_eq!(
+            uris,
+            vec![
+                "at://alice/app.bsky.feed.post/3",
+                "at://alice/app.bsky.feed.post/2",
+                "at://alice/app.bsky.feed.post/1",
+            ]
+        );
+        assert_eq!(page.total, 3);
+        assert!(page.next_offset.is_none());
+    }
+
+    #[test]
+    fn list_saved_posts_returns_next_offset_when_more_results_exist() {
+        let conn = test_db();
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/1",
+            "like",
+            "first",
+            "2024-01-01T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/2",
+            "like",
+            "second",
+            "2024-01-02T00:00:00Z",
+        );
+
+        let page = db_list_saved_posts(&conn, "did:plc:alice", "like", 1, 0, None).unwrap();
+
+        assert_eq!(page.posts.len(), 1);
+        assert_eq!(page.total, 2);
+        assert_eq!(page.next_offset, Some(1));
+    }
+
+    #[test]
+    fn list_saved_posts_can_filter_with_query() {
+        let conn = test_db();
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/1",
+            "bookmark",
+            "rust sqlite",
+            "2024-01-01T00:00:00Z",
+        );
+        insert_post(
+            &conn,
+            "did:plc:alice",
+            "at://alice/app.bsky.feed.post/2",
+            "bookmark",
+            "garden notes",
+            "2024-01-02T00:00:00Z",
+        );
+
+        let page = db_list_saved_posts(&conn, "did:plc:alice", "bookmark", 10, 0, Some("rust")).unwrap();
+
+        assert_eq!(page.total, 1);
+        assert_eq!(page.posts.len(), 1);
+        assert_eq!(page.posts[0].uri, "at://alice/app.bsky.feed.post/1");
     }
 
     #[test]

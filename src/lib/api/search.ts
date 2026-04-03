@@ -20,7 +20,7 @@ type TStarterPack = {
 
 export type StarterPackSearchResult = { cursor?: string | null; starterPacks: Array<TStarterPack> };
 
-type TPostSource = "like" | "bookmark";
+export type SavedPostSource = "like" | "bookmark";
 
 export type LocalPostResult = {
   uri: string;
@@ -29,15 +29,17 @@ export type LocalPostResult = {
   authorHandle?: string | null;
   text?: string | null;
   createdAt?: string | null;
-  source: TPostSource;
+  source: SavedPostSource;
   score: number;
   keywordMatch: boolean;
   semanticMatch: boolean;
 };
 
+export type SavedPostsPage = { posts: LocalPostResult[]; total: number; nextOffset?: number | null };
+
 export type SyncStatus = {
   did: string;
-  source: TPostSource;
+  source: SavedPostSource;
   cursor?: string | null;
   lastSyncedAt?: string | null;
   postCount?: number;
@@ -71,6 +73,15 @@ export function searchPosts(query: string, mode: SearchMode, limit: number): Pro
   return invoke("search_posts", { query, mode, limit });
 }
 
+export function listSavedPosts(
+  source: SavedPostSource,
+  limit: number,
+  offset = 0,
+  query?: string,
+): Promise<SavedPostsPage> {
+  return invoke("list_saved_posts", { source, limit, offset, query: query?.trim() ? query.trim() : null });
+}
+
 export function searchActors(query: string, limit?: number, cursor?: string | null): Promise<ActorSearchResult> {
   return invoke("search_actors", { query, limit: limit ?? null, cursor: cursor ?? null });
 }
@@ -83,7 +94,7 @@ export function searchStarterPacks(
   return invoke("search_starter_packs", { query, limit: limit ?? null, cursor: cursor ?? null });
 }
 
-export function syncPosts(did: string, source: "like" | "bookmark"): Promise<SyncStatus> {
+export function syncPosts(did: string, source: SavedPostSource): Promise<SyncStatus> {
   return invoke("sync_posts", { did, source });
 }
 

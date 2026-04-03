@@ -57,7 +57,8 @@ export type IconKind =
   | "list"
   | "rss"
   | "messages"
-  | "unpin";
+  | "unpin"
+  | "bookmark";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -176,6 +177,9 @@ export function Icon(props: IconProps) {
         </Match>
         <Match when={local.kind === "unpin"}>
           <i class="i-ri-unpin-line" />
+        </Match>
+        <Match when={local.kind === "bookmark"}>
+          <i class="i-ri-bookmark-line" />
         </Match>
       </Switch>
     </span>

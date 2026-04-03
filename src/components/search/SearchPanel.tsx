@@ -18,7 +18,9 @@ import { createStore } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
 import { PostCount } from "../shared/PostCount";
 import { EmbeddingsSettings } from "./EmbeddingsSettings";
+import { LocalPostResultsList, LocalPostResultsSkeletons } from "./LocalPostResultsList";
 import { SearchEmptyState } from "./SearchEmptyState";
+import { SearchQueryInput } from "./SearchQueryInput";
 import { SearchResultCard } from "./SearchResultCard";
 import { SyncStatusPanel } from "./SyncStatusPanel";
 
@@ -284,7 +286,7 @@ function SearchHeader(
 ) {
   return (
     <header class="grid gap-4 px-6 pb-5 pt-6">
-      <SearchInput
+      <SearchQueryInput
         error={props.error}
         inputRef={props.inputRef}
         loading={props.loading}
@@ -345,75 +347,6 @@ function ResultMeta(
         </Show>
       </span>
     </div>
-  );
-}
-
-function SearchInput(
-  props: {
-    error: string | null;
-    inputRef: (el: HTMLInputElement) => void;
-    loading: boolean;
-    placeholder: string;
-    query: string;
-    onClear: () => void;
-    onKeyDown: (event: KeyboardEvent) => void;
-    onQueryChange: (value: string) => void;
-  },
-) {
-  return (
-    <div class="grid gap-2">
-      <div class="relative">
-        <div class="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
-          <Icon kind="search" class="text-lg" />
-        </div>
-
-        <input
-          ref={props.inputRef}
-          type="text"
-          value={props.query}
-          placeholder={props.placeholder}
-          class="w-full rounded-3xl border-0 bg-black/40 py-3.5 pl-12 pr-20 text-base text-on-surface placeholder:text-on-surface-variant/50 outline-none ring-1 ring-white/5 transition-all focus:ring-primary/50"
-          onInput={(event) => props.onQueryChange(event.currentTarget.value)}
-          onKeyDown={(event) => props.onKeyDown(event)} />
-
-        <div class="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
-          <LoadingIndicator loading={props.loading} />
-          <ClearButton query={props.query} loading={props.loading} onClear={props.onClear} />
-        </div>
-      </div>
-
-      <Show when={props.error}>
-        {(message) => (
-          <div class="rounded-2xl bg-red-500/10 px-3 py-2 text-sm text-red-200 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.15)]">
-            {message()}
-          </div>
-        )}
-      </Show>
-    </div>
-  );
-}
-
-function LoadingIndicator(props: { loading: boolean }) {
-  return (
-    <Show when={props.loading}>
-      <span class="flex items-center text-on-surface-variant">
-        <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
-      </span>
-    </Show>
-  );
-}
-
-function ClearButton(props: { query: string; loading: boolean; onClear: () => void }) {
-  return (
-    <Show when={props.query && !props.loading}>
-      <button
-        type="button"
-        onClick={() => props.onClear()}
-        class="inline-flex items-center gap-1.5 rounded-lg border-0 bg-white/10 px-2 py-1 text-xs text-on-surface-variant transition hover:bg-white/20 hover:text-on-surface">
-        <kbd class="rounded bg-white/10 px-1">ESC</kbd>
-        clear
-      </button>
-    </Show>
   );
 }
 
@@ -489,9 +422,7 @@ function SearchViewport(
   return (
     <div class="min-h-0 overflow-y-auto px-3 pb-3">
       <Show when={props.loading} fallback={<SearchState {...props} />}>
-        <div class="grid gap-2 py-1">
-          <For each={Array.from({ length: 5 })}>{() => <SearchSkeleton />}</For>
-        </div>
+        <LocalPostResultsSkeletons />
       </Show>
     </div>
   );
@@ -532,7 +463,7 @@ function SearchState(
         </Match>
 
         <Match when={props.isLocalMode}>
-          <LocalResultsList query={props.query} results={props.localResults} />
+          <LocalPostResultsList query={props.query} results={props.localResults} />
         </Match>
 
         <Match when={!props.isLocalMode && props.networkResults}>
@@ -552,38 +483,6 @@ function EmptyStateView(props: { reason: "error" | "initial" | "no-results" | "n
       exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}>
       <SearchEmptyState reason={props.reason} scope={props.scope} />
-    </Motion.div>
-  );
-}
-
-function LocalResultsList(props: { query: string; results: LocalPostResult[] }) {
-  return (
-    <Motion.div
-      class="grid gap-2"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}>
-      <div class="grid gap-2" role="list">
-        <For each={props.results}>
-          {(result, index) => (
-            <Motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: Math.min(index() * 0.03, 0.18) }}
-              role="listitem">
-              <SearchResultCard
-                authorDid={result.authorDid}
-                authorHandle={result.authorHandle ?? "unknown"}
-                source={result.source}
-                text={result.text ?? ""}
-                createdAt={result.createdAt ?? ""}
-                isSemanticMatch={result.semanticMatch && !result.keywordMatch}
-                query={props.query} />
-            </Motion.div>
-          )}
-        </For>
-      </div>
     </Motion.div>
   );
 }
@@ -618,19 +517,6 @@ function NetworkResultsList(props: { query: string; results: NetworkSearchResult
         </For>
       </div>
     </Motion.div>
-  );
-}
-
-function SearchSkeleton() {
-  return (
-    <div class="flex animate-pulse items-start gap-4 rounded-2xl bg-surface px-4 py-4" aria-hidden="true">
-      <div class="h-10 w-10 shrink-0 rounded-full bg-white/5" />
-      <div class="min-w-0 flex-1 space-y-2">
-        <div class="h-4 w-48 rounded-full bg-white/5" />
-        <div class="h-3 w-full rounded-full bg-white/5" />
-        <div class="h-3 w-2/3 rounded-full bg-white/5" />
-      </div>
-    </div>
   );
 }
 

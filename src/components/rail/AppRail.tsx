@@ -1,10 +1,11 @@
 import { useAppSession } from "$/contexts/app-session";
 import { useAppShellUi } from "$/contexts/app-shell-ui";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { Show } from "solid-js";
 import { AccountSwitcher } from "../account/AccountSwitcher";
 import { ArrowIcon } from "../shared/Icon";
 import { Wordmark } from "../Wordmark";
-import { RailButton } from "./AppRailButton";
+import { RailActionButton, RailButton } from "./AppRailButton";
 
 function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void }) {
   return (
@@ -35,6 +36,7 @@ function RailNavigation(props: { collapsed: boolean; hasSession: boolean; unread
         <RailButton end compact={props.collapsed} href="/timeline" label="Timeline" icon="timeline" />
         <RailButton compact={props.collapsed} href="/profile" label="Profile" icon="profile" />
         <RailButton end compact={props.collapsed} href="/search" label="Search" icon="search" />
+        <RailButton end compact={props.collapsed} href="/saved" label="Saved" icon="bookmark" />
         <RailButton
           end
           badge={props.unreadNotifications}
@@ -47,6 +49,18 @@ function RailNavigation(props: { collapsed: boolean; hasSession: boolean; unread
         <RailButton end compact={props.collapsed} href="/explorer" label="AT Explorer" icon="explorer" />
         <RailButton end compact={props.collapsed} href="/settings" label="Settings" icon="settings" />
       </Show>
+    </div>
+  );
+}
+
+function RailSecondaryActions(props: { collapsed: boolean }) {
+  return (
+    <div class="grid gap-1 max-[1180px]:col-span-full max-[1180px]:grid-flow-col max-[1180px]:justify-start">
+      <RailActionButton
+        compact={props.collapsed}
+        icon="heart"
+        label="Support"
+        onClick={() => void openUrl("https://github.com/sponsors/desertthunder")} />
     </div>
   );
 }
@@ -68,7 +82,10 @@ export function AppRail() {
         collapsed={shell.railCondensed}
         hasSession={session.hasSession}
         unreadNotifications={session.unreadNotifications} />
-      <AccountSwitcher />
+      <div class="mt-auto grid gap-3 max-[1180px]:contents">
+        <RailSecondaryActions collapsed={shell.railCondensed} />
+        <AccountSwitcher />
+      </div>
     </aside>
   );
 }
