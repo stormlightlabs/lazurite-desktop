@@ -7,6 +7,7 @@ import { useAppSession } from "$/contexts/app-session";
 import { getSyncStatus, listSavedPosts, syncPosts } from "$/lib/api/search";
 import type { LocalPostResult, SavedPostSource, SyncStatus } from "$/lib/api/search";
 import { formatRelativeTime } from "$/lib/feeds";
+import { subscribeBookmarkChanged } from "$/lib/post-events";
 import { normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js";
@@ -147,6 +148,21 @@ export function SavedPostsPanel() {
   });
 
   onCleanup(() => clearTimeout(debounceTimer));
+
+  createEffect(() => {
+    const dispose = subscribeBookmarkChanged((detail) => {
+      setState("tabs", "bookmark", "items", (items) => updateBookmarkResults(items, detail.uri, detail.bookmarked));
+      setState(
+        "searchTabs",
+        "bookmark",
+        "items",
+        (items) => updateBookmarkResults(items, detail.uri, detail.bookmarked),
+      );
+      setState("tabs", "bookmark", "total", (current) => adjustBookmarkTotal(current, detail.bookmarked));
+      setState("searchTabs", "bookmark", "total", (current) => adjustBookmarkTotal(current, detail.bookmarked));
+    });
+    onCleanup(dispose);
+  });
 
   async function refreshForDid(did: string | null) {
     if (did === activeDid) {
@@ -393,6 +409,18 @@ export function SavedPostsPanel() {
           : loadBrowseTab(activeTab(), { append: true }))} />
     </article>
   );
+}
+
+function updateBookmarkResults(items: LocalPostResult[], uri: string, bookmarked: boolean) {
+  if (bookmarked) {
+    return items;
+  }
+
+  return items.filter((item) => item.uri !== uri);
+}
+
+function adjustBookmarkTotal(total: number, bookmarked: boolean) {
+  return bookmarked ? total : Math.max(0, total - 1);
 }
 
 function SavedPostsHeader(

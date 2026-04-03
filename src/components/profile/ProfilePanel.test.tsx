@@ -17,6 +17,14 @@ const getFollowsMock = vi.hoisted(() => vi.fn());
 const getProfileMock = vi.hoisted(() => vi.fn());
 const navigateMock = vi.hoisted(() => vi.fn());
 const unfollowActorMock = vi.hoisted(() => vi.fn());
+const threadOverlayMock = vi.hoisted(() => ({
+  buildThreadHref: vi.fn((
+    uri: string | null,
+  ) => (uri ? `/profile/bob.test?thread=${encodeURIComponent(uri)}` : "/profile/bob.test")),
+  closeThread: vi.fn(),
+  openThread: vi.fn(),
+  threadUri: vi.fn(() => null),
+}));
 
 vi.mock(
   "$/lib/api/profile",
@@ -44,6 +52,10 @@ vi.mock(
 );
 
 vi.mock("@solidjs/router", () => ({ useNavigate: () => navigateMock }));
+vi.mock(
+  "$/components/posts/useThreadOverlayNavigation",
+  () => ({ useThreadOverlayNavigation: () => threadOverlayMock }),
+);
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

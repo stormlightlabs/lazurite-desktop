@@ -3,7 +3,6 @@ import { render, screen } from "@solidjs/testing-library";
 import type { Component, ParentProps } from "solid-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildMessagesRoute } from "./lib/conversations";
-import { buildThreadRoute } from "./lib/feeds";
 import { buildProfileRoute } from "./lib/profile";
 import { AppRouter } from "./router";
 
@@ -28,13 +27,7 @@ function renderRouter(hash: string) {
       <span>{props.actor ?? "self-profile"}</span>
     </div>
   ));
-  const renderTimeline = vi.fn((
-    props: { context: { onThreadRouteChange: (uri: string | null) => void; threadUri: string | null } },
-  ) => (
-    <div data-testid="timeline-view">
-      <span>{props.context.threadUri ?? "no-thread"}</span>
-    </div>
-  ));
+  const renderTimeline = vi.fn(() => <div data-testid="timeline-view">timeline</div>);
 
   const renderMessages = vi.fn((props: { memberDid: string | null }) => (
     <div data-testid="messages-view">{props.memberDid ?? "messages"}</div>
@@ -67,24 +60,23 @@ describe("AppRouter", () => {
     listenMock.mockResolvedValue(() => {});
   });
 
-  it("renders the timeline route without a thread uri", async () => {
+  it("renders the timeline route", async () => {
     const { renderTimeline } = renderRouter("#/timeline");
 
     await screen.findByTestId("timeline-view");
 
-    expect(renderTimeline).toHaveBeenCalled();
-    expect(renderTimeline.mock.lastCall?.[0].context.threadUri).toBeNull();
-    expect(screen.getByText("no-thread")).toBeInTheDocument();
+    expect(renderTimeline).toHaveBeenCalledOnce();
+    expect(screen.getByText("timeline")).toBeInTheDocument();
   });
 
-  it("passes the decoded thread uri on the thread route", async () => {
-    const threadUri = "at://did:plc:alice/app.bsky.feed.post/xyz";
-    const { renderTimeline } = renderRouter(`#${buildThreadRoute(threadUri)}`);
+  it("renders the timeline route with query params intact", async () => {
+    const { renderTimeline } = renderRouter(
+      "#/timeline?thread=at%3A%2F%2Fdid%3Aplc%3Aalice%2Fapp.bsky.feed.post%2Fxyz",
+    );
 
     await screen.findByTestId("timeline-view");
 
-    expect(renderTimeline.mock.lastCall?.[0].context.threadUri).toBe(threadUri);
-    expect(screen.getByText(threadUri)).toBeInTheDocument();
+    expect(renderTimeline).toHaveBeenCalledOnce();
   });
 
   it("renders the standalone composer route", async () => {

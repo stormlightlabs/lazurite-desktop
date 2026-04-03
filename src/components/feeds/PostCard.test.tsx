@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { describe, expect, it, vi } from "vitest";
 import { PostCard } from "./PostCard";
 
@@ -25,16 +25,43 @@ describe("PostCard", () => {
     expect(screen.getByText("#solid")).toBeInTheDocument();
   });
 
-  it("opens the thread when Enter is pressed on the card", async () => {
+  it("opens the thread from the primary region on click and Enter", async () => {
     const onOpenThread = vi.fn();
     render(() => <PostCard post={createPost()} onOpenThread={onOpenThread} />);
 
-    await new Promise((resolve) => {
-      fireEvent.keyDown(screen.getByRole("article"), { key: "Enter" });
-      resolve(void 0);
-    });
+    const primaryRegion = screen.getByRole("button", { name: "Open thread" });
+    fireEvent.click(primaryRegion);
+    fireEvent.keyDown(primaryRegion, { key: "Enter" });
 
-    expect(onOpenThread).toHaveBeenCalledTimes(1);
+    expect(onOpenThread).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not open the thread when clicking the author link or an action button", () => {
+    const onOpenThread = vi.fn();
+    const onLike = vi.fn();
+    render(() => <PostCard post={createPost()} onLike={onLike} onOpenThread={onOpenThread} />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Alice" }));
+    fireEvent.click(screen.getByRole("button", { name: "4" }));
+
+    expect(onOpenThread).not.toHaveBeenCalled();
+    expect(onLike).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the shared menu from the overflow trigger and from right click", async () => {
+    Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(void 0) } });
+
+    render(() => <PostCard post={createPost()} onOpenThread={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    expect(screen.getByRole("menu", { name: "Post actions" })).toBeInTheDocument();
+
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(screen.queryByRole("menu", { name: "Post actions" })).not.toBeInTheDocument());
+
+    fireEvent.contextMenu(screen.getByRole("article"));
+    expect(screen.getByRole("menu", { name: "Post actions" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Copy post link" })).toBeInTheDocument();
   });
 
   it("shows reply context when the feed item is a reply", () => {

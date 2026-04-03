@@ -1,15 +1,14 @@
+import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { useAppSession } from "$/contexts/app-session";
 import { FeedComposer } from "./FeedComposer";
 import { SavedFeedsDrawer } from "./FeedDrawer";
 import { FeedPane } from "./FeedPane";
 import { FeedWorkspaceSidebar } from "./FeedWorkspaceSidebar";
-import { ThreadPanel } from "./ThreadPanel";
-import { type FeedWorkspaceProps, useFeedWorkspaceController } from "./useFeedWorkspaceController";
+import { useFeedWorkspaceController } from "./useFeedWorkspaceController";
 
-type FeedWorkspaceRouteProps = Pick<FeedWorkspaceProps, "onThreadRouteChange" | "threadUri">;
-
-export function FeedWorkspace(props: FeedWorkspaceRouteProps) {
+export function FeedWorkspace() {
   const session = useAppSession();
+  const threadOverlay = useThreadOverlayNavigation();
   const activeSession = () => {
     if (!session.activeSession) {
       throw new Error("FeedWorkspace requires an active session");
@@ -20,12 +19,7 @@ export function FeedWorkspace(props: FeedWorkspaceRouteProps) {
   const controller = useFeedWorkspaceController({
     activeSession: activeSession(),
     onError: session.reportError,
-    get onThreadRouteChange() {
-      return props.onThreadRouteChange;
-    },
-    get threadUri() {
-      return props.threadUri;
-    },
+    onOpenThread: (uri) => void threadOverlay.openThread(uri),
   });
 
   return (
@@ -51,18 +45,6 @@ export function FeedWorkspace(props: FeedWorkspaceRouteProps) {
         onReorderPinned={controller.reorderPinnedFeeds}
         onSelectFeed={controller.switchFeed}
         onUnpinFeed={controller.unpinFeed} />
-
-      <ThreadPanel
-        activeUri={props.threadUri}
-        error={controller.workspace.thread.error}
-        loading={controller.workspace.thread.loading}
-        onClose={() => props.onThreadRouteChange(null)}
-        onLike={(post) => void controller.toggleLike(post)}
-        onOpenThread={(uri) => void controller.openThread(uri)}
-        onQuote={(post) => controller.openQuoteComposer(post)}
-        onReply={(post, root) => controller.openReplyComposer(post, root)}
-        onRepost={(post) => void controller.toggleRepost(post)}
-        thread={controller.workspace.thread.data} />
 
       <FeedComposer
         activeAvatar={session.activeAvatar}

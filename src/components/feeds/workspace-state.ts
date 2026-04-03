@@ -1,13 +1,11 @@
 import type { FeedViewPrefItem, FeedViewPrefs, SavedFeedItem, UserPreferences } from "$/lib/types";
-import type { FeedState, FeedWorkspaceState, ThreadState } from "./types";
+import type { FeedState, FeedWorkspaceState } from "./types";
 
 export const DEFAULT_TIMELINE: SavedFeedItem = { id: "following", type: "timeline", value: "following", pinned: true };
 
 export function createDefaultFeedState(): FeedState {
   return { cursor: null, error: null, items: [], loading: false, loadingMore: false };
 }
-
-export const createDefaultThreadState = (): ThreadState => ({ data: null, error: null, loading: false, uri: null });
 
 export const createDefaultFeedPref = (feed: SavedFeedItem): FeedViewPrefItem => ({
   feed: feed.value,
@@ -26,14 +24,9 @@ export function createInitialWorkspaceState(): FeedWorkspaceState {
     feedScrollTops: {},
     focusedIndex: 0,
     generators: {},
-    likePendingByUri: {},
-    likePulseUri: null,
     localPrefs: {},
     preferences: null,
-    repostPendingByUri: {},
-    repostPulseUri: null,
     showFeedsDrawer: false,
-    thread: createDefaultThreadState(),
   };
 }
 

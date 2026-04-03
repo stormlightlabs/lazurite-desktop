@@ -95,6 +95,8 @@ pub fn run() {
             cmd::unlike_post,
             cmd::repost,
             cmd::unrepost,
+            cmd::bookmark_post,
+            cmd::remove_bookmark,
             cmd::follow_actor,
             cmd::unfollow_actor,
             cmd::get_followers,

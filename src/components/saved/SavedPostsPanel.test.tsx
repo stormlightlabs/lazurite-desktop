@@ -1,3 +1,4 @@
+import { emitBookmarkChanged } from "$/lib/post-events";
 import { AppTestProviders } from "$/test/providers";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -160,4 +161,20 @@ describe("SavedPostsPanel", () => {
     expect(listSavedPostsMock).toHaveBeenNthCalledWith(3, "like", 50, 0, "rust");
     expect(screen.getByText((_, element) => element?.textContent === "rust like")).toBeInTheDocument();
   }, 5000);
+
+  it("patches mounted bookmark results when a bookmark is removed elsewhere", async () => {
+    listSavedPostsMock.mockResolvedValueOnce({
+      nextOffset: null,
+      posts: [createPost("bookmark", "1", "bookmark to remove")],
+      total: 1,
+    });
+
+    renderPanel();
+
+    expect(await screen.findByText("bookmark to remove")).toBeInTheDocument();
+
+    emitBookmarkChanged({ bookmarked: false, cid: "cid-1", uri: "at://did:plc:author:1/app.bsky.feed.post/1" });
+
+    await waitFor(() => expect(screen.queryByText("bookmark to remove")).not.toBeInTheDocument());
+  });
 });

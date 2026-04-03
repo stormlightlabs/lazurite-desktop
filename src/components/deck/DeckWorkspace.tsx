@@ -1,10 +1,10 @@
+import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { useAppSession } from "$/contexts/app-session";
 import { addColumn, getColumns, removeColumn, reorderColumns, updateColumn } from "$/lib/api/columns";
 import { getFeedGenerators, getPreferences } from "$/lib/api/feeds";
 import type { Column, ColumnKind, ColumnWidth } from "$/lib/api/types/columns";
 import { getFeedName } from "$/lib/feeds";
 import type { FeedGeneratorView } from "$/lib/types";
-import { useNavigate } from "@solidjs/router";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, For, onCleanup, onMount, Show } from "solid-js";
 import { createStore, produce } from "solid-js/store";
@@ -132,7 +132,7 @@ function createDeckKeyboardHandler(onAddColumn: () => void, onCloseLastColumn: (
 
 export function DeckWorkspace() {
   const session = useAppSession();
-  const navigate = useNavigate();
+  const threadOverlay = useThreadOverlayNavigation();
   let feedColumnRequest = 0;
   // Module-level variable: WebKit dataTransfer.getData() returns empty string on drop,
   // so we track the dragging column ID here instead.
@@ -357,7 +357,7 @@ export function DeckWorkspace() {
   }
 
   function handleOpenThread(uri: string) {
-    navigate(`/timeline/thread/${encodeURIComponent(uri)}`);
+    void threadOverlay.openThread(uri);
   }
 
   createEffect(() => {

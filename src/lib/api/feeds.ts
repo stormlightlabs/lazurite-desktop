@@ -46,6 +46,14 @@ export function unrepost(repostUri: string) {
   return invoke("unrepost", { repostUri });
 }
 
+export function bookmarkPost(uri: string, cid: string) {
+  return invoke("bookmark_post", { cid, uri });
+}
+
+export function removeBookmark(uri: string) {
+  return invoke("remove_bookmark", { uri });
+}
+
 export function updateSavedFeeds(feeds: SavedFeedItem[]) {
   return invoke("update_saved_feeds", { feeds });
 }

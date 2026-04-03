@@ -1,11 +1,4 @@
-import type {
-  FeedGeneratorView,
-  FeedViewPost,
-  FeedViewPrefItem,
-  PostView,
-  ThreadNode,
-  UserPreferences,
-} from "$/lib/types";
+import type { FeedGeneratorView, FeedViewPost, FeedViewPrefItem, PostView, UserPreferences } from "$/lib/types";
 
 export type FeedState = {
   cursor: string | null;
@@ -24,8 +17,6 @@ export type ComposerState = {
   text: string;
 };
 
-export type ThreadState = { data: ThreadNode | null; error: string | null; loading: boolean; uri: string | null };
-
 export type FeedWorkspaceState = {
   activeFeedId: string | null;
   composer: ComposerState;
@@ -33,12 +24,7 @@ export type FeedWorkspaceState = {
   feedScrollTops: Record<string, number>;
   focusedIndex: number;
   generators: Record<string, FeedGeneratorView>;
-  likePendingByUri: Record<string, boolean>;
-  likePulseUri: string | null;
   localPrefs: Record<string, FeedViewPrefItem>;
   preferences: UserPreferences | null;
-  repostPendingByUri: Record<string, boolean>;
-  repostPulseUri: string | null;
   showFeedsDrawer: boolean;
-  thread: ThreadState;
 };

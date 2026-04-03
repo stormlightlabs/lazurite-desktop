@@ -20,8 +20,7 @@ import type {
 } from "./types";
 
 export const TIMELINE_ROUTE = "/timeline";
-
-export const THREAD_ROUTE_BASE = "/timeline/thread";
+export const THREAD_QUERY_PARAM = "thread";
 
 export function asPostRecord(value: unknown): PostRecord {
   return (asRecord(value) ?? {}) as PostRecord;
@@ -367,6 +366,30 @@ export function decodeThreadRouteUri(value: Maybe<string>) {
   }
 }
 
-export function buildThreadRoute(uri: string) {
-  return `${THREAD_ROUTE_BASE}/${encodeThreadRouteUri(uri)}`;
+export function getThreadOverlayUri(search: string) {
+  return decodeThreadRouteUri(new URLSearchParams(search).get(THREAD_QUERY_PARAM));
+}
+
+export function buildThreadOverlayRoute(pathname: string, search: string, uri: string | null) {
+  const params = new URLSearchParams(search);
+  if (uri) {
+    params.set(THREAD_QUERY_PARAM, uri);
+  } else {
+    params.delete(THREAD_QUERY_PARAM);
+  }
+
+  const nextSearch = params.toString();
+  return nextSearch ? `${pathname}?${nextSearch}` : pathname;
+}
+
+export function buildPublicPostUrl(post: Pick<PostView, "author" | "uri">) {
+  const handle = post.author.handle.replace(/^@/, "").trim();
+  const segments = post.uri.split("/");
+  const rkey = segments.at(-1)?.trim();
+
+  if (handle && rkey) {
+    return `https://bsky.app/profile/${encodeURIComponent(handle)}/post/${encodeURIComponent(rkey)}`;
+  }
+
+  return post.uri;
 }

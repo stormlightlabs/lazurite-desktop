@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   applyFeedPreferences,
-  buildThreadRoute,
+  buildPublicPostUrl,
+  buildThreadOverlayRoute,
   decodeThreadRouteUri,
   getFeedCommand,
+  getThreadOverlayUri,
   parseFeedResponse,
   parseThreadResponse,
 } from "./feeds";
@@ -126,13 +128,24 @@ describe("feed helpers", () => {
     expect(getFeedCommand(list).args("cursor-1", 30)).toEqual({ cursor: "cursor-1", limit: 30, uri: list.value });
   });
 
-  it("encodes and decodes thread routes", () => {
+  it("encodes and decodes thread overlays", () => {
     const uri = "at://did:plc:alice/app.bsky.feed.post/abc123";
 
-    expect(buildThreadRoute(uri)).toBe("/timeline/thread/at%3A%2F%2Fdid%3Aplc%3Aalice%2Fapp.bsky.feed.post%2Fabc123");
+    expect(buildThreadOverlayRoute("/profile/alice", "", uri)).toBe(
+      "/profile/alice?thread=at%3A%2F%2Fdid%3Aplc%3Aalice%2Fapp.bsky.feed.post%2Fabc123",
+    );
+    expect(buildThreadOverlayRoute("/profile/alice", "?foo=bar", uri)).toBe(
+      "/profile/alice?foo=bar&thread=at%3A%2F%2Fdid%3Aplc%3Aalice%2Fapp.bsky.feed.post%2Fabc123",
+    );
+    expect(buildThreadOverlayRoute("/profile/alice", "?foo=bar&thread=old", null)).toBe("/profile/alice?foo=bar");
+    expect(getThreadOverlayUri("?thread=at%3A%2F%2Fdid%3Aplc%3Aalice%2Fapp.bsky.feed.post%2Fabc123")).toBe(uri);
     expect(decodeThreadRouteUri("at%3A%2F%2Fdid%3Aplc%3Aalice%2Fapp.bsky.feed.post%2Fabc123")).toBe(uri);
     expect(decodeThreadRouteUri(uri)).toBe(uri);
     expect(decodeThreadRouteUri("https%3A%2F%2Fexample.com")).toBeNull();
+  });
+
+  it("builds public post urls from handles and post rkeys", () => {
+    expect(buildPublicPostUrl(createFeedItem().post)).toBe("https://bsky.app/profile/alice.test/post/1");
   });
 
   it("rejects malformed feed payloads", () => {

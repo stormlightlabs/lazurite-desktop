@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["vite/client", "@testing-library/jest-dom"],
     "baseUrl": "src",
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "paths": { "$/*": ["./*"] }
   },
   "include": ["src"],

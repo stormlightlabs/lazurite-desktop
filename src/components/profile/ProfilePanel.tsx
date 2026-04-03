@@ -1,4 +1,6 @@
 import { DiagnosticsPanel } from "$/components/deck/DiagnosticsPanel";
+import { usePostInteractions } from "$/components/posts/usePostInteractions";
+import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { ProfileSkeleton } from "$/components/ProfileSkeleton";
 import { useAppSession } from "$/contexts/app-session";
 import {
@@ -12,7 +14,7 @@ import {
 } from "$/lib/api/profile";
 import { buildMessagesRoute } from "$/lib/conversations";
 import { queueExplorerTarget } from "$/lib/explorer-navigation";
-import { buildThreadRoute } from "$/lib/feeds";
+import { patchFeedItems } from "$/lib/feeds";
 import { buildProfileRoute, filterProfileFeed, getProfileRouteActor, type ProfileTab } from "$/lib/profile";
 import type { ActorListResponse, FeedResponse, FeedViewPost, ProfileViewBasic } from "$/lib/types";
 import { clamp } from "$/lib/utils/numbers";
@@ -34,8 +36,16 @@ const PROFILE_TABS: ProfileTab[] = ["posts", "replies", "media", "likes", "conte
 export function ProfilePanel(props: { actor: string | null; embedded?: boolean }) {
   const navigate = useNavigate();
   const session = useAppSession();
+  const threadOverlay = useThreadOverlayNavigation();
   const [state, setState] = createStore<ProfilePanelState>(createProfilePanelState());
   let requestSequence = 0;
+  const interactions = usePostInteractions({
+    onError: session.reportError,
+    patchPost(uri, updater) {
+      setState("authorFeed", "items", (current) => patchFeedItems(current, uri, updater));
+      setState("likesFeed", "items", (current) => patchFeedItems(current, uri, updater));
+    },
+  });
 
   const activeActor = createMemo(() => props.actor?.trim() || session.activeHandle || session.activeDid || "");
   const activeProfile = createMemo(() => state.profile);
@@ -51,7 +61,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
   const joinedLabel = createMemo(() => formatJoinedDate(activeProfile()?.createdAt));
   const pinnedPostHref = createMemo(() => {
     const uri = activeProfile()?.pinnedPost?.uri;
-    return uri ? buildThreadRoute(uri) : null;
+    return uri ? threadOverlay.buildThreadHref(uri) : null;
   });
   const profileBadges = createMemo(() => {
     const profile = activeProfile();
@@ -222,7 +232,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
   }
 
   function openThread(uri: string) {
-    navigate(buildThreadRoute(uri));
+    void threadOverlay.openThread(uri);
   }
 
   function openExplorerTarget(target: string) {
@@ -425,13 +435,19 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
                   fallback={
                     <ProfileFeedSection
                       activeTab={state.activeTab}
+                      bookmarkPendingByUri={interactions.bookmarkPendingByUri()}
                       cursor={activeFeedState().cursor}
                       error={activeFeedState().error}
                       items={visibleItems()}
+                      likePendingByUri={interactions.likePendingByUri()}
                       loading={activeFeedState().loading}
                       loadingMore={activeFeedState().loadingMore}
+                      onBookmark={(post) => void interactions.toggleBookmark(post)}
+                      onLike={(post) => void interactions.toggleLike(post)}
                       onLoadMore={handleLoadMore}
-                      onOpenThread={openThread} />
+                      onOpenThread={openThread}
+                      onRepost={(post) => void interactions.toggleRepost(post)}
+                      repostPendingByUri={interactions.repostPendingByUri()} />
                   }>
                   <div class="px-3 pb-4 max-[520px]:px-2">
                     <DiagnosticsPanel did={profile().did} embedded onOpenExplorerTarget={openExplorerTarget} />

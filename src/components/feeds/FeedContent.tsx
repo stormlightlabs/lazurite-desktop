@@ -31,15 +31,17 @@ export function FeedContent(
   props: {
     activeFeedId: string;
     activeFeedState: FeedState | undefined;
+    bookmarkPendingByUri: Record<string, boolean>;
     focusedIndex: number;
     likePendingByUri: Record<string, boolean>;
     likePulseUri: string | null;
     onFocusIndex: (index: number) => void;
-    onLike: (post: PostView) => Promise<void>;
-    onOpenThread: (uri: string) => Promise<void>;
+    onBookmark: (post: PostView) => Promise<void> | void;
+    onLike: (post: PostView) => Promise<void> | void;
+    onOpenThread: (uri: string) => Promise<void> | void;
     onQuote: (post: PostView) => void;
     onReply: (post: PostView, root: PostView) => void;
-    onRepost: (post: PostView) => Promise<void>;
+    onRepost: (post: PostView) => Promise<void> | void;
     postRefs: Map<string, HTMLElement>;
     repostPendingByUri: Record<string, boolean>;
     repostPulseUri: string | null;
@@ -53,9 +55,11 @@ export function FeedContent(
       <For each={props.visibleItems}>
         {(item, index) => (
           <PostCard
+            bookmarkPending={!!props.bookmarkPendingByUri[item.post.uri]}
             focused={props.focusedIndex === index()}
             item={item}
             likePending={!!props.likePendingByUri[item.post.uri]}
+            onBookmark={() => void props.onBookmark(item.post)}
             onFocus={() => props.onFocusIndex(index())}
             onLike={() => void props.onLike(item.post)}
             onOpenThread={() => void props.onOpenThread(item.post.uri)}

@@ -44,9 +44,11 @@ function FeedScroller(
       <FeedContent
         activeFeedId={props.controller.activeFeed().id}
         activeFeedState={props.controller.activeFeedState()}
+        bookmarkPendingByUri={props.controller.bookmarkPendingByUri()}
         focusedIndex={props.controller.workspace.focusedIndex}
-        likePendingByUri={props.controller.workspace.likePendingByUri}
-        likePulseUri={props.controller.workspace.likePulseUri}
+        likePendingByUri={props.controller.likePendingByUri()}
+        likePulseUri={props.controller.likePulseUri()}
+        onBookmark={props.controller.toggleBookmark}
         onFocusIndex={props.controller.setFocusedIndex}
         onLike={props.controller.toggleLike}
         onOpenThread={props.controller.openThread}
@@ -54,8 +56,8 @@ function FeedScroller(
         onReply={props.controller.openReplyComposer}
         onRepost={props.controller.toggleRepost}
         postRefs={props.controller.postRefs}
-        repostPendingByUri={props.controller.workspace.repostPendingByUri}
-        repostPulseUri={props.controller.workspace.repostPulseUri}
+        repostPendingByUri={props.controller.repostPendingByUri()}
+        repostPulseUri={props.controller.repostPulseUri()}
         sentinelRef={props.controller.registerSentinel}
         visibleItems={props.controller.visibleItems()} />
     </div>

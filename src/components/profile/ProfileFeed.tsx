@@ -1,20 +1,36 @@
 import type { ProfileTab } from "$/lib/profile";
-import type { FeedViewPost } from "$/lib/types";
+import type { FeedViewPost, PostView } from "$/lib/types";
 import { For, Match, Show, Switch } from "solid-js";
 import { PostCard } from "../feeds/PostCard";
 import { Icon } from "../shared/Icon";
 import { tabLabel } from "./profile-state";
 
-function ProfilePostList(props: { items: FeedViewPost[]; onOpenThread: (uri: string) => void }) {
+function ProfilePostList(
+  props: {
+    bookmarkPendingByUri: Record<string, boolean>;
+    items: FeedViewPost[];
+    likePendingByUri: Record<string, boolean>;
+    onBookmark: (post: PostView) => void;
+    onLike: (post: PostView) => void;
+    onOpenThread: (uri: string) => void;
+    onRepost: (post: PostView) => void;
+    repostPendingByUri: Record<string, boolean>;
+  },
+) {
   return (
     <div class="grid gap-3">
       <For each={props.items}>
         {(item) => (
           <PostCard
+            bookmarkPending={!!props.bookmarkPendingByUri[item.post.uri]}
+            likePending={!!props.likePendingByUri[item.post.uri]}
+            onBookmark={() => props.onBookmark(item.post)}
+            onLike={() => props.onLike(item.post)}
             post={item.post}
             item={item}
-            showActions={false}
-            onOpenThread={() => props.onOpenThread(item.post.uri)} />
+            onOpenThread={() => props.onOpenThread(item.post.uri)}
+            onRepost={() => props.onRepost(item.post)}
+            repostPending={!!props.repostPendingByUri[item.post.uri]} />
         )}
       </For>
     </div>
@@ -73,13 +89,19 @@ export function ProfileFeedMessage(props: { body: string; title: string }) {
 export function ProfileFeedSection(
   props: {
     activeTab: ProfileTab;
+    bookmarkPendingByUri: Record<string, boolean>;
     cursor: string | null;
     error: string | null;
     items: FeedViewPost[];
+    likePendingByUri: Record<string, boolean>;
     loading: boolean;
     loadingMore: boolean;
+    onBookmark: (post: PostView) => void;
+    onLike: (post: PostView) => void;
     onLoadMore: () => void;
     onOpenThread: (uri: string) => void;
+    onRepost: (post: PostView) => void;
+    repostPendingByUri: Record<string, boolean>;
   },
 ) {
   return (
@@ -93,7 +115,15 @@ export function ProfileFeedSection(
           </Match>
 
           <Match when={props.items.length > 0}>
-            <ProfilePostList items={props.items} onOpenThread={props.onOpenThread} />
+            <ProfilePostList
+              bookmarkPendingByUri={props.bookmarkPendingByUri}
+              items={props.items}
+              likePendingByUri={props.likePendingByUri}
+              onBookmark={props.onBookmark}
+              onLike={props.onLike}
+              onOpenThread={props.onOpenThread}
+              onRepost={props.onRepost}
+              repostPendingByUri={props.repostPendingByUri} />
           </Match>
 
           <Match when={props.cursor}>

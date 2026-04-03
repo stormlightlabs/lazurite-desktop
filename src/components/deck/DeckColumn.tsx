@@ -157,7 +157,16 @@ function FeedBody(props: FeedBodyProps) {
 type FeedBodyContentProps = { feed: SavedFeedItem; onOpenThread: (uri: string) => void };
 
 function FeedBodyContent(props: FeedBodyContentProps) {
-  const { registerSentinel, state, toggleLike, toggleRepost } = useFeedColumnState(() => props.feed);
+  const {
+    bookmarkPendingByUri,
+    likePendingByUri,
+    registerSentinel,
+    repostPendingByUri,
+    state,
+    toggleBookmark,
+    toggleLike,
+    toggleRepost,
+  } = useFeedColumnState(() => props.feed);
   const postRefs = new Map<string, HTMLElement>();
 
   return (
@@ -171,9 +180,11 @@ function FeedBodyContent(props: FeedBodyContentProps) {
           loading: state.loading,
           loadingMore: state.loadingMore,
         }}
+        bookmarkPendingByUri={bookmarkPendingByUri()}
         focusedIndex={-1}
-        likePendingByUri={state.likePendingByUri}
+        likePendingByUri={likePendingByUri()}
         likePulseUri={null}
+        onBookmark={(post: PostView) => toggleBookmark(post)}
         onFocusIndex={() => void 0}
         onLike={(post: PostView) => toggleLike(post)}
         onOpenThread={(uri: string) => Promise.resolve(props.onOpenThread(uri))}
@@ -181,7 +192,7 @@ function FeedBodyContent(props: FeedBodyContentProps) {
         onReply={() => void 0}
         onRepost={(post: PostView) => toggleRepost(post)}
         postRefs={postRefs}
-        repostPendingByUri={state.repostPendingByUri}
+        repostPendingByUri={repostPendingByUri()}
         repostPulseUri={null}
         sentinelRef={registerSentinel}
         visibleItems={state.items} />

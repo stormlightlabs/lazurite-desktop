@@ -7,6 +7,8 @@ use jacquard::api::app_bsky::actor::put_preferences::PutPreferences;
 use jacquard::api::app_bsky::actor::{
     FeedViewPref, PreferencesItem, SavedFeed, SavedFeedType, SavedFeedsPrefV2, SavedFeedsPrefV2Builder,
 };
+use jacquard::api::app_bsky::bookmark::create_bookmark::CreateBookmark;
+use jacquard::api::app_bsky::bookmark::delete_bookmark::DeleteBookmark;
 use jacquard::api::app_bsky::embed::record::Record;
 use jacquard::api::app_bsky::feed::get_actor_likes::GetActorLikes;
 use jacquard::api::app_bsky::feed::get_author_feed::GetAuthorFeed;
@@ -708,6 +710,46 @@ pub async fn unrepost(repost_uri: String, state: &AppState) -> Result<()> {
         .map_err(|error| {
             log::error!("deleteRecord (unrepost) output error: {error}");
             AppError::validation("failed to delete record (unrepost) output")
+        })?;
+
+    Ok(())
+}
+
+pub async fn bookmark_post(uri: String, cid: String, state: &AppState) -> Result<()> {
+    let session = get_session(state).await?;
+    let post_uri = AtUri::new(&uri).map_err(|_| AppError::validation("invalid post URI"))?;
+
+    session
+        .send(CreateBookmark::new().uri(post_uri).cid(Cid::str(&cid)).build())
+        .await
+        .map_err(|error| {
+            log::error!("createBookmark error: {error}");
+            AppError::validation("Could not save this post.")
+        })?
+        .into_output()
+        .map_err(|error| {
+            log::error!("createBookmark output error: {error}");
+            AppError::validation("Could not save this post.")
+        })?;
+
+    Ok(())
+}
+
+pub async fn remove_bookmark(uri: String, state: &AppState) -> Result<()> {
+    let session = get_session(state).await?;
+    let post_uri = AtUri::new(&uri).map_err(|_| AppError::validation("invalid post URI"))?;
+
+    session
+        .send(DeleteBookmark::new().uri(post_uri).build())
+        .await
+        .map_err(|error| {
+            log::error!("deleteBookmark error: {error}");
+            AppError::validation("Could not remove this saved post.")
+        })?
+        .into_output()
+        .map_err(|error| {
+            log::error!("deleteBookmark output error: {error}");
+            AppError::validation("Could not remove this saved post.")
         })?;
 
     Ok(())

@@ -1,13 +1,9 @@
+import { usePostInteractions } from "$/components/posts/usePostInteractions";
 import {
   createPost,
   getFeedGenerators,
   getFeedPage,
-  getPostThread,
   getPreferences,
-  likePost,
-  repost,
-  unlikePost,
-  unrepost,
   updateFeedViewPref,
   updateSavedFeeds,
 } from "$/lib/api/feeds";
@@ -19,7 +15,6 @@ import {
   getFeedName,
   getReplyRootPost,
   patchFeedItems,
-  patchThreadNode,
   toStrongRef,
 } from "$/lib/feeds";
 import type { ActiveSession, EmbedInput, FeedViewPrefItem, PostView, ReplyRefInput, SavedFeedItem } from "$/lib/types";
@@ -33,7 +28,6 @@ import {
   buildLocalPrefs,
   createDefaultFeedPref,
   createDefaultFeedState,
-  createDefaultThreadState,
   createInitialWorkspaceState,
   DEFAULT_TIMELINE,
   getFeedScrollTop,
@@ -46,14 +40,17 @@ import {
 export type FeedWorkspaceProps = {
   activeSession: ActiveSession;
   onError: (message: string) => void;
-  onThreadRouteChange: (uri: string | null) => void;
-  threadUri: string | null;
+  onOpenThread: (uri: string) => void;
 };
 
 const DEFAULT_LIMIT = 30;
 
 export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
   const [workspace, setWorkspace] = createStore<FeedWorkspaceState>(createInitialWorkspaceState());
+  const interactions = usePostInteractions({ onError: props.onError, patchPost });
+  const toggleBookmark = interactions.toggleBookmark;
+  const toggleLike = interactions.toggleLike;
+  const toggleRepost = interactions.toggleRepost;
 
   let scroller: HTMLDivElement | undefined;
   let sentinel: HTMLDivElement | undefined;
@@ -125,22 +122,6 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
         }
       });
     });
-  });
-
-  createEffect(() => {
-    const uri = props.threadUri;
-    if (!uri) {
-      if (workspace.thread.uri || workspace.thread.data || workspace.thread.error || workspace.thread.loading) {
-        setWorkspace("thread", reconcile(createDefaultThreadState()));
-      }
-      return;
-    }
-
-    if (workspace.thread.uri === uri && (workspace.thread.data || workspace.thread.error || workspace.thread.loading)) {
-      return;
-    }
-
-    void loadThread(uri);
   });
 
   createEffect(() => {
@@ -393,22 +374,6 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     }
   }
 
-  async function loadThread(uri: string) {
-    setWorkspace("thread", { data: null, error: null, loading: true, uri });
-
-    try {
-      const payload = await getPostThread(uri);
-      if (props.threadUri === uri) {
-        setWorkspace("thread", { data: payload.thread, error: null, loading: false, uri });
-      }
-    } catch (error) {
-      if (props.threadUri === uri) {
-        setWorkspace("thread", { data: null, error: String(error), loading: false, uri });
-      }
-      props.onError(`Failed to open thread: ${String(error)}`);
-    }
-  }
-
   function switchFeed(feedId: string) {
     const current = activeFeed();
     if (current && scroller) {
@@ -423,13 +388,8 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     setWorkspace("showFeedsDrawer", false);
   }
 
-  async function openThread(uri: string) {
-    if (props.threadUri === uri) {
-      await loadThread(uri);
-      return;
-    }
-
-    props.onThreadRouteChange(uri);
+  function openThread(uri: string) {
+    props.onOpenThread(uri);
   }
 
   function openComposer() {
@@ -498,7 +458,6 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     try {
       await createPost(text, replyTo, embed);
       resetComposer();
-      props.onThreadRouteChange(null);
       await refreshActiveFeed();
     } catch (error) {
       props.onError(`Failed to create post: ${String(error)}`);
@@ -519,70 +478,6 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     }
   }
 
-  async function toggleLike(post: PostView) {
-    setWorkspace("likePendingByUri", post.uri, true);
-    try {
-      if (post.viewer?.like) {
-        await unlikePost(post.viewer.like);
-        patchPost(
-          post.uri,
-          (current) => ({
-            ...current,
-            likeCount: Math.max(0, (current.likeCount ?? 0) - 1),
-            viewer: { ...current.viewer, like: null },
-          }),
-        );
-      } else {
-        const result = await likePost(post.uri, post.cid);
-        patchPost(
-          post.uri,
-          (current) => ({
-            ...current,
-            likeCount: (current.likeCount ?? 0) + 1,
-            viewer: { ...current.viewer, like: result.uri },
-          }),
-        );
-        triggerLikePulse(post.uri);
-      }
-    } catch (error) {
-      props.onError(`Failed to update like: ${String(error)}`);
-    } finally {
-      setWorkspace("likePendingByUri", post.uri, false);
-    }
-  }
-
-  async function toggleRepost(post: PostView) {
-    setWorkspace("repostPendingByUri", post.uri, true);
-    try {
-      if (post.viewer?.repost) {
-        await unrepost(post.viewer.repost);
-        patchPost(
-          post.uri,
-          (current) => ({
-            ...current,
-            repostCount: Math.max(0, (current.repostCount ?? 0) - 1),
-            viewer: { ...current.viewer, repost: null },
-          }),
-        );
-      } else {
-        const result = await repost(post.uri, post.cid);
-        patchPost(
-          post.uri,
-          (current) => ({
-            ...current,
-            repostCount: (current.repostCount ?? 0) + 1,
-            viewer: { ...current.viewer, repost: result.uri },
-          }),
-        );
-        triggerRepostPulse(post.uri);
-      }
-    } catch (error) {
-      props.onError(`Failed to update repost: ${String(error)}`);
-    } finally {
-      setWorkspace("repostPendingByUri", post.uri, false);
-    }
-  }
-
   function patchPost(uri: string, updater: (post: PostView) => PostView) {
     for (const [feedId, state] of Object.entries(workspace.feedStates)) {
       if (!state) {
@@ -591,21 +486,6 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
 
       setWorkspace("feedStates", feedId, "items", patchFeedItems(state.items, uri, updater));
     }
-
-    const currentThread = workspace.thread.data;
-    if (currentThread) {
-      setWorkspace("thread", "data", patchThreadNode(currentThread, uri, updater));
-    }
-  }
-
-  function triggerLikePulse(uri: string) {
-    setWorkspace("likePulseUri", uri);
-    globalThis.setTimeout(() => setWorkspace("likePulseUri", (current) => (current === uri ? null : current)), 320);
-  }
-
-  function triggerRepostPulse(uri: string) {
-    setWorkspace("repostPulseUri", uri);
-    globalThis.setTimeout(() => setWorkspace("repostPulseUri", (current) => (current === uri ? null : current)), 320);
   }
 
   async function saveFeedPreferences(updatedFeeds: SavedFeedItem[]) {
@@ -717,11 +597,17 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     submitPost,
     switchFeed,
     toggleFeedsDrawer,
+    toggleBookmark,
     toggleLike,
     toggleRepost,
     unpinFeed,
     visibleItems,
     workspace,
+    bookmarkPendingByUri: interactions.bookmarkPendingByUri,
+    likePendingByUri: interactions.likePendingByUri,
+    likePulseUri: interactions.likePulseUri,
+    repostPendingByUri: interactions.repostPendingByUri,
+    repostPulseUri: interactions.repostPulseUri,
   };
 }
 

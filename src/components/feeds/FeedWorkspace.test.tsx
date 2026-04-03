@@ -1,4 +1,5 @@
 import { AppTestProviders } from "$/test/providers";
+import { HashRouter, Route } from "@solidjs/router";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FeedWorkspace } from "./FeedWorkspace";
@@ -80,6 +81,7 @@ describe("FeedWorkspace", () => {
     invokeMock.mockReset();
     listenMock.mockReset();
     listenMock.mockResolvedValue(() => {});
+    globalThis.location.hash = "#/timeline";
 
     Object.defineProperty(globalThis, "IntersectionObserver", {
       configurable: true,
@@ -126,7 +128,9 @@ describe("FeedWorkspace", () => {
     const { container } = render(() => (
       <AppTestProviders
         session={{ activeDid: ACTIVE_SESSION.did, activeHandle: ACTIVE_SESSION.handle, activeSession: ACTIVE_SESSION }}>
-        <FeedWorkspace onThreadRouteChange={vi.fn()} threadUri={null} />
+        <HashRouter>
+          <Route path="/timeline" component={() => <FeedWorkspace />} />
+        </HashRouter>
       </AppTestProviders>
     ));
 
@@ -174,7 +178,9 @@ describe("FeedWorkspace", () => {
     render(() => (
       <AppTestProviders
         session={{ activeDid: ACTIVE_SESSION.did, activeHandle: ACTIVE_SESSION.handle, activeSession: ACTIVE_SESSION }}>
-        <FeedWorkspace onThreadRouteChange={vi.fn()} threadUri={null} />
+        <HashRouter>
+          <Route path="/timeline" component={() => <FeedWorkspace />} />
+        </HashRouter>
       </AppTestProviders>
     ));
 
