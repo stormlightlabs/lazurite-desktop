@@ -62,31 +62,19 @@ async fn get_session(state: &AppState) -> Result<Arc<LazuriteOAuthSession>> {
     state
         .sessions
         .read()
-        .map_err(|error| {
-            log::error!("sessions poisoned: {error}");
-            AppError::StatePoisoned("sessions")
-        })?
+        .map_err(|error| AppError::state_poisoned(format!("sessions {error}")))?
         .get(&did)
         .cloned()
-        .ok_or_else(|| {
-            log::error!("session not found for active account");
-            AppError::Validation("session not found for active account".into())
-        })
+        .ok_or_else(|| AppError::validation(format!("session not found for active account {did}")))
 }
 
 fn active_did(state: &AppState) -> Result<String> {
     state
         .active_session
         .read()
-        .map_err(|error| {
-            log::error!("active_session poisoned: {error}");
-            AppError::StatePoisoned("active_session")
-        })?
+        .map_err(|error| AppError::state_poisoned(format!("active_session poisoned with error {error}")))?
         .as_ref()
-        .ok_or_else(|| {
-            log::error!("no active account");
-            AppError::Validation("no active account".into())
-        })
+        .ok_or_else(|| AppError::Validation("no active account".into()))
         .map(|s| s.did.clone())
 }
 
@@ -203,6 +191,10 @@ async fn fetch_preference_items_with_session(session: &Arc<LazuriteOAuthSession>
 }
 
 fn accepts_empty_put_preferences_response(status: reqwest::StatusCode, body: &[u8]) -> bool {
+    status.is_success() && body.is_empty()
+}
+
+fn accepts_empty_bookmark_response(status: reqwest::StatusCode, body: &[u8]) -> bool {
     status.is_success() && body.is_empty()
 }
 
@@ -719,18 +711,24 @@ pub async fn bookmark_post(uri: String, cid: String, state: &AppState) -> Result
     let session = get_session(state).await?;
     let post_uri = AtUri::new(&uri).map_err(|_| AppError::validation("invalid post URI"))?;
 
-    session
+    let response = session
         .send(CreateBookmark::new().uri(post_uri).cid(Cid::str(&cid)).build())
         .await
         .map_err(|error| {
             log::error!("createBookmark error: {error}");
             AppError::validation("Could not save this post.")
-        })?
-        .into_output()
-        .map_err(|error| {
-            log::error!("createBookmark output error: {error}");
-            AppError::validation("Could not save this post.")
         })?;
+
+    // Bluesky may return a 200 with no body for bookmark writes. jacquard's default
+    // unit decoder still attempts to parse JSON, which raises an EOF on success.
+    if accepts_empty_bookmark_response(response.status(), response.buffer()) {
+        return Ok(());
+    }
+
+    response.into_output().map_err(|error| {
+        log::error!("createBookmark output error: {error}");
+        AppError::validation("Could not save this post.")
+    })?;
 
     Ok(())
 }
@@ -739,18 +737,22 @@ pub async fn remove_bookmark(uri: String, state: &AppState) -> Result<()> {
     let session = get_session(state).await?;
     let post_uri = AtUri::new(&uri).map_err(|_| AppError::validation("invalid post URI"))?;
 
-    session
+    let response = session
         .send(DeleteBookmark::new().uri(post_uri).build())
         .await
         .map_err(|error| {
             log::error!("deleteBookmark error: {error}");
             AppError::validation("Could not remove this saved post.")
-        })?
-        .into_output()
-        .map_err(|error| {
-            log::error!("deleteBookmark output error: {error}");
-            AppError::validation("Could not remove this saved post.")
         })?;
+
+    if accepts_empty_bookmark_response(response.status(), response.buffer()) {
+        return Ok(());
+    }
+
+    response.into_output().map_err(|error| {
+        log::error!("deleteBookmark output error: {error}");
+        AppError::validation("Could not remove this saved post.")
+    })?;
 
     Ok(())
 }
@@ -916,8 +918,8 @@ pub async fn update_feed_view_pref(pref: FeedViewPrefItem, state: &AppState) -> 
 #[cfg(test)]
 mod tests {
     use super::{
-        accepts_empty_put_preferences_response, merge_feed_view_preferences, merge_saved_feeds_preferences,
-        user_preferences_from_items, FeedViewPrefItem, SavedFeedItem,
+        accepts_empty_bookmark_response, accepts_empty_put_preferences_response, merge_feed_view_preferences,
+        merge_saved_feeds_preferences, user_preferences_from_items, FeedViewPrefItem, SavedFeedItem,
     };
     use jacquard::api::app_bsky::actor::{AdultContentPref, FeedViewPref, PreferencesItem};
     use reqwest::StatusCode;
@@ -1009,5 +1011,12 @@ mod tests {
         assert!(accepts_empty_put_preferences_response(StatusCode::OK, b""));
         assert!(!accepts_empty_put_preferences_response(StatusCode::OK, b"null"));
         assert!(!accepts_empty_put_preferences_response(StatusCode::BAD_REQUEST, b""));
+    }
+
+    #[test]
+    fn empty_success_bookmark_response_is_treated_as_valid() {
+        assert!(accepts_empty_bookmark_response(StatusCode::OK, b""));
+        assert!(!accepts_empty_bookmark_response(StatusCode::OK, b"{}"));
+        assert!(!accepts_empty_bookmark_response(StatusCode::BAD_REQUEST, b""));
     }
 }

@@ -1,3 +1,4 @@
+import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { LocalPostResultsList, LocalPostResultsSkeletons } from "$/components/search/LocalPostResultsList";
 import { SearchEmptyState } from "$/components/search/SearchEmptyState";
 import { SearchQueryInput } from "$/components/search/SearchQueryInput";
@@ -115,6 +116,7 @@ function SavedPostsMessage(props: { body: string; title: string }) {
 
 export function SavedPostsPanel() {
   const session = useAppSession();
+  const threadOverlay = useThreadOverlayNavigation();
   const [activeTab, setActiveTab] = createSignal<TabKey>("bookmark");
   const [state, setState] = createStore<SavedPanelState>(createPanelState());
   const browseRequestIds: Record<TabKey, number> = { bookmark: 0, like: 0 };
@@ -401,6 +403,7 @@ export function SavedPostsPanel() {
       <SavedPostsViewport
         activeTab={activeTab()}
         browsingState={activeTabState()}
+        onOpenThread={(uri) => void threadOverlay.openThread(uri)}
         query={trimmedQuery()}
         searching={isSearching()}
         searchingState={activeSearchState()}
@@ -518,6 +521,7 @@ function SavedPostsViewport(
   props: {
     activeTab: TabKey;
     browsingState: TabState;
+    onOpenThread: (uri: string) => void;
     onLoadMore: () => void;
     query: string;
     searching: boolean;
@@ -530,6 +534,7 @@ function SavedPostsViewport(
         <Show when={props.activeTab === "bookmark"} keyed>
           <SavedPostsBody
             browsingState={props.browsingState}
+            onOpenThread={props.onOpenThread}
             onLoadMore={props.onLoadMore}
             query={props.query}
             searching={props.searching}
@@ -539,6 +544,7 @@ function SavedPostsViewport(
         <Show when={props.activeTab === "like"} keyed>
           <SavedPostsBody
             browsingState={props.browsingState}
+            onOpenThread={props.onOpenThread}
             onLoadMore={props.onLoadMore}
             query={props.query}
             searching={props.searching}
@@ -553,6 +559,7 @@ function SavedPostsViewport(
 function SavedPostsBody(
   props: {
     browsingState: TabState;
+    onOpenThread: (uri: string) => void;
     onLoadMore: () => void;
     query: string;
     searching: boolean;
@@ -600,7 +607,7 @@ function SavedPostsBody(
         </Match>
         <Match when={activeState().items.length > 0}>
           <div class="grid gap-3">
-            <LocalPostResultsList query={props.query} results={activeState().items} />
+            <LocalPostResultsList onOpenThread={props.onOpenThread} query={props.query} results={activeState().items} />
             <LoadMoreButton
               next={activeState().nextOffset}
               onLoadMore={props.onLoadMore}

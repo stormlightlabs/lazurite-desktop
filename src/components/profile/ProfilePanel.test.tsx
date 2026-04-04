@@ -168,6 +168,21 @@ describe("ProfilePanel", () => {
     });
   });
 
+  it("only shows the compact sticky header after the profile hero scrolls away", async () => {
+    renderProfilePanel();
+
+    expect(await screen.findByRole("button", { name: "Follow" })).toBeInTheDocument();
+    expect(screen.queryByTestId("profile-sticky-header")).not.toBeInTheDocument();
+
+    const scrollRegion = screen.getByTestId("profile-scroll-region");
+    Object.defineProperty(scrollRegion, "scrollTop", { configurable: true, value: 500, writable: true });
+    fireEvent.scroll(scrollRegion);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("profile-sticky-header")).toBeInTheDocument();
+    });
+  });
+
   it("opens the followers sheet with bios, inline follow controls, pagination, and escape-to-close", async () => {
     getFollowersMock.mockResolvedValueOnce({
       actors: [{
@@ -225,6 +240,7 @@ describe("ProfilePanel", () => {
     renderProfilePanel();
 
     expect(await screen.findByRole("button", { name: "Follow" })).toBeInTheDocument();
+    expect(screen.queryByTestId("profile-sticky-header")).not.toBeInTheDocument();
     expect(screen.queryByText("Social Diagnostics")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Context" }));

@@ -8,10 +8,15 @@ const getSyncStatusMock = vi.hoisted(() => vi.fn());
 const listSavedPostsMock = vi.hoisted(() => vi.fn());
 const syncPostsMock = vi.hoisted(() => vi.fn());
 const loggerErrorMock = vi.hoisted(() => vi.fn());
+const threadOverlayMock = vi.hoisted(() => ({ openThread: vi.fn() }));
 
 vi.mock(
   "$/lib/api/search",
   () => ({ getSyncStatus: getSyncStatusMock, listSavedPosts: listSavedPostsMock, syncPosts: syncPostsMock }),
+);
+vi.mock(
+  "$/components/posts/useThreadOverlayNavigation",
+  () => ({ useThreadOverlayNavigation: () => threadOverlayMock }),
 );
 vi.mock("@tauri-apps/plugin-log", () => ({ error: loggerErrorMock }));
 

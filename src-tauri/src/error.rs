@@ -1,3 +1,5 @@
+use tauri_plugin_log::log;
+
 pub type Result<T> = std::result::Result<T, AppError>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,6 +95,14 @@ impl serde::Serialize for AppError {
 
 impl AppError {
     pub fn validation(msg: impl Into<String>) -> Self {
-        AppError::Validation(msg.into())
+        let msg = msg.into();
+        log::error!("validation error: {}", &msg);
+        AppError::Validation(msg)
+    }
+
+    pub fn state_poisoned(msg: impl Into<String>) -> Self {
+        let msg = msg.into();
+        log::error!("state lock poisoned: {}", msg);
+        AppError::StatePoisoned(Box::leak(msg.into_boxed_str()))
     }
 }

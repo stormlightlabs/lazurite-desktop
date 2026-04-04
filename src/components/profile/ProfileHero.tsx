@@ -55,24 +55,11 @@ function ProfileStat(props: { label: string; onClick?: () => void; value?: numbe
   );
 }
 
-function StickyIdentity(props: { displayName: string; handle: string; progress: number }) {
-  const style = createMemo(() => ({ opacity: `${Math.min(1, props.progress * 1.35)}` }));
-
-  return (
-    <div class="mb-1 min-w-0 transition-opacity duration-100 ease-out" style={style()}>
-      <p class="m-0 truncate text-lg font-semibold leading-tight tracking-[-0.02em] text-on-surface">
-        {props.displayName}
-      </p>
-      <p class="m-0 truncate text-sm leading-tight text-on-surface-variant">@{props.handle.replace(/^@/, "")}</p>
-    </div>
-  );
-}
-
 function ProfileIdentity(
   props: { description: string | null; displayName: string; handle: string; viewLabel: string },
 ) {
   return (
-    <div class="grid gap-3">
+    <div class="grid min-w-0 flex-1 gap-3">
       <div class="grid gap-1">
         <p class="overline-copy text-[0.68rem] text-on-surface-variant">{props.viewLabel}</p>
         <h1 class="m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[0.96] tracking-[-0.04em] text-on-surface">
@@ -201,9 +188,7 @@ function MessageButton(props: { onClick: () => void }) {
 
 export function ProfileHero(
   props: {
-    avatarProgress: number;
     coverOffset: number;
-    coverScale: number;
     followLoading: boolean;
     isSelf: boolean;
     joinedLabel: string | null;
@@ -215,18 +200,16 @@ export function ProfileHero(
     pinnedPostHref: string | null;
     profile: ProfileViewDetailed;
     profileBadges: string[];
+    rootRef?: (element: HTMLElement) => void;
     viewLabel: string;
   },
 ) {
-  const avatarLabel = createMemo(() => getAvatarLabel(props.profile));
   const displayName = createMemo(() => getDisplayName(props.profile));
   const isFollowing = createMemo(() => !!props.profile.viewer?.following);
-  const bannerStyle = createMemo(() => ({
-    transform: `translate3d(0, ${props.coverOffset}px, 0) scale(${props.coverScale})`,
-  }));
+  const bannerStyle = createMemo(() => ({ transform: `translate3d(0, ${props.coverOffset}px, 0)` }));
 
   return (
-    <header class="relative">
+    <header class="relative" ref={(element) => props.rootRef?.(element)}>
       <div class="relative h-64 overflow-hidden bg-surface-container-high shadow-[inset_0_-64px_80px_rgba(0,0,0,0.55)] max-[760px]:h-56">
         <Show
           when={props.profile.banner}
@@ -242,26 +225,10 @@ export function ProfileHero(
       </div>
 
       <div class="relative z-10 -mt-16 px-6 pb-6 max-[760px]:px-4 max-[520px]:px-3">
-        <div class="sticky top-4 z-20 mb-4 flex items-center gap-3">
-          <div class="relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_4px_rgba(8,8,8,0.96),0_0_0_6px_rgba(125,175,255,0.22),0_24px_40px_rgba(0,0,0,0.36)] backdrop-blur-sm">
-            <Show
-              when={props.profile.avatar}
-              fallback={
-                <div class="flex h-full w-full items-center justify-center text-[2rem] font-semibold text-on-surface">
-                  {avatarLabel()}
-                </div>
-              }>
-              {(avatar) => <img alt="" class="h-full w-full object-cover" src={avatar()} />}
-            </Show>
-          </div>
+        <div class="grid gap-5 rounded-4xl bg-[rgba(8,8,8,0.82)] px-5 pb-6 pt-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)] backdrop-blur-[18px] max-[760px]:px-4 max-[520px]:px-3.5">
+          <div class="flex flex-wrap items-start justify-between gap-5">
+            <ProfileAvatar profile={props.profile} />
 
-          <StickyIdentity displayName={displayName()} handle={props.profile.handle} progress={props.avatarProgress} />
-        </div>
-
-        <div class="grid gap-5 pt-20">
-          <div
-            class="flex flex-wrap items-start justify-between gap-4 transition-opacity duration-100 ease-out"
-            style={{ opacity: 1 - props.avatarProgress }}>
             <ProfileIdentity
               description={props.profile.description ?? null}
               displayName={displayName()}
@@ -291,5 +258,72 @@ export function ProfileHero(
         </div>
       </div>
     </header>
+  );
+}
+
+function ProfileAvatar(props: { profile: ProfileViewDetailed }) {
+  const profile = () => props.profile;
+  const avatar = createMemo(() => profile().avatar);
+  const label = createMemo(() => getAvatarLabel(props.profile));
+
+  return (
+    <div class="relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_4px_rgba(8,8,8,0.96),0_0_0_6px_rgba(125,175,255,0.22),0_24px_40px_rgba(0,0,0,0.36)] backdrop-blur-sm">
+      <Show
+        when={avatar()}
+        fallback={
+          <div class="flex h-full w-full items-center justify-center text-[2rem] font-semibold text-on-surface">
+            {label()}
+          </div>
+        }>
+        {(a) => <img alt="" class="h-full w-full object-cover" src={a()} />}
+      </Show>
+    </div>
+  );
+}
+
+export function ProfileStickyHeader(props: { profile: ProfileViewDetailed; profileBadges: string[] }) {
+  const avatarLabel = createMemo(() => getAvatarLabel(props.profile));
+  const displayName = createMemo(() => getDisplayName(props.profile));
+  const visibleBadges = createMemo(() => props.profileBadges.slice(0, 2));
+
+  return (
+    <div
+      class="sticky top-0 z-30 px-3 pb-3 pt-3 backdrop-blur-[18px] max-[520px]:px-2"
+      data-testid="profile-sticky-header">
+      <div class="flex items-center gap-3 rounded-3xl bg-[rgba(14,14,14,0.92)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+        <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_2px_rgba(8,8,8,0.96),0_0_0_3px_rgba(125,175,255,0.2)]">
+          <Show
+            when={props.profile.avatar}
+            fallback={
+              <div class="flex h-full w-full items-center justify-center text-sm font-semibold text-on-surface">
+                {avatarLabel()}
+              </div>
+            }>
+            {(avatar) => <img alt="" class="h-full w-full object-cover" src={avatar()} />}
+          </Show>
+        </div>
+
+        <div class="min-w-0">
+          <p class="m-0 truncate text-base font-semibold leading-tight tracking-[-0.02em] text-on-surface">
+            {displayName()}
+          </p>
+          <p class="m-0 truncate text-sm leading-tight text-on-surface-variant">
+            @{props.profile.handle.replace(/^@/, "")}
+          </p>
+        </div>
+
+        <Show when={visibleBadges().length > 0}>
+          <div class="ml-auto hidden flex-wrap justify-end gap-2 min-[720px]:flex">
+            <For each={visibleBadges()}>
+              {(badge) => (
+                <span class="inline-flex items-center rounded-full bg-white/6 px-3 py-1.5 text-xs font-medium text-on-surface">
+                  {badge}
+                </span>
+              )}
+            </For>
+          </div>
+        </Show>
+      </div>
+    </div>
   );
 }

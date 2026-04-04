@@ -17,19 +17,19 @@ import { queueExplorerTarget } from "$/lib/explorer-navigation";
 import { patchFeedItems } from "$/lib/feeds";
 import { buildProfileRoute, filterProfileFeed, getProfileRouteActor, type ProfileTab } from "$/lib/profile";
 import type { ActorListResponse, FeedResponse, FeedViewPost, ProfileViewBasic } from "$/lib/types";
-import { clamp } from "$/lib/utils/numbers";
 import { formatJoinedDate, normalizeError } from "$/lib/utils/text";
 import { useNavigate } from "@solidjs/router";
-import { createEffect, createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Presence } from "solid-motionone";
 import { createActorListState, createFeedState, createProfilePanelState, tabLabel } from "./profile-state";
 import type { ProfilePanelState } from "./profile-state";
 import { ActorListOverlay } from "./ProfileActorList";
 import { ProfileFeedMessage, ProfileFeedSection, ProfileFeedSkeleton } from "./ProfileFeed";
-import { ProfileHero } from "./ProfileHero";
+import { ProfileHero, ProfileStickyHeader } from "./ProfileHero";
 
 const FEED_PAGE_SIZE = 30;
+const PROFILE_COMPACT_HEADER_FALLBACK_THRESHOLD = 360;
 
 const PROFILE_TABS: ProfileTab[] = ["posts", "replies", "media", "likes", "context"];
 
@@ -38,6 +38,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
   const session = useAppSession();
   const threadOverlay = useThreadOverlayNavigation();
   const [state, setState] = createStore<ProfilePanelState>(createProfilePanelState());
+  const [heroHeight, setHeroHeight] = createSignal<number | null>(null);
   let requestSequence = 0;
   const interactions = usePostInteractions({
     onError: session.reportError,
@@ -54,11 +55,14 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
   const visibleItems = createMemo(() =>
     state.activeTab === "likes" ? state.likesFeed.items : filterProfileFeed(state.authorFeed.items, state.activeTab)
   );
-  const avatarProgress = createMemo(() => clamp((state.scrollTop - 18) / 180, 0, 1));
   const coverOffset = createMemo(() => Math.min(state.scrollTop * 0.28, 88));
-  const coverScale = createMemo(() => 1 + Math.min(state.scrollTop / 1600, 0.08));
   const viewLabel = createMemo(() => isSelf() ? "Your profile" : "Viewing profile");
   const joinedLabel = createMemo(() => formatJoinedDate(activeProfile()?.createdAt));
+  const compactHeaderThreshold = createMemo(() => {
+    const measured = heroHeight() ?? 0;
+    return Math.max(0, (measured > 0 ? measured : PROFILE_COMPACT_HEADER_FALLBACK_THRESHOLD) - 24);
+  });
+  const showCompactHeader = createMemo(() => state.scrollTop >= compactHeaderThreshold());
   const pinnedPostHref = createMemo(() => {
     const uri = activeProfile()?.pinnedPost?.uri;
     return uri ? threadOverlay.buildThreadHref(uri) : null;
@@ -403,6 +407,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
       class="relative grid min-h-0 overflow-hidden bg-[rgba(8,8,8,0.32)]"
       classList={{ "rounded-4xl shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]": !props.embedded }}>
       <div
+        data-testid="profile-scroll-region"
         class="min-h-0 overflow-y-auto overscroll-contain"
         onScroll={(event) => setState("scrollTop", event.currentTarget.scrollTop)}>
         <Show when={!state.profileLoading} fallback={<ProfileLoadingView />}>
@@ -412,9 +417,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
             {(profile) => (
               <>
                 <ProfileHero
-                  avatarProgress={avatarProgress()}
                   coverOffset={coverOffset()}
-                  coverScale={coverScale()}
                   followLoading={state.followLoading}
                   isSelf={isSelf()}
                   joinedLabel={joinedLabel()}
@@ -426,9 +429,19 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
                   pinnedPostHref={pinnedPostHref()}
                   profile={profile()}
                   profileBadges={profileBadges()}
+                  rootRef={(element) => {
+                    setHeroHeight(element.offsetHeight || null);
+                  }}
                   viewLabel={viewLabel()} />
 
-                <ProfileTabs activeTab={state.activeTab} onSelect={selectTab} />
+                <Show when={showCompactHeader()}>
+                  <ProfileStickyHeader profile={profile()} profileBadges={profileBadges()} />
+                </Show>
+
+                <ProfileTabs
+                  activeTab={state.activeTab}
+                  compactHeaderVisible={showCompactHeader()}
+                  onSelect={selectTab} />
 
                 <Show
                   when={state.activeTab === "context"}
@@ -498,9 +511,13 @@ function ProfileErrorView(props: { error: string | null }) {
   );
 }
 
-function ProfileTabs(props: { activeTab: ProfileTab; onSelect: (tab: ProfileTab) => void }) {
+function ProfileTabs(
+  props: { activeTab: ProfileTab; compactHeaderVisible: boolean; onSelect: (tab: ProfileTab) => void },
+) {
   return (
-    <div class="sticky top-22 z-30 px-3 pb-3 pt-1 backdrop-blur-[18px] max-[520px]:px-2">
+    <div
+      class="sticky z-20 px-3 pb-3 pt-1 backdrop-blur-[18px] max-[520px]:px-2"
+      classList={{ "top-22": props.compactHeaderVisible, "top-0": !props.compactHeaderVisible }}>
       <div class="rounded-3xl bg-[rgba(14,14,14,0.92)] p-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
         <div class="flex flex-wrap gap-2">
           <For each={PROFILE_TABS}>

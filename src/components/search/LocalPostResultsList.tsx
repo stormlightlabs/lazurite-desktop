@@ -24,7 +24,9 @@ export function LocalPostResultsSkeletons(props: { count?: number }) {
   );
 }
 
-export function LocalPostResultsList(props: { query: string; results: LocalPostResult[] }) {
+export function LocalPostResultsList(
+  props: { onOpenThread?: (uri: string) => void; query: string; results: LocalPostResult[] },
+) {
   return (
     <Motion.div
       class="grid gap-2"
@@ -47,6 +49,9 @@ export function LocalPostResultsList(props: { query: string; results: LocalPostR
                 text={result.text ?? ""}
                 createdAt={result.createdAt ?? ""}
                 isSemanticMatch={result.semanticMatch && !result.keywordMatch}
+                onOpenThread={props.onOpenThread
+                  ? () => props.onOpenThread?.(result.uri)
+                  : undefined}
                 query={props.query} />
             </Motion.div>
           )}

@@ -1,35 +1,42 @@
 import { formatRelativeTime } from "$/lib/feeds";
 import { buildProfileRoute } from "$/lib/profile";
 import { escapeForRegex } from "$/lib/utils/text";
-import { createMemo, type JSX, Show } from "solid-js";
+import { createMemo, type JSX, type ParentProps, Show } from "solid-js";
 import { Icon } from "../shared/Icon";
 
-function CardContent(
-  props: {
-    avatarLabel: string;
-    authorHandle: string;
-    profileHref: string;
-    time: string;
-    isSemantic?: boolean;
-    text: string | (string | JSX.Element)[];
-    likes?: number;
-    replies?: number;
-    sourceLabel: string | null;
-  },
-) {
+type CardContentProps = {
+  avatarLabel: string;
+  authorHandle: string;
+  profileHref: string;
+  time: string;
+  isSemantic?: boolean;
+  text: string | (string | JSX.Element)[];
+  likes?: number;
+  onOpenThread?: () => void;
+  replies?: number;
+  sourceLabel: string | null;
+};
+
+function CardContent(props: CardContentProps) {
   return (
     <div class="flex gap-3">
-      <a class="shrink-0 no-underline" href={`#${props.profileHref}`}>
+      <a class="shrink-0 no-underline" href={`#${props.profileHref}`} onClick={(event) => event.stopPropagation()}>
         <Avatar label={props.avatarLabel} />
       </a>
       <div class="min-w-0 flex-1">
-        <CardHeader
-          handle={props.authorHandle}
-          profileHref={props.profileHref}
-          time={props.time}
-          isSemantic={props.isSemantic} />
-        <TextContent text={props.text} />
-        <CardFooter likes={props.likes} replies={props.replies} sourceLabel={props.sourceLabel} />
+        <PostPreviewRegion onOpenThread={props.onOpenThread}>
+          <CardHeader
+            handle={props.authorHandle}
+            profileHref={props.profileHref}
+            time={props.time}
+            isSemantic={props.isSemantic} />
+          <TextContent text={props.text} />
+          <CardFooter
+            likes={props.likes}
+            onOpenThread={props.onOpenThread}
+            replies={props.replies}
+            sourceLabel={props.sourceLabel} />
+        </PostPreviewRegion>
       </div>
     </div>
   );
@@ -54,7 +61,8 @@ function CardHeader(props: { handle: string; profileHref: string; time: string; 
     <header class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
       <a
         class="wrap-break-word text-sm font-semibold text-on-surface no-underline transition hover:text-primary"
-        href={`#${props.profileHref}`}>
+        href={`#${props.profileHref}`}
+        onClick={(event) => event.stopPropagation()}>
         @{props.handle.replace(/^@/, "")}
       </a>
       <span class="text-xs text-on-surface-variant">{props.time}</span>
@@ -79,7 +87,9 @@ function TextContent(props: { text: string | (string | JSX.Element)[] }) {
   );
 }
 
-function CardFooter(props: { likes?: number; replies?: number; sourceLabel: string | null }) {
+function CardFooter(
+  props: { likes?: number; onOpenThread?: () => void; replies?: number; sourceLabel: string | null },
+) {
   return (
     <footer class="mt-3 flex min-w-0 flex-wrap items-center gap-3">
       <Show when={typeof props.likes === "number"}>
@@ -92,6 +102,13 @@ function CardFooter(props: { likes?: number; replies?: number; sourceLabel: stri
 
       <Show when={props.sourceLabel}>
         {(label) => <span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-on-surface-variant">{label()}</span>}
+      </Show>
+
+      <Show when={props.onOpenThread}>
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/12 px-2.5 py-1 text-xs font-medium text-primary">
+          <Icon iconClass="i-ri-node-tree" class="text-sm" />
+          Thread
+        </span>
       </Show>
     </footer>
   );
@@ -108,6 +125,31 @@ function StatBadge(props: { kind: "like" | "reply"; value?: number; label: strin
   );
 }
 
+function PostPreviewRegion(props: ParentProps<{ onOpenThread?: () => void }>) {
+  const interactive = () => !!props.onOpenThread;
+
+  return (
+    <div
+      class="min-w-0 rounded-2xl outline-none transition duration-150 ease-out"
+      classList={{
+        "cursor-pointer hover:bg-white/2.5 focus-visible:bg-white/3 focus-visible:ring-1 focus-visible:ring-primary/30":
+          interactive(),
+      }}
+      aria-label={interactive() ? "Open thread" : undefined}
+      role={interactive() ? "button" : undefined}
+      tabIndex={interactive() ? 0 : undefined}
+      onClick={() => props.onOpenThread?.()}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && props.onOpenThread) {
+          event.preventDefault();
+          props.onOpenThread();
+        }
+      }}>
+      {props.children}
+    </div>
+  );
+}
+
 type SearchResultCardProps = {
   authorDid?: string;
   authorHandle: string;
@@ -115,6 +157,7 @@ type SearchResultCardProps = {
   text: string;
   createdAt: string;
   likeCount?: number;
+  onOpenThread?: () => void;
   replyCount?: number;
   isSemanticMatch?: boolean;
   query?: string;
@@ -162,7 +205,7 @@ export function SearchResultCard(props: SearchResultCardProps) {
 
   return (
     <article
-      class="group cursor-pointer rounded-2xl bg-surface px-5 py-4 transition-colors duration-150 hover:bg-white/3"
+      class="group rounded-2xl bg-surface px-5 py-4 transition-colors duration-150 hover:bg-white/3"
       role="article">
       <CardContent
         avatarLabel={avatarLabel()}
@@ -172,6 +215,7 @@ export function SearchResultCard(props: SearchResultCardProps) {
         isSemantic={props.isSemanticMatch}
         text={highlightedText()}
         likes={props.likeCount}
+        onOpenThread={props.onOpenThread}
         replies={props.replyCount}
         sourceLabel={sourceLabel()} />
     </article>

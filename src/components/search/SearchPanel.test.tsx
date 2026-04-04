@@ -7,6 +7,7 @@ const searchPostsMock = vi.hoisted(() => vi.fn());
 const searchPostsNetworkMock = vi.hoisted(() => vi.fn());
 const getSyncStatusMock = vi.hoisted(() => vi.fn());
 const syncPostsMock = vi.hoisted(() => vi.fn());
+const threadOverlayMock = vi.hoisted(() => ({ openThread: vi.fn() }));
 
 vi.mock(
   "$/lib/api/search",
@@ -16,6 +17,10 @@ vi.mock(
     getSyncStatus: getSyncStatusMock,
     syncPosts: syncPostsMock,
   }),
+);
+vi.mock(
+  "$/components/posts/useThreadOverlayNavigation",
+  () => ({ useThreadOverlayNavigation: () => threadOverlayMock }),
 );
 
 vi.mock("@tauri-apps/plugin-log", () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }));

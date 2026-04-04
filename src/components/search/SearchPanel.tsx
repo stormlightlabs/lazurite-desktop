@@ -1,3 +1,4 @@
+import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { Icon, SearchModeIcon } from "$/components/shared/Icon";
 import { useAppPreferences } from "$/contexts/app-preferences";
 import { useAppSession } from "$/contexts/app-session";
@@ -57,6 +58,7 @@ function ModeLabel(props: { mode: SearchMode }) {
 export function SearchPanel(props: SearchPanelProps = {}) {
   const preferences = useAppPreferences();
   const session = useAppSession();
+  const threadOverlay = useThreadOverlayNavigation();
   const [search, setSearch] = createStore<SearchPanelState>({
     error: null,
     hasSearched: false,
@@ -250,6 +252,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
           loading={search.loading}
           localResults={search.results}
           networkResults={search.networkResults}
+          onOpenThread={(uri) => void threadOverlay.openThread(uri)}
           query={search.query} />
       </section>
 
@@ -416,6 +419,7 @@ function SearchViewport(
     loading: boolean;
     localResults: LocalPostResult[];
     networkResults: NetworkSearchResult | null;
+    onOpenThread: (uri: string) => void;
     query: string;
   },
 ) {
@@ -436,6 +440,7 @@ function SearchState(
     isLocalMode: boolean;
     localResults: LocalPostResult[];
     networkResults: NetworkSearchResult | null;
+    onOpenThread: (uri: string) => void;
     query: string;
   },
 ) {
@@ -463,11 +468,11 @@ function SearchState(
         </Match>
 
         <Match when={props.isLocalMode}>
-          <LocalPostResultsList query={props.query} results={props.localResults} />
+          <LocalPostResultsList onOpenThread={props.onOpenThread} query={props.query} results={props.localResults} />
         </Match>
 
         <Match when={!props.isLocalMode && props.networkResults}>
-          <NetworkResultsList query={props.query} results={props.networkResults} />
+          <NetworkResultsList onOpenThread={props.onOpenThread} query={props.query} results={props.networkResults} />
         </Match>
       </Switch>
     </Presence>
@@ -487,7 +492,9 @@ function EmptyStateView(props: { reason: "error" | "initial" | "no-results" | "n
   );
 }
 
-function NetworkResultsList(props: { query: string; results: NetworkSearchResult | null }) {
+function NetworkResultsList(
+  props: { onOpenThread: (uri: string) => void; query: string; results: NetworkSearchResult | null },
+) {
   return (
     <Motion.div
       class="grid gap-2"
@@ -510,6 +517,7 @@ function NetworkResultsList(props: { query: string; results: NetworkSearchResult
                 text={typeof post.record.text === "string" ? post.record.text : ""}
                 createdAt={post.indexedAt}
                 likeCount={post.likeCount ?? 0}
+                onOpenThread={() => props.onOpenThread(post.uri)}
                 replyCount={post.replyCount ?? 0}
                 query={props.query} />
             </Motion.div>
