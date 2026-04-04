@@ -6,7 +6,9 @@ export type ActiveSession = { did: string; handle: string };
 
 export type AppBootstrap = { activeSession: ActiveSession | null; accountList: AccountSummary[] };
 
-export type LoginSuggestion = { did: string; handle: string; displayName?: string | null; avatar?: string | null };
+export type ActorSuggestion = { did: string; handle: string; displayName?: string | null; avatar?: string | null };
+
+export type LoginSuggestion = ActorSuggestion;
 
 export type SavedFeedKind = "timeline" | "feed" | "list";
 

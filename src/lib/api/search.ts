@@ -5,10 +5,15 @@ export type SearchMode = "network" | "keyword" | "semantic" | "hybrid";
 
 export type NetworkSearchResult = { cursor?: string | null; hitsTotal?: number | null; posts: PostView[] };
 
-export type ActorSearchResult = {
-  cursor?: string | null;
-  actors: { did: string; handle: string; displayName?: string | null; avatar?: string | null }[];
+type TActor = {
+  did: string;
+  handle: string;
+  displayName?: string | null;
+  avatar?: string | null;
+  description?: string | null;
 };
+
+export type ActorSearchResult = { cursor?: string | null; actors: TActor[] };
 
 type TStarterPack = {
   uri: string;

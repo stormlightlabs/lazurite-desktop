@@ -1,4 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+// @ts-expect-error - erroneous font types missing
 import "@fontsource-variable/google-sans";
 import { useNavigate } from "@solidjs/router";
 import type { ParentProps } from "solid-js";

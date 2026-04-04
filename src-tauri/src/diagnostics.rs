@@ -142,21 +142,28 @@ struct RepoRecord {
 pub async fn get_account_lists(did: String, state: &AppState) -> Result<AccountListsResult> {
     let normalized_did = normalize_did(&did)?;
     let client = constellation_client(state)?;
-    let counts = client
+    let counts = match client
         .get_many_to_many_counts(
             normalized_did.clone(),
             LIST_MEMBERSHIP_SOURCE.to_string(),
             LIST_MEMBERSHIP_PATH_TO_OTHER.to_string(),
         )
         .await
-        .map_err(|error| diagnostics_error("Couldn't load lists for this account.", error))?;
+    {
+        Ok(counts) => counts,
+        Err(error) if should_skip_missing_resource(&error) => {
+            log_missing_resource("account lists", &normalized_did, &error);
+            return Ok(AccountListsResult { total: 0, lists: Vec::new(), truncated: false });
+        }
+        Err(error) => return Err(AppError::diagnostics("Couldn't load lists for this account.", error)),
+    };
 
     let mut list_uris = Vec::new();
     let mut cursor = None;
     let mut truncated = false;
 
     while list_uris.len() < ACCOUNT_LIST_MAX_ITEMS {
-        let response = client
+        let response = match client
             .get_many_to_many(
                 normalized_did.clone(),
                 LIST_MEMBERSHIP_SOURCE.to_string(),
@@ -165,7 +172,14 @@ pub async fn get_account_lists(did: String, state: &AppState) -> Result<AccountL
                 cursor.clone(),
             )
             .await
-            .map_err(|error| diagnostics_error("Couldn't load lists for this account.", error))?;
+        {
+            Ok(response) => response,
+            Err(error) if should_skip_missing_resource(&error) => {
+                log_missing_resource("account lists", &normalized_did, &error);
+                break;
+            }
+            Err(error) => return Err(AppError::diagnostics("Couldn't load lists for this account.", error)),
+        };
 
         if response.items.is_empty() {
             break;
@@ -206,9 +220,9 @@ pub async fn get_account_labels(did: String) -> Result<AccountLabelsResult> {
                 .build(),
         )
         .await
-        .map_err(|error| diagnostics_error("Couldn't load labels for this account.", error))?
+        .map_err(|error| AppError::diagnostics("Couldn't load labels for this account.", error))?
         .into_output()
-        .map_err(|error| diagnostics_error("Couldn't read labels for this account.", error))?
+        .map_err(|error| AppError::diagnostics("Couldn't read labels for this account.", error))?
         .into_static();
 
     let labels = output
@@ -232,7 +246,7 @@ pub async fn get_account_blocked_by(
 ) -> Result<AccountBlockedByResult> {
     let normalized_did = normalize_did(&did)?;
     let client = constellation_client(state)?;
-    let response = client
+    let response = match client
         .get_distinct_dids(
             normalized_did,
             BLOCK_SOURCE.to_string(),
@@ -240,7 +254,18 @@ pub async fn get_account_blocked_by(
             cursor,
         )
         .await
-        .map_err(|error| diagnostics_error("Couldn't load the accounts blocking this profile.", error))?;
+    {
+        Ok(response) => response,
+        Err(error) if should_skip_missing_resource(&error) => {
+            return Ok(AccountBlockedByResult { total: 0, items: Vec::new(), cursor: None });
+        }
+        Err(error) => {
+            return Err(AppError::diagnostics(
+                "Couldn't load the accounts blocking this profile.",
+                error,
+            ))
+        }
+    };
 
     let profiles = fetch_profiles_map(&response.dids).await?;
     let items = response
@@ -254,9 +279,19 @@ pub async fn get_account_blocked_by(
 
 pub async fn get_account_blocking(did: String, cursor: Option<String>) -> Result<AccountBlockingResult> {
     let normalized_did = normalize_did(&did)?;
-    let output = explorer::list_records(normalized_did.clone(), BLOCK_COLLECTION.to_string(), cursor)
-        .await
-        .map_err(|error| diagnostics_error("Couldn't load this account's block records.", error))?;
+    let output = match explorer::list_records(normalized_did.clone(), BLOCK_COLLECTION.to_string(), cursor).await {
+        Ok(output) => output,
+        Err(error) if should_skip_missing_resource(&error) => {
+            log_missing_resource("block records", &normalized_did, &error);
+            return Ok(AccountBlockingResult { items: Vec::new(), cursor: None });
+        }
+        Err(error) => {
+            return Err(AppError::diagnostics(
+                "Couldn't load this account's block records.",
+                error,
+            ))
+        }
+    };
     let parsed: RepoListRecordsOutput = serde_json::from_value(output).map_err(|error| {
         log::error!("failed to decode block listRecords output: {error}");
         AppError::validation("Lazurite couldn't read this account's block records.")
@@ -291,17 +326,29 @@ pub async fn get_account_blocking(did: String, cursor: Option<String>) -> Result
 pub async fn get_account_starter_packs(did: String, state: &AppState) -> Result<AccountStarterPacksResult> {
     let normalized_did = normalize_did(&did)?;
     let client = constellation_client(state)?;
-    let count = client
+    let count = match client
         .get_backlinks_count(normalized_did.clone(), STARTER_PACK_SOURCE.to_string())
         .await
-        .map_err(|error| diagnostics_error("Couldn't load starter packs for this account.", error))?;
+    {
+        Ok(count) => count,
+        Err(error) if should_skip_missing_resource(&error) => {
+            log_missing_resource("starter packs", &normalized_did, &error);
+            return Ok(AccountStarterPacksResult { total: 0, starter_packs: Vec::new(), truncated: false });
+        }
+        Err(error) => {
+            return Err(AppError::diagnostics(
+                "Couldn't load starter packs for this account.",
+                error,
+            ))
+        }
+    };
 
     let mut pack_uris = Vec::new();
     let mut cursor = None;
     let mut truncated = false;
 
     while pack_uris.len() < STARTER_PACK_MAX_ITEMS {
-        let response = client
+        let response = match client
             .get_backlinks(
                 normalized_did.clone(),
                 STARTER_PACK_SOURCE.to_string(),
@@ -309,7 +356,19 @@ pub async fn get_account_starter_packs(did: String, state: &AppState) -> Result<
                 cursor.clone(),
             )
             .await
-            .map_err(|error| diagnostics_error("Couldn't load starter packs for this account.", error))?;
+        {
+            Ok(response) => response,
+            Err(error) if should_skip_missing_resource(&error) => {
+                log_missing_resource("starter packs", &normalized_did, &error);
+                break;
+            }
+            Err(error) => {
+                return Err(AppError::diagnostics(
+                    "Couldn't load starter packs for this account.",
+                    error,
+                ))
+            }
+        };
 
         if response.records.is_empty() {
             break;
@@ -379,9 +438,21 @@ fn normalize_at_uri(input: &str) -> Result<String> {
         .map_err(|_| AppError::validation("Enter a valid AT-URI."))
 }
 
-fn diagnostics_error(message: &'static str, error: impl std::fmt::Display) -> AppError {
-    log::error!("{message} {error}");
-    AppError::validation(message)
+fn log_missing_resource(kind: &str, identifier: &str, error: impl std::fmt::Display) {
+    log::warn!("Skipping missing {kind} for {identifier}: {error}");
+}
+
+fn should_skip_missing_resource(error: &impl std::fmt::Display) -> bool {
+    let message = error.to_string().to_ascii_lowercase();
+    let mentions_missing = message.contains("not found") || message.contains("notfound");
+    let mentions_resource = message.contains("list")
+        || message.contains("record")
+        || message.contains("repo")
+        || message.contains("profile")
+        || message.contains("starter pack")
+        || message.contains("starterpack");
+
+    mentions_missing && mentions_resource
 }
 
 fn link_record_uri(record: &ConstellationLinkRecord) -> String {
@@ -417,15 +488,34 @@ async fn fetch_profiles_map(dids: &[String]) -> Result<BTreeMap<String, Value>> 
     for chunk in unique_dids.chunks(PUBLIC_BATCH_LIMIT) {
         let actors = chunk
             .iter()
-            .map(|did| did_identifier(did))
-            .collect::<Result<Vec<_>>>()?;
-        let output = client
-            .send(GetProfiles::new().actors(actors).build())
-            .await
-            .map_err(|error| diagnostics_error("Couldn't load account profiles.", error))?
-            .into_output()
-            .map_err(|error| diagnostics_error("Couldn't read account profiles.", error))?
-            .into_static();
+            .filter_map(|did| match did_identifier(did) {
+                Ok(actor) => Some(actor),
+                Err(error) => {
+                    log_missing_resource("profile", did, error);
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        if actors.is_empty() {
+            continue;
+        }
+
+        let output = match client.send(GetProfiles::new().actors(actors).build()).await {
+            Ok(output) => output,
+            Err(error) if should_skip_missing_resource(&error) => {
+                log_missing_resource("profiles", &chunk.join(","), error);
+                continue;
+            }
+            Err(error) => return Err(AppError::diagnostics("Couldn't load account profiles.", error)),
+        };
+        let output = match output.into_output() {
+            Ok(output) => output.into_static(),
+            Err(error) if should_skip_missing_resource(&error) => {
+                log_missing_resource("profiles", &chunk.join(","), error);
+                continue;
+            }
+            Err(error) => return Err(AppError::diagnostics("Couldn't read account profiles.", error)),
+        };
 
         for profile in output.profiles {
             profiles.insert(profile.did.to_string(), serde_json::to_value(profile)?);
@@ -440,14 +530,32 @@ async fn fetch_lists(list_uris: &[String]) -> Result<Vec<Value>> {
     let mut lists = Vec::new();
 
     for list_uri in list_uris {
-        let parsed_uri = AtUri::new(list_uri).map_err(|_| AppError::validation("A list URI was invalid."))?;
-        let output = client
+        let parsed_uri = match AtUri::new(list_uri) {
+            Ok(uri) => uri,
+            Err(error) => {
+                log_missing_resource("list", list_uri, error);
+                continue;
+            }
+        };
+        let output = match client
             .send(GetList::new().list(parsed_uri.into_static()).limit(1).build())
             .await
-            .map_err(|error| diagnostics_error("Couldn't load one of the matching lists.", error))?
-            .into_output()
-            .map_err(|error| diagnostics_error("Couldn't read one of the matching lists.", error))?
-            .into_static();
+        {
+            Ok(output) => output,
+            Err(error) if should_skip_missing_resource(&error) => {
+                log_missing_resource("list", list_uri, error);
+                continue;
+            }
+            Err(error) => return Err(AppError::diagnostics("Couldn't load one of the matching lists.", error)),
+        };
+        let output = match output.into_output() {
+            Ok(output) => output.into_static(),
+            Err(error) if should_skip_missing_resource(&error) => {
+                log_missing_resource("list", list_uri, error);
+                continue;
+            }
+            Err(error) => return Err(AppError::diagnostics("Couldn't read one of the matching lists.", error)),
+        };
         lists.push(serde_json::to_value(output.list)?);
     }
 
@@ -462,22 +570,35 @@ async fn fetch_starter_packs(uris: &[String]) -> Result<Vec<Value>> {
     let client = public_client();
     let mut starter_packs = Vec::new();
 
-    for chunk in uris.chunks(PUBLIC_BATCH_LIMIT) {
-        let parsed_uris = chunk
-            .iter()
-            .map(|uri| {
-                AtUri::new(uri)
-                    .map(IntoStatic::into_static)
-                    .map_err(|_| AppError::validation("A starter pack URI was invalid."))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let output = client
-            .send(GetStarterPacks::new().uris(parsed_uris).build())
-            .await
-            .map_err(|error| diagnostics_error("Couldn't load starter packs for this account.", error))?
-            .into_output()
-            .map_err(|error| diagnostics_error("Couldn't read starter pack details.", error))?
-            .into_static();
+    for uri in uris {
+        let parsed_uri = match AtUri::new(uri).map(IntoStatic::into_static) {
+            Ok(parsed_uri) => parsed_uri,
+            Err(error) => {
+                log_missing_resource("starter pack", uri, error);
+                continue;
+            }
+        };
+        let output = match client.send(GetStarterPacks::new().uris(vec![parsed_uri]).build()).await {
+            Ok(output) => output,
+            Err(error) if should_skip_missing_resource(&error) => {
+                log_missing_resource("starter pack", uri, error);
+                continue;
+            }
+            Err(error) => {
+                return Err(AppError::diagnostics(
+                    "Couldn't load starter packs for this account.",
+                    error,
+                ))
+            }
+        };
+        let output = match output.into_output() {
+            Ok(output) => output.into_static(),
+            Err(error) if should_skip_missing_resource(&error) => {
+                log_missing_resource("starter pack", uri, error);
+                continue;
+            }
+            Err(error) => return Err(AppError::diagnostics("Couldn't read starter pack details.", error)),
+        };
 
         for starter_pack in output.starter_packs {
             starter_packs.push(serde_json::to_value(starter_pack)?);
@@ -496,7 +617,7 @@ async fn fetch_backlink_group(client: &ConstellationClient, subject: &str, sourc
             None,
         )
         .await
-        .map_err(|error| diagnostics_error("Couldn't load record backlinks right now.", error))?;
+        .map_err(|error| AppError::diagnostics("Couldn't load record backlinks right now.", error))?;
 
     build_backlink_group(response).await
 }
@@ -538,7 +659,7 @@ fn extract_created_at(value: &Value) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{dedupe_preserve_order, extract_created_at, extract_subject_did};
+    use super::{dedupe_preserve_order, extract_created_at, extract_subject_did, should_skip_missing_resource};
     use serde_json::json;
 
     #[test]
@@ -560,5 +681,14 @@ mod tests {
 
         assert_eq!(extract_subject_did(&value).as_deref(), Some("did:plc:blocked"));
         assert_eq!(extract_created_at(&value).as_deref(), Some("2025-01-01T00:00:00Z"));
+    }
+
+    #[test]
+    fn treats_missing_list_errors_as_skippable() {
+        assert!(should_skip_missing_resource(
+            &"XRPC error: Object(Object({\"error\":\"InvalidRequest\",\"message\":\"List not found\"}))"
+        ));
+        assert!(should_skip_missing_resource(&"repo not found"));
+        assert!(!should_skip_missing_resource(&"rate limit exceeded"));
     }
 }

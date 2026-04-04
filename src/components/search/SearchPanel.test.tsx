@@ -3,6 +3,9 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchPanel } from "./SearchPanel";
 
+const navigateMock = vi.hoisted(() => vi.fn());
+const searchActorSuggestionsMock = vi.hoisted(() => vi.fn());
+const searchActorsMock = vi.hoisted(() => vi.fn());
 const searchPostsMock = vi.hoisted(() => vi.fn());
 const searchPostsNetworkMock = vi.hoisted(() => vi.fn());
 const getSyncStatusMock = vi.hoisted(() => vi.fn());
@@ -12,16 +15,19 @@ const threadOverlayMock = vi.hoisted(() => ({ openThread: vi.fn() }));
 vi.mock(
   "$/lib/api/search",
   () => ({
+    searchActors: searchActorsMock,
     searchPosts: searchPostsMock,
     searchPostsNetwork: searchPostsNetworkMock,
     getSyncStatus: getSyncStatusMock,
     syncPosts: syncPostsMock,
   }),
 );
+vi.mock("$/lib/api/actors", () => ({ searchActorSuggestions: searchActorSuggestionsMock }));
 vi.mock(
   "$/components/posts/useThreadOverlayNavigation",
   () => ({ useThreadOverlayNavigation: () => threadOverlayMock }),
 );
+vi.mock("@solidjs/router", () => ({ useNavigate: () => navigateMock }));
 
 vi.mock("@tauri-apps/plugin-log", () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }));
 
@@ -36,12 +42,17 @@ function renderSearchPanel() {
 describe("SearchPanel", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    navigateMock.mockReset();
+    searchActorSuggestionsMock.mockReset();
+    searchActorsMock.mockReset();
     searchPostsMock.mockReset();
     searchPostsNetworkMock.mockReset();
     getSyncStatusMock.mockReset();
     syncPostsMock.mockReset();
 
     getSyncStatusMock.mockResolvedValue([]);
+    searchActorSuggestionsMock.mockResolvedValue([]);
+    searchActorsMock.mockResolvedValue({ actors: [], cursor: null });
     syncPostsMock.mockResolvedValue({
       did: "did:plc:test",
       source: "like",
@@ -197,5 +208,42 @@ describe("SearchPanel", () => {
     });
 
     expect(await screen.findByText("No results found")).toBeInTheDocument();
+  });
+
+  it("searches profiles and opens a selected actor", async () => {
+    searchActorSuggestionsMock.mockResolvedValue([{
+      avatar: null,
+      did: "did:plc:bob",
+      displayName: "Bob Example",
+      handle: "bob.test",
+    }]);
+    searchActorsMock.mockResolvedValue({
+      actors: [{
+        avatar: null,
+        description: "Builds search systems.",
+        did: "did:plc:bob",
+        displayName: "Bob Example",
+        handle: "bob.test",
+      }],
+      cursor: null,
+    });
+
+    renderSearchPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /profiles/i }));
+
+    const input = screen.getByRole("combobox");
+    fireEvent.input(input, { target: { value: "bob" } });
+
+    await vi.advanceTimersByTimeAsync(350);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(searchActorsMock).toHaveBeenCalledWith("bob", 25);
+    expect(await screen.findByText("Builds search systems.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /bob example/i }));
+
+    expect(navigateMock).toHaveBeenCalledWith("/profile/bob.test");
   });
 });

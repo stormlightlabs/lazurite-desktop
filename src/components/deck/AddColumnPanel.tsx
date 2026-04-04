@@ -1,23 +1,21 @@
+import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/actor-search";
 import { getFeedGenerators, getPreferences } from "$/lib/api/feeds";
 import type { SearchMode } from "$/lib/api/search";
 import type { ColumnKind } from "$/lib/api/types/columns";
 import { getFeedName } from "$/lib/feeds";
 import type { FeedGeneratorView, LoginSuggestion, SavedFeedItem } from "$/lib/types";
-import { invoke } from "@tauri-apps/api/core";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { Portal } from "solid-js/web";
 import { Motion, Presence } from "solid-motionone";
-import { AvatarBadge } from "../AvatarBadge";
 import { FeedChipAvatar } from "../feeds/FeedChipAvatar";
 import { Icon, SearchModeIcon } from "../shared/Icon";
 
 type AddColumnPanelProps = { onAdd: (kind: ColumnKind, config: string) => void; onClose: () => void; open: boolean };
 
 type PanelTab = ColumnKind;
-type FeedPickerSelection = { feed: SavedFeedItem; title: string };
 
-const ACTOR_TYPEAHEAD_DEBOUNCE_MS = 180;
+type FeedPickerSelection = { feed: SavedFeedItem; title: string };
 
 function feedKindLabel(feed: SavedFeedItem) {
   switch (feed.type) {
@@ -274,91 +272,13 @@ function ProfilePicker(
 ) {
   let container: HTMLDivElement | undefined;
   let input: HTMLInputElement | undefined;
-  let requestId = 0;
-
-  const [activeIndex, setActiveIndex] = createSignal(-1);
-  const [loading, setLoading] = createSignal(false);
-  const [open, setOpen] = createSignal(false);
-  const [suggestions, setSuggestions] = createSignal<LoginSuggestion[]>([]);
   const [value, setValue] = createSignal("");
-
-  createEffect(() => {
-    const query = normalizeActorSuggestionQuery(value());
-    const nextRequestId = requestId + 1;
-    requestId = nextRequestId;
-
-    if (!query) {
-      setLoading(false);
-      setOpen(false);
-      setActiveIndex(-1);
-      setSuggestions([]);
-      return;
-    }
-
-    setLoading(true);
-
-    const timeout = globalThis.setTimeout(() => {
-      void invoke<LoginSuggestion[]>("search_login_suggestions", { query }).then((results) => {
-        if (requestId !== nextRequestId) {
-          return;
-        }
-
-        setSuggestions(results);
-        setActiveIndex(results.length > 0 ? 0 : -1);
-        setOpen(results.length > 0 && document.activeElement === input);
-      }).catch((error) => {
-        if (requestId !== nextRequestId) {
-          return;
-        }
-
-        logger.warn(`Failed to load profile suggestions: ${String(error)}`);
-        setSuggestions([]);
-        setActiveIndex(-1);
-        setOpen(false);
-      }).finally(() => {
-        if (requestId === nextRequestId) {
-          setLoading(false);
-        }
-      });
-    }, ACTOR_TYPEAHEAD_DEBOUNCE_MS);
-
-    onCleanup(() => globalThis.clearTimeout(timeout));
+  const typeahead = useActorSuggestions({
+    container: () => container,
+    input: () => input,
+    onError: (error) => logger.warn(`Failed to load profile suggestions: ${String(error)}`),
+    value,
   });
-
-  onMount(() => {
-    const pointerListener = {
-      handleEvent(event: Event) {
-        if (!open()) {
-          return;
-        }
-
-        if (container?.contains(event.target as Node)) {
-          return;
-        }
-
-        setOpen(false);
-      },
-    };
-
-    globalThis.addEventListener("pointerdown", pointerListener);
-    onCleanup(() => globalThis.removeEventListener("pointerdown", pointerListener));
-  });
-
-  function moveActiveIndex(direction: 1 | -1) {
-    const items = suggestions();
-    if (items.length === 0) {
-      return;
-    }
-
-    setOpen(true);
-    setActiveIndex((current) => {
-      if (current < 0) {
-        return direction > 0 ? 0 : items.length - 1;
-      }
-
-      return (current + direction + items.length) % items.length;
-    });
-  }
 
   function submitManualActor() {
     const actor = value().trim();
@@ -366,10 +286,12 @@ function ProfilePicker(
       return;
     }
 
+    typeahead.close();
     props.onSubmit({ actor });
   }
 
   function submitSuggestion(suggestion: LoginSuggestion) {
+    typeahead.close();
     props.onSubmit({
       actor: suggestion.handle,
       did: suggestion.did,
@@ -381,25 +303,24 @@ function ProfilePicker(
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      moveActiveIndex(1);
+      typeahead.moveActiveIndex(1);
       return;
     }
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      moveActiveIndex(-1);
+      typeahead.moveActiveIndex(-1);
       return;
     }
 
     if (event.key === "Escape") {
-      setOpen(false);
-      setActiveIndex(-1);
+      typeahead.close();
       return;
     }
 
-    if (event.key === "Enter" && open() && activeIndex() >= 0) {
+    if (event.key === "Enter" && typeahead.open() && typeahead.activeSuggestion()) {
       event.preventDefault();
-      submitSuggestion(suggestions()[activeIndex()]);
+      submitSuggestion(typeahead.activeSuggestion() as LoginSuggestion);
     }
   }
 
@@ -425,21 +346,25 @@ function ProfilePicker(
             role="combobox"
             aria-autocomplete="list"
             aria-controls="profile-suggestions"
-            aria-activedescendant={activeIndex() >= 0 ? `profile-suggestion-${activeIndex()}` : undefined}
-            aria-expanded={open()}
+            aria-activedescendant={typeahead.activeIndex() >= 0
+              ? `profile-suggestions-option-${typeahead.activeIndex()}`
+              : undefined}
+            aria-expanded={typeahead.open()}
             class="w-full rounded-xl border-0 bg-white/6 px-4 py-2.5 pr-10 text-sm text-on-surface placeholder:text-on-surface-variant/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.4)]"
             placeholder="alice.bsky.social"
             spellcheck={false}
             value={value()}
-            onFocus={() => setOpen(suggestions().length > 0)}
+            onFocus={() => typeahead.focus()}
             onInput={(event) => setValue(event.currentTarget.value)}
             onKeyDown={(event) => handleKeyDown(event)} />
 
-          <TypeaheadLoading visible={loading()} />
-          <ProfileSuggestionList
-            activeIndex={activeIndex()}
-            open={open()}
-            suggestions={suggestions()}
+          <TypeaheadLoading visible={typeahead.loading()} />
+          <ActorSuggestionList
+            activeIndex={typeahead.activeIndex()}
+            id="profile-suggestions"
+            open={typeahead.open()}
+            suggestions={typeahead.suggestions()}
+            title="Suggested profiles"
             onSelect={submitSuggestion} />
         </div>
       </label>
@@ -463,73 +388,6 @@ function TypeaheadLoading(props: { visible: boolean }) {
       <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
         <Icon kind="loader" class="animate-spin text-sm" />
       </span>
-    </Show>
-  );
-}
-
-function ProfileSuggestionList(
-  props: {
-    activeIndex: number;
-    open: boolean;
-    suggestions: LoginSuggestion[];
-    onSelect: (suggestion: LoginSuggestion) => void;
-  },
-) {
-  return (
-    <Show when={props.open && props.suggestions.length > 0}>
-      <div
-        id="profile-suggestions"
-        role="listbox"
-        class="absolute inset-x-0 top-[calc(100%+0.65rem)] z-10 rounded-3xl bg-(--surface-container-highest) p-2.5 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px]">
-        <p class="px-2 pb-2 text-[0.68rem] uppercase tracking-[0.12em] text-on-surface-variant">Suggested profiles</p>
-        <div class="grid gap-1.5">
-          <For each={props.suggestions}>
-            {(suggestion, index) => (
-              <ProfileSuggestionOption
-                active={props.activeIndex === index()}
-                id={`profile-suggestion-${index()}`}
-                suggestion={suggestion}
-                onSelect={props.onSelect} />
-            )}
-          </For>
-        </div>
-      </div>
-    </Show>
-  );
-}
-
-function ProfileSuggestionOption(
-  props: { active: boolean; id: string; suggestion: LoginSuggestion; onSelect: (suggestion: LoginSuggestion) => void },
-) {
-  return (
-    <button
-      id={props.id}
-      type="button"
-      role="option"
-      aria-selected={props.active}
-      class="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-xl border-0 bg-transparent px-3 py-2.5 text-left transition duration-150 ease-out hover:bg-white/6"
-      classList={{ "bg-white/7 shadow-[inset_0_0_0_1px_rgba(125,175,255,0.12)]": props.active }}
-      onPointerDown={(event) => event.preventDefault()}
-      onClick={() => props.onSelect(props.suggestion)}>
-      <ProfileSuggestionAvatar suggestion={props.suggestion} />
-      <div class="min-w-0">
-        <p class="m-0 truncate text-sm font-medium text-on-surface">{getSuggestionHeadline(props.suggestion)}</p>
-        <p class="mt-0.5 truncate text-xs text-on-surface-variant">@{props.suggestion.handle.replace(/^@/, "")}</p>
-      </div>
-    </button>
-  );
-}
-
-function ProfileSuggestionAvatar(props: { suggestion: LoginSuggestion }) {
-  return (
-    <Show when={props.suggestion.avatar} fallback={<AvatarBadge label={props.suggestion.handle} tone="muted" />}>
-      {(avatar) => (
-        <img
-          class="h-10 w-10 rounded-full object-cover shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]"
-          src={avatar()}
-          alt=""
-          loading="lazy" />
-      )}
     </Show>
   );
 }
@@ -757,18 +615,4 @@ export function AddColumnPanel(props: AddColumnPanelProps) {
       </Show>
     </Presence>
   );
-}
-
-function getSuggestionHeadline(suggestion: LoginSuggestion) {
-  const displayName = suggestion.displayName?.trim();
-  return displayName && displayName !== suggestion.handle ? displayName : suggestion.handle.replace(/^@/, "");
-}
-
-function normalizeActorSuggestionQuery(value: string) {
-  const trimmed = value.trim();
-  if (trimmed.length < 2 || trimmed.startsWith("did:") || /^https?:\/\//i.test(trimmed)) {
-    return "";
-  }
-
-  return trimmed.replace(/^@/, "");
 }

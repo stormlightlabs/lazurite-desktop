@@ -105,4 +105,9 @@ impl AppError {
         log::error!("state lock poisoned: {}", msg);
         AppError::StatePoisoned(Box::leak(msg.into_boxed_str()))
     }
+
+    pub fn diagnostics(message: &'static str, error: impl std::fmt::Display) -> Self {
+        log::error!("{message} {error}");
+        AppError::validation(message)
+    }
 }

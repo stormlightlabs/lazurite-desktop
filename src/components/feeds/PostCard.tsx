@@ -18,7 +18,7 @@ import {
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { EmbedView, FeedViewPost, ImagesEmbedView, PostView, ProfileViewBasic, RichTextFacet } from "$/lib/types";
 import { formatCount } from "$/lib/utils/text";
-import { createMemo, createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
+import { createMemo, createSignal, For, Match, type ParentProps, Show, Switch } from "solid-js";
 import { Motion } from "solid-motionone";
 
 type PostCardProps = {
@@ -247,7 +247,7 @@ function PostHeader(props: { authorName: string; createdAt: string; post: PostVi
   );
 }
 
-function PostPrimaryRegion(props: { children: JSX.Element; onFocus?: () => void; onOpenThread?: () => void }) {
+function PostPrimaryRegion(props: ParentProps<{ onFocus?: () => void; onOpenThread?: () => void }>) {
   const interactive = () => !!props.onOpenThread;
 
   return (

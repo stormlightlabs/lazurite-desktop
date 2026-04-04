@@ -1,12 +1,22 @@
+import type { JSX } from "solid-js";
 import { Show } from "solid-js";
 import { Icon } from "../shared/Icon";
 
 type SearchQueryInputProps = {
+  ariaActivedescendant?: string;
+  ariaAutocomplete?: "both" | "inline" | "list" | "none";
+  ariaControls?: string;
+  ariaExpanded?: boolean;
+  autocomplete?: string;
+  children?: JSX.Element;
   error: string | null;
   inputRef?: (el: HTMLInputElement) => void;
   loading: boolean;
+  onFocus?: () => void;
   placeholder: string;
   query: string;
+  role?: JSX.InputHTMLAttributes<HTMLInputElement>["role"];
+  spellcheck?: boolean;
   onClear: () => void;
   onKeyDown?: (event: KeyboardEvent) => void;
   onQueryChange: (value: string) => void;
@@ -23,16 +33,26 @@ export function SearchQueryInput(props: SearchQueryInputProps) {
         <input
           ref={props.inputRef}
           type="text"
+          role={props.role}
+          aria-activedescendant={props.ariaActivedescendant}
+          aria-autocomplete={props.ariaAutocomplete}
+          aria-controls={props.ariaControls}
+          aria-expanded={props.ariaExpanded}
+          autocomplete={props.autocomplete}
+          spellcheck={props.spellcheck}
           value={props.query}
           placeholder={props.placeholder}
           class="w-full rounded-3xl border-0 bg-black/40 py-3.5 pl-12 pr-20 text-base text-on-surface placeholder:text-on-surface-variant/50 outline-none ring-1 ring-white/5 transition-all focus:ring-primary/50"
           onInput={(event) => props.onQueryChange(event.currentTarget.value)}
+          onFocus={() => props.onFocus?.()}
           onKeyDown={(event) => props.onKeyDown?.(event)} />
 
         <div class="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
           <LoadingIndicator loading={props.loading} />
           <ClearButton query={props.query} loading={props.loading} onClear={props.onClear} />
         </div>
+
+        {props.children}
       </div>
 
       <Show when={props.error}>

@@ -1,7 +1,9 @@
 import { Icon } from "$/components/shared/Icon";
 import { Match, Show, Switch } from "solid-js";
 
-type SearchEmptyStateProps = { reason: "error" | "initial" | "no-results" | "no-sync"; scope?: "local" | "network" };
+type SearchEmptyStateScope = "local" | "network" | "profiles";
+
+type SearchEmptyStateProps = { reason: "error" | "initial" | "no-results" | "no-sync"; scope?: SearchEmptyStateScope };
 
 export function SearchEmptyState(props: SearchEmptyStateProps) {
   return (
@@ -24,7 +26,7 @@ function EmptyStateIcon(props: { reason: string }) {
   );
 }
 
-function EmptyStateContent(props: { reason: string; scope: "local" | "network" }) {
+function EmptyStateContent(props: { reason: string; scope: SearchEmptyStateScope }) {
   return (
     <Switch>
       <Match when={props.reason === "initial"}>
@@ -46,10 +48,16 @@ function EmptyStateContent(props: { reason: string; scope: "local" | "network" }
   );
 }
 
-function InitialContent(props: { scope: "local" | "network" }) {
+function InitialContent(props: { scope: SearchEmptyStateScope }) {
   return (
     <>
       <Switch>
+        <Match when={props.scope === "profiles"}>
+          <h3 class="mb-1 text-base font-medium text-on-surface">Search people across Bluesky</h3>
+          <p class="m-0 text-sm text-on-surface-variant">
+            Type a handle or display name above to find profiles and jump directly into their profile view.
+          </p>
+        </Match>
         <Match when={props.scope === "network"}>
           <h3 class="mb-1 text-base font-medium text-on-surface">Search public posts across the network</h3>
           <p class="m-0 text-sm text-on-surface-variant">
@@ -79,15 +87,26 @@ function KeyboardShortcuts() {
         <kbd class="rounded bg-white/10 px-1.5 py-0.5">Tab</kbd>
         Cycle search modes
       </div>
+      <div class="flex items-center gap-2">
+        <kbd class="rounded bg-white/10 px-1.5 py-0.5">↑↓</kbd>
+        Navigate profile suggestions
+      </div>
     </div>
   );
 }
 
-function NoResultsContent(props: { scope: "local" | "network" }) {
+function NoResultsContent(props: { scope: SearchEmptyStateScope }) {
   return (
     <>
-      <h3 class="mb-1 text-base font-medium text-on-surface">No results found</h3>
+      <h3 class="mb-1 text-base font-medium text-on-surface">
+        {props.scope === "profiles" ? "No profiles found" : "No results found"}
+      </h3>
       <Switch>
+        <Match when={props.scope === "profiles"}>
+          <p class="m-0 text-sm text-on-surface-variant">
+            Try a broader handle fragment, a display name, or select one of the suggested profiles as you type.
+          </p>
+        </Match>
         <Match when={props.scope === "network"}>
           <p class="m-0 text-sm text-on-surface-variant">
             Try a broader query or switch to local search if you want to search your synced posts instead.
@@ -114,11 +133,18 @@ function NoSyncContent() {
   );
 }
 
-function ErrorContent(props: { scope: "local" | "network" }) {
+function ErrorContent(props: { scope: SearchEmptyStateScope }) {
   return (
     <>
-      <h3 class="mb-1 text-base font-medium text-on-surface">Search failed</h3>
+      <h3 class="mb-1 text-base font-medium text-on-surface">
+        {props.scope === "profiles" ? "Profile search failed" : "Search failed"}
+      </h3>
       <Switch>
+        <Match when={props.scope === "profiles"}>
+          <p class="m-0 text-sm text-on-surface-variant">
+            The profile lookup did not complete. Retry the query or open a suggested profile if it appears.
+          </p>
+        </Match>
         <Match when={props.scope === "network"}>
           <p class="m-0 text-sm text-on-surface-variant">
             The network request did not complete. Retry the query or switch to local search while the network recovers.
