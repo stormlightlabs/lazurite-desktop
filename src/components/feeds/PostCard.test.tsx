@@ -8,7 +8,17 @@ function createPost() {
     cid: "cid-post",
     indexedAt: "2026-03-28T12:00:00.000Z",
     likeCount: 4,
-    record: { createdAt: "2026-03-28T12:00:00.000Z", text: "Visit https://example.com @bob.test #solid" },
+    record: {
+      createdAt: "2026-03-28T12:00:00.000Z",
+      facets: [{
+        features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://example.com" }],
+        index: { byteEnd: 25, byteStart: 6 },
+      }, {
+        features: [{ $type: "app.bsky.richtext.facet#mention", did: "did:plc:bob" }],
+        index: { byteEnd: 35, byteStart: 26 },
+      }, { features: [{ $type: "app.bsky.richtext.facet#tag", tag: "solid" }], index: { byteEnd: 42, byteStart: 36 } }],
+      text: "Visit https://example.com @bob.test #solid",
+    },
     replyCount: 2,
     repostCount: 1,
     uri: "at://did:plc:alice/app.bsky.feed.post/123",
@@ -17,11 +27,11 @@ function createPost() {
 }
 
 describe("PostCard", () => {
-  it("linkifies urls and keeps mentions and hashtags visible", () => {
+  it("renders links, mentions, and hashtags from facets", () => {
     render(() => <PostCard post={createPost()} />);
 
     expect(screen.getByRole("link", { name: "https://example.com" })).toHaveAttribute("href", "https://example.com");
-    expect(screen.getByText("@bob.test")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "@bob.test" })).toHaveAttribute("href", "#/profile/did%3Aplc%3Abob");
     expect(screen.getByText("#solid")).toBeInTheDocument();
   });
 
@@ -82,5 +92,37 @@ describe("PostCard", () => {
     ));
 
     expect(screen.getByText("Replying to @bob.test")).toBeInTheDocument();
+  });
+
+  it("renders recordWithMedia embeds as media plus quoted record", () => {
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.recordWithMedia#view",
+            media: {
+              $type: "app.bsky.embed.images#view",
+              images: [{ alt: "Preview image", fullsize: "https://cdn.example.com/image.png" }],
+            },
+            record: {
+              $type: "app.bsky.embed.record#view",
+              record: {
+                author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+                uri: "at://did:plc:bob/app.bsky.feed.post/quoted",
+                value: { text: "Quoted body" },
+              },
+            },
+          },
+        }} />
+    ));
+
+    expect(screen.getByAltText("Preview image")).toHaveAttribute("src", "https://cdn.example.com/image.png");
+    expect(screen.getByText("Quoted post")).toBeInTheDocument();
+    expect(screen.getByText("Quoted body")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /quoted body/i })).toHaveAttribute(
+      "href",
+      "https://bsky.app/profile/bob.test/post/quoted",
+    );
   });
 });

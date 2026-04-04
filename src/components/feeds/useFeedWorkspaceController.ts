@@ -408,17 +408,11 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
   }
 
   function openReplyComposer(post: PostView, root: PostView) {
-    setWorkspace(
-      "composer",
-      (current) => ({ ...current, open: true, quoteTarget: null, replyRoot: root, replyTarget: post }),
-    );
+    setWorkspace("composer", (current) => ({ ...current, open: true, replyRoot: root, replyTarget: post }));
   }
 
   function openQuoteComposer(post: PostView) {
-    setWorkspace(
-      "composer",
-      (current) => ({ ...current, open: true, quoteTarget: post, replyRoot: null, replyTarget: null }),
-    );
+    setWorkspace("composer", (current) => ({ ...current, open: true, quoteTarget: post }));
   }
 
   function clearQuoteComposer() {

@@ -31,4 +31,31 @@ describe("RecordView", () => {
     expect(screen.getByText("Moderation Labels")).toBeInTheDocument();
     expect(screen.getByText("!warn")).toBeInTheDocument();
   });
+
+  it("renders post previews with rich text formatting", async () => {
+    getRecordBacklinksMock.mockResolvedValue({
+      likes: { cursor: null, records: [], total: 0 },
+      quotes: { cursor: null, records: [], total: 0 },
+      replies: { cursor: null, records: [], total: 0 },
+      reposts: { cursor: null, records: [], total: 0 },
+    });
+
+    render(() => (
+      <RecordView
+        record={{
+          $type: "app.bsky.feed.post",
+          facets: [{
+            features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://example.com" }],
+            index: { byteEnd: 19, byteStart: 0 },
+          }],
+          text: "https://example.com\n\n```ts\nconst reply = true;\n```",
+        }}
+        cid="cid-post"
+        uri="at://did:plc:alice/app.bsky.feed.post/123"
+        labels={[]} />
+    ));
+
+    expect(screen.getByRole("link", { name: "https://example.com" })).toHaveAttribute("href", "https://example.com");
+    expect(screen.getByText("const reply = true;")).toBeInTheDocument();
+  });
 });

@@ -84,10 +84,22 @@ export type PostRecord = {
   $type?: string;
   createdAt?: string;
   embed?: Record<string, unknown> | null;
-  facets?: unknown[] | null;
+  facets?: RichTextFacet[] | null;
   text?: string;
   [key: string]: unknown;
 };
+
+export type RichTextByteSlice = { byteEnd: number; byteStart: number };
+
+export type RichTextLinkFacet = { $type: "app.bsky.richtext.facet#link"; uri: string };
+
+export type RichTextMentionFacet = { $type: "app.bsky.richtext.facet#mention"; did: string };
+
+export type RichTextTagFacet = { $type: "app.bsky.richtext.facet#tag"; tag: string };
+
+export type RichTextFacetFeature = RichTextLinkFacet | RichTextMentionFacet | RichTextTagFacet;
+
+export type RichTextFacet = { features: RichTextFacetFeature[]; index: RichTextByteSlice };
 
 type ImageEmbed = { alt?: string; aspectRatio?: { height: number; width: number }; fullsize?: string; thumb?: string };
 

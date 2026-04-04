@@ -922,6 +922,8 @@ mod tests {
         merge_saved_feeds_preferences, user_preferences_from_items, FeedViewPrefItem, SavedFeedItem,
     };
     use jacquard::api::app_bsky::actor::{AdultContentPref, FeedViewPref, PreferencesItem};
+    use jacquard::api::app_bsky::richtext::facet::FacetFeaturesItem;
+    use jacquard::richtext;
     use reqwest::StatusCode;
 
     fn adult_content_pref_item() -> PreferencesItem<'static> {
@@ -1018,5 +1020,64 @@ mod tests {
         assert!(accepts_empty_bookmark_response(StatusCode::OK, b""));
         assert!(!accepts_empty_bookmark_response(StatusCode::OK, b"{}"));
         assert!(!accepts_empty_bookmark_response(StatusCode::BAD_REQUEST, b""));
+    }
+
+    #[test]
+    fn richtext_parse_converts_markdown_links_into_plain_text_and_link_facets() {
+        let rich = tokio::runtime::Runtime::new()
+            .expect("tokio runtime should build")
+            .block_on(async {
+                richtext::parse("[example](https://example.com)")
+                    .build_async(&super::JacquardResolver::default())
+                    .await
+            })
+            .expect("richtext should build");
+
+        assert_eq!(rich.text.as_ref(), "example");
+        let facets = rich.facets.expect("markdown link should create a facet");
+        assert_eq!(facets.len(), 1);
+        assert_eq!(facets[0].index.byte_start, 0);
+        assert_eq!(facets[0].index.byte_end, 7);
+
+        match &facets[0].features[0] {
+            FacetFeaturesItem::Link(link) => assert_eq!(link.uri.as_ref(), "https://example.com"),
+            other => panic!("expected link facet, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn richtext_parse_keeps_other_facets_after_markdown_link_normalization() {
+        let rich = tokio::runtime::Runtime::new()
+            .expect("tokio runtime should build")
+            .block_on(async {
+                richtext::parse("[example](https://example.com) #rust https://docs.rs @did:plc:alice")
+                    .build_async(&super::JacquardResolver::default())
+                    .await
+            })
+            .expect("richtext should build");
+
+        assert_eq!(rich.text.as_ref(), "example #rust https://docs.rs @did:plc:alice");
+        let facets = rich.facets.expect("text should produce facets");
+
+        assert_eq!(facets.len(), 4);
+        assert!(matches!(facets[0].features[0], FacetFeaturesItem::Link(_)));
+        assert!(matches!(facets[1].features[0], FacetFeaturesItem::Tag(_)));
+        assert!(matches!(facets[2].features[0], FacetFeaturesItem::Link(_)));
+        assert!(matches!(facets[3].features[0], FacetFeaturesItem::Mention(_)));
+    }
+
+    #[test]
+    fn richtext_parse_leaves_invalid_markdown_link_syntax_unchanged() {
+        let rich = tokio::runtime::Runtime::new()
+            .expect("tokio runtime should build")
+            .block_on(async {
+                richtext::parse("[broken](not a url")
+                    .build_async(&super::JacquardResolver::default())
+                    .await
+            })
+            .expect("richtext should build");
+
+        assert_eq!(rich.text.as_ref(), "[broken](not a url");
+        assert!(rich.facets.is_none(), "invalid markdown should not produce facets");
     }
 }

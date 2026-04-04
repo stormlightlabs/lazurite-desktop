@@ -1,5 +1,6 @@
 import { Icon } from "$/components/shared/Icon";
-import { getDisplayName, getPostText } from "$/lib/feeds";
+import { QuotedPostPreview } from "$/components/shared/QuotedPostPreview";
+import { buildPublicPostUrl, getDisplayName, getPostText } from "$/lib/feeds";
 import type { PostView } from "$/lib/types";
 import { createMemo, For, Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
@@ -298,18 +299,12 @@ function QuotePreview(props: { post: PostView | null }) {
   return (
     <Show when={props.post}>
       {(post) => (
-        <div class="mt-4 rounded-2xl bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
-          <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Quote preview</p>
-          <p class="mt-2 text-sm font-semibold text-on-surface">
-            {getDisplayName(post().author)}
-            <span class="ml-1 text-xs font-normal text-on-surface-variant">
-              @{post().author.handle.replace(/^@/, "")}
-            </span>
-          </p>
-          <p class="mt-2 line-clamp-4 text-sm leading-[1.55] text-on-secondary-container">
-            {getPostText(post()) || "Quoted post"}
-          </p>
-        </div>
+        <QuotedPostPreview
+          author={post().author}
+          class="mt-4 rounded-2xl bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"
+          href={buildPublicPostUrl(post())}
+          text={getPostText(post()) || "Quoted post"}
+          title="Quote preview" />
       )}
     </Show>
   );

@@ -100,7 +100,7 @@ export function parseFeedGeneratorsResponse(value: unknown): FeedGeneratorsRespo
 
 export function getPostText(post: PostView) {
   const text = post.record.text;
-  return typeof text === "string" ? text.trim() : "";
+  return typeof text === "string" ? text : "";
 }
 
 export function getPostCreatedAt(post: PostView) {
@@ -316,6 +316,11 @@ export function getQuotedAuthor(embed: Maybe<EmbedView>) {
   return getQuotedRecord(embed)?.author ?? null;
 }
 
+export function getQuotedHref(embed: Maybe<EmbedView>) {
+  const record = getQuotedRecord(embed);
+  return buildPublicPostHref(record?.author ?? null, record?.uri);
+}
+
 export function patchFeedItems(items: FeedViewPost[], uri: string, updater: (post: PostView) => PostView) {
   return items.map((item) => (item.post.uri === uri ? { ...item, post: updater(item.post) } : item));
 }
@@ -383,13 +388,21 @@ export function buildThreadOverlayRoute(pathname: string, search: string, uri: s
 }
 
 export function buildPublicPostUrl(post: Pick<PostView, "author" | "uri">) {
-  const handle = post.author.handle.replace(/^@/, "").trim();
-  const segments = post.uri.split("/");
+  return buildPublicPostHref(post.author, post.uri) ?? post.uri;
+}
+
+export function buildPublicPostHref(author: Maybe<ProfileViewBasic>, uri: Maybe<string>) {
+  if (!author || typeof uri !== "string") {
+    return null;
+  }
+
+  const handle = author.handle.replace(/^@/, "").trim();
+  const segments = uri.split("/");
   const rkey = segments.at(-1)?.trim();
 
   if (handle && rkey) {
     return `https://bsky.app/profile/${encodeURIComponent(handle)}/post/${encodeURIComponent(rkey)}`;
   }
 
-  return post.uri;
+  return null;
 }

@@ -1,5 +1,7 @@
 import { ContextMenu, type ContextMenuAnchor, type ContextMenuItem } from "$/components/shared/ContextMenu";
 import { Icon } from "$/components/shared/Icon";
+import { PostRichText } from "$/components/shared/PostRichText";
+import { QuotedPostPreview } from "$/components/shared/QuotedPostPreview";
 import {
   buildPublicPostUrl,
   formatRelativeTime,
@@ -8,11 +10,12 @@ import {
   getPostCreatedAt,
   getPostText,
   getQuotedAuthor,
+  getQuotedHref,
   getQuotedText,
   isReplyItem,
 } from "$/lib/feeds";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
-import type { FeedViewPost, ImagesEmbedView, PostView, ProfileViewBasic } from "$/lib/types";
+import type { EmbedView, FeedViewPost, ImagesEmbedView, PostView, ProfileViewBasic, RichTextFacet } from "$/lib/types";
 import { formatCount } from "$/lib/utils/text";
 import { createMemo, createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import { Motion } from "solid-motionone";
@@ -44,6 +47,7 @@ export function PostCard(props: PostCardProps) {
   const isLiked = createMemo(() => !!props.post.viewer?.like);
   const isReposted = createMemo(() => !!props.post.viewer?.repost);
   const likeCount = createMemo(() => formatCount(props.post.likeCount));
+  const postText = createMemo(() => getPostText(props.post));
   const replyCount = createMemo(() => formatCount(props.post.replyCount));
   const repostCount = createMemo(() => formatCount(props.post.repostCount));
   const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.post.author)));
@@ -139,7 +143,7 @@ export function PostCard(props: PostCardProps) {
   return (
     <article
       ref={(element) => props.registerRef?.(element)}
-      class="group min-w-0 overflow-hidden rounded-3xl bg-white/2.5 px-5 py-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/4 max-[760px]:px-4 max-[760px]:py-4 max-[520px]:rounded-3xl max-[520px]:px-3.5"
+      class="group min-w-0 overflow-hidden rounded-3xl bg-white/2.5 px-4 py-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/4 max-[760px]:px-3.5 max-[760px]:py-3.5 max-[520px]:rounded-3xl max-[520px]:px-3 max-[520px]:py-3"
       classList={{
         "bg-[linear-gradient(135deg,rgba(125,175,255,0.11),rgba(0,115,222,0.06))] shadow-[inset_0_0_0_1px_rgba(125,175,255,0.22),0_0_0_1px_rgba(125,175,255,0.08)]":
           !!props.focused,
@@ -178,13 +182,7 @@ export function PostCard(props: PostCardProps) {
               profileHref={profileHref()}
               post={props.post} />
 
-            <Show when={getPostText(props.post)}>
-              {(text) => (
-                <p class="m-0 whitespace-pre-wrap wrap-break-word text-base leading-[1.65] text-on-secondary-container">
-                  <LinkifiedText text={text()} />
-                </p>
-              )}
-            </Show>
+            <PostBodyText facets={props.post.record.facets} text={postText()} />
 
             <PostEmbeds post={props.post} />
           </PostPrimaryRegion>
@@ -253,7 +251,7 @@ function PostPrimaryRegion(props: { children: JSX.Element; onFocus?: () => void;
 
   return (
     <div
-      class="min-w-0 rounded-2xl outline-none transition duration-150 ease-out"
+      class="min-w-0 rounded-2xl outline-none transition duration-150 ease-out p-2"
       classList={{
         "cursor-pointer hover:bg-white/2 focus-visible:bg-white/3 focus-visible:ring-1 focus-visible:ring-primary/30":
           interactive(),
@@ -359,6 +357,14 @@ function AuthorAvatar(props: { avatar?: string | null; label: string }) {
   );
 }
 
+function PostBodyText(props: { facets: RichTextFacet[]; text: string }) {
+  return (
+    <Show when={props.text.trim().length > 0}>
+      <PostRichText class="m-0" facets={props.facets} text={props.text} />
+    </Show>
+  );
+}
+
 function ActionButton(
   props: {
     active?: boolean;
@@ -397,33 +403,65 @@ function PostEmbeds(props: { post: PostView }) {
     <Show when={props.post.embed}>
       {(current) => (
         <div class="mt-4">
-          <Switch>
-            <Match when={current().$type === "app.bsky.embed.images#view"}>
-              <ImageEmbed embed={current() as ImagesEmbedView} />
-            </Match>
-            <Match when={current().$type === "app.bsky.embed.external#view"}>
-              <ExternalEmbed
-                description={(current() as { external: { description?: string } }).external.description}
-                thumb={(current() as { external: { thumb?: string } }).external.thumb}
-                title={(current() as { external: { title?: string } }).external.title}
-                uri={(current() as { external: { uri?: string } }).external.uri} />
-            </Match>
-            <Match when={current().$type === "app.bsky.embed.video#view"}>
-              <ExternalEmbed
-                description={(current() as { alt?: string }).alt}
-                thumb={(current() as { thumbnail?: string }).thumbnail}
-                title="Video attachment"
-                uri={(current() as { playlist?: string }).playlist} />
-            </Match>
-            <Match
-              when={current().$type === "app.bsky.embed.record#view"
-                || current().$type === "app.bsky.embed.recordWithMedia#view"}>
-              <QuoteEmbed author={getQuotedAuthor(current())} text={getQuotedText(current())} title="Quoted post" />
-            </Match>
-          </Switch>
+          <EmbedContent embed={current()} />
         </div>
       )}
     </Show>
+  );
+}
+
+function EmbedContent(props: { embed: EmbedView }) {
+  return (
+    <Switch>
+      <Match when={props.embed.$type === "app.bsky.embed.images#view"}>
+        <ImageEmbed embed={props.embed as ImagesEmbedView} />
+      </Match>
+      <Match when={props.embed.$type === "app.bsky.embed.external#view"}>
+        <ExternalEmbed
+          description={(props.embed as { external: { description?: string } }).external.description}
+          thumb={(props.embed as { external: { thumb?: string } }).external.thumb}
+          title={(props.embed as { external: { title?: string } }).external.title}
+          uri={(props.embed as { external: { uri?: string } }).external.uri} />
+      </Match>
+      <Match when={props.embed.$type === "app.bsky.embed.video#view"}>
+        <ExternalEmbed
+          description={(props.embed as { alt?: string }).alt}
+          thumb={(props.embed as { thumbnail?: string }).thumbnail}
+          title="Video attachment"
+          uri={(props.embed as { playlist?: string }).playlist} />
+      </Match>
+      <Match when={props.embed.$type === "app.bsky.embed.record#view"}>
+        <RecordEmbedContent embed={props.embed} />
+      </Match>
+      <Match when={props.embed.$type === "app.bsky.embed.recordWithMedia#view"}>
+        <RecordWithMediaEmbedContent embed={props.embed} />
+      </Match>
+    </Switch>
+  );
+}
+
+function RecordEmbedContent(props: { embed: EmbedView }) {
+  return (
+    <QuoteEmbed
+      author={getQuotedAuthor(props.embed)}
+      href={getQuotedHref(props.embed)}
+      text={getQuotedText(props.embed)}
+      title="Quoted post" />
+  );
+}
+
+function RecordWithMediaEmbedContent(props: { embed: EmbedView }) {
+  const media = () => ("media" in props.embed ? props.embed.media : null);
+
+  return (
+    <div class="grid gap-3">
+      <Show when={media()}>{(current) => <EmbedContent embed={current() as EmbedView} />}</Show>
+      <QuoteEmbed
+        author={getQuotedAuthor(props.embed)}
+        href={getQuotedHref(props.embed)}
+        text={getQuotedText(props.embed)}
+        title="Quoted post" />
+    </div>
   );
 }
 
@@ -472,53 +510,8 @@ function ExternalEmbed(props: { description?: string; thumb?: string; title?: st
   );
 }
 
-function QuoteEmbed(props: { author: ProfileViewBasic | null; text?: unknown; title: string }) {
-  const preview = createMemo(() => (typeof props.text === "string" ? props.text : ""));
-
-  return (
-    <div class="rounded-2xl bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
-      <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.title}</p>
-      <Show when={props.author}>
-        {(author) => (
-          <p class="mt-2 wrap-break-word text-sm font-semibold text-on-surface">
-            {getDisplayName(author())}
-            <span class="ml-1 break-all text-xs font-normal text-on-surface-variant">
-              @{author().handle.replace(/^@/, "")}
-            </span>
-          </p>
-        )}
-      </Show>
-      <Show when={preview()}>
-        {(text) => <p class="mt-2 line-clamp-4 text-sm leading-[1.55] text-on-secondary-container">{text()}</p>}
-      </Show>
-    </div>
-  );
-}
-
-function LinkifiedText(props: { text: string }) {
-  const parts = () => props.text.split(/(https?:\/\/\S+|@[a-z0-9._-]+(?:\.[a-z0-9._-]+)+|#[\p{L}\p{N}_-]+)/giu);
-
-  return (
-    <For each={parts()}>
-      {(part) => (
-        <Switch fallback={<span class="wrap-anywhere">{part}</span>}>
-          <Match when={/^https?:\/\//i.test(part)}>
-            <a
-              class="break-all text-primary no-underline hover:underline"
-              href={part}
-              rel="noreferrer"
-              target="_blank"
-              onClick={(event) => event.stopPropagation()}>
-              {part}
-            </a>
-          </Match>
-          <Match when={/^[@#]/.test(part)}>
-            <span class="break-all text-primary">{part}</span>
-          </Match>
-        </Switch>
-      )}
-    </For>
-  );
+function QuoteEmbed(props: { author: ProfileViewBasic | null; href?: string | null; text?: unknown; title: string }) {
+  return <QuotedPostPreview author={props.author} href={props.href} text={props.text} title={props.title} />;
 }
 
 function isInteractiveTarget(target: EventTarget | null) {

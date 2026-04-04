@@ -1,7 +1,9 @@
 import { RecordBacklinksPanel } from "$/components/diagnostics/RecordBacklinksPanel";
 import { type JsonValue, JsonValueAs } from "$/components/explorer/types";
 import { ArrowIcon, Icon } from "$/components/shared/Icon";
+import { PostRichText } from "$/components/shared/PostRichText";
 import { getStringProperty, isRecordLike, isString } from "$/lib/type-guards";
+import type { PostRecord } from "$/lib/types";
 import { createMemo, createSignal, For, type ParentProps, Show } from "solid-js";
 import { Motion } from "solid-motionone";
 
@@ -127,7 +129,8 @@ function SubjectPreview(props: { subject: Record<string, unknown> | string }) {
 
 function KnownRecordPreview(props: { record: Record<string, unknown> }) {
   const kind = () => (props.record.$type as string) || "";
-  const content = () => (isString(props.record.text) ? props.record.text : null);
+  const postRecord = () => props.record as PostRecord;
+  const content = () => (isString(postRecord().text) ? postRecord().text : null);
   const subject = () => {
     const value = props.record.subject;
 
@@ -137,26 +140,52 @@ function KnownRecordPreview(props: { record: Record<string, unknown> }) {
     return null;
   };
 
-  return (
-    <>
-      <Show when={kind() === "app.bsky.feed.post" && content()}>
-        <CollapsibleSection title="Post Preview">
-          <div class="p-4 rounded-xl bg-black/30">
-            <p class="text-sm leading-relaxed text-on-secondary-container">{content()}</p>
-          </div>
-        </CollapsibleSection>
-      </Show>
+  // return (
+  //   <>
+  //     <Show when={kind() === "app.bsky.feed.post" && content()}>
+  //       <CollapsibleSection title="Post Preview">
+  //         <div class="p-4 rounded-xl bg-black/30">
+  //           <PostRichText class="text-sm" facets={postRecord().facets} text={content() ?? ""} />
+  //         </div>
+  //       </CollapsibleSection>
+  //     </Show>
 
-      <Show when={kind() !== "app.bsky.feed.post" && subject()}>
-        {(value) => (
-          <CollapsibleSection title="Subject">
+  //     <Show when={kind() !== "app.bsky.feed.post" && subject()}>
+  //       {(value) => (
+  //         <CollapsibleSection title="Subject">
+  //           <div class="p-4 rounded-xl bg-black/30">
+  //             <SubjectPreview subject={value()} />
+  //           </div>
+  //         </CollapsibleSection>
+  //       )}
+  //     </Show>
+  //   </>
+  // );
+
+  return (
+    <Show
+      when={kind() === "app.bsky.feed.post"}
+      fallback={
+        <Show when={subject()}>
+          {(value) => (
+            <CollapsibleSection title="Subject">
+              <div class="p-4 rounded-xl bg-black/30">
+                <SubjectPreview subject={value()} />
+              </div>
+            </CollapsibleSection>
+          )}
+        </Show>
+      }>
+      <Show when={content()}>
+        {value => (
+          <CollapsibleSection title="Post Preview">
             <div class="p-4 rounded-xl bg-black/30">
-              <SubjectPreview subject={value()} />
+              <PostRichText class="text-sm" facets={postRecord().facets} text={value()} />
             </div>
           </CollapsibleSection>
         )}
       </Show>
-    </>
+    </Show>
   );
 }
 
