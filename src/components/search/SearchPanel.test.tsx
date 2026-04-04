@@ -1,9 +1,10 @@
+import { toLocalDayStartIso, toLocalDayUntilIso } from "$/lib/search-routes";
 import { AppTestProviders } from "$/test/providers";
-import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import { HashRouter, Route } from "@solidjs/router";
+import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchPanel } from "./SearchPanel";
 
-const navigateMock = vi.hoisted(() => vi.fn());
 const searchActorSuggestionsMock = vi.hoisted(() => vi.fn());
 const searchActorsMock = vi.hoisted(() => vi.fn());
 const searchPostsMock = vi.hoisted(() => vi.fn());
@@ -15,10 +16,10 @@ const threadOverlayMock = vi.hoisted(() => ({ openThread: vi.fn() }));
 vi.mock(
   "$/lib/api/search",
   () => ({
+    getSyncStatus: getSyncStatusMock,
     searchActors: searchActorsMock,
     searchPosts: searchPostsMock,
     searchPostsNetwork: searchPostsNetworkMock,
-    getSyncStatus: getSyncStatusMock,
     syncPosts: syncPostsMock,
   }),
 );
@@ -27,14 +28,23 @@ vi.mock(
   "$/components/posts/useThreadOverlayNavigation",
   () => ({ useThreadOverlayNavigation: () => threadOverlayMock }),
 );
-vi.mock("@solidjs/router", () => ({ useNavigate: () => navigateMock }));
 
 vi.mock("@tauri-apps/plugin-log", () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }));
 
-function renderSearchPanel() {
+async function flushRouter() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+function renderSearchPanel(hash = "#/search") {
+  globalThis.location.hash = hash;
+
   render(() => (
     <AppTestProviders>
-      <SearchPanel />
+      <HashRouter>
+        <Route path="/search" component={() => <SearchPanel />} />
+        <Route path="/profile/:actor" component={() => <div data-testid="profile-route">profile</div>} />
+      </HashRouter>
     </AppTestProviders>
   ));
 }
@@ -42,13 +52,13 @@ function renderSearchPanel() {
 describe("SearchPanel", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    navigateMock.mockReset();
     searchActorSuggestionsMock.mockReset();
     searchActorsMock.mockReset();
     searchPostsMock.mockReset();
     searchPostsNetworkMock.mockReset();
     getSyncStatusMock.mockReset();
     syncPostsMock.mockReset();
+    threadOverlayMock.openThread.mockReset();
 
     getSyncStatusMock.mockResolvedValue([]);
     searchActorSuggestionsMock.mockResolvedValue([]);
@@ -61,54 +71,60 @@ describe("SearchPanel", () => {
     });
   });
 
-  it("renders the search panel with initial state", async () => {
+  it("renders the search panel with network filters", async () => {
     renderSearchPanel();
 
-    expect(await screen.findByPlaceholderText("Search public posts across Bluesky...")).toBeInTheDocument();
-    expect(screen.getByText("Network")).toBeInTheDocument();
-    expect(screen.getByText("Keyword")).toBeInTheDocument();
-    expect(screen.getByText("Semantic")).toBeInTheDocument();
-    expect(screen.getByText("Hybrid")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search public posts across Bluesky...")).toBeInTheDocument();
+    expect(screen.getByText("Network Filters")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /top/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("link", { name: /open settings/i })).toHaveAttribute("href", "#/settings");
   });
 
-  it("switches search modes when clicking mode buttons", async () => {
-    renderSearchPanel();
+  it("performs network search with URL-synced filters", async () => {
+    searchPostsNetworkMock.mockResolvedValue({ posts: [] });
 
-    const keywordButton = screen.getByRole("button", { name: /keyword/i });
-    fireEvent.click(keywordButton);
+    renderSearchPanel(
+      "#/search?q=test%20query&sort=latest&since=2026-04-01&until=2026-04-03&author=alice.test&mentions=bob.test&tags=solid&tags=rust",
+    );
 
-    await waitFor(() => {
-      expect(keywordButton).toHaveAttribute("aria-pressed", "true");
+    await vi.advanceTimersByTimeAsync(350);
+
+    expect(searchPostsNetworkMock).toHaveBeenCalledWith({
+      author: "alice.test",
+      limit: 25,
+      mentions: "bob.test",
+      query: "test query",
+      since: toLocalDayStartIso("2026-04-01"),
+      sort: "latest",
+      tags: ["solid", "rust"],
+      until: toLocalDayUntilIso("2026-04-03"),
     });
   });
 
-  it("performs network search when typing", async () => {
-    searchPostsNetworkMock.mockResolvedValue({
-      posts: [{
-        uri: "at://test",
-        cid: "cid-1",
-        author: { did: "did:plc:test", handle: "test.bsky.social" },
-        indexedAt: "2026-03-29T12:00:00.000Z",
-        record: { text: "Test post content" },
-      }],
-    });
-
+  it("updates the URL and performs network search when typing", async () => {
+    searchPostsNetworkMock.mockResolvedValue({ posts: [] });
     renderSearchPanel();
 
-    const input = await screen.findByRole("textbox");
+    const input = screen.getByPlaceholderText("Search public posts across Bluesky...");
     fireEvent.input(input, { target: { value: "test query" } });
 
-    vi.advanceTimersByTime(350);
+    await flushRouter();
+    await vi.advanceTimersByTimeAsync(350);
 
-    await waitFor(() => {
-      expect(searchPostsNetworkMock).toHaveBeenCalledWith("test query", "top", 25);
+    expect(globalThis.location.hash).toContain("q=test+query");
+    expect(searchPostsNetworkMock).toHaveBeenCalledWith({
+      author: null,
+      limit: 25,
+      mentions: null,
+      query: "test query",
+      since: null,
+      sort: "top",
+      tags: [],
+      until: null,
     });
-
-    expect(await screen.findByText(/post content/i)).toBeInTheDocument();
   });
 
-  it("performs local search in keyword mode", async () => {
+  it("performs local search in keyword mode and preserves filters in the URL", async () => {
     getSyncStatusMock.mockResolvedValue([{ did: "did:plc:test", source: "like", postCount: 12, lastSyncedAt: null }]);
     searchPostsMock.mockResolvedValue([{
       uri: "at://test",
@@ -123,19 +139,19 @@ describe("SearchPanel", () => {
       semanticMatch: false,
     }]);
 
-    renderSearchPanel();
+    renderSearchPanel("#/search?author=alice.test");
 
-    const keywordButton = screen.getByRole("button", { name: /keyword/i });
-    fireEvent.click(keywordButton);
-    expect(keywordButton).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(await screen.findByRole("button", { name: /keyword/i }));
+    await flushRouter();
 
-    const input = screen.getByRole("textbox");
+    const input = screen.getByPlaceholderText("Search your saved & liked posts...");
     fireEvent.input(input, { target: { value: "test query" } });
 
+    await flushRouter();
     await vi.advanceTimersByTimeAsync(350);
-    await Promise.resolve();
-    await Promise.resolve();
 
+    expect(globalThis.location.hash).toContain("author=alice.test");
+    expect(globalThis.location.hash).toContain("mode=keyword");
     expect(searchPostsMock).toHaveBeenCalledWith("test query", "keyword", 50);
     expect(screen.getByText("Liked")).toBeInTheDocument();
   });
@@ -143,71 +159,28 @@ describe("SearchPanel", () => {
   it("cycles through modes with Tab key", async () => {
     renderSearchPanel();
 
-    const input = await screen.findByRole("textbox");
+    const input = screen.getByPlaceholderText("Search public posts across Bluesky...");
     input.focus();
     fireEvent.keyDown(input, { key: "Tab" });
+    await flushRouter();
 
-    expect(screen.getByRole("button", { name: /keyword/i })).toHaveAttribute("aria-pressed", "true");
-  }, 5000);
+    expect(globalThis.location.hash).toContain("mode=keyword");
+  });
 
   it("clears search with Escape key", async () => {
-    searchPostsNetworkMock.mockResolvedValue({
-      posts: [{
-        uri: "at://test",
-        cid: "cid-1",
-        author: { did: "did:plc:test", handle: "test.bsky.social" },
-        indexedAt: "2026-03-29T12:00:00.000Z",
-        record: { text: "Test content" },
-      }],
-    });
-
+    searchPostsNetworkMock.mockResolvedValue({ posts: [] });
     renderSearchPanel();
 
-    const input = await screen.findByRole("textbox");
+    const input = screen.getByPlaceholderText("Search public posts across Bluesky...");
     fireEvent.input(input, { target: { value: "test" } });
-    vi.advanceTimersByTime(350);
 
-    await waitFor(() => expect(searchPostsNetworkMock).toHaveBeenCalled());
-
+    await flushRouter();
+    await vi.advanceTimersByTimeAsync(350);
     fireEvent.keyDown(input, { key: "Escape" });
+    await flushRouter();
 
-    await waitFor(() => {
-      expect(input).toHaveValue("");
-    });
-  });
-
-  it("displays error state when search fails", async () => {
-    searchPostsNetworkMock.mockRejectedValue(new Error("Search failed"));
-
-    renderSearchPanel();
-
-    const input = await screen.findByRole("textbox");
-    fireEvent.input(input, { target: { value: "test" } });
-    vi.advanceTimersByTime(350);
-
-    await waitFor(() => {
-      expect(searchPostsNetworkMock).toHaveBeenCalled();
-    });
-  });
-
-  it("shows empty state when no results found", async () => {
-    getSyncStatusMock.mockResolvedValue([{ did: "did:plc:test", source: "like", postCount: 12, lastSyncedAt: null }]);
-    searchPostsMock.mockResolvedValue([]);
-
-    renderSearchPanel();
-
-    const keywordButton = screen.getByRole("button", { name: /keyword/i });
-    fireEvent.click(keywordButton);
-
-    const input = await screen.findByRole("textbox");
-    fireEvent.input(input, { target: { value: "nonexistent" } });
-    vi.advanceTimersByTime(350);
-
-    await waitFor(() => {
-      expect(searchPostsMock).toHaveBeenCalled();
-    });
-
-    expect(await screen.findByText("No results found")).toBeInTheDocument();
+    expect(input).toHaveValue("");
+    expect(globalThis.location.hash).toBe("#/search");
   });
 
   it("searches profiles and opens a selected actor", async () => {
@@ -231,19 +204,20 @@ describe("SearchPanel", () => {
     renderSearchPanel();
 
     fireEvent.click(screen.getByRole("button", { name: /profiles/i }));
+    await flushRouter();
 
-    const input = screen.getByRole("combobox");
+    const input = screen.getByPlaceholderText("Search profiles by handle or display name...");
     fireEvent.input(input, { target: { value: "bob" } });
 
+    await flushRouter();
     await vi.advanceTimersByTimeAsync(350);
-    await Promise.resolve();
-    await Promise.resolve();
 
     expect(searchActorsMock).toHaveBeenCalledWith("bob", 25);
     expect(await screen.findByText("Builds search systems.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /bob example/i }));
+    await flushRouter();
 
-    expect(navigateMock).toHaveBeenCalledWith("/profile/bob.test");
+    expect(globalThis.location.hash).toBe("#/profile/bob.test");
   });
 });

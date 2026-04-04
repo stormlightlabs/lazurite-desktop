@@ -7,11 +7,13 @@ import { Dynamic } from "solid-js/web";
 import { DeckWorkspace } from "./components/deck/DeckWorkspace";
 import { ExplorerPanel } from "./components/explorer/ExplorerPanel";
 import { SavedPostsPanel } from "./components/saved/SavedPostsPanel";
+import { HashtagPanel } from "./components/search/HashtagPanel";
 import { SearchPanel } from "./components/search/SearchPanel";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { decodeMessagesRouteMemberDid } from "./lib/conversations";
 import { TIMELINE_ROUTE } from "./lib/feeds";
 import { decodeProfileRouteActor } from "./lib/profile";
+import { decodeHashtagRouteTag } from "./lib/search-routes";
 
 type TMessagesRouteProps = { memberDid: string | null };
 type TProfileRouteProps = { actor: string | null };
@@ -90,6 +92,19 @@ export function AppRouter(props: AppRouterProps) {
 
   const NotificationsRoute = () => <ProtectedRouteView>{props.renderNotifications()}</ProtectedRouteView>;
 
+  const HashtagRoute = () => {
+    const params = useParams<{ hashtag: string }>();
+    const tag = decodeHashtagRouteTag(params.hashtag);
+
+    return (
+      <ProtectedRouteView>
+        <Show when={tag} fallback={<Navigate href="/search" />}>
+          <HashtagPanel />
+        </Show>
+      </ProtectedRouteView>
+    );
+  };
+
   const MessagesRoute = () => (
     <ProtectedRouteView>
       <Dynamic component={props.renderMessages} memberDid={null} />
@@ -147,6 +162,7 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/profile/:actor" component={ActorProfileRoute} />
       <Route path="/composer" component={ComposerRoute} />
       <Route path="/search" component={SearchRoute} />
+      <Route path="/hashtag/:hashtag" component={HashtagRoute} />
       <Route path="/saved" component={SavedPostsRoute} />
       <Route path="/notifications" component={NotificationsRoute} />
       <Route path="/messages" component={MessagesRoute} />

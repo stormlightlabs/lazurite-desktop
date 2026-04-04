@@ -8,6 +8,7 @@ import {
   splitLegacyUrls,
 } from "$/lib/post-rich-text";
 import { buildProfileRoute } from "$/lib/profile";
+import { buildHashtagRoute } from "$/lib/search-routes";
 import type { RichTextFacet } from "$/lib/types";
 import { For, type JSX, Show } from "solid-js";
 
@@ -167,7 +168,14 @@ function renderFacetNode(facet: ResolvedRichTextFacet, label: string) {
     );
   }
 
-  return <span class="break-all text-primary">{label}</span>;
+  return (
+    <a
+      class="break-all text-primary no-underline hover:underline"
+      href={`#${buildHashtagRoute(facet.feature.tag)}`}
+      onClick={(event) => event.stopPropagation()}>
+      {label}
+    </a>
+  );
 }
 
 function LegacyText(props: { text: string; useFallback: boolean }) {

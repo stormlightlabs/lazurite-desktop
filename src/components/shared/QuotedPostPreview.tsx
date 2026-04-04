@@ -10,9 +10,7 @@ export function QuotedPostPreview(
   return (
     <div class={props.class ?? "rounded-2xl bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"}>
       <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.title}</p>
-      <Show
-        when={props.href}
-        fallback={<QuotedPreviewContent author={props.author} preview={preview()} />}>
+      <Show when={props.href} fallback={<QuotedPreviewContent author={props.author} preview={preview()} />}>
         {(href) => (
           <a
             class="mt-2 block rounded-xl px-1 py-1 text-inherit no-underline transition duration-150 ease-out hover:bg-white/4"

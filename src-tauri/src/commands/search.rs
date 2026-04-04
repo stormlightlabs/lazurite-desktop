@@ -1,14 +1,12 @@
 #![allow(clippy::needless_pass_by_value)]
-use crate::search::{self, PostResult, SavedPostsPage, SyncStatus};
+use crate::search::{self, NetworkSearchQueryParams, PostResult, SavedPostsPage, SyncStatus};
 use crate::{error::Result, state::AppState};
 use serde_json::Value;
 use tauri::{AppHandle, State};
 
 #[tauri::command]
-pub async fn search_posts_network(
-    query: String, sort: Option<String>, limit: Option<u32>, cursor: Option<String>, state: State<'_, AppState>,
-) -> Result<Value> {
-    search::search_posts_network(query, sort, limit, cursor, &state).await
+pub async fn search_posts_network(query_params: NetworkSearchQueryParams, state: State<'_, AppState>) -> Result<Value> {
+    search::search_posts_network(query_params, &state).await
 }
 
 #[tauri::command]

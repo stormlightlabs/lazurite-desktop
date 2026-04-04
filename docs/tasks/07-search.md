@@ -12,11 +12,18 @@ Spec: [search.md](../specs/search.md)
   - `src-tauri/src/search.rs` for business logic
   - `src-tauri/src/commands/search.rs`
 - [x] Implement network search commands (not indexed - direct API calls):
-  - `search_posts_network(query, sort?, limit?, cursor?)` → `app.bsky.feed.searchPosts`
+  - `search_posts_network(query, sort?, since?, until?, mentions?, author?, tags?, limit?, cursor?)` → `app.bsky.feed.searchPosts`
   - `search_actors(query, limit?, cursor?)` → `app.bsky.actor.searchActors`
   - `search_starter_packs(query, limit?, cursor?)` → `app.bsky.graph.searchStarterPacks`
   - Note: `searchActorsTypeahead` already exists in auth module
   - Always available - no local setup required
+
+#### Search Routing
+
+- [x] Add URL-synced network post search state on `/search`
+  - `q`, `tab`, `mode`, `sort`, `since`, `until`, `mentions`, `author`, repeatable `tags`
+- [x] Add dedicated `/hashtag/:hashtag` route backed by `searchPosts` with `q=#tag`
+- [x] Render hashtag facets as internal links to the hashtag route
 
 #### Local Data Pipeline (Base)
 

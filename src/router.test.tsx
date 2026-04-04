@@ -13,6 +13,10 @@ vi.mock(
   "$/components/saved/SavedPostsPanel",
   () => ({ SavedPostsPanel: () => <div data-testid="saved-posts-view">saved</div> }),
 );
+vi.mock(
+  "$/components/search/HashtagPanel",
+  () => ({ HashtagPanel: () => <div data-testid="hashtag-view">hashtag</div> }),
+);
 
 const Shell: Component<ParentProps<{ fullWidth?: boolean }>> = (props) => (
   <div data-testid="shell" data-full-width={props.fullWidth ? "true" : "false"}>{props.children}</div>
@@ -142,5 +146,22 @@ describe("AppRouter", () => {
 
     expect(renderProfile.mock.lastCall?.[0].actor).toBe(actor);
     expect(screen.getByText(actor)).toBeInTheDocument();
+  });
+
+  it("renders hashtag routes inside the protected shell", async () => {
+    renderRouter("#/hashtag/solid");
+
+    await screen.findByTestId("hashtag-view");
+
+    expect(screen.getByText("hashtag")).toBeInTheDocument();
+    expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "false");
+  });
+
+  it("renders encoded hashtag routes", async () => {
+    renderRouter("#/hashtag/%23solid");
+
+    await screen.findByTestId("hashtag-view");
+
+    expect(screen.getByText("hashtag")).toBeInTheDocument();
   });
 });

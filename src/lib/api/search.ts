@@ -2,8 +2,20 @@ import type { PostView } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
 
 export type SearchMode = "network" | "keyword" | "semantic" | "hybrid";
+export type NetworkSearchSort = "top" | "latest";
 
 export type NetworkSearchResult = { cursor?: string | null; hitsTotal?: number | null; posts: PostView[] };
+export type NetworkSearchParams = {
+  query: string;
+  sort?: NetworkSearchSort;
+  since?: string | null;
+  until?: string | null;
+  mentions?: string | null;
+  author?: string | null;
+  tags?: string[];
+  limit?: number;
+  cursor?: string | null;
+};
 
 type TActor = {
   did: string;
@@ -65,13 +77,20 @@ export type EmbeddingsConfig = {
   lastError?: string | null;
 };
 
-export function searchPostsNetwork(
-  query: string,
-  sort?: "top" | "latest",
-  limit?: number,
-  cursor?: string | null,
-): Promise<NetworkSearchResult> {
-  return invoke("search_posts_network", { query, sort: sort ?? null, limit: limit ?? null, cursor: cursor ?? null });
+export function searchPostsNetwork(params: NetworkSearchParams): Promise<NetworkSearchResult> {
+  return invoke("search_posts_network", {
+    queryParams: {
+      author: params.author ?? null,
+      cursor: params.cursor ?? null,
+      limit: params.limit ?? null,
+      mentions: params.mentions ?? null,
+      query: params.query,
+      since: params.since ?? null,
+      sort: params.sort ?? null,
+      tags: params.tags?.length ? params.tags : null,
+      until: params.until ?? null,
+    },
+  });
 }
 
 export function searchPosts(query: string, mode: SearchMode, limit: number): Promise<LocalPostResult[]> {

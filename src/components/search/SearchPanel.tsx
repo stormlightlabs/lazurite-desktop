@@ -1,5 +1,6 @@
 import { ActorSuggestionList, getActorSuggestionHeadline, useActorSuggestions } from "$/components/actors/actor-search";
 import { AvatarBadge } from "$/components/AvatarBadge";
+import { PostCard } from "$/components/feeds/PostCard";
 import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { Icon, SearchModeIcon } from "$/components/shared/Icon";
 import { useAppPreferences } from "$/contexts/app-preferences";
@@ -8,6 +9,7 @@ import {
   type ActorSearchResult,
   getSyncStatus,
   type LocalPostResult,
+  type NetworkSearchParams,
   type NetworkSearchResult,
   searchActors,
   type SearchMode,
@@ -17,9 +19,17 @@ import {
 } from "$/lib/api/search";
 import { formatRelativeTime } from "$/lib/feeds";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
+import {
+  buildSearchRoute,
+  parseSearchRouteState,
+  type PostSearchFilters,
+  type SearchTab,
+  toLocalDayStartIso,
+  toLocalDayUntilIso,
+} from "$/lib/search-routes";
 import type { ProfileViewBasic } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
-import { useNavigate } from "@solidjs/router";
+import { useLocation, useNavigate } from "@solidjs/router";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -27,27 +37,22 @@ import { Motion, Presence } from "solid-motionone";
 import { PostCount } from "../shared/PostCount";
 import { EmbeddingsSettings } from "./EmbeddingsSettings";
 import { LocalPostResultsList, LocalPostResultsSkeletons } from "./LocalPostResultsList";
+import { PostSearchFiltersRow } from "./PostSearchFilters";
 import { SearchEmptyState } from "./SearchEmptyState";
 import { SearchQueryInput } from "./SearchQueryInput";
-import { SearchResultCard } from "./SearchResultCard";
 import { SyncStatusPanel } from "./SyncStatusPanel";
 
 const MODES: SearchMode[] = ["network", "keyword", "semantic", "hybrid"];
-const SEARCH_TABS = ["posts", "profiles"] as const;
-
-type SearchTab = typeof SEARCH_TABS[number];
+const SEARCH_TABS: SearchTab[] = ["posts", "profiles"];
 
 type SearchPanelState = {
   actorResults: ActorSearchResult | null;
   error: string | null;
   hasSearched: boolean;
   loading: boolean;
-  mode: SearchMode;
   networkResults: NetworkSearchResult | null;
-  query: string;
   resultCount: number;
   results: LocalPostResult[];
-  tab: SearchTab;
   syncStatus: SyncStatus[];
 };
 
@@ -68,6 +73,7 @@ function ModeLabel(props: { mode: SearchMode }) {
 }
 
 export function SearchPanel(props: SearchPanelProps = {}) {
+  const location = useLocation();
   const navigate = useNavigate();
   const preferences = useAppPreferences();
   const session = useAppSession();
@@ -77,12 +83,9 @@ export function SearchPanel(props: SearchPanelProps = {}) {
     error: null,
     hasSearched: false,
     loading: false,
-    mode: props.initialMode ?? "network",
     networkResults: null,
-    query: props.initialQuery ?? "",
     resultCount: 0,
     results: [],
-    tab: "posts",
     syncStatus: [],
   });
 
@@ -90,16 +93,30 @@ export function SearchPanel(props: SearchPanelProps = {}) {
   let searchInputRef: HTMLInputElement | undefined;
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
+  const routeState = createMemo(() => {
+    const parsed = parseSearchRouteState(location.search);
+
+    if (!parsed.q && props.initialQuery) {
+      parsed.q = props.initialQuery;
+    }
+
+    if (props.initialMode && !new URLSearchParams(location.search).has("mode")) {
+      parsed.mode = props.initialMode;
+    }
+
+    return parsed;
+  });
   const actorSuggestions = useActorSuggestions({
     container: () => actorSearchContainerRef,
-    disabled: () => search.tab !== "profiles",
+    disabled: () => routeState().tab !== "profiles",
     input: () => searchInputRef,
     onError: (error) =>
       logger.warn("failed to load actor search suggestions", { keyValues: { error: normalizeError(error) } }),
-    value: () => search.query,
+    value: () => routeState().q,
   });
-  const isActorTab = createMemo(() => search.tab === "profiles");
-  const isLocalMode = createMemo(() => search.tab === "posts" && search.mode !== "network");
+  const isActorTab = createMemo(() => routeState().tab === "profiles");
+  const isLocalMode = createMemo(() => routeState().tab === "posts" && routeState().mode !== "network");
+  const networkFiltersEnabled = createMemo(() => routeState().tab === "posts" && routeState().mode === "network");
   const semanticEnabled = createMemo(() => preferences.embeddingsEnabled);
   const totalIndexedPosts = createMemo(() =>
     search.syncStatus.reduce((sum, status) => sum + (status.postCount ?? 0), 0)
@@ -115,13 +132,16 @@ export function SearchPanel(props: SearchPanelProps = {}) {
   });
   const cycleModes = createMemo(() => MODES.filter((candidate) => candidate !== "semantic" || semanticEnabled()));
 
-  async function performSearch(searchQuery: string, searchTab: SearchTab, searchMode: SearchMode) {
-    if (!searchQuery.trim()) {
+  async function performSearch() {
+    const state = routeState();
+    const searchQuery = state.q.trim();
+
+    if (!searchQuery) {
       clearResults();
       return;
     }
 
-    if (searchTab === "profiles") {
+    if (state.tab === "profiles") {
       setSearch({ error: null, loading: true });
 
       try {
@@ -144,7 +164,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
           resultCount: 0,
           results: [],
         });
-        logger.error("actor search failed", { keyValues: { query: searchQuery, error: errorMessage } });
+        logger.error("actor search failed", { keyValues: { error: errorMessage, query: searchQuery } });
       } finally {
         setSearch("loading", false);
       }
@@ -152,7 +172,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
       return;
     }
 
-    if (searchMode === "semantic" && !semanticEnabled()) {
+    if (state.mode === "semantic" && !semanticEnabled()) {
       setSearch({
         actorResults: null,
         error: "Semantic search is disabled. Re-enable embeddings to use this mode.",
@@ -167,8 +187,8 @@ export function SearchPanel(props: SearchPanelProps = {}) {
     setSearch({ error: null, loading: true });
 
     try {
-      if (searchMode === "network") {
-        const response = await searchPostsNetwork(searchQuery, "top", 25);
+      if (state.mode === "network") {
+        const response = await searchPostsNetwork(buildNetworkSearchParams(state));
         setSearch({
           actorResults: null,
           hasSearched: true,
@@ -177,7 +197,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
           results: [],
         });
       } else {
-        const response = await searchPosts(searchQuery, searchMode, 50);
+        const response = await searchPosts(searchQuery, state.mode, 50);
         setSearch({
           actorResults: null,
           hasSearched: true,
@@ -196,7 +216,9 @@ export function SearchPanel(props: SearchPanelProps = {}) {
         resultCount: 0,
         results: [],
       });
-      logger.error("search failed", { keyValues: { query: searchQuery, mode: searchMode, error: errorMessage } });
+      logger.error("search failed", {
+        keyValues: { error: errorMessage, mode: state.mode, query: searchQuery, tab: state.tab },
+      });
     } finally {
       setSearch("loading", false);
     }
@@ -213,12 +235,13 @@ export function SearchPanel(props: SearchPanelProps = {}) {
     });
   }
 
+  function replaceRoute(next: Partial<ReturnType<typeof routeState>>) {
+    const state = routeState();
+    void navigate(buildSearchRoute(location.pathname, location.search, { ...state, ...next }));
+  }
+
   function handleInput(value: string) {
-    setSearch("query", value);
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      void performSearch(value, search.tab, search.mode);
-    }, 300);
+    replaceRoute({ q: value });
   }
 
   function handleModeChange(newMode: SearchMode) {
@@ -226,42 +249,38 @@ export function SearchPanel(props: SearchPanelProps = {}) {
       return;
     }
 
-    setSearch("mode", newMode);
-    if (search.query.trim()) {
-      void performSearch(search.query, "posts", newMode);
-      return;
-    }
+    replaceRoute({ mode: newMode, tab: "posts" });
+  }
 
-    setSearch("error", null);
+  function handleFilterChange(next: Partial<PostSearchFilters>) {
+    replaceRoute(next);
   }
 
   function handleTabChange(nextTab: SearchTab) {
-    if (nextTab === search.tab) {
+    if (nextTab === routeState().tab) {
       return;
     }
 
-    setSearch({ error: null, hasSearched: false, resultCount: 0, tab: nextTab });
-    if (search.query.trim()) {
-      void performSearch(search.query, nextTab, search.mode);
-    }
+    setSearch({ error: null, hasSearched: false, resultCount: 0 });
+    replaceRoute({ tab: nextTab });
   }
 
   function cycleMode() {
     const availableModes = cycleModes();
-    const currentIndex = availableModes.indexOf(search.mode);
+    const currentIndex = availableModes.indexOf(routeState().mode);
     const nextIndex = (currentIndex + 1) % availableModes.length;
     handleModeChange(availableModes[nextIndex] ?? availableModes[0] ?? "network");
   }
 
   function clearSearch() {
     actorSuggestions.close();
-    setSearch("query", "");
+    replaceRoute({ q: "" });
     clearResults();
     searchInputRef?.focus();
   }
 
   function handleKeyDown(event: KeyboardEvent) {
-    if (search.tab === "profiles") {
+    if (routeState().tab === "profiles") {
       if (event.key === "ArrowDown") {
         event.preventDefault();
         actorSuggestions.moveActiveIndex(1);
@@ -282,18 +301,21 @@ export function SearchPanel(props: SearchPanelProps = {}) {
       }
     }
 
-    if (search.tab === "posts" && event.key === "Tab" && !event.shiftKey && document.activeElement === searchInputRef) {
+    if (
+      routeState().tab === "posts" && event.key === "Tab" && !event.shiftKey
+      && document.activeElement === searchInputRef
+    ) {
       event.preventDefault();
       cycleMode();
       return;
     }
 
-    if (event.key === "Escape" && search.query) {
+    if (event.key === "Escape" && routeState().q) {
       clearSearch();
       return;
     }
 
-    if (event.key === "Escape" && search.tab === "profiles") {
+    if (event.key === "Escape" && routeState().tab === "profiles") {
       actorSuggestions.close();
     }
   }
@@ -312,6 +334,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
     if (!props.embedded) {
       document.addEventListener("keydown", handleGlobalKeyDown);
     }
+
     if (props.embedded && session.activeDid) {
       void getSyncStatus(session.activeDid).then((status) => {
         setSearch("syncStatus", status);
@@ -319,25 +342,28 @@ export function SearchPanel(props: SearchPanelProps = {}) {
         logger.warn("failed to load embedded search sync status", { keyValues: { error: normalizeError(error) } });
       });
     }
-    if (search.query.trim()) {
-      void performSearch(search.query, search.tab, search.mode);
-    }
 
     onCleanup(() => {
       if (!props.embedded) {
         document.removeEventListener("keydown", handleGlobalKeyDown);
       }
+
       clearTimeout(debounceTimer);
     });
   });
 
   createEffect(() => {
-    if (search.mode === "semantic" && !semanticEnabled()) {
-      setSearch("mode", "keyword");
-      if (search.query.trim()) {
-        void performSearch(search.query, search.tab, "keyword");
-      }
+    if (routeState().mode === "semantic" && !semanticEnabled()) {
+      replaceRoute({ mode: "keyword" });
     }
+  });
+
+  createEffect(() => {
+    routeState();
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      void performSearch();
+    }, 300);
   });
 
   function openActor(actor: Pick<ProfileViewBasic, "did" | "handle">) {
@@ -357,26 +383,29 @@ export function SearchPanel(props: SearchPanelProps = {}) {
           }}
           actorSuggestions={actorSuggestions.suggestions()}
           error={search.error}
+          filters={routeState()}
+          filtersEnabled={networkFiltersEnabled()}
           hasSearched={search.hasSearched}
           inputRef={(element) => {
             searchInputRef = element;
           }}
           lastSync={lastSync()}
           loading={search.loading}
-          mode={search.mode}
-          onActorSuggestionSelect={(suggestion) => openActor(suggestion)}
+          mode={routeState().mode}
           onActorSuggestionFocus={actorSuggestions.focus}
+          onActorSuggestionSelect={(suggestion) => openActor(suggestion)}
           onClear={clearSearch}
+          onFilterChange={handleFilterChange}
           onKeyDown={handleKeyDown}
           onModeChange={handleModeChange}
           onQueryChange={handleInput}
           onTabChange={handleTabChange}
-          query={search.query}
+          query={routeState().q}
           resultCount={search.resultCount}
-          tab={search.tab}
           semanticEnabled={semanticEnabled()}
           suggestionsActiveIndex={actorSuggestions.activeIndex()}
           suggestionsOpen={actorSuggestions.open()}
+          tab={routeState().tab}
           totalIndexedPosts={totalIndexedPosts()} />
 
         <SearchViewport
@@ -391,7 +420,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
           networkResults={search.networkResults}
           onOpenActor={openActor}
           onOpenThread={(uri) => void threadOverlay.openThread(uri)}
-          query={search.query} />
+          query={routeState().q} />
       </section>
 
       <Show when={!props.embedded}>
@@ -412,14 +441,17 @@ function SearchHeader(
     actorSearchContainerRef: (el: HTMLDivElement) => void;
     actorSuggestions: ProfileViewBasic[];
     error: string | null;
+    filters: ReturnType<typeof parseSearchRouteState>;
+    filtersEnabled: boolean;
     hasSearched: boolean;
     inputRef: (el: HTMLInputElement) => void;
     lastSync: string | null;
     loading: boolean;
     mode: SearchMode;
-    onActorSuggestionSelect: (suggestion: ProfileViewBasic) => void;
     onActorSuggestionFocus: () => void;
+    onActorSuggestionSelect: (suggestion: ProfileViewBasic) => void;
     onClear: () => void;
+    onFilterChange: (next: Partial<PostSearchFilters>) => void;
     onKeyDown: (event: KeyboardEvent) => void;
     onModeChange: (mode: SearchMode) => void;
     onQueryChange: (value: string) => void;
@@ -489,6 +521,14 @@ function SearchHeader(
         </Show>
         <SearchHint tab={props.tab} />
       </div>
+
+      <PostSearchFiltersRow
+        disabled={!props.filtersEnabled}
+        filters={props.filters}
+        helperText={props.filtersEnabled
+          ? "Filters update the URL and apply to network post search."
+          : "Filters stay in the URL, but only apply when Posts + Network search is active."}
+        onChange={props.onFilterChange} />
 
       <ResultMeta
         hasSearched={props.hasSearched}
@@ -599,7 +639,6 @@ function ModeSelector(
 
     const rect = activeButton.getBoundingClientRect();
     const containerRect = ref.getBoundingClientRect();
-
     setIndicatorStyle({ left: `${rect.left - containerRect.left}px`, width: `${rect.width}px` });
   });
 
@@ -715,7 +754,7 @@ function SearchState(
         </Match>
 
         <Match when={!props.isLocalMode && props.networkResults}>
-          <NetworkResultsList onOpenThread={props.onOpenThread} query={props.query} results={props.networkResults} />
+          <NetworkResultsList onOpenThread={props.onOpenThread} results={props.networkResults} />
         </Match>
       </Switch>
     </Presence>
@@ -805,9 +844,7 @@ function ActorResultHeader(props: { actor: ActorSearchResult["actors"][number] }
   );
 }
 
-function NetworkResultsList(
-  props: { onOpenThread: (uri: string) => void; query: string; results: NetworkSearchResult | null },
-) {
+function NetworkResultsList(props: { onOpenThread: (uri: string) => void; results: NetworkSearchResult | null }) {
   return (
     <Motion.div
       class="grid gap-2"
@@ -823,16 +860,10 @@ function NetworkResultsList(
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, delay: Math.min(index() * 0.03, 0.18) }}
               role="listitem">
-              <SearchResultCard
-                authorDid={post.author.did}
-                authorHandle={post.author.handle}
-                source="network"
-                text={typeof post.record.text === "string" ? post.record.text : ""}
-                createdAt={post.indexedAt}
-                likeCount={post.likeCount ?? 0}
-                onOpenThread={() => props.onOpenThread(post.uri)}
-                replyCount={post.replyCount ?? 0}
-                query={props.query} />
+              <PostCard
+                post={post}
+                showActions={false}
+                onOpenThread={() => props.onOpenThread(post.uri)} />
             </Motion.div>
           )}
         </For>
@@ -857,11 +888,11 @@ function SearchTipsCard() {
         <div class="col-span-2 flex flex-col items-start gap-1">
           <div class="m-0 flex items-start gap-2">
             <div>·</div>
-            <div>Use keyword mode for exact terms and hybrid mode for broader recall.</div>
+            <div>Network filters are URL-synced, so you can bookmark or share exact search states.</div>
           </div>
           <div class="m-0 flex items-start gap-2">
             <div>·</div>
-            <div>Semantic mode follows the embeddings setting and model status shown above.</div>
+            <div>Use keyword mode for exact terms and hybrid mode for broader recall.</div>
           </div>
           <div class="m-0 flex items-start gap-2">
             <div>·</div>
@@ -877,4 +908,17 @@ function SearchTipsCard() {
       </a>
     </section>
   );
+}
+
+function buildNetworkSearchParams(state: ReturnType<typeof parseSearchRouteState>): NetworkSearchParams {
+  return {
+    author: state.author || null,
+    limit: 25,
+    mentions: state.mentions || null,
+    query: state.q,
+    since: state.since ? toLocalDayStartIso(state.since) : null,
+    sort: state.sort,
+    tags: state.tags,
+    until: state.until ? toLocalDayUntilIso(state.until) : null,
+  };
 }

@@ -1,3 +1,4 @@
+import { buildHashtagRoute } from "$/lib/search-routes";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { describe, expect, it, vi } from "vitest";
 import { PostCard } from "./PostCard";
@@ -32,7 +33,7 @@ describe("PostCard", () => {
 
     expect(screen.getByRole("link", { name: "https://example.com" })).toHaveAttribute("href", "https://example.com");
     expect(screen.getByRole("link", { name: "@bob.test" })).toHaveAttribute("href", "#/profile/did%3Aplc%3Abob");
-    expect(screen.getByText("#solid")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "#solid" })).toHaveAttribute("href", `#${buildHashtagRoute("solid")}`);
   });
 
   it("opens the thread from the primary region on click and Enter", async () => {

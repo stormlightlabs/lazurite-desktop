@@ -21,13 +21,21 @@ Search all public posts.
 | `sort`    | string   | no       | `top` (default) or `latest`                  |
 | `since`   | string   | no       | ISO 8601 datetime, inclusive                 |
 | `until`   | string   | no       | ISO 8601 datetime, exclusive                 |
+| `mentions`| string   | no       | Filter to posts mentioning this DID/handle   |
 | `author`  | string   | no       | Filter by DID or handle                      |
 | `lang`    | string   | no       | Language code (e.g., `en`)                   |
 | `tag`     | string[] | no       | Hashtag filter (without `#`), repeatable     |
 | `limit`   | integer  | no       | 1–100, default 25                            |
 | `cursor`  | string   | no       | Pagination cursor from previous response     |
 
-Returns `{ cursor?, hitsTotal?, posts: PostView[] }`. With auth the response includes `viewer` state.
+Returns `{ cursor?, hitsTotal?, posts: PostView[] }`. With auth the response includes `viewer` state and full post facets.
+
+### Search Route Contract
+
+- `/search` owns `q`, `tab`, `mode`, `sort`, `since`, `until`, `mentions`, `author`, and repeatable `tags`
+- `/hashtag/:hashtag` uses the path segment as the primary hashtag query and reuses `sort`, `since`, `until`, `mentions`, `author`, and repeatable `tags`
+- `since` and `until` are URL-facing `YYYY-MM-DD` values in the frontend, converted to ISO datetimes before calling Tauri
+- `tags` are URL-facing repeatable params and are normalized to bare tag strings before `searchPosts`
 
 ### `app.bsky.actor.searchActors`
 
@@ -127,7 +135,17 @@ CREATE VIRTUAL TABLE posts_vec USING vec0(
 
 ```rs
 // Network search (not indexed - direct API calls)
-search_posts_network(query: String, sort: Option<String>, limit: Option<u32>, cursor: Option<String>) -> NetworkSearchResult
+search_posts_network(
+  query: String,
+  sort: Option<String>,
+  since: Option<String>,
+  until: Option<String>,
+  mentions: Option<String>,
+  author: Option<String>,
+  tags: Option<Vec<String>>,
+  limit: Option<u32>,
+  cursor: Option<String>
+) -> NetworkSearchResult
 search_actors(query: String, limit: Option<u32>, cursor: Option<String>) -> ActorSearchResult
 search_starter_packs(query: String, limit: Option<u32>, cursor: Option<String>) -> StarterPackSearchResult
 // Note: searchActorsTypeahead already exists in auth module

@@ -13,7 +13,7 @@ use jacquard::types::did::Did;
 use jacquard::types::ident::AtIdentifier;
 use jacquard::xrpc::XrpcClient;
 use rusqlite::{params, Connection, OptionalExtension};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -101,6 +101,20 @@ struct ModelDownloadProgress {
     total_files: usize,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkSearchQueryParams {
+    author: Option<String>,
+    cursor: Option<String>,
+    limit: Option<u32>,
+    mentions: Option<String>,
+    query: String,
+    since: Option<String>,
+    sort: Option<String>,
+    tags: Option<Vec<String>>,
+    until: Option<String>,
+}
+
 impl ModelDownloadProgress {
     fn new(file_index: usize, total_files: usize) -> Self {
         Self { file_index, total_files }
@@ -147,6 +161,98 @@ fn validate_limit(limit: u32) -> Result<usize> {
         0 => Err(AppError::validation("search limit must be greater than zero")),
         _ => Ok(limit as usize),
     }
+}
+
+fn normalize_identifier_filter(value: Option<&str>, label: &str) -> Result<Option<AtIdentifier<'static>>> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+
+    let normalized = value.trim_start_matches('@');
+    AtIdentifier::new_owned(normalized).map(Some).map_err(|error| {
+        log::error!("invalid {label} filter: {error}");
+        AppError::validation(format!("{label} must be a valid handle or DID."))
+    })
+}
+
+fn normalize_optional_filter(value: Option<&str>) -> Option<String> {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+}
+
+fn normalize_search_sort(value: Option<&str>) -> Result<Option<String>> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+
+    match value {
+        "top" | "latest" => Ok(Some(value.to_owned())),
+        _ => Err(AppError::validation("Search sort must be 'top' or 'latest'.")),
+    }
+}
+
+fn normalize_tag_filter(value: &str) -> Result<String> {
+    let normalized = value.trim().trim_start_matches('#').trim();
+    if normalized.is_empty() {
+        return Err(AppError::validation("Tag filters must not be empty."));
+    }
+
+    Ok(normalized.to_owned())
+}
+
+fn normalize_tag_filters(tags: Option<Vec<String>>) -> Result<Option<Vec<String>>> {
+    let Some(tags) = tags else {
+        return Ok(None);
+    };
+
+    let mut normalized = Vec::new();
+    for tag in tags {
+        let tag = normalize_tag_filter(&tag)?;
+        if !normalized.iter().any(|existing| existing == &tag) {
+            normalized.push(tag);
+        }
+    }
+
+    if normalized.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(normalized))
+}
+
+fn build_search_posts_request(params: &NetworkSearchQueryParams) -> Result<SearchPosts<'static>> {
+    validate_query(&params.query)?;
+
+    if let Some(limit) = params.limit {
+        let _ = validate_limit(limit)?;
+    }
+
+    let query = params.query.trim().to_owned();
+    let sort = normalize_search_sort(params.sort.as_deref())?;
+    let since = normalize_optional_filter(params.since.as_deref());
+    let until = normalize_optional_filter(params.until.as_deref());
+    let author = normalize_identifier_filter(params.author.as_deref(), "Author filter")?;
+    let mentions = normalize_identifier_filter(params.mentions.as_deref(), "Mentions filter")?;
+    let tags =
+        normalize_tag_filters(params.tags.clone())?.map(|items| items.into_iter().map(Into::into).collect::<Vec<_>>());
+    let cursor = normalize_optional_filter(params.cursor.as_deref()).map(Into::into);
+    let since = since.map(Into::into);
+    let sort = sort.map(Into::into);
+    let until = until.map(Into::into);
+
+    Ok(SearchPosts::new()
+        .author(author)
+        .cursor(cursor)
+        .limit(params.limit.map(i64::from))
+        .mentions(mentions)
+        .q(query)
+        .since(since)
+        .sort(sort)
+        .tag(tags)
+        .until(until)
+        .build())
 }
 
 fn validate_search_mode(mode: &str) -> Result<SearchMode> {
@@ -424,21 +530,12 @@ fn db_sync_status(conn: &Connection, did: &str, source: &str) -> Result<SyncStat
     Ok(SyncStatus { did: did.to_owned(), source: source.to_owned(), post_count, cursor, last_synced_at })
 }
 
-pub async fn search_posts_network(
-    query: String, sort: Option<String>, limit: Option<u32>, cursor: Option<String>, state: &AppState,
-) -> Result<serde_json::Value> {
-    validate_query(&query)?;
+pub async fn search_posts_network(params: NetworkSearchQueryParams, state: &AppState) -> Result<serde_json::Value> {
     let session = get_session(state).await?;
+    let request = build_search_posts_request(&params)?;
 
     let output = session
-        .send(
-            SearchPosts::new()
-                .sort(sort.as_deref().map(|s| s.into()))
-                .limit(limit.map(|l| l as i64))
-                .cursor(cursor.as_deref().map(|c| c.into()))
-                .q(query.as_str())
-                .build(),
-        )
+        .send(request)
         .await
         .map_err(|error| {
             log::error!("searchPosts error: {error}");
@@ -1300,10 +1397,11 @@ pub fn spawn_search_sync_task(app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_fts_match_query, db_get_embeddings_enabled, db_list_saved_posts, db_load_sync_cursor, db_post_count,
-        db_save_sync_state, db_semantic_search, db_set_embeddings_enabled, db_sync_status, db_upsert_embedding,
-        db_upsert_post, run_local_search, storage_key, sync_due, validate_limit, validate_query, validate_search_mode,
-        validate_source, SearchMode,
+        build_fts_match_query, build_search_posts_request, db_get_embeddings_enabled, db_list_saved_posts,
+        db_load_sync_cursor, db_post_count, db_save_sync_state, db_semantic_search, db_set_embeddings_enabled,
+        db_sync_status, db_upsert_embedding, db_upsert_post, normalize_identifier_filter, normalize_tag_filter,
+        run_local_search, storage_key, sync_due, validate_limit, validate_query, validate_search_mode, validate_source,
+        NetworkSearchQueryParams, SearchMode,
     };
     use rusqlite::{ffi::sqlite3_auto_extension, Connection};
     use sqlite_vec::sqlite3_vec_init;
@@ -1444,6 +1542,86 @@ mod tests {
     fn unknown_source_is_rejected() {
         assert!(validate_source("repost").is_err());
         assert!(validate_source("").is_err());
+    }
+
+    #[test]
+    fn normalize_identifier_filter_accepts_handle() {
+        let identifier = normalize_identifier_filter(Some("alice.test"), "Author filter").unwrap();
+        assert_eq!(identifier.unwrap().as_str(), "alice.test");
+    }
+
+    #[test]
+    fn normalize_identifier_filter_strips_leading_at_sign() {
+        let identifier = normalize_identifier_filter(Some("@alice.test"), "Author filter").unwrap();
+        assert_eq!(identifier.unwrap().as_str(), "alice.test");
+    }
+
+    #[test]
+    fn normalize_identifier_filter_rejects_invalid_values() {
+        assert!(normalize_identifier_filter(Some("not a valid handle"), "Author filter").is_err());
+    }
+
+    #[test]
+    fn normalize_tag_filter_strips_hash_prefix() {
+        assert_eq!(normalize_tag_filter("#rust").unwrap(), "rust");
+        assert_eq!(normalize_tag_filter("##solid").unwrap(), "solid");
+    }
+
+    #[test]
+    fn normalize_tag_filter_rejects_blank_values() {
+        assert!(normalize_tag_filter("   ").is_err());
+        assert!(normalize_tag_filter("###").is_err());
+    }
+
+    #[test]
+    fn build_search_posts_request_includes_filters() {
+        let request = build_search_posts_request(&NetworkSearchQueryParams {
+            author: Some("@alice.test".to_owned()),
+            cursor: Some("cursor-1".to_owned()),
+            limit: Some(25),
+            mentions: Some("did:plc:bob".to_owned()),
+            query: "search text".to_owned(),
+            since: Some("2026-04-01T05:00:00.000Z".to_owned()),
+            sort: Some("latest".to_owned()),
+            tags: Some(vec!["#rust".to_owned(), "solid".to_owned()]),
+            until: Some("2026-04-02T05:00:00.000Z".to_owned()),
+        })
+        .unwrap();
+
+        assert_eq!(request.author.unwrap().as_str(), "alice.test");
+        assert_eq!(request.mentions.unwrap().as_str(), "did:plc:bob");
+        assert_eq!(request.cursor.unwrap().as_ref(), "cursor-1");
+        assert_eq!(request.limit, Some(25));
+        assert_eq!(request.q.as_ref(), "search text");
+        assert_eq!(request.since.unwrap().as_ref(), "2026-04-01T05:00:00.000Z");
+        assert_eq!(request.sort.unwrap().as_ref(), "latest");
+        assert_eq!(
+            request
+                .tag
+                .unwrap()
+                .iter()
+                .map(|value| value.as_ref().to_owned())
+                .collect::<Vec<_>>(),
+            vec!["rust".to_owned(), "solid".to_owned()]
+        );
+        assert_eq!(request.until.unwrap().as_ref(), "2026-04-02T05:00:00.000Z");
+    }
+
+    #[test]
+    fn build_search_posts_request_rejects_invalid_sort() {
+        let result = build_search_posts_request(&NetworkSearchQueryParams {
+            author: None,
+            cursor: None,
+            limit: Some(25),
+            mentions: None,
+            query: "search text".to_owned(),
+            since: None,
+            sort: Some("oldest".to_owned()),
+            tags: None,
+            until: None,
+        });
+
+        assert!(result.is_err());
     }
 
     #[test]

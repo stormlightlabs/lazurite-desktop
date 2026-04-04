@@ -1,3 +1,4 @@
+import { buildHashtagRoute } from "$/lib/search-routes";
 import { render, screen } from "@solidjs/testing-library";
 import { describe, expect, it } from "vitest";
 import { PostRichText } from "./PostRichText";
@@ -21,7 +22,7 @@ describe("PostRichText", () => {
 
     expect(screen.getByRole("link", { name: "https://example.com" })).toHaveAttribute("href", "https://example.com");
     expect(screen.getByRole("link", { name: "@bob.test" })).toHaveAttribute("href", "#/profile/did%3Aplc%3Abob");
-    expect(screen.getByText("#solid")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "#solid" })).toHaveAttribute("href", `#${buildHashtagRoute("solid")}`);
   });
 
   it("renders markdown blocks and does not linkify inside code", () => {
