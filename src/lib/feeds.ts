@@ -103,6 +103,11 @@ export function getPostText(post: PostView) {
   return typeof text === "string" ? text : "";
 }
 
+export function getPostFacets(post: PostView) {
+  const facets = asPostRecord(post.record).facets;
+  return Array.isArray(facets) ? facets : [];
+}
+
 export function getPostCreatedAt(post: PostView) {
   const createdAt = post.record.createdAt;
   return typeof createdAt === "string" ? createdAt : post.indexedAt;

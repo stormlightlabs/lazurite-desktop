@@ -8,6 +8,7 @@ import {
   getAvatarLabel,
   getDisplayName,
   getPostCreatedAt,
+  getPostFacets,
   getPostText,
   getQuotedAuthor,
   getQuotedHref,
@@ -182,7 +183,7 @@ export function PostCard(props: PostCardProps) {
               profileHref={profileHref()}
               post={props.post} />
 
-            <PostBodyText facets={props.post.record.facets} text={postText()} />
+            <PostBodyText facets={getPostFacets(props.post)} text={postText()} />
 
             <PostEmbeds post={props.post} />
           </PostPrimaryRegion>
