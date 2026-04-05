@@ -6,6 +6,7 @@ import { Icon, SearchModeIcon } from "$/components/shared/Icon";
 import { useAppPreferences } from "$/contexts/app-preferences";
 import { useAppSession } from "$/contexts/app-session";
 import {
+  type ActorResult,
   type ActorSearchResult,
   getSyncStatus,
   type LocalPostResult,
@@ -41,6 +42,7 @@ import { PostSearchFiltersRow } from "./PostSearchFilters";
 import { SearchEmptyState } from "./SearchEmptyState";
 import { SearchQueryInput } from "./SearchQueryInput";
 import { SyncStatusPanel } from "./SyncStatusPanel";
+import type { EmptyStateReason } from "./types";
 
 const MODES: SearchMode[] = ["network", "keyword", "semantic", "hybrid"];
 const SEARCH_TABS: SearchTab[] = ["posts", "profiles"];
@@ -526,13 +528,14 @@ function SearchHeader(
         <SearchHint tab={props.tab} />
       </div>
 
-      <PostSearchFiltersRow
-        disabled={!props.filtersEnabled}
-        filters={props.filters}
-        helperText={props.filtersEnabled
-          ? "Filters update the URL and apply to network post search."
-          : "Filters stay in the URL, but only apply when Posts + Network search is active."}
-        onChange={props.onFilterChange} />
+      <Show when={props.filtersEnabled} fallback={<NetworkFiltersNotice tab={props.tab} />}>
+        <PostSearchFiltersRow
+          collapsible
+          defaultExpanded={hasAdvancedNetworkFilters(props.filters)}
+          filters={props.filters}
+          helperText="Filters update the URL and apply to network post search."
+          onChange={props.onFilterChange} />
+      </Show>
 
       <ResultMeta
         hasSearched={props.hasSearched}
@@ -542,6 +545,25 @@ function SearchHeader(
         resultCount={props.resultCount}
         totalIndexedPosts={props.totalIndexedPosts} />
     </header>
+  );
+}
+
+function NetworkFiltersNotice(props: { tab: SearchTab }) {
+  return (
+    <section class="grid gap-2 rounded-3xl bg-black/20 px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
+      <div class="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-on-surface-variant">
+        <Icon kind="search" class="text-sm text-primary" />
+        <span>Network Filters</span>
+      </div>
+      <p class="m-0 text-sm text-on-surface-variant">
+        <Show
+          when={props.tab === "posts"}
+          fallback="Network filters only apply to post search. Switch back to Posts and choose Network to use author, mention, date, or tag filters.">
+          Network filters only apply in Posts when Network mode is active. Your current filter values stay in the URL
+          and will reapply when you switch back.
+        </Show>
+      </p>
+    </section>
   );
 }
 
@@ -655,7 +677,7 @@ function ModeSelector(
 
       <For each={MODES}>
         {(searchMode) => {
-          const disabled = searchMode === "semantic" && !props.semanticEnabled;
+          const disabled = (searchMode === "semantic" || searchMode === "hybrid") && !props.semanticEnabled;
           return (
             <button
               type="button"
@@ -680,22 +702,22 @@ function ModeSelector(
   );
 }
 
-function SearchViewport(
-  props: {
-    actorResults: ActorSearchResult | null;
-    error: string | null;
-    hasLocalPosts: boolean;
-    hasSearched: boolean;
-    isActorTab: boolean;
-    isLocalMode: boolean;
-    loading: boolean;
-    localResults: LocalPostResult[];
-    networkResults: NetworkSearchResult | null;
-    onOpenActor: (actor: Pick<ProfileViewBasic, "did" | "handle">) => void;
-    onOpenThread: (uri: string) => void;
-    query: string;
-  },
-) {
+type SearchViewportProps = {
+  actorResults: ActorSearchResult | null;
+  error: string | null;
+  hasLocalPosts: boolean;
+  hasSearched: boolean;
+  isActorTab: boolean;
+  isLocalMode: boolean;
+  loading: boolean;
+  localResults: LocalPostResult[];
+  networkResults: NetworkSearchResult | null;
+  onOpenActor: (actor: Pick<ProfileViewBasic, "did" | "handle">) => void;
+  onOpenThread: (uri: string) => void;
+  query: string;
+};
+
+function SearchViewport(props: SearchViewportProps) {
   return (
     <div class="min-h-0 overflow-y-auto px-3 pb-3">
       <Show when={props.loading} fallback={<SearchState {...props} />}>
@@ -705,21 +727,21 @@ function SearchViewport(
   );
 }
 
-function SearchState(
-  props: {
-    actorResults: ActorSearchResult | null;
-    error: string | null;
-    hasLocalPosts: boolean;
-    hasSearched: boolean;
-    isActorTab: boolean;
-    isLocalMode: boolean;
-    localResults: LocalPostResult[];
-    networkResults: NetworkSearchResult | null;
-    onOpenActor: (actor: Pick<ProfileViewBasic, "did" | "handle">) => void;
-    onOpenThread: (uri: string) => void;
-    query: string;
-  },
-) {
+type SearchStateProps = {
+  actorResults: ActorSearchResult | null;
+  error: string | null;
+  hasLocalPosts: boolean;
+  hasSearched: boolean;
+  isActorTab: boolean;
+  isLocalMode: boolean;
+  localResults: LocalPostResult[];
+  networkResults: NetworkSearchResult | null;
+  onOpenActor: (actor: Pick<ProfileViewBasic, "did" | "handle">) => void;
+  onOpenThread: (uri: string) => void;
+  query: string;
+};
+
+function SearchState(props: SearchStateProps) {
   return (
     <Presence>
       <Switch>
@@ -767,9 +789,7 @@ function SearchState(
   );
 }
 
-function EmptyStateView(
-  props: { reason: "error" | "initial" | "no-results" | "no-sync"; scope: "local" | "network" | "profiles" },
-) {
+function EmptyStateView(props: { reason: EmptyStateReason | "no-sync"; scope: "local" | "network" | "profiles" }) {
   return (
     <Motion.div
       class="grid place-items-center px-6 py-16"
@@ -809,12 +829,12 @@ function ActorResultsList(
   );
 }
 
-function ActorResultCard(
-  props: {
-    actor: ActorSearchResult["actors"][number];
-    onOpenActor: (actor: Pick<ProfileViewBasic, "did" | "handle">) => void;
-  },
-) {
+type ActorResultCardProps = {
+  actor: ActorResult;
+  onOpenActor: (actor: Pick<ProfileViewBasic, "did" | "handle">) => void;
+};
+
+function ActorResultCard(props: ActorResultCardProps) {
   return (
     <button
       type="button"
@@ -919,6 +939,10 @@ function SearchTipsCard() {
       </a>
     </section>
   );
+}
+
+function hasAdvancedNetworkFilters(filters: PostSearchFilters) {
+  return !!(filters.author || filters.mentions || filters.since || filters.until || filters.tags.length > 0);
 }
 
 function buildNetworkSearchParams(state: ReturnType<typeof parseSearchRouteState>): NetworkSearchParams {

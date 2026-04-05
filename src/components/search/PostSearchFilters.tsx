@@ -1,11 +1,13 @@
 import type { NetworkSearchSort } from "$/lib/search-routes";
 import { normalizeTagToken, type PostSearchFilters } from "$/lib/search-routes";
-import { createSignal, For, Show } from "solid-js";
-import { Icon } from "../shared/Icon";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { ArrowIcon, Icon } from "../shared/Icon";
 
 type SearchSortTabsProps = { disabled?: boolean; sort: NetworkSearchSort; onChange: (sort: NetworkSearchSort) => void };
 
 type PostSearchFiltersProps = {
+  collapsible?: boolean;
+  defaultExpanded?: boolean;
   disabled?: boolean;
   filters: PostSearchFilters;
   helperText?: string;
@@ -40,6 +42,18 @@ export function SearchSortTabs(props: SearchSortTabsProps) {
 
 export function PostSearchFiltersRow(props: PostSearchFiltersProps) {
   const [pendingTag, setPendingTag] = createSignal("");
+  const [expanded, setExpanded] = createSignal(false);
+  const summary = createMemo(() => summarizeFilters(props.filters));
+  let initialized = false;
+
+  createEffect(() => {
+    if (initialized) {
+      return;
+    }
+
+    setExpanded(props.defaultExpanded ?? (!props.collapsible || hasAdvancedFilters(props.filters)));
+    initialized = true;
+  });
 
   function commitTag(rawValue: string) {
     const nextTag = normalizeTagToken(rawValue);
@@ -68,91 +82,142 @@ export function PostSearchFiltersRow(props: PostSearchFiltersProps) {
             {(text) => <p class="m-0 text-xs text-on-surface-variant/80">{text()}</p>}
           </Show>
         </div>
-        <SearchSortTabs
-          disabled={props.disabled}
-          sort={props.filters.sort}
-          onChange={(sort) => props.onChange({ sort })} />
-      </div>
-
-      <div class="grid gap-3 xl:grid-cols-2">
-        <FilterField
-          disabled={props.disabled}
-          icon="user"
-          label="Author"
-          placeholder="alice.test or did:plc:..."
-          type="text"
-          value={props.filters.author}
-          onInput={(value) => props.onChange({ author: value })} />
-        <FilterField
-          disabled={props.disabled}
-          icon="at"
-          label="Mentions"
-          placeholder="bob.test or did:plc:..."
-          type="text"
-          value={props.filters.mentions}
-          onInput={(value) => props.onChange({ mentions: value })} />
-        <FilterField
-          disabled={props.disabled}
-          icon="timeline"
-          label="Since"
-          placeholder=""
-          type="date"
-          value={props.filters.since}
-          onInput={(value) => props.onChange({ since: value })} />
-        <FilterField
-          disabled={props.disabled}
-          icon="timeline"
-          label="Until"
-          placeholder=""
-          type="date"
-          value={props.filters.until}
-          onInput={(value) => props.onChange({ until: value })} />
-      </div>
-
-      <div class="grid gap-2">
-        <div class="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-on-surface-variant">
-          <Icon kind="hashtag" class="text-sm" />
-          <span>Tags</span>
-        </div>
-        <div class="flex flex-wrap items-center gap-2 rounded-2xl bg-white/3 px-3 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
-          <For each={props.filters.tags}>
-            {(tag) => (
-              <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/14 px-3 py-1 text-sm text-primary shadow-[inset_0_0_0_1px_rgba(125,175,255,0.14)]">
-                <span>#{tag}</span>
-                <button
-                  type="button"
-                  disabled={props.disabled}
-                  class="inline-flex border-0 bg-transparent p-0 text-primary/80 transition hover:text-primary disabled:cursor-not-allowed"
-                  aria-label={`Remove #${tag}`}
-                  onClick={() => removeTag(tag)}>
-                  <Icon kind="close" class="text-xs" />
-                </button>
-              </span>
-            )}
-          </For>
-          <input
-            type="text"
-            value={pendingTag()}
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <SearchSortTabs
             disabled={props.disabled}
-            placeholder={props.filters.tags.length > 0 ? "Add another tag" : "Add a tag and press Enter"}
-            class="min-w-36 flex-1 border-0 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/50 outline-none disabled:cursor-not-allowed disabled:text-on-surface-variant/50"
-            onBlur={(event) => commitTag(event.currentTarget.value)}
-            onInput={(event) => setPendingTag(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === ",") {
-                event.preventDefault();
-                commitTag(event.currentTarget.value);
-                return;
-              }
-
-              if (event.key === "Backspace" && !event.currentTarget.value && props.filters.tags.length > 0) {
-                removeTag(props.filters.tags.at(-1) ?? "");
-              }
-            }} />
+            sort={props.filters.sort}
+            onChange={(sort) => props.onChange({ sort })} />
+          <Show when={props.collapsible}>
+            <FiltersToggle expanded={expanded()} onToggle={() => setExpanded((current) => !current)} />
+          </Show>
         </div>
       </div>
+
+      <Show when={props.collapsible && !expanded()}>
+        <p class="m-0 rounded-2xl bg-white/[0.035] px-3 py-2 text-sm text-on-surface-variant">{summary()}</p>
+      </Show>
+
+      <Show when={!props.collapsible || expanded()}>
+        <div class="grid gap-3 xl:grid-cols-2">
+          <FilterField
+            disabled={props.disabled}
+            icon="user"
+            label="Author"
+            placeholder="alice.test or did:plc:..."
+            type="text"
+            value={props.filters.author}
+            onInput={(value) => props.onChange({ author: value })} />
+          <FilterField
+            disabled={props.disabled}
+            icon="at"
+            label="Mentions"
+            placeholder="bob.test or did:plc:..."
+            type="text"
+            value={props.filters.mentions}
+            onInput={(value) => props.onChange({ mentions: value })} />
+          <FilterField
+            disabled={props.disabled}
+            icon="timeline"
+            label="Since"
+            placeholder=""
+            type="date"
+            value={props.filters.since}
+            onInput={(value) => props.onChange({ since: value })} />
+          <FilterField
+            disabled={props.disabled}
+            icon="timeline"
+            label="Until"
+            placeholder=""
+            type="date"
+            value={props.filters.until}
+            onInput={(value) => props.onChange({ until: value })} />
+        </div>
+        <div class="grid gap-2">
+          <div class="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-on-surface-variant">
+            <Icon kind="hashtag" class="text-sm" />
+            <span>Tags</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 rounded-2xl bg-white/3 px-3 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+            <For each={props.filters.tags}>
+              {(tag) => (
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/14 px-3 py-1 text-sm text-primary shadow-[inset_0_0_0_1px_rgba(125,175,255,0.14)]">
+                  <span>#{tag}</span>
+                  <button
+                    type="button"
+                    disabled={props.disabled}
+                    class="inline-flex border-0 bg-transparent p-0 text-primary/80 transition hover:text-primary disabled:cursor-not-allowed"
+                    aria-label={`Remove #${tag}`}
+                    onClick={() => removeTag(tag)}>
+                    <Icon kind="close" class="text-xs" />
+                  </button>
+                </span>
+              )}
+            </For>
+            <input
+              type="text"
+              value={pendingTag()}
+              disabled={props.disabled}
+              placeholder={props.filters.tags.length > 0 ? "Add another tag" : "Add a tag and press Enter"}
+              class="min-w-36 flex-1 border-0 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/50 outline-none disabled:cursor-not-allowed disabled:text-on-surface-variant/50"
+              onBlur={(event) => commitTag(event.currentTarget.value)}
+              onInput={(event) => setPendingTag(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === ",") {
+                  event.preventDefault();
+                  commitTag(event.currentTarget.value);
+                  return;
+                }
+
+                if (event.key === "Backspace" && !event.currentTarget.value && props.filters.tags.length > 0) {
+                  removeTag(props.filters.tags.at(-1) ?? "");
+                }
+              }} />
+          </div>
+        </div>
+      </Show>
     </section>
   );
+}
+
+function FiltersToggle(props: { expanded: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-expanded={props.expanded}
+      class="inline-flex items-center gap-2 rounded-full border-0 bg-white/5 px-3 py-1.5 text-sm font-medium text-on-surface transition hover:bg-white/9"
+      onClick={() => props.onToggle()}>
+      <span>{props.expanded ? "Hide filters" : "Show filters"}</span>
+      <ArrowIcon direction={props.expanded ? "up" : "down"} class="text-base text-on-surface-variant" />
+    </button>
+  );
+}
+
+function hasAdvancedFilters(filters: PostSearchFilters) {
+  return !!(filters.author || filters.mentions || filters.since || filters.until || filters.tags.length > 0);
+}
+
+function summarizeFilters(filters: PostSearchFilters) {
+  const segments: string[] = [];
+
+  if (filters.author) {
+    segments.push(`Author ${filters.author}`);
+  }
+
+  if (filters.mentions) {
+    segments.push(`Mentions ${filters.mentions}`);
+  }
+
+  if (filters.since || filters.until) {
+    const start = filters.since || "any time";
+    const end = filters.until || "now";
+    segments.push(`${start} to ${end}`);
+  }
+
+  if (filters.tags.length > 0) {
+    segments.push(filters.tags.length === 1 ? "1 tag" : `${filters.tags.length} tags`);
+  }
+
+  return segments.length > 0 ? segments.join(" • ") : "No author, mention, date, or tag filters applied.";
 }
 
 function FilterField(

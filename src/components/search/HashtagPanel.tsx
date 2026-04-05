@@ -15,10 +15,12 @@ import {
 import { normalizeError } from "$/lib/utils/text";
 import { useLocation, useNavigate, useParams } from "@solidjs/router";
 import * as logger from "@tauri-apps/plugin-log";
-import { createEffect, createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
+import { createEffect, createMemo, For, Match, Show, Switch } from "solid-js";
+import { createStore } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
 import { PostSearchFiltersRow } from "./PostSearchFilters";
 import { SearchEmptyState } from "./SearchEmptyState";
+import type { EmptyStateReason } from "./types";
 
 type HashtagPanelState = {
   error: string | null;
@@ -32,7 +34,7 @@ export function HashtagPanel() {
   const navigate = useNavigate();
   const params = useParams<{ hashtag: string }>();
   const threadOverlay = useThreadOverlayNavigation();
-  const [state, setState] = createSignal<HashtagPanelState>({
+  const [state, setState] = createStore<HashtagPanelState>({
     error: null,
     hasSearched: false,
     loading: false,
@@ -53,6 +55,26 @@ export function HashtagPanel() {
     void navigate(buildPostSearchRoute(location.pathname, location.search, { ...filters(), ...next }));
   }
 
+  async function performSearch(f: PostSearchFilters, t: string) {
+    try {
+      const results = await searchPostsNetwork({
+        author: f.author || null,
+        limit: 25,
+        mentions: f.mentions || null,
+        query: buildHashtagQuery(t),
+        since: f.since ? toLocalDayStartIso(f.since) : null,
+        sort: f.sort,
+        tags: f.tags,
+        until: f.until ? toLocalDayUntilIso(f.until) : null,
+      });
+      setState({ error: null, hasSearched: true, loading: false, results });
+    } catch (error) {
+      const errorMessage = normalizeError(error);
+      logger.error("hashtag search failed", { keyValues: { error: errorMessage, hashtag: t, sort: f.sort } });
+      setState({ error: errorMessage, hasSearched: true, loading: false, results: null });
+    }
+  }
+
   createEffect(() => {
     const currentTag = tag();
     const activeFilters = filters();
@@ -64,24 +86,7 @@ export function HashtagPanel() {
       }
 
       setState((previous) => ({ ...previous, error: null, loading: true }));
-      void searchPostsNetwork({
-        author: activeFilters.author || null,
-        limit: 25,
-        mentions: activeFilters.mentions || null,
-        query: buildHashtagQuery(currentTag),
-        since: activeFilters.since ? toLocalDayStartIso(activeFilters.since) : null,
-        sort: activeFilters.sort,
-        tags: activeFilters.tags,
-        until: activeFilters.until ? toLocalDayUntilIso(activeFilters.until) : null,
-      }).then((results) => {
-        setState({ error: null, hasSearched: true, loading: false, results });
-      }).catch((error) => {
-        const errorMessage = normalizeError(error);
-        logger.error("hashtag search failed", {
-          keyValues: { error: errorMessage, hashtag: currentTag, sort: activeFilters.sort },
-        });
-        setState({ error: errorMessage, hasSearched: true, loading: false, results: null });
-      });
+      void performSearch(activeFilters, currentTag);
     }, 300);
   });
 
@@ -91,13 +96,15 @@ export function HashtagPanel() {
         <HashtagHero hashtagLabel={hashtagLabel()} />
 
         <PostSearchFiltersRow
+          collapsible
+          defaultExpanded={hasAdvancedNetworkFilters(filters())}
           filters={filters()}
           helperText="Filter this hashtag feed by date window, mentions, author, and additional tags."
           onChange={(next) => replaceRoute(next)} />
       </header>
 
       <div class="min-h-0 overflow-y-auto px-3 pb-3">
-        <Show when={state().loading} fallback={<HashtagState {...state()} onOpenThread={threadOverlay.openThread} />}>
+        <Show when={state.loading} fallback={<HashtagState {...state} onOpenThread={threadOverlay.openThread} />}>
           <div class="grid gap-2 py-1">
             <For each={Array.from({ length: 5 })}>
               {() => <div class="h-40 animate-pulse rounded-3xl bg-white/4" aria-hidden="true" />}
@@ -107,6 +114,10 @@ export function HashtagPanel() {
       </div>
     </section>
   );
+}
+
+function hasAdvancedNetworkFilters(filters: PostSearchFilters) {
+  return !!(filters.author || filters.mentions || filters.since || filters.until || filters.tags.length > 0);
 }
 
 function HashtagState(props: HashtagPanelState & { onOpenThread: (uri: string) => void }) {
@@ -154,7 +165,7 @@ function HashtagState(props: HashtagPanelState & { onOpenThread: (uri: string) =
   );
 }
 
-function EmptyState(props: { reason: "error" | "initial" | "no-results" }) {
+function EmptyState(props: { reason: EmptyStateReason }) {
   return (
     <Motion.div
       class="grid place-items-center px-6 py-16"

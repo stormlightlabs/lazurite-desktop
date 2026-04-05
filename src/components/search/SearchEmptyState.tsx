@@ -1,9 +1,10 @@
 import { Icon } from "$/components/shared/Icon";
 import { Match, Show, Switch } from "solid-js";
+import type { EmptyStateReason } from "./types";
 
 type SearchEmptyStateScope = "local" | "network" | "profiles";
 
-type SearchEmptyStateProps = { reason: "error" | "initial" | "no-results" | "no-sync"; scope?: SearchEmptyStateScope };
+type SearchEmptyStateProps = { reason: EmptyStateReason | "no-sync"; scope?: SearchEmptyStateScope };
 
 export function SearchEmptyState(props: SearchEmptyStateProps) {
   return (
@@ -14,7 +15,7 @@ export function SearchEmptyState(props: SearchEmptyStateProps) {
   );
 }
 
-function EmptyStateVisual(props: { reason: string }) {
+function EmptyStateVisual(props: { reason: EmptyStateReason | "no-sync" }) {
   return (
     <Show when={props.reason === "no-sync"} fallback={<EmptyStateIcon />}>
       <NoSyncIllustration />
@@ -34,7 +35,7 @@ function NoSyncIllustration() {
   return (
     <div
       data-testid="no-sync-illustration"
-      class="relative mx-auto mb-6 h-40 w-full max-w-xs overflow-hidden rounded-[2rem] bg-white/[0.025] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+      class="relative mx-auto mb-6 h-40 w-full max-w-xs overflow-hidden rounded-4xl bg-white/2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
       <div class="absolute inset-x-6 top-5 h-16 rounded-[1.25rem] bg-primary/10 blur-2xl" />
       <div class="absolute left-5 top-7 w-26 rounded-[1.4rem] bg-surface-container p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
         <div class="mb-2 flex items-center gap-2">
@@ -73,7 +74,7 @@ function NoSyncIllustration() {
   );
 }
 
-function EmptyStateContent(props: { reason: string; scope: SearchEmptyStateScope }) {
+function EmptyStateContent(props: { reason: EmptyStateReason | "no-sync"; scope: SearchEmptyStateScope }) {
   return (
     <Switch>
       <Match when={props.reason === "initial"}>

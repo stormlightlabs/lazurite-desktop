@@ -22,32 +22,30 @@ function ModelDescriptor(props: { config: EmbeddingsConfig | null }) {
 
 function EmbedSettingsHeader(props: { config: EmbeddingsConfig | null; isLoading: boolean; handleToggle: () => void }) {
   return (
-    <div class="flex items-start justify-between gap-4">
-      <div class="flex items-start gap-2">
+    <div class="flex flex-col gap-4">
+      <div class="flex items-center gap-2">
         <div>
           <Icon
             kind="search"
             class="h-11 w-11 items-center justify-center rounded-2xl bg-primary/12 text-lg text-primary" />
         </div>
 
-        <div class="grid gap-1">
-          <p class="m-0 text-base font-medium text-on-surface">Optional Semantic Search</p>
-          <p class="m-0 text-sm leading-relaxed text-on-surface-variant">
-            Off by default. Turn this on to download a local model and unlock semantic plus hybrid search for synced
-            posts.
-          </p>
+        <p class="m-0 text-base font-medium text-on-surface">Optional Semantic Search</p>
+        <div>
+          <Show when={props.config}>
+            {(current) => (
+              <ToggleSwitch
+                checked={current().enabled}
+                disabled={props.isLoading || current().downloadActive}
+                onChange={() => void props.handleToggle()} />
+            )}
+          </Show>
         </div>
       </div>
-      <div>
-        <Show when={props.config}>
-          {(current) => (
-            <ToggleSwitch
-              checked={current().enabled}
-              disabled={props.isLoading || current().downloadActive}
-              onChange={() => void props.handleToggle()} />
-          )}
-        </Show>
-      </div>
+      <p class="m-0 text-sm leading-relaxed text-on-surface-variant">
+        Off by default. Turn this on to download a local model and unlock more detailed search for your liked and saved
+        posts.
+      </p>
     </div>
   );
 }

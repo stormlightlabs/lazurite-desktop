@@ -17,7 +17,7 @@ export type NetworkSearchParams = {
   cursor?: string | null;
 };
 
-type TActor = {
+export type ActorResult = {
   did: string;
   handle: string;
   displayName?: string | null;
@@ -25,7 +25,7 @@ type TActor = {
   description?: string | null;
 };
 
-export type ActorSearchResult = { cursor?: string | null; actors: TActor[] };
+export type ActorSearchResult = { cursor?: string | null; actors: ActorResult[] };
 
 type TStarterPack = {
   uri: string;

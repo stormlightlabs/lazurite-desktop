@@ -9,6 +9,7 @@ use jacquard::api::app_bsky::bookmark::get_bookmarks::GetBookmarks;
 use jacquard::api::app_bsky::feed::get_actor_likes::GetActorLikes;
 use jacquard::api::app_bsky::feed::search_posts::SearchPosts;
 use jacquard::api::app_bsky::graph::search_starter_packs::SearchStarterPacks;
+use jacquard::types::datetime::Datetime;
 use jacquard::types::did::Did;
 use jacquard::types::ident::AtIdentifier;
 use jacquard::xrpc::XrpcClient;
@@ -17,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
@@ -184,6 +186,19 @@ fn normalize_optional_filter(value: Option<&str>) -> Option<String> {
         .map(str::to_owned)
 }
 
+fn normalize_datetime_filter(value: Option<&str>, label: &str) -> Result<Option<String>> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+
+    Datetime::from_str(value).map_err(|error| {
+        log::error!("invalid {label}: {error}");
+        AppError::validation(format!("{label} must be a valid ISO 8601 datetime."))
+    })?;
+
+    Ok(Some(value.to_owned()))
+}
+
 fn normalize_search_sort(value: Option<&str>) -> Result<Option<String>> {
     let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
         return Ok(None);
@@ -233,13 +248,29 @@ fn build_search_posts_request(params: &NetworkSearchQueryParams) -> Result<Searc
 
     let query = params.query.trim().to_owned();
     let sort = normalize_search_sort(params.sort.as_deref())?;
-    let since = normalize_optional_filter(params.since.as_deref());
-    let until = normalize_optional_filter(params.until.as_deref());
+    let since = normalize_datetime_filter(params.since.as_deref(), "Since filter")?;
+    let until = normalize_datetime_filter(params.until.as_deref(), "Until filter")?;
     let author = normalize_identifier_filter(params.author.as_deref(), "Author filter")?;
     let mentions = normalize_identifier_filter(params.mentions.as_deref(), "Mentions filter")?;
     let tags =
         normalize_tag_filters(params.tags.clone())?.map(|items| items.into_iter().map(Into::into).collect::<Vec<_>>());
     let cursor = normalize_optional_filter(params.cursor.as_deref()).map(Into::into);
+
+    if let (Some(since), Some(until)) = (since.as_deref(), until.as_deref()) {
+        let since = Datetime::from_str(since).map_err(|error| {
+            log::error!("invalid Since filter during range validation: {error}");
+            AppError::validation("Since filter must be a valid ISO 8601 datetime.")
+        })?;
+        let until = Datetime::from_str(until).map_err(|error| {
+            log::error!("invalid Until filter during range validation: {error}");
+            AppError::validation("Until filter must be a valid ISO 8601 datetime.")
+        })?;
+
+        if since >= until {
+            return Err(AppError::validation("Since filter must be earlier than until."));
+        }
+    }
+
     let since = since.map(Into::into);
     let sort = sort.map(Into::into);
     let until = until.map(Into::into);
@@ -1695,6 +1726,40 @@ mod tests {
             sort: Some("oldest".to_owned()),
             tags: None,
             until: None,
+        });
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn build_search_posts_request_rejects_invalid_datetime() {
+        let result = build_search_posts_request(&NetworkSearchQueryParams {
+            author: None,
+            cursor: None,
+            limit: Some(25),
+            mentions: None,
+            query: "search text".to_owned(),
+            since: Some("2026-04-01".to_owned()),
+            sort: Some("latest".to_owned()),
+            tags: None,
+            until: None,
+        });
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn build_search_posts_request_rejects_inverted_datetime_range() {
+        let result = build_search_posts_request(&NetworkSearchQueryParams {
+            author: None,
+            cursor: None,
+            limit: Some(25),
+            mentions: None,
+            query: "search text".to_owned(),
+            since: Some("2026-04-02T05:00:00.000Z".to_owned()),
+            sort: Some("latest".to_owned()),
+            tags: None,
+            until: Some("2026-04-01T05:00:00.000Z".to_owned()),
         });
 
         assert!(result.is_err());

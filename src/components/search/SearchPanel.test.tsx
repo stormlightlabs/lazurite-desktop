@@ -76,8 +76,22 @@ describe("SearchPanel", () => {
 
     expect(screen.getByPlaceholderText("Search public posts across Bluesky...")).toBeInTheDocument();
     expect(screen.getByText("Network Filters")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /show filters/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /top/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: /hybrid/i })).toBeDisabled();
     expect(screen.getByRole("link", { name: /open settings/i })).toHaveAttribute("href", "#/settings");
+  });
+
+  it("expands and collapses the network filter details", async () => {
+    renderSearchPanel();
+
+    expect(screen.queryByLabelText("Author")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /show filters/i }));
+    expect(screen.getByLabelText("Author")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /hide filters/i }));
+    expect(screen.queryByLabelText("Author")).not.toBeInTheDocument();
   });
 
   it("performs network search with URL-synced filters", async () => {
@@ -154,6 +168,16 @@ describe("SearchPanel", () => {
     expect(globalThis.location.hash).toContain("mode=keyword");
     expect(searchPostsMock).toHaveBeenCalledWith("test query", "keyword", 50);
     expect(screen.getByText("Liked")).toBeInTheDocument();
+  });
+
+  it("shows a network-only notice outside network mode", async () => {
+    renderSearchPanel("#/search?author=alice.test");
+
+    fireEvent.click(screen.getByRole("button", { name: /keyword/i }));
+    await flushRouter();
+
+    expect(screen.queryByRole("button", { name: /show filters/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/network filters only apply in posts when network mode is active/i)).toBeInTheDocument();
   });
 
   it("cycles through modes with Tab key", async () => {
