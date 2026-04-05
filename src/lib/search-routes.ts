@@ -2,6 +2,8 @@ import type { SearchMode } from "$/lib/api/search";
 
 export type SearchTab = "posts" | "profiles";
 export type NetworkSearchSort = "top" | "latest";
+export const SEARCH_ROUTE = "/search";
+export const SEARCH_PREFLIGHT_ROUTE = "/search/preflight";
 
 export type PostSearchFilters = {
   author: string;
@@ -77,6 +79,17 @@ export function buildSearchRoute(pathname: string, search: string, state: Search
   return buildPostSearchRoute(pathname, params.toString(), state);
 }
 
+export function buildSearchPreflightRoute(next?: string | null) {
+  const params = new URLSearchParams();
+  const normalized = normalizeSearchReturnRoute(next);
+  if (normalized) {
+    params.set("next", normalized);
+  }
+
+  const search = params.toString();
+  return search ? `${SEARCH_PREFLIGHT_ROUTE}?${search}` : SEARCH_PREFLIGHT_ROUTE;
+}
+
 export function decodeHashtagRouteTag(value?: string | null) {
   if (!value) {
     return null;
@@ -141,6 +154,15 @@ export function parseSearchRouteState(search: string): SearchRouteState {
     q: params.get("q")?.trim() ?? "",
     tab: SEARCH_TABS.has(tab as SearchTab) ? (tab as SearchTab) : SEARCH_ROUTE_DEFAULTS.tab,
   };
+}
+
+export function normalizeSearchReturnRoute(value?: string | null) {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed.startsWith(SEARCH_ROUTE) || trimmed.startsWith(SEARCH_PREFLIGHT_ROUTE)) {
+    return SEARCH_ROUTE;
+  }
+
+  return trimmed;
 }
 
 export function toLocalDayStartIso(value: string) {

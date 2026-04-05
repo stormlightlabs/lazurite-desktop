@@ -14,11 +14,12 @@ const navigateMock = vi.hoisted(() => vi.fn());
 const infoMock = vi.hoisted(() => vi.fn());
 
 const DEFAULT_EMBEDDINGS_CONFIG = {
-  enabled: true,
+  enabled: false,
+  preflightSeen: false,
   modelName: "nomic-embed-text-v1.5",
   dimensions: 768,
   modelSizeBytes: 1024 * 1024 * 384,
-  downloaded: true,
+  downloaded: false,
   downloadActive: false,
 };
 
@@ -46,7 +47,7 @@ function createMockSettings(overrides = {}) {
     notificationsDesktop: true,
     notificationsBadge: true,
     notificationsSound: false,
-    embeddingsEnabled: true,
+    embeddingsEnabled: false,
     constellationUrl: "https://constellation.microcosm.blue",
     spacedustUrl: "https://spacedust.microcosm.blue",
     spacedustInstant: false,
@@ -111,7 +112,7 @@ describe("SettingsPanel", () => {
     expect(await screen.findByText("Data")).toBeInTheDocument();
     expect(await screen.findByText("Logs")).toBeInTheDocument();
     expect(await screen.findByText("About")).toBeInTheDocument();
-    expect(await screen.findByText(/384 MB on disk/i)).toBeInTheDocument();
+    expect(await screen.findAllByText(/384 MB download/i)).toHaveLength(2);
   });
 
   it("displays cache size information", async () => {

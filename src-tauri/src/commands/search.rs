@@ -63,6 +63,11 @@ pub fn set_embeddings_enabled(enabled: bool, state: State<'_, AppState>) -> Resu
 }
 
 #[tauri::command]
+pub fn set_embeddings_preflight_seen(seen: bool, state: State<'_, AppState>) -> Result<()> {
+    search::set_embeddings_preflight_seen(seen, &state)
+}
+
+#[tauri::command]
 pub fn get_embeddings_enabled(state: State<'_, AppState>) -> Result<bool> {
     search::get_embeddings_enabled(&state)
 }

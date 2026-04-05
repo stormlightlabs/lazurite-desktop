@@ -123,6 +123,7 @@ pub fn run() {
             cmd::search::embed_pending_posts,
             cmd::search::reindex_embeddings,
             cmd::search::set_embeddings_enabled,
+            cmd::search::set_embeddings_preflight_seen,
             cmd::search::get_embeddings_enabled,
             cmd::search::get_embeddings_config,
             cmd::search::prepare_embeddings_model,

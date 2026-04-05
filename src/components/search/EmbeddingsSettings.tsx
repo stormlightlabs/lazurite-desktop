@@ -6,33 +6,35 @@ import { formatBytes, formatEtaSeconds, formatProgress } from "$/lib/utils/text"
 import { createEffect, createMemo, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
 
+const ESTIMATED_MODEL_SIZE_BYTES = 1024 * 1024 * 384;
+
 function ModelDescriptor(props: { config: EmbeddingsConfig | null }) {
   return (
-    <p class="m-0 text-xs text-on-surface-variant flex items-center gap-2">
+    <p class="m-0 flex flex-wrap items-center gap-2 text-xs text-on-surface-variant">
       <span>{props.config?.modelName ?? "nomic-embed-text-v1.5"}</span>
       <span>·</span>
       <span>{props.config?.dimensions ?? 768}D</span>
-      <Show when={props.config?.modelSizeBytes}>
-        {(bytes) => (
-          <>
-            <span>·</span>
-            <span>{formatBytes(bytes())} on disk</span>
-          </>
-        )}
-      </Show>
+      <span>·</span>
+      <span>{formatBytes(props.config?.modelSizeBytes ?? ESTIMATED_MODEL_SIZE_BYTES)} download</span>
     </p>
   );
 }
 
 function EmbedSettingsHeader(props: { config: EmbeddingsConfig | null; isLoading: boolean; handleToggle: () => void }) {
   return (
-    <div class="flex items-center gap-4 justify-between">
-      <div class="flex gap-2 items-center">
+    <div class="flex items-start justify-between gap-4">
+      <div class="flex items-start gap-3">
         <Icon
           kind="search"
-          class="text-lg text-primary h-11 w-11 items-center justify-center rounded-full bg-primary/15" />
+          class="h-11 w-11 items-center justify-center rounded-full bg-primary/15 text-lg text-primary" />
 
-        <p class="text-lg font-medium text-on-surface">Semantic Search</p>
+        <div class="grid gap-1">
+          <p class="m-0 text-lg font-medium text-on-surface">Optional Semantic Search</p>
+          <p class="m-0 text-sm leading-relaxed text-on-surface-variant">
+            Off by default. Turn this on to download a local model and unlock semantic plus hybrid search for synced
+            posts.
+          </p>
+        </div>
       </div>
 
       <Show when={props.config}>
@@ -54,7 +56,7 @@ function DownloadButton(props: { config: EmbeddingsConfig | null; prepareModel: 
       onClick={() => void props.prepareModel()}
       class="inline-flex items-center justify-center gap-2 rounded-xl border-0 bg-white/8 px-3 py-2 text-xs font-medium text-on-surface transition hover:bg-white/12">
       <Icon kind="download" />
-      <Show when={props.config?.lastError} fallback="Prepare model">Retry download</Show>
+      <Show when={props.config?.lastError} fallback="Retry download">Download model again</Show>
     </button>
   );
 }
@@ -79,19 +81,19 @@ function ToggleSwitch(props: { checked: boolean; disabled?: boolean; onChange: (
 
 function StatusLabel(props: { config: EmbeddingsConfig | null }) {
   return (
-    <span class="font-medium text-sm">
+    <span class="text-sm font-medium">
       <Switch fallback={<span class="text-on-surface">Loading...</span>}>
         <Match when={props.config?.downloadActive}>
           <span class="text-primary">Downloading model files...</span>
         </Match>
         <Match when={props.config?.downloaded}>
-          <span class="text-emerald-300">Model ready</span>
+          <span class="text-emerald-300">Semantic search ready</span>
         </Match>
         <Match when={props.config?.lastError}>
           <span class="text-red-300">Download failed</span>
         </Match>
         <Match when={props.config?.enabled}>
-          <span class="text-primary">Preparing model cache...</span>
+          <span class="text-primary">Preparing semantic search...</span>
         </Match>
         <Match when={!props.config?.enabled}>
           <span class="text-on-surface-variant">Semantic search is off</span>
@@ -111,7 +113,7 @@ function StatusLabelWithIcon(props: { config: EmbeddingsConfig | null }) {
         </Match>
         <Match when={props.config?.downloaded}>
           <Icon kind="complete" class="text-emerald-300" />
-          <span>Model ready</span>
+          <span>Semantic search ready</span>
         </Match>
         <Match when={props.config?.lastError}>
           <Icon kind="danger" class="text-red-300" />
@@ -119,7 +121,7 @@ function StatusLabelWithIcon(props: { config: EmbeddingsConfig | null }) {
         </Match>
         <Match when={props.config?.enabled}>
           <Icon kind="download" class="text-primary" />
-          <span>Preparing model cache...</span>
+          <span>Preparing semantic search...</span>
         </Match>
         <Match when={!props.config?.enabled}>
           <Icon kind="close" class="text-on-surface-variant" />
@@ -132,11 +134,17 @@ function StatusLabelWithIcon(props: { config: EmbeddingsConfig | null }) {
 
 export function EmbeddingsSettings() {
   const preferences = useAppPreferences();
-  const [autoPrepareStarted, setAutoPrepareStarted] = createSignal(false);
+  const [prepareRequested, setPrepareRequested] = createSignal(false);
   const config = () => preferences.embeddingsConfig;
 
   async function prepareModel() {
-    await preferences.prepareEmbeddingsModel();
+    setPrepareRequested(true);
+
+    try {
+      await preferences.prepareEmbeddingsModel();
+    } finally {
+      setPrepareRequested(false);
+    }
   }
 
   async function handleToggle() {
@@ -147,12 +155,16 @@ export function EmbeddingsSettings() {
 
     const nextEnabled = !current.enabled;
     await preferences.setEmbeddingsEnabled(nextEnabled);
-    if (!nextEnabled) {
-      setAutoPrepareStarted(false);
+
+    if (nextEnabled) {
+      void prepareModel();
+      return;
     }
+
+    setPrepareRequested(false);
   }
 
-  const ofProgress = createMemo<[number, number] | null>(() => {
+  const fileProgress = createMemo<[number, number] | null>(() => {
     const index = config()?.downloadFileIndex;
     const total = config()?.downloadFileTotal;
 
@@ -169,28 +181,9 @@ export function EmbeddingsSettings() {
     }
   });
 
-  createEffect(() => {
-    const current = config();
-    if (!current) {
-      return;
-    }
-
-    if (!current.enabled) {
-      setAutoPrepareStarted(false);
-      return;
-    }
-
-    if (current.downloaded || current.downloadActive || autoPrepareStarted()) {
-      return;
-    }
-
-    setAutoPrepareStarted(true);
-    void prepareModel();
-  });
-
   onMount(() => {
     const interval = setInterval(() => {
-      if (preferences.embeddingsConfig?.downloadActive) {
+      if (prepareRequested() || preferences.embeddingsConfig?.downloadActive) {
         void preferences.loadEmbeddingsConfig();
       }
     }, 1000);
@@ -202,8 +195,26 @@ export function EmbeddingsSettings() {
     <section class="panel-surface grid gap-4 p-5">
       <EmbedSettingsHeader config={config()} isLoading={preferences.embeddingsLoading} handleToggle={handleToggle} />
 
+      <Show when={!config()?.enabled}>
+        <div class="grid gap-3 rounded-3xl bg-white/[0.035] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+          <div class="flex items-center justify-between gap-3">
+            <div class="grid gap-1">
+              <p class="m-0 text-sm font-medium text-on-surface">Keyword and network search are ready now</p>
+              <p class="m-0 text-xs text-on-surface-variant">
+                Turn this on only if you want concept matching across synced posts. The model downloads locally and
+                nothing happens until you opt in.
+              </p>
+            </div>
+            <span class="rounded-full bg-primary/10 px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.12em] text-primary">
+              Off by default
+            </span>
+          </div>
+          <ModelDescriptor config={config()} />
+        </div>
+      </Show>
+
       <Presence>
-        <Show when={config()?.enabled && (!config()?.downloaded || config()?.downloadActive || config()?.lastError)}>
+        <Show when={config()?.enabled && (!config()?.downloaded || config()?.downloadActive || config()?.lastError || prepareRequested())}>
           <Motion.div
             class="grid gap-3 rounded-2xl bg-white/5 p-4"
             initial={{ opacity: 0, height: 0 }}
@@ -227,7 +238,7 @@ export function EmbeddingsSettings() {
                 {(filename) => <p class="m-0">Current file: {filename().split("/").at(-1) ?? filename()}</p>}
               </Show>
 
-              <Show when={ofProgress()}>
+              <Show when={fileProgress()}>
                 {(value) => {
                   const [index, total] = value();
                   return <p class="m-0">File {index} of {total}</p>;
@@ -235,13 +246,15 @@ export function EmbeddingsSettings() {
               </Show>
 
               <Show when={config()?.downloadEtaSeconds}>
-                {value => <p class="m-0">ETA: {formatEtaSeconds(value())}</p>}
+                {(value) => <p class="m-0">ETA: {formatEtaSeconds(value())}</p>}
               </Show>
 
-              <Show when={config()?.lastError}>{(message) => <p class="m-0 text-red-300">{message()}</p>}</Show>
+              <Show when={config()?.lastError}>
+                {(message) => <p class="m-0 text-red-300">{message()}</p>}
+              </Show>
             </div>
 
-            <Show when={!config()?.downloadActive && !config()?.downloaded}>
+            <Show when={!config()?.downloadActive && !prepareRequested() && !config()?.downloaded}>
               <DownloadButton config={config()} prepareModel={prepareModel} />
             </Show>
           </Motion.div>
@@ -249,7 +262,8 @@ export function EmbeddingsSettings() {
       </Presence>
 
       <p class="m-0 text-xs leading-relaxed text-on-surface-variant/80">
-        Semantic search can find conceptually similar posts even when they do not contain the exact keywords you typed.
+        Semantic search is optional. It stays off until you opt in, and it only improves local search over your synced
+        likes and bookmarks.
       </p>
       <div class="flex items-center gap-2">
         <StatusLabel config={config()} />

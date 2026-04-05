@@ -53,6 +53,11 @@ const MIGRATIONS: &[Migration] = &[
         "columns_expand_kinds",
         include_str!("migrations/009_columns_expand_kinds.sql"),
     ),
+    Migration::new(
+        10,
+        "embeddings_opt_in",
+        include_str!("migrations/010_embeddings_opt_in.sql"),
+    ),
 ];
 
 pub fn initialize_database(app: &AppHandle) -> Result<DbPool, AppError> {
@@ -280,5 +285,44 @@ mod tests {
                 )
                 .expect("expanded schema should accept new column kinds");
         }
+    }
+
+    #[test]
+    fn migration_ten_forces_embeddings_opt_in_defaults() {
+        let connection = Connection::open_in_memory().expect("in-memory db should open");
+        connection
+            .execute_batch(include_str!("migrations/006_app_settings.sql"))
+            .expect("settings migration should apply");
+
+        let seeded_enabled: String = connection
+            .query_row(
+                "SELECT value FROM app_settings WHERE key = 'embeddings_enabled'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("embeddings_enabled should exist after migration 006");
+        assert_eq!(seeded_enabled, "1");
+
+        connection
+            .execute_batch(include_str!("migrations/010_embeddings_opt_in.sql"))
+            .expect("migration ten should apply");
+
+        let embeddings_enabled: String = connection
+            .query_row(
+                "SELECT value FROM app_settings WHERE key = 'embeddings_enabled'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("embeddings_enabled should exist after migration 010");
+        let preflight_seen: String = connection
+            .query_row(
+                "SELECT value FROM app_settings WHERE key = 'embeddings_preflight_seen'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("embeddings_preflight_seen should exist after migration 010");
+
+        assert_eq!(embeddings_enabled, "0");
+        assert_eq!(preflight_seen, "0");
     }
 }

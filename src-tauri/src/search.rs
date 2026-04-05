@@ -35,6 +35,8 @@ const EMBEDDING_TOKENIZER_FILES: &[&str] = &[
 const EMBEDDING_DIMENSIONS: i64 = 768;
 const SEARCH_SYNC_CHECK_INTERVAL: Duration = Duration::from_secs(5);
 const SEARCH_SYNC_INTERVAL: Duration = Duration::from_secs(15 * 60);
+const EMBEDDINGS_ENABLED_KEY: &str = "embeddings_enabled";
+const EMBEDDINGS_PREFLIGHT_SEEN_KEY: &str = "embeddings_preflight_seen";
 static EMBEDDINGS_DOWNLOAD_STATE: LazyLock<Mutex<EmbeddingsDownloadState>> =
     LazyLock::new(|| Mutex::new(EmbeddingsDownloadState::default()));
 
@@ -886,19 +888,39 @@ fn ensure_model_downloaded(models_dir: &Path) -> Result<()> {
 fn db_get_embeddings_enabled(conn: &Connection) -> Result<bool> {
     let val: Option<String> = conn
         .query_row(
-            "SELECT value FROM app_settings WHERE key = 'embeddings_enabled'",
-            [],
+            "SELECT value FROM app_settings WHERE key = ?1",
+            params![EMBEDDINGS_ENABLED_KEY],
             |row| row.get(0),
         )
         .optional()?;
-    Ok(val.map(|v| v != "0").unwrap_or(true))
+    Ok(val.map(|v| v != "0").unwrap_or(false))
 }
 
 fn db_set_embeddings_enabled(conn: &Connection, enabled: bool) -> Result<()> {
     conn.execute(
-        "INSERT INTO app_settings(key, value) VALUES('embeddings_enabled', ?1)
+        "INSERT INTO app_settings(key, value) VALUES(?1, ?2)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        params![if enabled { "1" } else { "0" }],
+        params![EMBEDDINGS_ENABLED_KEY, if enabled { "1" } else { "0" }],
+    )?;
+    Ok(())
+}
+
+fn db_get_embeddings_preflight_seen(conn: &Connection) -> Result<bool> {
+    let val: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_settings WHERE key = ?1",
+            params![EMBEDDINGS_PREFLIGHT_SEEN_KEY],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(val.map(|value| value != "0").unwrap_or(false))
+}
+
+fn db_set_embeddings_preflight_seen(conn: &Connection, seen: bool) -> Result<()> {
+    conn.execute(
+        "INSERT INTO app_settings(key, value) VALUES(?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![EMBEDDINGS_PREFLIGHT_SEEN_KEY, if seen { "1" } else { "0" }],
     )?;
     Ok(())
 }
@@ -1243,6 +1265,11 @@ pub fn set_embeddings_enabled(enabled: bool, state: &AppState) -> Result<()> {
     db_set_embeddings_enabled(&conn, enabled)
 }
 
+pub fn set_embeddings_preflight_seen(seen: bool, state: &AppState) -> Result<()> {
+    let conn = state.auth_store.lock_connection()?;
+    db_set_embeddings_preflight_seen(&conn, seen)
+}
+
 /// Get the current embeddings-enabled preference.
 pub fn get_embeddings_enabled(state: &AppState) -> Result<bool> {
     let conn = state.auth_store.lock_connection()?;
@@ -1253,6 +1280,7 @@ pub fn get_embeddings_enabled(state: &AppState) -> Result<bool> {
 #[serde(rename_all = "camelCase")]
 pub struct EmbeddingsConfig {
     pub enabled: bool,
+    pub preflight_seen: bool,
     pub model_name: String,
     pub dimensions: i64,
     pub model_size_bytes: Option<u64>,
@@ -1270,6 +1298,7 @@ pub struct EmbeddingsConfig {
 pub fn get_embeddings_config(app: &AppHandle, state: &AppState) -> Result<EmbeddingsConfig> {
     let conn = state.auth_store.lock_connection()?;
     let enabled = db_get_embeddings_enabled(&conn)?;
+    let preflight_seen = db_get_embeddings_preflight_seen(&conn)?;
     let models_dir = resolve_models_dir(app)?;
     let downloaded = embeddings_downloaded(&models_dir);
     let model_size_bytes = directory_size(&models_dir).ok().filter(|bytes| *bytes > 0);
@@ -1302,6 +1331,7 @@ pub fn get_embeddings_config(app: &AppHandle, state: &AppState) -> Result<Embedd
 
     Ok(EmbeddingsConfig {
         enabled,
+        preflight_seen,
         model_name: EMBEDDING_MODEL_NAME.to_string(),
         dimensions: EMBEDDING_DIMENSIONS,
         model_size_bytes,
@@ -1397,11 +1427,11 @@ pub fn spawn_search_sync_task(app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_fts_match_query, build_search_posts_request, db_get_embeddings_enabled, db_list_saved_posts,
-        db_load_sync_cursor, db_post_count, db_save_sync_state, db_semantic_search, db_set_embeddings_enabled,
-        db_sync_status, db_upsert_embedding, db_upsert_post, normalize_identifier_filter, normalize_tag_filter,
-        run_local_search, storage_key, sync_due, validate_limit, validate_query, validate_search_mode, validate_source,
-        NetworkSearchQueryParams, SearchMode,
+        build_fts_match_query, build_search_posts_request, db_get_embeddings_enabled, db_get_embeddings_preflight_seen,
+        db_list_saved_posts, db_load_sync_cursor, db_post_count, db_save_sync_state, db_semantic_search,
+        db_set_embeddings_enabled, db_set_embeddings_preflight_seen, db_sync_status, db_upsert_embedding,
+        db_upsert_post, normalize_identifier_filter, normalize_tag_filter, run_local_search, storage_key, sync_due,
+        validate_limit, validate_query, validate_search_mode, validate_source, NetworkSearchQueryParams, SearchMode,
     };
     use rusqlite::{ffi::sqlite3_auto_extension, Connection};
     use sqlite_vec::sqlite3_vec_init;
@@ -1923,9 +1953,9 @@ mod tests {
     }
 
     #[test]
-    fn embeddings_enabled_defaults_to_true_when_row_absent() {
+    fn embeddings_enabled_defaults_to_false_when_row_absent() {
         let conn = test_db();
-        assert!(db_get_embeddings_enabled(&conn).unwrap());
+        assert!(!db_get_embeddings_enabled(&conn).unwrap());
     }
 
     #[test]
@@ -1954,6 +1984,29 @@ mod tests {
         db_set_embeddings_enabled(&conn, false).unwrap();
         db_set_embeddings_enabled(&conn, false).unwrap();
         assert!(!db_get_embeddings_enabled(&conn).unwrap());
+    }
+
+    #[test]
+    fn embeddings_preflight_seen_defaults_to_false_when_row_absent() {
+        let conn = test_db();
+        assert!(!db_get_embeddings_preflight_seen(&conn).unwrap());
+    }
+
+    #[test]
+    fn set_embeddings_preflight_seen_persists() {
+        let conn = test_db();
+        db_set_embeddings_preflight_seen(&conn, true).unwrap();
+        assert!(db_get_embeddings_preflight_seen(&conn).unwrap());
+    }
+
+    #[test]
+    fn embeddings_preflight_seen_toggle_is_idempotent() {
+        let conn = test_db();
+        db_set_embeddings_preflight_seen(&conn, true).unwrap();
+        db_set_embeddings_preflight_seen(&conn, true).unwrap();
+        assert!(db_get_embeddings_preflight_seen(&conn).unwrap());
+        db_set_embeddings_preflight_seen(&conn, false).unwrap();
+        assert!(!db_get_embeddings_preflight_seen(&conn).unwrap());
     }
 
     #[test]

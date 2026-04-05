@@ -2,6 +2,7 @@ import {
   getEmbeddingsConfig,
   prepareEmbeddingsModel as prepareEmbeddingsModelRequest,
   setEmbeddingsEnabled as setEmbeddingsEnabledRequest,
+  setEmbeddingsPreflightSeen as setEmbeddingsPreflightSeenRequest,
 } from "$/lib/api/search";
 import type { EmbeddingsConfig } from "$/lib/api/search";
 import { getSettings, updateSetting as updateSettingRequest } from "$/lib/api/settings";
@@ -28,6 +29,7 @@ export type AppPreferencesContextValue = {
   prepareEmbeddingsModel: () => Promise<void>;
   refresh: () => Promise<void>;
   setEmbeddingsEnabled: (enabled: boolean) => Promise<void>;
+  setEmbeddingsPreflightSeen: (seen: boolean) => Promise<void>;
   updateSetting: (key: keyof AppSettings, value: string | boolean | number) => Promise<void>;
 };
 
@@ -124,6 +126,17 @@ function createAppPreferencesValue(): AppPreferencesContextValue {
     }
   }
 
+  async function setEmbeddingsPreflightSeen(seen: boolean) {
+    try {
+      await setEmbeddingsPreflightSeenRequest(seen);
+      setPreferences("embeddingsConfig", (current) => current ? { ...current, preflightSeen: seen } : current);
+    } catch (error) {
+      logger.error("failed to set embeddings preflight seen", {
+        keyValues: { seen: String(seen), error: String(error) },
+      });
+    }
+  }
+
   async function refresh() {
     await Promise.all([loadSettings(), loadEmbeddingsConfig()]);
   }
@@ -137,7 +150,7 @@ function createAppPreferencesValue(): AppPreferencesContextValue {
       return preferences.embeddingsConfig;
     },
     get embeddingsEnabled() {
-      return preferences.embeddingsConfig?.enabled ?? preferences.settings?.embeddingsEnabled ?? true;
+      return preferences.embeddingsConfig?.enabled ?? preferences.settings?.embeddingsEnabled ?? false;
     },
     get embeddingsLoading() {
       return preferences.embeddingsLoading;
@@ -153,6 +166,7 @@ function createAppPreferencesValue(): AppPreferencesContextValue {
     prepareEmbeddingsModel,
     refresh,
     setEmbeddingsEnabled,
+    setEmbeddingsPreflightSeen,
     updateSetting,
   };
 }

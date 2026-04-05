@@ -3,7 +3,7 @@ import { getSyncStatus, reindexEmbeddings, syncPosts, type SyncStatus } from "$/
 import { formatRelativeTime } from "$/lib/feeds";
 import * as logger from "@tauri-apps/plugin-log";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
-import { Motion } from "solid-motionone";
+import { Motion, Presence } from "solid-motionone";
 import { PostCount } from "../shared/PostCount";
 
 function SourceStatusRow(
@@ -169,14 +169,22 @@ export function SyncStatusPanel(props: SyncStatusPanelProps) {
         </div>
       </div>
 
-      <Show when={isSyncing() || isReindexing()}>
-        <div class="h-1.5 overflow-hidden rounded-full bg-white/8">
+      <Presence>
+        <Show when={isSyncing() || isReindexing()}>
           <Motion.div
-            class="h-full w-2/3 rounded-full bg-linear-to-r from-primary to-primary-dim"
-            animate={{ x: ["-40%", "120%"] }}
-            transition={{ duration: isReindexing() ? 1.8 : 1.1, repeat: Infinity, easing: "linear" }} />
-        </div>
-      </Show>
+            data-testid="sync-activity-bar"
+            class="h-1.5 overflow-hidden rounded-full bg-white/8"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "0.375rem" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}>
+            <Motion.div
+              class="h-full w-2/3 rounded-full bg-linear-to-r from-primary to-primary-dim"
+              animate={{ x: ["-40%", "120%"] }}
+              transition={{ duration: isReindexing() ? 1.8 : 1.1, repeat: Infinity, easing: "linear" }} />
+          </Motion.div>
+        </Show>
+      </Presence>
 
       <div class="grid gap-3">
         <For each={syncStatus()}>

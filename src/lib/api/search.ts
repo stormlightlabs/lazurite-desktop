@@ -64,6 +64,7 @@ export type SyncStatus = {
 
 export type EmbeddingsConfig = {
   enabled: boolean;
+  preflightSeen: boolean;
   modelName: string;
   dimensions: number;
   modelSizeBytes?: number | null;
@@ -136,6 +137,10 @@ export function reindexEmbeddings(): Promise<number> {
 
 export function setEmbeddingsEnabled(enabled: boolean): Promise<void> {
   return invoke("set_embeddings_enabled", { enabled });
+}
+
+export function setEmbeddingsPreflightSeen(seen: boolean): Promise<void> {
+  return invoke("set_embeddings_preflight_seen", { seen });
 }
 
 export function getEmbeddingsEnabled(): Promise<boolean> {

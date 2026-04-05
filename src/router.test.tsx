@@ -17,12 +17,20 @@ vi.mock(
   "$/components/search/HashtagPanel",
   () => ({ HashtagPanel: () => <div data-testid="hashtag-view">hashtag</div> }),
 );
+vi.mock(
+  "$/components/search/SearchPanel",
+  () => ({ SearchPanel: () => <div data-testid="search-view">search</div> }),
+);
+vi.mock(
+  "$/components/search/SearchPreflightPanel",
+  () => ({ SearchPreflightPanel: () => <div data-testid="search-preflight-view">preflight</div> }),
+);
 
 const Shell: Component<ParentProps<{ fullWidth?: boolean }>> = (props) => (
   <div data-testid="shell" data-full-width={props.fullWidth ? "true" : "false"}>{props.children}</div>
 );
 
-function renderRouter(hash: string) {
+function renderRouter(hash: string, options: { preferences?: Record<string, unknown> } = {}) {
   globalThis.location.hash = hash;
   const renderComposer = vi.fn(() => <div data-testid="composer-view">composer</div>);
   const renderNotifications = vi.fn(() => <div data-testid="notifications-view">notifications</div>);
@@ -39,6 +47,7 @@ function renderRouter(hash: string) {
 
   render(() => (
     <AppTestProviders
+      preferences={options.preferences}
       session={{
         activeDid: "did:plc:alice",
         activeHandle: "alice.test",
@@ -163,5 +172,40 @@ describe("AppRouter", () => {
     await screen.findByTestId("hashtag-view");
 
     expect(screen.getByText("hashtag")).toBeInTheDocument();
+  });
+
+  it("redirects first search visits to the embeddings preflight", async () => {
+    renderRouter("#/search");
+
+    await screen.findByTestId("search-preflight-view");
+
+    expect(screen.getByText("preflight")).toBeInTheDocument();
+  });
+
+  it("renders the search route once the preflight was already seen", async () => {
+    renderRouter("#/search", {
+      preferences: {
+        embeddingsConfig: {
+          enabled: false,
+          preflightSeen: true,
+          modelName: "nomic-embed-text-v1.5",
+          dimensions: 768,
+          downloaded: false,
+          downloadActive: false,
+        },
+      },
+    });
+
+    await screen.findByTestId("search-view");
+
+    expect(screen.getByText("search")).toBeInTheDocument();
+  });
+
+  it("does not redirect profile tab search visits to the embeddings preflight", async () => {
+    renderRouter("#/search?tab=profiles");
+
+    await screen.findByTestId("search-view");
+
+    expect(screen.getByText("search")).toBeInTheDocument();
   });
 });

@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS = {
   notificationsDesktop: true,
   notificationsBadge: true,
   notificationsSound: false,
-  embeddingsEnabled: true,
+  embeddingsEnabled: false,
   constellationUrl: "https://constellation.microcosm.blue",
   spacedustUrl: "https://spacedust.microcosm.blue",
   spacedustInstant: false,
@@ -31,10 +31,11 @@ const DEFAULT_SETTINGS = {
 };
 
 const DEFAULT_EMBEDDINGS_CONFIG = {
-  enabled: true,
+  enabled: false,
+  preflightSeen: false,
   modelName: "nomic-embed-text-v1.5",
   dimensions: 768,
-  downloaded: true,
+  downloaded: false,
   downloadActive: false,
 };
 
@@ -106,6 +107,7 @@ export function createAppPreferencesTestValue(
     prepareEmbeddingsModel: overrides.prepareEmbeddingsModel ?? (async () => {}),
     refresh: overrides.refresh ?? (async () => {}),
     setEmbeddingsEnabled: overrides.setEmbeddingsEnabled ?? (async () => {}),
+    setEmbeddingsPreflightSeen: overrides.setEmbeddingsPreflightSeen ?? (async () => {}),
     updateSetting: overrides.updateSetting ?? (async () => {}),
   };
 }

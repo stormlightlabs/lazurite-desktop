@@ -24,7 +24,7 @@ All settings are stored as text values. The backend exposes typed accessors that
 | `notifications_desktop` | boolean | `true`                                     | Show OS desktop notifications              |
 | `notifications_badge`   | boolean | `true`                                     | Show unread badge on app icon / tray       |
 | `notifications_sound`   | boolean | `false`                                    | Play sound on new notification             |
-| `embeddings_enabled`    | boolean | `true`                                     | Enable semantic search (already exists)    |
+| `embeddings_enabled`    | boolean | `false`                                    | Enable optional semantic search            |
 | `constellation_url`     | string  | `"https://constellation.microcosm.blue"`   | Constellation instance base URL            |
 | `spacedust_url`         | string  | `"https://spacedust.microcosm.blue"`       | Spacedust instance base URL                |
 | `spacedust_instant`     | boolean | `false`                                    | Bypass Spacedust 21-second debounce buffer |
@@ -86,8 +86,8 @@ Reuses the OAuth flow from the auth module (Task 02).
 
 ### 5. Search & Embeddings
 
-- **Embeddings toggle**: opt-out of semantic search. When disabled, the embedding model is not downloaded and only keyword search is available. Toggling off does not delete existing embeddings — a separate "Clear embeddings" action handles that.
-- **Model status**: shows whether `nomic-embed-text-v1.5` is downloaded, its size on disk, and a "Download now" / "Remove model" action
+- **Embeddings toggle**: opt in to semantic search. It is off by default. When disabled, the embedding model is not downloaded and only keyword search is available. Toggling off does not delete existing embeddings — a separate "Clear embeddings" action handles that.
+- **Model status**: shows whether `nomic-embed-text-v1.5` is downloaded, its size/download cost, and retry state if setup fails
 - **Reindex**: triggers a full re-embed of all synced posts. Shows progress bar during operation.
 
 ### 6. Services

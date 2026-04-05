@@ -116,7 +116,7 @@ impl Default for AppSettings {
             notifications_desktop: true,
             notifications_badge: true,
             notifications_sound: false,
-            embeddings_enabled: true,
+            embeddings_enabled: false,
             constellation_url: APP_DEFAULT_CONSTELLATION_URL.to_string(),
             spacedust_url: APP_DEFAULT_SPACEDUST_URL.to_string(),
             spacedust_instant: false,
@@ -673,6 +673,8 @@ mod tests {
         let conn = Connection::open_in_memory().expect("in-memory db should open");
         conn.execute_batch(include_str!("migrations/006_app_settings.sql"))
             .expect("settings migration should apply");
+        conn.execute_batch(include_str!("migrations/010_embeddings_opt_in.sql"))
+            .expect("opt-in migration should apply");
         conn
     }
 
@@ -696,6 +698,12 @@ mod tests {
             .expect("migration 006 should apply");
         conn.execute_batch(include_str!("migrations/007_search_owner_scope.sql"))
             .expect("migration 007 should apply");
+        conn.execute_batch(include_str!("migrations/008_columns.sql"))
+            .expect("migration 008 should apply");
+        conn.execute_batch(include_str!("migrations/009_columns_expand_kinds.sql"))
+            .expect("migration 009 should apply");
+        conn.execute_batch(include_str!("migrations/010_embeddings_opt_in.sql"))
+            .expect("migration 010 should apply");
         conn
     }
 
@@ -719,7 +727,7 @@ mod tests {
         assert!(settings.notifications_desktop);
         assert!(settings.notifications_badge);
         assert!(!settings.notifications_sound);
-        assert!(settings.embeddings_enabled);
+        assert!(!settings.embeddings_enabled);
         assert_eq!(settings.constellation_url, "https://constellation.microcosm.blue");
         assert_eq!(settings.spacedust_url, "https://spacedust.microcosm.blue");
         assert!(!settings.spacedust_instant);
@@ -728,12 +736,12 @@ mod tests {
     }
 
     #[test]
-    fn migration_006_seeds_embeddings_enabled() {
+    fn migration_010_disables_embeddings_by_default() {
         let conn = settings_db();
         let settings = db_get_all_settings(&conn).expect("get_settings should succeed");
         assert!(
-            settings.embeddings_enabled,
-            "embeddings_enabled should default to true from seed"
+            !settings.embeddings_enabled,
+            "embeddings_enabled should default to false after opt-in migration"
         );
     }
 
@@ -927,7 +935,7 @@ mod tests {
     fn reset_app_re_seeds_embeddings_enabled() {
         let conn = full_db();
 
-        conn.execute("UPDATE app_settings SET value='0' WHERE key='embeddings_enabled'", [])
+        conn.execute("UPDATE app_settings SET value='1' WHERE key='embeddings_enabled'", [])
             .expect("update should succeed");
         db_reset_app(&conn).expect("reset_app should succeed");
 
@@ -940,8 +948,8 @@ mod tests {
             .unwrap();
         assert_eq!(
             val.as_deref(),
-            Some("1"),
-            "embeddings_enabled should be re-seeded to '1'"
+            Some("0"),
+            "embeddings_enabled should be re-seeded to '0'"
         );
     }
 

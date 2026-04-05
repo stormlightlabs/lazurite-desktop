@@ -117,7 +117,9 @@ export function SearchPanel(props: SearchPanelProps = {}) {
   const isActorTab = createMemo(() => routeState().tab === "profiles");
   const isLocalMode = createMemo(() => routeState().tab === "posts" && routeState().mode !== "network");
   const networkFiltersEnabled = createMemo(() => routeState().tab === "posts" && routeState().mode === "network");
-  const semanticEnabled = createMemo(() => preferences.embeddingsEnabled);
+  const semanticEnabled = createMemo(() =>
+    !!preferences.embeddingsConfig?.enabled && !!preferences.embeddingsConfig?.downloaded
+  );
   const totalIndexedPosts = createMemo(() =>
     search.syncStatus.reduce((sum, status) => sum + (status.postCount ?? 0), 0)
   );
@@ -130,7 +132,9 @@ export function SearchPanel(props: SearchPanelProps = {}) {
 
     return formatRelativeTime(timestamps.toSorted((left, right) => right.localeCompare(left))[0]);
   });
-  const cycleModes = createMemo(() => MODES.filter((candidate) => candidate !== "semantic" || semanticEnabled()));
+  const cycleModes = createMemo(() =>
+    MODES.filter((candidate) => semanticEnabled() || (candidate !== "semantic" && candidate !== "hybrid"))
+  );
 
   async function performSearch() {
     const state = routeState();
@@ -172,10 +176,10 @@ export function SearchPanel(props: SearchPanelProps = {}) {
       return;
     }
 
-    if (state.mode === "semantic" && !semanticEnabled()) {
+    if ((state.mode === "semantic" || state.mode === "hybrid") && !semanticEnabled()) {
       setSearch({
         actorResults: null,
-        error: "Semantic search is disabled. Re-enable embeddings to use this mode.",
+        error: "Semantic search is optional and currently off. Use Search setup or Settings to enable embeddings.",
         hasSearched: true,
         networkResults: null,
         resultCount: 0,
@@ -245,7 +249,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
   }
 
   function handleModeChange(newMode: SearchMode) {
-    if (newMode === "semantic" && !semanticEnabled()) {
+    if ((newMode === "semantic" || newMode === "hybrid") && !semanticEnabled()) {
       return;
     }
 
@@ -353,7 +357,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
   });
 
   createEffect(() => {
-    if (routeState().mode === "semantic" && !semanticEnabled()) {
+    if ((routeState().mode === "semantic" || routeState().mode === "hybrid") && !semanticEnabled()) {
       replaceRoute({ mode: "keyword" });
     }
   });
@@ -657,7 +661,9 @@ function ModeSelector(
               type="button"
               aria-pressed={props.activeMode === searchMode}
               disabled={disabled}
-              title={disabled ? "Enable embeddings to use semantic search." : undefined}
+              title={disabled
+                ? "Semantic and hybrid search stay unavailable until you opt into embeddings from Search setup or Settings."
+                : undefined}
               class="relative z-10 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed"
               classList={{
                 "text-primary": props.activeMode === searchMode,
@@ -892,7 +898,7 @@ function SearchTipsCard() {
           </div>
           <div class="m-0 flex items-start gap-2">
             <div>·</div>
-            <div>Use keyword mode for exact terms and hybrid mode for broader recall.</div>
+            <div>Use keyword mode for exact terms. Hybrid becomes available after embeddings finish setting up.</div>
           </div>
           <div class="m-0 flex items-start gap-2">
             <div>·</div>

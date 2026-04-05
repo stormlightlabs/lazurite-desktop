@@ -1,3 +1,4 @@
+import { useAppPreferences } from "$/contexts/app-preferences";
 import { useAppSession } from "$/contexts/app-session";
 import { useAppShellUi } from "$/contexts/app-shell-ui";
 import { HashRouter, Navigate, Route, useLocation, useParams } from "@solidjs/router";
@@ -8,12 +9,13 @@ import { DeckWorkspace } from "./components/deck/DeckWorkspace";
 import { ExplorerPanel } from "./components/explorer/ExplorerPanel";
 import { SavedPostsPanel } from "./components/saved/SavedPostsPanel";
 import { HashtagPanel } from "./components/search/HashtagPanel";
+import { SearchPreflightPanel } from "./components/search/SearchPreflightPanel";
 import { SearchPanel } from "./components/search/SearchPanel";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { decodeMessagesRouteMemberDid } from "./lib/conversations";
 import { TIMELINE_ROUTE } from "./lib/feeds";
 import { decodeProfileRouteActor } from "./lib/profile";
-import { decodeHashtagRouteTag } from "./lib/search-routes";
+import { buildSearchPreflightRoute, decodeHashtagRouteTag, parseSearchRouteState } from "./lib/search-routes";
 
 type TMessagesRouteProps = { memberDid: string | null };
 type TProfileRouteProps = { actor: string | null };
@@ -68,9 +70,11 @@ export function AppRouter(props: AppRouterProps) {
 
   const TimelineRoute = () => <ProtectedRouteView>{props.renderTimeline()}</ProtectedRouteView>;
 
-  const SearchRoute = () => (
+  const SearchRoute = () => <ProtectedRouteView><SearchRouteGate /></ProtectedRouteView>;
+
+  const SearchPreflightRoute = () => (
     <ProtectedRouteView>
-      <SearchPanel />
+      <SearchPreflightPanel />
     </ProtectedRouteView>
   );
 
@@ -161,6 +165,7 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/profile" component={ProfileRoute} />
       <Route path="/profile/:actor" component={ActorProfileRoute} />
       <Route path="/composer" component={ComposerRoute} />
+      <Route path="/search/preflight" component={SearchPreflightRoute} />
       <Route path="/search" component={SearchRoute} />
       <Route path="/hashtag/:hashtag" component={HashtagRoute} />
       <Route path="/saved" component={SavedPostsRoute} />
@@ -172,6 +177,30 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/settings" component={SettingsRoute} />
       <Route path="*404" component={NotFoundRoute} />
     </HashRouter>
+  );
+}
+
+function SearchRouteGate() {
+  const preferences = useAppPreferences();
+  const location = useLocation();
+  const routeState = () => parseSearchRouteState(location.search);
+  const nextRoute = () => `${location.pathname}${location.search}`;
+  const showLoading = () => preferences.embeddingsLoading && !preferences.embeddingsConfig;
+  const shouldRedirect = () => {
+    const config = preferences.embeddingsConfig;
+    if (!config || routeState().tab !== "posts") {
+      return false;
+    }
+
+    return !config.enabled && !config.preflightSeen;
+  };
+
+  return (
+    <Show when={!showLoading()} fallback={<RouteLoadingState />}>
+      <Show when={!shouldRedirect()} fallback={<Navigate href={buildSearchPreflightRoute(nextRoute())} />}>
+        <SearchPanel />
+      </Show>
+    </Show>
   );
 }
 

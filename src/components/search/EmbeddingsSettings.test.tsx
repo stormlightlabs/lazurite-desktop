@@ -6,6 +6,7 @@ import { EmbeddingsSettings } from "./EmbeddingsSettings";
 const getEmbeddingsConfigMock = vi.hoisted(() => vi.fn());
 const prepareEmbeddingsModelMock = vi.hoisted(() => vi.fn());
 const setEmbeddingsEnabledMock = vi.hoisted(() => vi.fn());
+const setEmbeddingsPreflightSeenMock = vi.hoisted(() => vi.fn());
 const getSettingsMock = vi.hoisted(() => vi.fn());
 const updateSettingMock = vi.hoisted(() => vi.fn());
 
@@ -15,6 +16,7 @@ vi.mock(
     getEmbeddingsConfig: getEmbeddingsConfigMock,
     prepareEmbeddingsModel: prepareEmbeddingsModelMock,
     setEmbeddingsEnabled: setEmbeddingsEnabledMock,
+    setEmbeddingsPreflightSeen: setEmbeddingsPreflightSeenMock,
   }),
 );
 
@@ -35,6 +37,7 @@ describe("EmbeddingsSettings", () => {
     getEmbeddingsConfigMock.mockReset();
     prepareEmbeddingsModelMock.mockReset();
     setEmbeddingsEnabledMock.mockReset();
+    setEmbeddingsPreflightSeenMock.mockReset();
     getSettingsMock.mockReset();
     updateSettingMock.mockReset();
 
@@ -44,7 +47,7 @@ describe("EmbeddingsSettings", () => {
       notificationsDesktop: true,
       notificationsBadge: true,
       notificationsSound: false,
-      embeddingsEnabled: true,
+      embeddingsEnabled: false,
       constellationUrl: "https://constellation.microcosm.blue",
       spacedustUrl: "https://spacedust.microcosm.blue",
       spacedustInstant: false,
@@ -52,15 +55,16 @@ describe("EmbeddingsSettings", () => {
       globalShortcut: "Ctrl+Shift+N",
     });
     getEmbeddingsConfigMock.mockResolvedValue({
-      enabled: true,
+      enabled: false,
+      preflightSeen: false,
       modelName: "nomic-embed-text-v1.5",
       dimensions: 768,
-      modelSizeBytes: 1024 * 1024 * 384,
-      downloaded: true,
+      downloaded: false,
       downloadActive: false,
     });
     prepareEmbeddingsModelMock.mockResolvedValue({
       enabled: true,
+      preflightSeen: true,
       modelName: "nomic-embed-text-v1.5",
       dimensions: 768,
       modelSizeBytes: 1024 * 1024 * 384,
@@ -73,22 +77,24 @@ describe("EmbeddingsSettings", () => {
   it("renders embeddings settings with model info", async () => {
     renderEmbeddingsSettings();
 
-    expect(await screen.findByText("Semantic Search")).toBeInTheDocument();
-    expect(await screen.findByText(/nomic-embed-text-v1\.5/)).toBeInTheDocument();
-    expect(await screen.findByText(/768D/)).toBeInTheDocument();
-    expect(await screen.findByText(/384 MB on disk/i)).toBeInTheDocument();
+    expect(await screen.findByText("Optional Semantic Search")).toBeInTheDocument();
+    expect(await screen.findAllByText(/nomic-embed-text-v1\.5/)).toHaveLength(2);
+    expect(await screen.findAllByText(/768D/)).toHaveLength(2);
+    expect(await screen.findAllByText(/384 MB download/i)).toHaveLength(2);
+    expect(await screen.findAllByText(/off by default/i)).toHaveLength(2);
   });
 
-  it("shows toggle in enabled state when embeddings are enabled", async () => {
+  it("does not auto-download on mount while embeddings are off", async () => {
     renderEmbeddingsSettings();
 
-    const toggle = await screen.findByRole("switch");
-    expect(toggle).toHaveAttribute("aria-checked", "true");
+    await screen.findByRole("switch");
+    expect(prepareEmbeddingsModelMock).not.toHaveBeenCalled();
   });
 
   it("shows toggle in disabled state when embeddings are disabled", async () => {
     getEmbeddingsConfigMock.mockResolvedValue({
       enabled: false,
+      preflightSeen: false,
       modelName: "nomic-embed-text-v1.5",
       dimensions: 768,
       downloaded: false,
@@ -103,13 +109,15 @@ describe("EmbeddingsSettings", () => {
 
   it("toggles embeddings when clicking the switch", async () => {
     getEmbeddingsConfigMock.mockResolvedValueOnce({
-      enabled: true,
+      enabled: false,
+      preflightSeen: false,
       modelName: "nomic-embed-text-v1.5",
       dimensions: 768,
-      downloaded: true,
+      downloaded: false,
       downloadActive: false,
     }).mockResolvedValueOnce({
-      enabled: false,
+      enabled: true,
+      preflightSeen: true,
       modelName: "nomic-embed-text-v1.5",
       dimensions: 768,
       downloaded: false,
@@ -119,22 +127,23 @@ describe("EmbeddingsSettings", () => {
     renderEmbeddingsSettings();
 
     const toggle = await screen.findByRole("switch");
-    expect(toggle).toHaveAttribute("aria-checked", "true");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
 
     fireEvent.click(toggle);
 
     await waitFor(() => {
-      expect(setEmbeddingsEnabledMock).toHaveBeenCalledWith(false);
+      expect(setEmbeddingsEnabledMock).toHaveBeenCalledWith(true);
     });
 
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("aria-checked", "false");
+      expect(prepareEmbeddingsModelMock).toHaveBeenCalled();
     });
   });
 
   it("shows download progress when model is not downloaded", async () => {
     getEmbeddingsConfigMock.mockResolvedValue({
       enabled: true,
+      preflightSeen: true,
       modelName: "nomic-embed-text-v1.5",
       dimensions: 768,
       downloaded: false,
@@ -153,7 +162,7 @@ describe("EmbeddingsSettings", () => {
 
   it("displays semantic search description", async () => {
     renderEmbeddingsSettings();
-    expect(await screen.findByText(/conceptually similar posts/i)).toBeInTheDocument();
+    expect(await screen.findByText(/semantic search is optional/i)).toBeInTheDocument();
   });
 
   it("handles errors when loading config gracefully", async () => {
@@ -164,7 +173,7 @@ describe("EmbeddingsSettings", () => {
     await waitFor(() => {
       expect(getEmbeddingsConfigMock).toHaveBeenCalled();
     });
-    expect(await screen.findByText("Semantic Search")).toBeInTheDocument();
+    expect(await screen.findByText("Optional Semantic Search")).toBeInTheDocument();
   });
 
   it("handles errors when toggling gracefully", async () => {
@@ -179,6 +188,6 @@ describe("EmbeddingsSettings", () => {
       expect(setEmbeddingsEnabledMock).toHaveBeenCalled();
     });
 
-    expect(toggle).toHaveAttribute("aria-checked", "true");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
   });
 });

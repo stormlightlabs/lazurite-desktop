@@ -130,17 +130,44 @@ describe("SyncStatusPanel", () => {
   it("shows progress bars during operations", async () => {
     syncPostsMock.mockImplementation(() => new Promise(() => {})); // Never resolves
 
-    const { container } = render(() => <SyncStatusPanel did="did:plc:test" />);
+    render(() => <SyncStatusPanel did="did:plc:test" />);
 
     const syncButton = await screen.findByRole("button", { name: /sync now/i });
     fireEvent.click(syncButton);
 
-    // Progress bar should be visible (it's a div with gradient)
     await waitFor(() => {
-      const progressBars = container.querySelectorAll("[class*=\"bg-linear-to-r\"]");
-      expect(progressBars.length).toBeGreaterThan(0);
+      expect(screen.getByTestId("sync-activity-bar")).toBeInTheDocument();
     });
   });
+
+  it("fades the activity bar out after sync completes", async () => {
+    vi.useRealTimers();
+    syncPostsMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              did: "did:plc:test",
+              source: "like",
+              postCount: 150,
+              lastSyncedAt: "2026-03-29T13:00:00.000Z",
+            });
+          }, 20);
+        }),
+    );
+
+    render(() => <SyncStatusPanel did="did:plc:test" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /sync now/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("sync-activity-bar")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("sync-activity-bar")).not.toBeInTheDocument();
+    });
+  }, 10000);
 
   it("shows source-specific progress bars", async () => {
     render(() => <SyncStatusPanel did="did:plc:test" />);

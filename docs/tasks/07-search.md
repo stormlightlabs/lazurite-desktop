@@ -56,7 +56,7 @@ Spec: [search.md](../specs/search.md)
   - `semantic`: embed query string → vec similarity search (requires embeddings enabled)
   - `hybrid`: run both, merge via reciprocal rank fusion (falls back to keyword-only if embeddings disabled)
 - [x] `get_sync_status(did)` → last sync time, post counts, cursor state
-- [x] Model management: download `nomic-embed-text-v1.5` ONNX on first use to `<app_data_dir>/models/` (skipped when embeddings disabled)
+- [x] Model management: download `nomic-embed-text-v1.5` ONNX after explicit opt-in to `<app_data_dir>/models/` (skipped when embeddings disabled)
 - [x] Background sync: trigger after login, then every 15 min
 
 ### Frontend
@@ -68,14 +68,14 @@ Spec: [search.md](../specs/search.md)
 
 #### Embeddings
 
-- [ ] embeddings opt-out toggle in settings (disables semantic search, skips model download)
-- [ ] model download progress bar (percentage + ETA) on first launch
-  - Enabled by default (opt-out)
-  - Splash/Preflight route should explain what semantic search provides
+- [x] embeddings opt-in toggle in settings/search UI (keeps semantic search off by default, skips model download until enabled)
+- [x] model download progress bar (percentage + ETA) during first semantic-search setup
+  - Semantic search is off by default
+  - Dedicated preflight route explains what semantic search provides before download starts
 
 #### Sync Indexing
 
-- [ ] sync status indicator with animated progress bar, `Presence` fade-out on complete
-- [ ] reindex button: triggers `reindex_embeddings()`, shown in search settings or sync status area
-- [ ] empty state illustration when no posts synced yet
-- [ ] `Tab` cycles search mode (network → keyword → semantic → hybrid), `Escape` clears
+- [x] sync status indicator with animated progress bar, `Presence` fade-out on complete
+- [x] reindex button: triggers `reindex_embeddings()`, shown in search settings or sync status area
+- [x] empty state illustration when no posts synced yet
+- [x] `Tab` cycles search mode (network → keyword → semantic → hybrid), `Escape` clears
