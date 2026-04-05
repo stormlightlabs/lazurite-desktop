@@ -786,6 +786,15 @@ fn resolve_models_dir(app: &AppHandle) -> Result<PathBuf> {
     Ok(dir)
 }
 
+fn models_dir_path(app: &AppHandle) -> Result<PathBuf> {
+    let mut dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| AppError::PathResolve(error.to_string()))?;
+    dir.push("models");
+    Ok(dir)
+}
+
 fn required_embedding_files() -> Vec<&'static str> {
     let mut files = vec![EMBEDDING_MODEL_FILE];
     files.extend(EMBEDDING_TOKENIZER_FILES);
@@ -845,6 +854,14 @@ fn set_download_error(message: String) {
         state.started_at = None;
         state.last_error = Some(message);
     }
+}
+
+fn clear_embeddings_model_cache_dir(models_dir: &Path) -> Result<()> {
+    if models_dir.exists() {
+        fs::remove_dir_all(models_dir)?;
+    }
+    set_download_idle_state(0, required_embedding_files().len());
+    Ok(())
 }
 
 fn ensure_model_downloaded(models_dir: &Path) -> Result<()> {
@@ -1360,6 +1377,11 @@ pub fn prepare_embeddings_model(app: &AppHandle, state: &AppState) -> Result<Emb
     get_embeddings_config(app, state)
 }
 
+pub fn clear_embeddings_model_cache(app: &AppHandle) -> Result<()> {
+    let models_dir = models_dir_path(app)?;
+    clear_embeddings_model_cache_dir(&models_dir)
+}
+
 fn sync_due(active_did: Option<&str>, last_synced_did: Option<&str>, last_synced_at: Option<Instant>) -> bool {
     match active_did {
         None => false,
@@ -1427,14 +1449,17 @@ pub fn spawn_search_sync_task(app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_fts_match_query, build_search_posts_request, db_get_embeddings_enabled, db_get_embeddings_preflight_seen,
-        db_list_saved_posts, db_load_sync_cursor, db_post_count, db_save_sync_state, db_semantic_search,
-        db_set_embeddings_enabled, db_set_embeddings_preflight_seen, db_sync_status, db_upsert_embedding,
-        db_upsert_post, normalize_identifier_filter, normalize_tag_filter, run_local_search, storage_key, sync_due,
-        validate_limit, validate_query, validate_search_mode, validate_source, NetworkSearchQueryParams, SearchMode,
+        build_fts_match_query, build_search_posts_request, clear_embeddings_model_cache_dir, db_get_embeddings_enabled,
+        db_get_embeddings_preflight_seen, db_list_saved_posts, db_load_sync_cursor, db_post_count, db_save_sync_state,
+        db_semantic_search, db_set_embeddings_enabled, db_set_embeddings_preflight_seen, db_sync_status,
+        db_upsert_embedding, db_upsert_post, normalize_identifier_filter, normalize_tag_filter, run_local_search,
+        storage_key, sync_due, validate_limit, validate_query, validate_search_mode, validate_source,
+        NetworkSearchQueryParams, SearchMode,
     };
     use rusqlite::{ffi::sqlite3_auto_extension, Connection};
     use sqlite_vec::sqlite3_vec_init;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     fn test_db() -> Connection {
         unsafe {
@@ -1503,6 +1528,27 @@ mod tests {
                 "record": { "$type": "app.bsky.feed.post", "text": text, "createdAt": created_at }
             }
         })
+    }
+
+    fn temp_models_dir() -> std::path::PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock should be after epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("lazurite-model-cache-{unique}"))
+    }
+
+    #[test]
+    fn clear_embeddings_model_cache_dir_removes_cached_files() {
+        let models_dir = temp_models_dir();
+        let nested_dir = models_dir.join("nested");
+        fs::create_dir_all(&nested_dir).expect("nested models dir should be created");
+        fs::write(models_dir.join("model.onnx"), "model").expect("model file should be created");
+        fs::write(nested_dir.join("tokenizer.json"), "tokenizer").expect("tokenizer file should be created");
+
+        clear_embeddings_model_cache_dir(&models_dir).expect("model cache should clear");
+
+        assert!(!models_dir.exists(), "models dir should be removed after clearing");
     }
 
     fn insert_post(conn: &Connection, owner_did: &str, uri: &str, source: &str, text: &str, created_at: &str) {

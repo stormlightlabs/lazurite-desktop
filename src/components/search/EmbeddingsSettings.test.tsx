@@ -78,9 +78,9 @@ describe("EmbeddingsSettings", () => {
     renderEmbeddingsSettings();
 
     expect(await screen.findByText("Optional Semantic Search")).toBeInTheDocument();
-    expect(await screen.findAllByText(/nomic-embed-text-v1\.5/)).toHaveLength(2);
-    expect(await screen.findAllByText(/768D/)).toHaveLength(2);
-    expect(await screen.findAllByText(/384 MB download/i)).toHaveLength(2);
+    expect(await screen.findAllByText(/nomic-embed-text-v1\.5/)).toHaveLength(1);
+    expect(await screen.findAllByText(/768D/)).toHaveLength(1);
+    expect(await screen.findAllByText(/384 MB download/i)).toHaveLength(1);
     expect(await screen.findAllByText(/off by default/i)).toHaveLength(2);
   });
 

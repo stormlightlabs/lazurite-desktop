@@ -5,7 +5,6 @@ import { SettingsCard } from "./SettingsCard";
 type SettingsDataProps = {
   cacheSize: { feedsBytes: number; embeddingsBytes: number; ftsBytes: number; totalBytes?: number } | null;
   handleClearCache: (scope: "feeds" | "embeddings" | "fts" | "all") => Promise<void>;
-  handleResetApp: () => Promise<void>;
   openConfirmation: (
     options: {
       title: string;
@@ -74,7 +73,6 @@ export function SettingsData(props: SettingsDataProps) {
           </button>
         </div>
         <ExportControl />
-        <ResetControl handleResetApp={props.handleResetApp} openConfirmation={props.openConfirmation} />
       </div>
     </SettingsCard>
   );
@@ -102,32 +100,6 @@ function ExportControl() {
             CSV
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ResetControl(props: Pick<SettingsDataProps, "handleResetApp" | "openConfirmation">) {
-  return (
-    <div class="border-t border-white/10 pt-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <p class="text-sm font-medium text-red-400">Reset application</p>
-          <p class="text-xs text-on-surface-variant">Remove all data and reset to defaults</p>
-        </div>
-        <button
-          type="button"
-          onClick={() =>
-            props.openConfirmation({
-              title: "Reset Application",
-              message: "This will delete ALL data including accounts, settings, and cache. Type RESET to confirm.",
-              confirmText: "RESET",
-              type: "danger",
-              onConfirm: () => void props.handleResetApp(),
-            })}
-          class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/20">
-          Reset...
-        </button>
       </div>
     </div>
   );

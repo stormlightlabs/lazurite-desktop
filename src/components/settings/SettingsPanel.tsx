@@ -1,6 +1,6 @@
 import { EmbeddingsSettings } from "$/components/search/EmbeddingsSettings";
 import { useAppPreferences } from "$/contexts/app-preferences";
-import { clearCache, getCacheSize, getLogEntries, resetApp } from "$/lib/api/settings";
+import { clearCache, getCacheSize, getLogEntries, resetAndRestartApp } from "$/lib/api/settings";
 import type {
   AppSettings,
   CacheClearScope,
@@ -20,6 +20,7 @@ import { Icon } from "../shared/Icon";
 import { SettingsAbout } from "./SettingsAbout";
 import { AccountControl } from "./SettingsAccount";
 import { SettingsData } from "./SettingsData";
+import { SettingsDangerZone } from "./SettingsDangerZone";
 import { SettingsLogs } from "./SettingsLogs";
 import { NotificationsControl } from "./SettingsNotification";
 import { SettingsService } from "./SettingsService";
@@ -153,6 +154,14 @@ function SettingsSkeleton() {
   );
 }
 
+async function handleResetAndRestartApp() {
+  try {
+    await resetAndRestartApp();
+  } catch (err) {
+    logger.error("failed to reset and restart app", { keyValues: { error: normalizeError(err) } });
+  }
+}
+
 export function SettingsPanel() {
   const preferences = useAppPreferences();
   const navigate = useNavigate();
@@ -194,15 +203,6 @@ export function SettingsPanel() {
       await loadCacheSize();
     } catch (err) {
       logger.error("failed to clear cache", { keyValues: { scope, error: normalizeError(err) } });
-    }
-  }
-
-  async function handleResetApp() {
-    try {
-      await resetApp();
-      navigate("/auth");
-    } catch (err) {
-      logger.error("failed to reset app", { keyValues: { error: normalizeError(err) } });
     }
   }
 
@@ -287,8 +287,10 @@ export function SettingsPanel() {
                   <SettingsData
                     cacheSize={panel.cacheSize}
                     handleClearCache={handleClearCache}
-                    openConfirmation={openConfirmation}
-                    handleResetApp={handleResetApp} />
+                    openConfirmation={openConfirmation} />
+                  <SettingsDangerZone
+                    handleResetAndRestartApp={handleResetAndRestartApp}
+                    openConfirmation={openConfirmation} />
                   <SettingsLogs
                     expanded={panel.logsExpanded}
                     logLevel={panel.logLevel}

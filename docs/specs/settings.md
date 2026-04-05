@@ -17,19 +17,19 @@ All settings are stored as text values. The backend exposes typed accessors that
 
 ### Settings Keys
 
-| Key                     | Type    | Default                                    | Description                                |
-| ----------------------- | ------- | ------------------------------------------ | ------------------------------------------ |
-| `theme`                 | string  | `"auto"`                                   | `"light"`, `"dark"`, or `"auto"` (OS sync) |
-| `timeline_refresh_secs` | integer | `60`                                       | Feed auto-refresh interval in seconds      |
-| `notifications_desktop` | boolean | `true`                                     | Show OS desktop notifications              |
-| `notifications_badge`   | boolean | `true`                                     | Show unread badge on app icon / tray       |
-| `notifications_sound`   | boolean | `false`                                    | Play sound on new notification             |
-| `embeddings_enabled`    | boolean | `false`                                    | Enable optional semantic search            |
-| `constellation_url`     | string  | `"https://constellation.microcosm.blue"`   | Constellation instance base URL            |
-| `spacedust_url`         | string  | `"https://spacedust.microcosm.blue"`       | Spacedust instance base URL                |
-| `spacedust_instant`     | boolean | `false`                                    | Bypass Spacedust 21-second debounce buffer |
-| `spacedust_enabled`     | boolean | `false`                                    | Use Spacedust for real-time notifications  |
-| `global_shortcut`       | string  | `"Ctrl+Shift+N"`                           | Global composer shortcut                   |
+| Key                     | Type    | Default                                  | Description                                |
+| ----------------------- | ------- | ---------------------------------------- | ------------------------------------------ |
+| `theme`                 | string  | `"auto"`                                 | `"light"`, `"dark"`, or `"auto"` (OS sync) |
+| `timeline_refresh_secs` | integer | `60`                                     | Feed auto-refresh interval in seconds      |
+| `notifications_desktop` | boolean | `true`                                   | Show OS desktop notifications              |
+| `notifications_badge`   | boolean | `true`                                   | Show unread badge on app icon / tray       |
+| `notifications_sound`   | boolean | `false`                                  | Play sound on new notification             |
+| `embeddings_enabled`    | boolean | `false`                                  | Enable optional semantic search            |
+| `constellation_url`     | string  | `"https://constellation.microcosm.blue"` | Constellation instance base URL            |
+| `spacedust_url`         | string  | `"https://spacedust.microcosm.blue"`     | Spacedust instance base URL                |
+| `spacedust_instant`     | boolean | `false`                                  | Bypass Spacedust 21-second debounce buffer |
+| `spacedust_enabled`     | boolean | `false`                                  | Use Spacedust for real-time notifications  |
+| `global_shortcut`       | string  | `"Ctrl+Shift+N"`                         | Global composer shortcut                   |
 
 ## Tauri Commands
 
@@ -105,9 +105,12 @@ External service instance configuration for self-hosters.
 - **Cache size display**: breakdown by category (feeds, embeddings, FTS index) with total
 - **Clear cache**: scoped clearing — all, or by category. Confirmation dialog for "clear all"
 - **Export**: export user data (liked posts, bookmarks, settings) as JSON or CSV. Uses Tauri's save dialog to pick destination.
-- **Reset app**: full data wipe — drops all user tables, clears auth tokens, re-runs migrations. Behind a two-step confirmation: type "RESET" to confirm. This is the nuclear option.
 
-### 8. Logs
+### 8. Danger Zone
+
+- **Reset and restart**: full data wipe — drops all user tables, clears auth tokens, removes the downloaded embeddings model cache, re-runs migrations, and restarts the app. Behind a two-step confirmation: type "RESET" to confirm. This is the nuclear option.
+
+### 9. Logs
 
 In-app log viewer for debugging.
 
@@ -117,7 +120,7 @@ In-app log viewer for debugging.
 - "Copy all" and "Open log file" actions
 - Collapsible by default — expands inline within the settings view
 
-### 9. About
+### 10. About
 
 - App version (from `tauri.conf.json`)
 - License (MIT)
@@ -133,10 +136,10 @@ On narrow viewports, cards stack full-width. On wider viewports (> 768px), cards
 
 ## Keyboard Shortcuts
 
-| Key     | Action                        |
-| ------- | ----------------------------- |
-| `,`     | Open/focus settings from anywhere |
-| `Escape`| Close settings (navigate back)    |
+| Key      | Action                            |
+| -------- | --------------------------------- |
+| `,`      | Open/focus settings from anywhere |
+| `Escape` | Close settings (navigate back)    |
 
 ## UX Polish
 

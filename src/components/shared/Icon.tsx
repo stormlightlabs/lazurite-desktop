@@ -6,6 +6,7 @@ export type ActionIconKind = "add" | "edit" | "delete" | "save" | "cancel";
 
 export type SettingsIconKind =
   | "computer"
+  | "danger"
   | "info"
   | "timeline"
   | "db"
@@ -193,6 +194,9 @@ export function SettingsIcon(props: IconProps & { kind: SettingsIconKind }) {
       <Switch>
         <Match when={local.kind === "info"}>
           <i class="i-ri-information-line" />
+        </Match>
+        <Match when={local.kind === "danger"}>
+          <i class="i-ri-alarm-warning-line" />
         </Match>
         <Match when={local.kind === "computer"}>
           <i class="i-ri-computer-line" />

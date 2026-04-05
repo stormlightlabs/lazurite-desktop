@@ -2,6 +2,7 @@ use super::auth;
 use super::db;
 use super::error::{AppError, Result};
 use super::notifications;
+use super::search;
 use super::state::AppState;
 use super::tray;
 use reqwest::Url;
@@ -618,6 +619,7 @@ pub fn reset_app(state: &AppState, app: &AppHandle) -> Result<()> {
     db_reset_app(&conn)?;
     drop(conn);
 
+    search::clear_embeddings_model_cache(app)?;
     state.clear_runtime_state()?;
     notifications::clear_unread_badge(app);
     tray::sync_global_shortcut(app)?;

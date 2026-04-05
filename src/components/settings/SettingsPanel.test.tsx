@@ -9,6 +9,7 @@ const getCacheSizeMock = vi.hoisted(() => vi.fn());
 const clearCacheMock = vi.hoisted(() => vi.fn());
 const exportDataMock = vi.hoisted(() => vi.fn());
 const resetAppMock = vi.hoisted(() => vi.fn());
+const resetAndRestartAppMock = vi.hoisted(() => vi.fn());
 const getLogEntriesMock = vi.hoisted(() => vi.fn());
 const navigateMock = vi.hoisted(() => vi.fn());
 const infoMock = vi.hoisted(() => vi.fn());
@@ -32,6 +33,7 @@ vi.mock(
     clearCache: clearCacheMock,
     exportData: exportDataMock,
     resetApp: resetAppMock,
+    resetAndRestartApp: resetAndRestartAppMock,
     getLogEntries: getLogEntriesMock,
   }),
 );
@@ -98,6 +100,7 @@ describe("SettingsPanel", () => {
     clearCacheMock.mockResolvedValue(void 0);
     exportDataMock.mockResolvedValue(void 0);
     resetAppMock.mockResolvedValue(void 0);
+    resetAndRestartAppMock.mockResolvedValue(void 0);
   });
 
   it("loads and displays settings", async () => {
@@ -110,9 +113,10 @@ describe("SettingsPanel", () => {
     expect(await screen.findByText("Accounts")).toBeInTheDocument();
     expect(await screen.findByText("Services")).toBeInTheDocument();
     expect(await screen.findByText("Data")).toBeInTheDocument();
+    expect(await screen.findByText("Danger Zone")).toBeInTheDocument();
     expect(await screen.findByText("Logs")).toBeInTheDocument();
     expect(await screen.findByText("About")).toBeInTheDocument();
-    expect(await screen.findAllByText(/384 MB download/i)).toHaveLength(2);
+    expect(await screen.findAllByText(/384 MB download/i)).toHaveLength(1);
   });
 
   it("displays cache size information", async () => {
@@ -203,15 +207,31 @@ describe("SettingsPanel", () => {
     await waitFor(() => expect(exportDataMock).toHaveBeenCalledWith("csv"));
   });
 
-  it("shows confirmation modal with RESET text for app reset", async () => {
+  it("shows confirmation modal with RESET text for app reset and restart", async () => {
     renderSettingsPanel();
 
     await screen.findByText("Settings");
-    const resetButton = await screen.findByRole("button", { name: /reset\.\.\./i });
+    const resetButton = await screen.findByRole("button", { name: /reset & restart/i });
 
     fireEvent.click(resetButton);
-    expect(await screen.findByText("Reset Application")).toBeInTheDocument();
+    expect(await screen.findByText("Reset And Restart")).toBeInTheDocument();
     expect(await screen.findByPlaceholderText(/type "reset" to confirm/i)).toBeInTheDocument();
+  });
+
+  it("invokes reset-and-restart after confirmation", async () => {
+    renderSettingsPanel();
+
+    await screen.findByText("Settings");
+    const resetButton = await screen.findByRole("button", { name: /reset & restart/i });
+
+    fireEvent.click(resetButton);
+    const input = await screen.findByPlaceholderText(/type "reset" to confirm/i);
+    fireEvent.input(input, { target: { value: "RESET" } });
+
+    const confirmButton = await screen.findByRole("button", { name: /^confirm$/i });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => expect(resetAndRestartAppMock).toHaveBeenCalled());
   });
 
   it("navigates back when close button is clicked", async () => {

@@ -62,6 +62,61 @@ function SyncButton(props: { isSyncing: boolean; isReindexing: boolean; onSync: 
   );
 }
 
+function SyncHeader(
+  props: {
+    hasAnyPosts: boolean;
+    icon: "db";
+    lastSync: string | null;
+    totalPosts: number;
+    tone: { className: string; label: string };
+  },
+) {
+  return (
+    <div class="flex items-center justify-between gap-3">
+      <div class="grid gap-1">
+        <div class="flex items-center gap-2">
+          <p class="m-0 text-sm font-medium text-on-surface">Sync Status</p>
+          <span class={`rounded-full px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.12em] ${props.tone.className}`}>
+            {props.tone.label}
+          </span>
+        </div>
+
+        <Show
+          when={props.hasAnyPosts}
+          fallback={
+            <p class="m-0 text-xs text-on-surface-variant">
+              Local search stays empty until likes or bookmarks are indexed.
+            </p>
+          }>
+          <PostCount totalPosts={props.totalPosts} lastSync={props.lastSync} />
+        </Show>
+      </div>
+
+      <span class="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+        <Icon kind={props.icon} class="text-lg" />
+      </span>
+    </div>
+  );
+}
+
+function SyncActions(props: {
+  hasAnyPosts: boolean;
+  isReindexing: boolean;
+  isSyncing: boolean;
+  onReindex: () => void;
+  onSync: () => void;
+}) {
+  return (
+    <div class="flex flex-wrap items-center gap-2">
+      <Show when={props.hasAnyPosts}>
+        <ReindexButton isSyncing={props.isSyncing} isReindexing={props.isReindexing} onReindex={props.onReindex} />
+      </Show>
+
+      <SyncButton isSyncing={props.isSyncing} isReindexing={props.isReindexing} onSync={props.onSync} />
+    </div>
+  );
+}
+
 type SyncStatusPanelProps = { did: string; onStatusChange?: (status: SyncStatus[]) => void };
 
 export function SyncStatusPanel(props: SyncStatusPanelProps) {
@@ -140,33 +195,19 @@ export function SyncStatusPanel(props: SyncStatusPanelProps) {
 
   return (
     <section class="panel-surface grid gap-4 p-5">
-      <div class="flex flex-col items-start justify-between gap-4">
-        <div class="grid gap-1">
-          <div class="flex items-center gap-2">
-            <p class="m-0 text-sm font-medium text-on-surface">Sync Status</p>
-            <span class={`rounded-full px-2 py-0.5 text-[0.68rem] font-medium ${statusTone().className}`}>
-              {statusTone().label}
-            </span>
-          </div>
-
-          <Show
-            when={hasAnyPosts()}
-            fallback={
-              <p class="m-0 text-xs text-on-surface-variant">
-                Local search is empty until likes or bookmarks are indexed.
-              </p>
-            }>
-            <PostCount totalPosts={totalPosts()} lastSync={lastSync()} />
-          </Show>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <Show when={hasAnyPosts()}>
-            <ReindexButton isSyncing={isSyncing()} isReindexing={isReindexing()} onReindex={handleReindex} />
-          </Show>
-
-          <SyncButton isSyncing={isSyncing()} isReindexing={isReindexing()} onSync={handleSync} />
-        </div>
+      <div class="grid gap-3">
+        <SyncHeader
+          hasAnyPosts={hasAnyPosts()}
+          icon="db"
+          lastSync={lastSync()}
+          totalPosts={totalPosts()}
+          tone={statusTone()} />
+        <SyncActions
+          hasAnyPosts={hasAnyPosts()}
+          isReindexing={isReindexing()}
+          isSyncing={isSyncing()}
+          onReindex={handleReindex}
+          onSync={handleSync} />
       </div>
 
       <Presence>
@@ -186,7 +227,7 @@ export function SyncStatusPanel(props: SyncStatusPanelProps) {
         </Show>
       </Presence>
 
-      <div class="grid gap-3">
+      <div class="grid gap-3 rounded-3xl bg-black/20 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
         <For each={syncStatus()}>
           {(status) => (
             <SourceStatusRow

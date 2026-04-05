@@ -23,28 +23,31 @@ function ModelDescriptor(props: { config: EmbeddingsConfig | null }) {
 function EmbedSettingsHeader(props: { config: EmbeddingsConfig | null; isLoading: boolean; handleToggle: () => void }) {
   return (
     <div class="flex items-start justify-between gap-4">
-      <div class="flex items-start gap-3">
-        <Icon
-          kind="search"
-          class="h-11 w-11 items-center justify-center rounded-full bg-primary/15 text-lg text-primary" />
+      <div class="flex items-start gap-2">
+        <div>
+          <Icon
+            kind="search"
+            class="h-11 w-11 items-center justify-center rounded-2xl bg-primary/12 text-lg text-primary" />
+        </div>
 
         <div class="grid gap-1">
-          <p class="m-0 text-lg font-medium text-on-surface">Optional Semantic Search</p>
+          <p class="m-0 text-base font-medium text-on-surface">Optional Semantic Search</p>
           <p class="m-0 text-sm leading-relaxed text-on-surface-variant">
             Off by default. Turn this on to download a local model and unlock semantic plus hybrid search for synced
             posts.
           </p>
         </div>
       </div>
-
-      <Show when={props.config}>
-        {(current) => (
-          <ToggleSwitch
-            checked={current().enabled}
-            disabled={props.isLoading || current().downloadActive}
-            onChange={() => void props.handleToggle()} />
-        )}
-      </Show>
+      <div>
+        <Show when={props.config}>
+          {(current) => (
+            <ToggleSwitch
+              checked={current().enabled}
+              disabled={props.isLoading || current().downloadActive}
+              onChange={() => void props.handleToggle()} />
+          )}
+        </Show>
+      </div>
     </div>
   );
 }
@@ -195,28 +198,45 @@ export function EmbeddingsSettings() {
     <section class="panel-surface grid gap-4 p-5">
       <EmbedSettingsHeader config={config()} isLoading={preferences.embeddingsLoading} handleToggle={handleToggle} />
 
-      <Show when={!config()?.enabled}>
-        <div class="grid gap-3 rounded-3xl bg-white/[0.035] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
-          <div class="flex items-center justify-between gap-3">
-            <div class="grid gap-1">
-              <p class="m-0 text-sm font-medium text-on-surface">Keyword and network search are ready now</p>
-              <p class="m-0 text-xs text-on-surface-variant">
-                Turn this on only if you want concept matching across synced posts. The model downloads locally and
-                nothing happens until you opt in.
-              </p>
-            </div>
-            <span class="rounded-full bg-primary/10 px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.12em] text-primary">
-              Off by default
-            </span>
+      <div class="grid gap-3 rounded-3xl bg-black/20 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
+        <div class="flex items-start justify-between gap-3">
+          <div class="grid gap-1">
+            <p class="m-0 text-sm font-medium text-on-surface">
+              <Show when={config()?.enabled} fallback="Keyword and network search are ready now">
+                Semantic search is enabled
+              </Show>
+            </p>
+            <p class="m-0 text-xs leading-relaxed text-on-surface-variant">
+              <Show
+                when={config()?.enabled}
+                fallback="Nothing downloads until you opt in. Exact keyword search works immediately without a local model.">
+                Lazurite keeps the model on-device and uses it only for your local search index.
+              </Show>
+            </p>
           </div>
-          <ModelDescriptor config={config()} />
+          <span
+            class="rounded-full px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.12em]"
+            classList={{
+              "bg-emerald-400/15 text-emerald-300": !!config()?.downloaded,
+              "bg-primary/10 text-primary": !config()?.downloaded,
+            }}>
+            <Show
+              when={config()?.downloaded}
+              fallback={<Show when={config()?.enabled} fallback="Off by default">Setting up</Show>}>
+              Ready
+            </Show>
+          </span>
         </div>
-      </Show>
+
+        <ModelDescriptor config={config()} />
+      </div>
 
       <Presence>
-        <Show when={config()?.enabled && (!config()?.downloaded || config()?.downloadActive || config()?.lastError || prepareRequested())}>
+        <Show
+          when={config()?.enabled
+            && (!config()?.downloaded || config()?.downloadActive || config()?.lastError || prepareRequested())}>
           <Motion.div
-            class="grid gap-3 rounded-2xl bg-white/5 p-4"
+            class="grid gap-3 rounded-3xl bg-primary/8 p-4 shadow-[inset_0_0_0_1px_rgba(125,175,255,0.12)]"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
@@ -249,9 +269,7 @@ export function EmbeddingsSettings() {
                 {(value) => <p class="m-0">ETA: {formatEtaSeconds(value())}</p>}
               </Show>
 
-              <Show when={config()?.lastError}>
-                {(message) => <p class="m-0 text-red-300">{message()}</p>}
-              </Show>
+              <Show when={config()?.lastError}>{(message) => <p class="m-0 text-red-300">{message()}</p>}</Show>
             </div>
 
             <Show when={!config()?.downloadActive && !prepareRequested() && !config()?.downloaded}>
@@ -261,13 +279,14 @@ export function EmbeddingsSettings() {
         </Show>
       </Presence>
 
-      <p class="m-0 text-xs leading-relaxed text-on-surface-variant/80">
-        Semantic search is optional. It stays off until you opt in, and it only improves local search over your synced
-        likes and bookmarks.
-      </p>
-      <div class="flex items-center gap-2">
-        <StatusLabel config={config()} />
-        <ModelDescriptor config={config()} />
+      <div class="grid gap-3 text-xs leading-relaxed text-on-surface-variant">
+        <div class="flex items-center gap-2">
+          <StatusLabel config={config()} />
+        </div>
+        <p class="m-0">
+          Semantic search is optional. It only improves local search over synced likes and bookmarks, and reset clears
+          the downloaded model as part of a full wipe.
+        </p>
       </div>
     </section>
   );

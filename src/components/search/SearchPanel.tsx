@@ -375,7 +375,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
   }
 
   return (
-    <div class="grid min-h-0 gap-6" classList={{ "xl:grid-cols-[minmax(0,1fr)_20rem]": !props.embedded }}>
+    <div class="grid min-h-0 gap-6" classList={{ "xl:grid-cols-[minmax(0,1fr)_22rem]": !props.embedded }}>
       <section
         class="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden"
         classList={{
@@ -428,7 +428,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
       </section>
 
       <Show when={!props.embedded}>
-        <aside class="grid content-start gap-4 overflow-y-auto">
+        <aside class="grid content-start gap-3 overflow-y-auto xl:sticky xl:top-0 xl:max-h-[calc(100vh-2rem)] xl:pr-1">
           <Show when={session.activeDid}>
             {(did) => <SyncStatusPanel did={did()} onStatusChange={(status) => setSearch("syncStatus", status)} />}
           </Show>
@@ -880,32 +880,37 @@ function NetworkResultsList(props: { onOpenThread: (uri: string) => void; result
 
 function SearchTipsCard() {
   return (
-    <section class="panel-surface grid gap-3 p-5">
-      <p class="m-0 text-sm font-medium text-on-surface">Search Tips</p>
-      <div class="grid grid-cols-2 gap-2 text-xs text-on-surface-variant">
-        <p class="m-0 flex items-center gap-2">
-          <kbd class="rounded bg-white/10 px-1.5 py-0.5">/</kbd>
-          <span>Focus search from anywhere</span>
-        </p>
-        <p class="m-0 flex items-center gap-2">
-          <kbd class="rounded bg-white/10 px-1.5 py-0.5">Tab</kbd>
-          <span>Cycle search modes</span>
-        </p>
-        <div class="col-span-2 flex flex-col items-start gap-1">
-          <div class="m-0 flex items-start gap-2">
-            <div>·</div>
-            <div>Network filters are URL-synced, so you can bookmark or share exact search states.</div>
-          </div>
-          <div class="m-0 flex items-start gap-2">
-            <div>·</div>
-            <div>Use keyword mode for exact terms. Hybrid becomes available after embeddings finish setting up.</div>
-          </div>
-          <div class="m-0 flex items-start gap-2">
-            <div>·</div>
-            <div>Switch to Profiles when you want people, not posts. Actor suggestions open immediately.</div>
-          </div>
+    <section class="panel-surface grid gap-4 p-4">
+      <div class="flex items-center justify-between gap-3">
+        <p class="m-0 text-sm font-medium text-on-surface">Search Tips</p>
+        <span class="rounded-full bg-white/7 px-2.5 py-1 text-[0.68rem] uppercase tracking-[0.12em] text-on-surface-variant">
+          Workflow
+        </span>
+      </div>
+
+      <div class="grid gap-2">
+        <div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl bg-black/25 px-3 py-2 text-xs text-on-surface-variant">
+          <kbd class="rounded bg-white/10 px-1.5 py-0.5 text-on-surface">/</kbd>
+          <span>Focus search from anywhere.</span>
+        </div>
+        <div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl bg-black/25 px-3 py-2 text-xs text-on-surface-variant">
+          <kbd class="rounded bg-white/10 px-1.5 py-0.5 text-on-surface">Tab</kbd>
+          <span>Cycle search modes while the query field is focused.</span>
         </div>
       </div>
+
+      <div class="grid gap-2 text-xs leading-relaxed text-on-surface-variant">
+        <p class="m-0 rounded-2xl bg-white/[0.035] px-3 py-2">
+          Network filters stay in the URL, so exact search states are shareable and bookmarkable.
+        </p>
+        <p class="m-0 rounded-2xl bg-white/[0.035] px-3 py-2">
+          Use keyword mode for exact terms. Hybrid becomes available after semantic search finishes setup.
+        </p>
+        <p class="m-0 rounded-2xl bg-white/[0.035] px-3 py-2">
+          Switch to Profiles when you want people, not posts. Suggestions open immediately.
+        </p>
+      </div>
+
       <a
         class="inline-flex w-fit items-center gap-2 rounded-full bg-white/6 px-3 py-2 text-xs font-medium text-on-surface no-underline transition hover:bg-white/10 hover:text-primary"
         href="#/settings">
