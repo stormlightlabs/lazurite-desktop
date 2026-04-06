@@ -1,5 +1,5 @@
 use crate::error::{AppError, Result};
-use reqwest::{Client, StatusCode, Url};
+use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tauri_plugin_log::log;
@@ -8,8 +8,6 @@ const DEFAULT_TIMEOUT_SECS: u64 = 10;
 const USER_AGENT: &str = "lazurite-desktop";
 const GET_BACKLINKS_COUNT_NSID: &str = "blue.microcosm.links.getBacklinksCount";
 const GET_BACKLINKS_NSID: &str = "blue.microcosm.links.getBacklinks";
-const GET_DISTINCT_NSID: &str = "blue.microcosm.links.getDistinct";
-const GET_BACKLINK_DIDS_NSID: &str = "blue.microcosm.links.getBacklinkDids";
 const GET_MANY_TO_MANY_COUNTS_NSID: &str = "blue.microcosm.links.getManyToManyCounts";
 const GET_MANY_TO_MANY_NSID: &str = "blue.microcosm.links.getManyToMany";
 
@@ -37,14 +35,6 @@ pub struct BacklinksResponse {
     pub total: u64,
     #[serde(default)]
     pub records: Vec<ConstellationLinkRecord>,
-    pub cursor: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-pub struct DistinctDidsResponse {
-    pub total: u64,
-    #[serde(default, alias = "linking_dids", alias = "linkingDids")]
-    pub dids: Vec<String>,
     pub cursor: Option<String>,
 }
 
@@ -117,30 +107,6 @@ impl ConstellationClient {
         self.get_json(GET_BACKLINKS_NSID, &query).await
     }
 
-    pub async fn get_distinct_dids(
-        &self, subject: String, source: String, limit: Option<u32>, cursor: Option<String>,
-    ) -> Result<DistinctDidsResponse> {
-        let mut query = vec![("subject", subject.clone()), ("source", source.clone())];
-        if let Some(limit) = limit {
-            query.push(("limit", limit.to_string()));
-        }
-        if let Some(cursor) = cursor.clone() {
-            query.push(("cursor", cursor));
-        }
-
-        let response = self.send(GET_DISTINCT_NSID, &query).await?;
-        if response.status() == StatusCode::NOT_FOUND {
-            log::warn!(
-                "Constellation {} returned 404; falling back to {}",
-                GET_DISTINCT_NSID,
-                GET_BACKLINK_DIDS_NSID
-            );
-            return self.get_json(GET_BACKLINK_DIDS_NSID, &query).await;
-        }
-
-        Self::decode_json(response, GET_DISTINCT_NSID).await
-    }
-
     pub async fn get_many_to_many_counts(
         &self, subject: String, source: String, path_to_other: String,
     ) -> Result<ManyToManyCountsResponse> {
@@ -202,17 +168,7 @@ impl ConstellationClient {
 
 #[cfg(test)]
 mod tests {
-    use super::{DistinctDidsResponse, ManyToManyCountsResponse};
-
-    #[test]
-    fn distinct_response_accepts_backlink_dids_shape() {
-        let parsed: DistinctDidsResponse =
-            serde_json::from_str(r#"{"total":2,"linking_dids":["did:plc:one","did:plc:two"],"cursor":"abc"}"#)
-                .expect("backlink dids response should deserialize");
-
-        assert_eq!(parsed.dids, vec!["did:plc:one", "did:plc:two"]);
-        assert_eq!(parsed.cursor.as_deref(), Some("abc"));
-    }
+    use super::ManyToManyCountsResponse;
 
     #[test]
     fn many_to_many_counts_accepts_subject_field() {

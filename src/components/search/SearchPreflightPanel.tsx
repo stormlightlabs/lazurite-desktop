@@ -15,10 +15,7 @@ function SearchCapabilityCard(
   return (
     <div
       class="grid gap-3 rounded-3xl p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
-      classList={{
-        "bg-white/[0.035]": props.tone !== "primary",
-        "bg-primary/10": props.tone === "primary",
-      }}>
+      classList={{ "bg-white/[0.035]": props.tone !== "primary", "bg-primary/10": props.tone === "primary" }}>
       <div class="flex items-center gap-3">
         <span
           class="flex h-11 w-11 items-center justify-center rounded-2xl"
@@ -180,7 +177,9 @@ export function SearchPreflightPanel() {
           </section>
 
           <Presence>
-            <Show when={config()?.enabled && (prepareRequested() || config()?.downloadActive || config()?.lastError || !config()?.downloaded)}>
+            <Show
+              when={config()?.enabled
+                && (prepareRequested() || config()?.downloadActive || config()?.lastError || !config()?.downloaded)}>
               <Motion.section
                 class="grid gap-3 rounded-[2rem] bg-primary/8 p-5 shadow-[inset_0_0_0_1px_rgba(125,175,255,0.12)]"
                 initial={{ opacity: 0, height: 0 }}
@@ -226,9 +225,7 @@ export function SearchPreflightPanel() {
                   <Show when={config()?.downloadEtaSeconds}>
                     {(seconds) => <p class="m-0">ETA: {formatEtaSeconds(seconds())}</p>}
                   </Show>
-                  <Show when={config()?.lastError}>
-                    {(message) => <p class="m-0 text-red-200">{message()}</p>}
-                  </Show>
+                  <Show when={config()?.lastError}>{(message) => <p class="m-0 text-red-200">{message()}</p>}</Show>
                 </div>
               </Motion.section>
             </Show>
@@ -256,7 +253,10 @@ export function SearchPreflightPanel() {
                 onClick={() => void enableSemanticSearch()}
                 disabled={activating()}
                 class="inline-flex items-center gap-2 rounded-full border-0 bg-primary px-4 py-2 text-sm font-medium text-on-primary-fixed transition hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-50">
-                <Icon kind={activating() ? "loader" : "download"} iconClass={activating() ? "i-ri-loader-4-line animate-spin" : undefined} class="text-sm" />
+                <Icon
+                  kind={activating() ? "loader" : "download"}
+                  iconClass={activating() ? "i-ri-loader-4-line animate-spin" : undefined}
+                  class="text-sm" />
                 <span>{activating() ? "Downloading model..." : "Enable semantic search"}</span>
               </button>
             </div>

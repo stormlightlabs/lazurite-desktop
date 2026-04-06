@@ -1,5 +1,13 @@
 import { isReplyItem, parseFeedResponse } from "$/lib/feeds";
-import type { ActorListResponse, FeedResponse, FeedViewPost, ProfileViewBasic, ProfileViewDetailed } from "$/lib/types";
+import type {
+  ActorListResponse,
+  FeedResponse,
+  FeedViewPost,
+  ProfileLookupResult,
+  ProfileUnavailableReason,
+  ProfileViewBasic,
+  ProfileViewDetailed,
+} from "$/lib/types";
 import { asArray, asRecord, optionalNumber, optionalString } from "./type-guards";
 
 export type ProfileTab = "posts" | "replies" | "media" | "likes" | "context";
@@ -55,6 +63,35 @@ export function parseProfile(value: unknown): ProfileViewDetailed {
     pronouns: optionalString(record.pronouns),
     viewer: parseProfileViewer(record.viewer),
     website: optionalString(record.website),
+  };
+}
+
+export function parseProfileResult(value: unknown): ProfileLookupResult {
+  const record = asRecord(value);
+  if (!record || record.status === "available" && !asRecord(record.profile)) {
+    throw new Error("profile result payload is invalid");
+  }
+
+  if (record.status === "available") {
+    return { status: "available", profile: parseProfile(record.profile) };
+  }
+
+  if (
+    record.status !== "unavailable"
+    || typeof record.requestedActor !== "string"
+    || typeof record.message !== "string"
+    || !isProfileUnavailableReason(record.reason)
+  ) {
+    throw new Error("profile result payload is invalid");
+  }
+
+  return {
+    status: "unavailable",
+    requestedActor: record.requestedActor,
+    did: optionalString(record.did),
+    handle: optionalString(record.handle),
+    reason: record.reason,
+    message: record.message,
   };
 }
 
@@ -122,4 +159,8 @@ function parseProfileViewer(value: unknown) {
     following: optionalString(record.following),
     muted: typeof record.muted === "boolean" ? record.muted : null,
   };
+}
+
+function isProfileUnavailableReason(value: unknown): value is ProfileUnavailableReason {
+  return value === "notFound" || value === "suspended" || value === "deactivated" || value === "unavailable";
 }

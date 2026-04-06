@@ -1,5 +1,5 @@
 import type { ProfileTab } from "$/lib/profile";
-import type { FeedViewPost, ProfileViewBasic, ProfileViewDetailed } from "$/lib/types";
+import type { FeedViewPost, ProfileLookupUnavailable, ProfileViewBasic, ProfileViewDetailed } from "$/lib/types";
 
 export type FeedState = {
   cursor: string | null;
@@ -29,6 +29,7 @@ export type ProfilePanelState = {
   profile: ProfileViewDetailed | null;
   profileError: string | null;
   profileLoading: boolean;
+  profileUnavailable: ProfileLookupUnavailable | null;
   scrollTop: number;
 };
 
@@ -58,6 +59,7 @@ export function createProfilePanelState(): ProfilePanelState {
     profile: null,
     profileError: null,
     profileLoading: true,
+    profileUnavailable: null,
     scrollTop: 0,
   };
 }

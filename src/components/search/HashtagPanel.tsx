@@ -188,9 +188,7 @@ function HashtagHero(props: { hashtagLabel: string }) {
         </div>
         <div class="grid gap-1">
           <h1 class="m-0 text-3xl font-semibold tracking-[-0.03em] text-on-surface">{props.hashtagLabel}</h1>
-          <p class="m-0 text-sm text-on-surface-variant">
-            Search Bluesky for this hashtag.
-          </p>
+          <p class="m-0 text-sm text-on-surface-variant">Search Bluesky for this hashtag.</p>
         </div>
       </div>
     </div>

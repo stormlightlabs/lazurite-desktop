@@ -17,10 +17,7 @@ vi.mock(
   "$/components/search/HashtagPanel",
   () => ({ HashtagPanel: () => <div data-testid="hashtag-view">hashtag</div> }),
 );
-vi.mock(
-  "$/components/search/SearchPanel",
-  () => ({ SearchPanel: () => <div data-testid="search-view">search</div> }),
-);
+vi.mock("$/components/search/SearchPanel", () => ({ SearchPanel: () => <div data-testid="search-view">search</div> }));
 vi.mock(
   "$/components/search/SearchPreflightPanel",
   () => ({ SearchPreflightPanel: () => <div data-testid="search-preflight-view">preflight</div> }),

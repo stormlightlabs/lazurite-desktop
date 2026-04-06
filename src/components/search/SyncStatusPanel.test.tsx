@@ -142,18 +142,12 @@ describe("SyncStatusPanel", () => {
 
   it("fades the activity bar out after sync completes", async () => {
     vi.useRealTimers();
-    syncPostsMock.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({
-              did: "did:plc:test",
-              source: "like",
-              postCount: 150,
-              lastSyncedAt: "2026-03-29T13:00:00.000Z",
-            });
-          }, 20);
-        }),
+    syncPostsMock.mockImplementation(() =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({ did: "did:plc:test", source: "like", postCount: 150, lastSyncedAt: "2026-03-29T13:00:00.000Z" });
+        }, 20);
+      })
     );
 
     render(() => <SyncStatusPanel did="did:plc:test" />);

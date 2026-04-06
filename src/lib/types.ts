@@ -45,6 +45,8 @@ export type ProfileViewerState = {
   muted?: boolean | null;
 };
 
+export type ProfileUnavailableReason = "notFound" | "suspended" | "deactivated" | "unavailable";
+
 export type ProfileViewDetailed = ProfileViewBasic & {
   banner?: string | null;
   createdAt?: string | null;
@@ -58,6 +60,19 @@ export type ProfileViewDetailed = ProfileViewBasic & {
   viewer?: ProfileViewerState | null;
   website?: string | null;
 };
+
+export type ProfileLookupAvailable = { status: "available"; profile: ProfileViewDetailed };
+
+export type ProfileLookupUnavailable = {
+  status: "unavailable";
+  requestedActor: string;
+  did?: string | null;
+  handle?: string | null;
+  reason: ProfileUnavailableReason;
+  message: string;
+};
+
+export type ProfileLookupResult = ProfileLookupAvailable | ProfileLookupUnavailable;
 
 export type ActorListResponse = { cursor?: string | null; actors: ProfileViewBasic[] };
 

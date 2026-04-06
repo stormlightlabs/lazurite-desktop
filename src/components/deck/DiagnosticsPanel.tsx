@@ -1,4 +1,5 @@
 import { RecordBacklinksPanel } from "$/components/diagnostics/RecordBacklinksPanel";
+import { Icon } from "$/components/shared/Icon";
 import { useAppSession } from "$/contexts/app-session";
 import {
   type DiagnosticBlockItem,
@@ -14,12 +15,17 @@ import {
 } from "$/lib/api/diagnostics";
 import { asRecord, getStringProperty } from "$/lib/type-guards";
 import { shouldIgnoreKey } from "$/lib/utils/events";
-import { normalizeError } from "$/lib/utils/text";
+import { formatHandle, initials, normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
-import { Icon } from "../shared/Icon";
+import {
+  DiagnosticsBlockSkeleton,
+  DiagnosticsLabelSkeleton,
+  DiagnosticsListSkeleton,
+  DiagnosticsStarterPackSkeleton,
+} from "./DiagnosticsSkeleton";
 
 type DiagnosticsTab = "lists" | "labels" | "blocks" | "starterPacks" | "backlinks";
 
@@ -133,18 +139,6 @@ function groupListsByPurpose(lists: DiagnosticList[]) {
   return grouped.length > 0 ? grouped : [{ label: "Lists", items: lists }];
 }
 
-function initials(name: string) {
-  return name.trim().slice(0, 1).toUpperCase() || "?";
-}
-
-function formatHandle(handle: string | null | undefined) {
-  if (!handle) {
-    return "Unknown";
-  }
-
-  return handle.startsWith("did:") || handle.startsWith("@") ? handle : `@${handle}`;
-}
-
 function getDiagnosticEntryHandle(item: DiagnosticBlockItem | DiagnosticDidProfile) {
   if (item.profile?.handle) {
     return item.profile.handle;
@@ -210,7 +204,7 @@ function getSourceProfileName(sourceProfiles: Record<string, unknown>, src: stri
     return src;
   }
 
-  return getStringProperty(profile, "displayName") ?? formatHandle(getStringProperty(profile, "handle")) ?? src;
+  return getStringProperty(profile, "displayName") ?? formatHandle(getStringProperty(profile, "handle"), null) ?? src;
 }
 
 export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
@@ -652,10 +646,12 @@ function DiagnosticsBlock(
 ) {
   const items = createMemo(() =>
     props.items.map((item) => ({
-      avatar: item.profile?.avatar ?? null,
-      description: item.profile?.description ?? null,
+      available: item.availability === "available",
+      avatar: item.availability === "available" ? item.profile?.avatar ?? null : null,
+      description: item.availability === "available" ? item.profile?.description ?? null : null,
       displayName: item.profile?.displayName ?? null,
       handle: getDiagnosticEntryHandle(item),
+      unavailableMessage: item.unavailableMessage ?? "Profile unavailable",
     }))
   );
 
@@ -781,7 +777,9 @@ function ListCard(props: { list: DiagnosticList; onOpenExplorerTarget?: (target:
               {purposeLabel(props.list.purpose)}
             </span>
           </div>
-          <p class="m-0 mt-1 text-sm text-on-surface-variant">Owner: {formatHandle(props.list.creator?.handle)}</p>
+          <p class="m-0 mt-1 text-sm text-on-surface-variant">
+            Owner: {formatHandle(props.list.creator?.handle, null)}
+          </p>
           <p class="m-0 mt-3 text-sm leading-relaxed text-on-surface-variant">
             {props.list.description ?? "No description provided."}
           </p>
@@ -817,7 +815,7 @@ function StarterPackCard(props: { onOpenExplorerTarget?: (target: string) => voi
         <div class="min-w-0">
           <p class="m-0 text-base font-semibold text-on-surface">{title()}</p>
           <p class="m-0 mt-1 text-sm text-on-surface-variant">
-            Creator: {formatHandle(props.pack.creator?.handle ?? null)}
+            Creator: {formatHandle(props.pack.creator?.handle ?? null, null)}
           </p>
           <p class="m-0 mt-3 text-sm leading-relaxed text-on-surface-variant">
             {props.pack.description ?? props.pack.record?.description ?? "No description provided."}
@@ -846,7 +844,16 @@ function StarterPackCard(props: { onOpenExplorerTarget?: (target: string) => voi
 
 function BlockProfileList(
   props: {
-    items: Array<{ avatar?: string | null; description?: string | null; displayName?: string | null; handle: string }>;
+    items: Array<
+      {
+        available: boolean;
+        avatar?: string | null;
+        description?: string | null;
+        displayName?: string | null;
+        handle: string;
+        unavailableMessage: string;
+      }
+    >;
     title: string;
   },
 ) {
@@ -859,22 +866,31 @@ function BlockProfileList(
             const name = () => item.displayName ?? item.handle;
             return (
               <Motion.div
-                class="flex items-start gap-3 rounded-2xl bg-black/20 p-3"
+                class="flex items-start gap-3 rounded-2xl p-3"
+                classList={{ "bg-black/20": item.available, "bg-white/4 opacity-70": !item.available }}
+                aria-disabled={!item.available}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(index() * 0.04, 0.16), duration: 0.16 }}>
                 <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 text-xs font-semibold text-on-surface-variant">
-                  <Show when={item.avatar} fallback={<span>{initials(name())}</span>}>
+                  <Show
+                    when={item.available && item.avatar}
+                    fallback={item.available
+                      ? <span>{initials(name())}</span>
+                      : <Icon kind="danger" aria-hidden="true" />}>
                     {(src) => <img alt="" class="h-full w-full object-cover" src={src()} />}
                   </Show>
                 </div>
                 <div class="min-w-0">
                   <p class="m-0 text-sm font-medium text-on-surface">{name()}</p>
-                  <p class="m-0 text-xs text-on-surface-variant">{formatHandle(item.handle)}</p>
-                  <Show when={item.description}>
+                  <p class="m-0 text-xs text-on-surface-variant">{formatHandle(item.handle, null)}</p>
+                  <Show when={item.available && item.description}>
                     {(description) => (
                       <p class="m-0 mt-2 text-xs leading-relaxed text-on-surface-variant">{description()}</p>
                     )}
+                  </Show>
+                  <Show when={!item.available}>
+                    <p class="m-0 mt-2 text-xs leading-relaxed text-on-surface-variant">{item.unavailableMessage}</p>
                   </Show>
                 </div>
               </Motion.div>
@@ -882,54 +898,6 @@ function BlockProfileList(
           }}
         </For>
       </div>
-    </div>
-  );
-}
-
-function DiagnosticsListSkeleton() {
-  return (
-    <div class="grid gap-4">
-      <For each={Array.from({ length: 3 })}>
-        {() => (
-          <div class="grid h-32 gap-3 rounded-3xl bg-white/3 p-4">
-            <div class="h-4 w-28 rounded-full bg-white/6" />
-            <div class="h-4 w-44 rounded-full bg-white/6" />
-            <div class="h-4 w-full rounded-full bg-white/6" />
-          </div>
-        )}
-      </For>
-    </div>
-  );
-}
-
-function DiagnosticsLabelSkeleton() {
-  return (
-    <div class="flex flex-wrap gap-2">
-      <For each={Array.from({ length: 5 })}>{() => <div class="h-10 w-32 rounded-full bg-white/3" />}</For>
-    </div>
-  );
-}
-
-function DiagnosticsStarterPackSkeleton() {
-  return (
-    <div class="grid gap-3">
-      <For each={Array.from({ length: 2 })}>
-        {() => (
-          <div class="grid h-28 gap-3 rounded-3xl bg-white/3 p-4">
-            <div class="h-4 w-40 rounded-full bg-white/6" />
-            <div class="h-4 w-28 rounded-full bg-white/6" />
-            <div class="h-4 w-full rounded-full bg-white/6" />
-          </div>
-        )}
-      </For>
-    </div>
-  );
-}
-
-function DiagnosticsBlockSkeleton() {
-  return (
-    <div class="grid gap-3">
-      <For each={Array.from({ length: 2 })}>{() => <div class="h-24 rounded-3xl bg-white/3" />}</For>
     </div>
   );
 }

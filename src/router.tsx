@@ -9,8 +9,8 @@ import { DeckWorkspace } from "./components/deck/DeckWorkspace";
 import { ExplorerPanel } from "./components/explorer/ExplorerPanel";
 import { SavedPostsPanel } from "./components/saved/SavedPostsPanel";
 import { HashtagPanel } from "./components/search/HashtagPanel";
-import { SearchPreflightPanel } from "./components/search/SearchPreflightPanel";
 import { SearchPanel } from "./components/search/SearchPanel";
+import { SearchPreflightPanel } from "./components/search/SearchPreflightPanel";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { decodeMessagesRouteMemberDid } from "./lib/conversations";
 import { TIMELINE_ROUTE } from "./lib/feeds";
@@ -70,7 +70,11 @@ export function AppRouter(props: AppRouterProps) {
 
   const TimelineRoute = () => <ProtectedRouteView>{props.renderTimeline()}</ProtectedRouteView>;
 
-  const SearchRoute = () => <ProtectedRouteView><SearchRouteGate /></ProtectedRouteView>;
+  const SearchRoute = () => (
+    <ProtectedRouteView>
+      <SearchRouteGate />
+    </ProtectedRouteView>
+  );
 
   const SearchPreflightRoute = () => (
     <ProtectedRouteView>

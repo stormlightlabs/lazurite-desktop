@@ -1,10 +1,10 @@
+import { ArrowIcon, Icon } from "$/components/shared/Icon";
 import { type DiagnosticBacklinkGroup, type DiagnosticBacklinkItem, getRecordBacklinks } from "$/lib/api/diagnostics";
-import { normalizeError } from "$/lib/utils/text";
+import { formatHandle, initials, normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, For, Match, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
-import { ArrowIcon, Icon } from "../shared/Icon";
 
 type GroupKey = "likes" | "reposts" | "replies" | "quotes";
 
@@ -36,18 +36,6 @@ function createIdleState(): BacklinksState {
     groups: { likes: EMPTY_GROUP, quotes: EMPTY_GROUP, replies: EMPTY_GROUP, reposts: EMPTY_GROUP },
     loading: false,
   };
-}
-
-function initials(name: string) {
-  return name.trim().slice(0, 1).toUpperCase() || "?";
-}
-
-function formatHandle(handle: string | null | undefined, did: string | null | undefined) {
-  if (handle) {
-    return handle.startsWith("@") ? handle : `@${handle}`;
-  }
-
-  return did ?? "Unknown";
 }
 
 export function RecordBacklinksPanel(props: RecordBacklinksPanelProps) {
@@ -229,7 +217,7 @@ function BacklinkRecordCard(props: { index: number; item: DiagnosticBacklinkItem
       transition={{ delay: Math.min(props.index * 0.04, 0.16), duration: 0.16 }}>
       <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 text-xs font-semibold text-on-surface-variant">
         <Show when={props.item.profile?.avatar} fallback={<span>{initials(actorLabel())}</span>}>
-          {(src) => <img alt="" class="h-full w-full object-cover" src={src()} />}
+          {(src) => <img alt={actorLabel()} class="h-full w-full object-cover" src={src()} />}
         </Show>
       </div>
 

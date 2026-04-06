@@ -1,3 +1,4 @@
+mod actors;
 mod auth;
 mod columns;
 mod commands;

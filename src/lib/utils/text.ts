@@ -86,3 +86,15 @@ export function formatJoinedDate(value?: string | null) {
 
   return parsed.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
+
+export function initials(name: string) {
+  return name.trim().slice(0, 1).toUpperCase() || "?";
+}
+
+export function formatHandle(handle: string | null | undefined, did: string | null | undefined) {
+  if (!handle) {
+    return did ?? "Unknown";
+  }
+
+  return handle.startsWith("did:") || handle.startsWith("@") ? handle : `@${handle}`;
+}

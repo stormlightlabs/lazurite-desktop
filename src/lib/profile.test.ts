@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterProfileFeed, parseActorList } from "./profile";
+import { filterProfileFeed, parseActorList, parseProfileResult } from "./profile";
 import type { FeedViewPost } from "./types";
 
 function createFeedItem(overrides: Partial<FeedViewPost> = {}): FeedViewPost {
@@ -63,5 +63,50 @@ describe("profile helpers", () => {
     expect(filterProfileFeed([base, reply, media], "replies")).toEqual([reply]);
     expect(filterProfileFeed([base, reply, media], "media")).toEqual([media]);
     expect(filterProfileFeed([base, reply, media], "likes")).toEqual([base, reply, media]);
+  });
+
+  it("parses available and unavailable profile results", () => {
+    expect(
+      parseProfileResult({
+        status: "available",
+        profile: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+      }),
+    ).toEqual({
+      status: "available",
+      profile: {
+        avatar: null,
+        banner: null,
+        createdAt: null,
+        description: null,
+        did: "did:plc:bob",
+        displayName: "Bob",
+        followersCount: null,
+        followsCount: null,
+        handle: "bob.test",
+        indexedAt: null,
+        pinnedPost: null,
+        postsCount: null,
+        pronouns: null,
+        viewer: null,
+        website: null,
+      },
+    });
+
+    expect(
+      parseProfileResult({
+        status: "unavailable",
+        requestedActor: "missing.test",
+        handle: "missing.test",
+        reason: "notFound",
+        message: "This profile could not be found.",
+      }),
+    ).toEqual({
+      status: "unavailable",
+      requestedActor: "missing.test",
+      did: null,
+      handle: "missing.test",
+      reason: "notFound",
+      message: "This profile could not be found.",
+    });
   });
 });

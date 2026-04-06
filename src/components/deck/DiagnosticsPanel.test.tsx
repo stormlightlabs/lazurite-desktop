@@ -63,12 +63,12 @@ describe("DiagnosticsPanel", () => {
     });
     getAccountBlockedByMock.mockResolvedValue({
       cursor: null,
-      items: [{ did: "did:plc:blocker", profile: { handle: "blocker.test" } }],
+      items: [{ availability: "available", did: "did:plc:blocker", profile: { handle: "blocker.test" } }],
       total: 1,
     });
     getAccountBlockingMock.mockResolvedValue({
       cursor: null,
-      items: [{ subjectDid: "did:plc:boundary", profile: { handle: "boundary.test" } }],
+      items: [{ availability: "available", subjectDid: "did:plc:boundary", profile: { handle: "boundary.test" } }],
     });
     getAccountStarterPacksMock.mockResolvedValue({
       starterPacks: [{
@@ -121,6 +121,27 @@ describe("DiagnosticsPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Starter Packs" }));
     expect(await screen.findByText("Newcomers")).toBeInTheDocument();
     expect(screen.getByText("8 members")).toBeInTheDocument();
+  });
+
+  it("renders unavailable block rows without breaking the section", async () => {
+    getAccountBlockedByMock.mockResolvedValueOnce({
+      cursor: null,
+      items: [{
+        availability: "unavailable",
+        did: "did:plc:missing",
+        unavailableMessage: "This profile is unavailable right now.",
+      }],
+      total: 1,
+    });
+
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Blocks" }));
+    fireEvent.click(screen.getByRole("button", { name: /show details/i }));
+
+    const missing = await screen.findAllByText("did:plc:missing");
+    expect(missing.length).toBeGreaterThan(0);
+    expect(screen.getByText("This profile is unavailable right now.")).toBeInTheDocument();
   });
 
   it("explains backlinks when no record URI is selected", async () => {

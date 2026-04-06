@@ -1,3 +1,6 @@
+use super::actors::{
+    actor_unavailable_message, classify_actor_unavailability, requested_actor_hints, ActorAvailabilityReason,
+};
 use super::auth::LazuriteOAuthSession;
 use super::error::{AppError, Result};
 use super::state::AppState;
@@ -42,6 +45,21 @@ use jacquard::IntoStatic;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri_plugin_log::log;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum ProfileLookupResult {
+    Available {
+        profile: serde_json::Value,
+    },
+    Unavailable {
+        requested_actor: String,
+        did: Option<String>,
+        handle: Option<String>,
+        reason: ActorAvailabilityReason,
+        message: String,
+    },
+}
 
 async fn get_session(state: &AppState) -> Result<Arc<LazuriteOAuthSession>> {
     let did = state
@@ -436,22 +454,49 @@ pub async fn get_post_thread(uri: String, state: &AppState) -> Result<serde_json
 
 pub async fn get_profile(actor: String, state: &AppState) -> Result<serde_json::Value> {
     let session = get_session(state).await?;
+    let requested_actor = actor.trim().to_string();
+    let (did, handle) = requested_actor_hints(&requested_actor);
     let actor = parse_actor_identifier(&actor)?;
 
-    let output = session
-        .send(GetProfile::new().actor(actor).build())
-        .await
-        .map_err(|error| {
+    let output = match session.send(GetProfile::new().actor(actor).build()).await {
+        Ok(output) => output,
+        Err(error) => {
             log::error!("getProfile error: {error}");
-            AppError::validation("getProfile")
-        })?
-        .into_output()
-        .map_err(|error| {
-            log::error!("getProfile output error: {error}");
-            AppError::validation("getProfile output")
-        })?;
+            if let Some(reason) = classify_actor_unavailability(&error) {
+                return serde_json::to_value(ProfileLookupResult::Unavailable {
+                    requested_actor,
+                    did,
+                    handle,
+                    reason,
+                    message: actor_unavailable_message(reason).to_string(),
+                })
+                .map_err(AppError::from);
+            }
 
-    serde_json::to_value(output.value).map_err(AppError::from)
+            return Err(AppError::validation("Couldn't load this profile right now."));
+        }
+    };
+    let output = match output.into_output() {
+        Ok(output) => output,
+        Err(error) => {
+            log::error!("getProfile output error: {error}");
+            if let Some(reason) = classify_actor_unavailability(&error) {
+                return serde_json::to_value(ProfileLookupResult::Unavailable {
+                    requested_actor,
+                    did,
+                    handle,
+                    reason,
+                    message: actor_unavailable_message(reason).to_string(),
+                })
+                .map_err(AppError::from);
+            }
+
+            return Err(AppError::validation("Couldn't load this profile right now."));
+        }
+    };
+
+    serde_json::to_value(ProfileLookupResult::Available { profile: serde_json::to_value(output.value)? })
+        .map_err(AppError::from)
 }
 
 pub async fn get_author_feed(

@@ -133,6 +133,7 @@ export function ExplorerPanel() {
               describeRepo(resolved.did),
               getProfile(resolved.did).catch(() => null),
             ]);
+            const profileData = profile?.status === "available" ? profile.profile : null;
             const collections = extractCollections(repoData);
             finalViewState = {
               ...viewState,
@@ -142,8 +143,11 @@ export function ExplorerPanel() {
                 did: resolved.did,
                 handle: resolved.handle || resolved.did,
                 pdsUrl: resolved.pdsUrl,
-                socialSummary: profile
-                  ? { followerCount: profile.followersCount ?? null, followingCount: profile.followsCount ?? null }
+                socialSummary: profileData
+                  ? {
+                    followerCount: profileData.followersCount ?? null,
+                    followingCount: profileData.followsCount ?? null,
+                  }
                   : null,
               },
             };

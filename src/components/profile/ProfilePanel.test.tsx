@@ -104,7 +104,7 @@ function getHeroFollowingButton() {
 describe("ProfilePanel", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    getProfileMock.mockResolvedValue(createProfile());
+    getProfileMock.mockResolvedValue({ status: "available", profile: createProfile() });
     getAuthorFeedMock.mockResolvedValue({ cursor: null, feed: [] });
     getActorLikesMock.mockResolvedValue({ cursor: null, feed: [] });
     getAccountListsMock.mockResolvedValue({
@@ -248,5 +248,25 @@ describe("ProfilePanel", () => {
     expect(await screen.findByText("Social Diagnostics")).toBeInTheDocument();
     expect(await screen.findByText("Builders")).toBeInTheDocument();
     expect(screen.getByText("Public social context for this account")).toBeInTheDocument();
+  });
+
+  it("shows an unavailable profile state and skips profile interactions when the actor is unavailable", async () => {
+    getProfileMock.mockResolvedValueOnce({
+      status: "unavailable",
+      requestedActor: "missing.test",
+      handle: "missing.test",
+      reason: "notFound",
+      message: "This profile could not be found.",
+    });
+
+    renderProfilePanel("missing.test");
+
+    expect(await screen.findByText("Profile unavailable")).toBeInTheDocument();
+    expect(screen.getByText("missing.test")).toBeInTheDocument();
+    expect(screen.getByText("This profile could not be found.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Follow" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Context" })).not.toBeInTheDocument();
+    expect(getAuthorFeedMock).not.toHaveBeenCalled();
+    expect(getActorLikesMock).not.toHaveBeenCalled();
   });
 });

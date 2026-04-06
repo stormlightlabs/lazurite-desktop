@@ -1,6 +1,8 @@
+import type { ProfileUnavailableReason } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
 
 type TProfile = { did?: string | null; handle?: string | null; displayName?: string | null; avatar?: string | null };
+type TAvailability = "available" | "unavailable";
 
 export type DiagnosticList = {
   avatar?: string | null;
@@ -24,13 +26,22 @@ export type DiagnosticLabel = {
   sig?: string | null;
 };
 
-export type DiagnosticDidProfile = { did: string; profile?: (TProfile & { description?: string | null }) | null };
+export type DiagnosticDidProfile = {
+  availability: TAvailability;
+  did: string;
+  profile?: (TProfile & { description?: string | null }) | null;
+  unavailableReason?: ProfileUnavailableReason | null;
+  unavailableMessage?: string | null;
+};
 
 export type DiagnosticBlockItem = {
+  availability: TAvailability;
   cid?: string | null;
   createdAt?: string | null;
   profile?: (TProfile & { description?: string | null }) | null;
   subjectDid?: string | null;
+  unavailableReason?: ProfileUnavailableReason | null;
+  unavailableMessage?: string | null;
   uri?: string | null;
   value?: Record<string, unknown> | null;
 };

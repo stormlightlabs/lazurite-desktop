@@ -16,12 +16,19 @@ import { buildMessagesRoute } from "$/lib/conversations";
 import { queueExplorerTarget } from "$/lib/explorer-navigation";
 import { patchFeedItems } from "$/lib/feeds";
 import { buildProfileRoute, filterProfileFeed, getProfileRouteActor, type ProfileTab } from "$/lib/profile";
-import type { ActorListResponse, FeedResponse, FeedViewPost, ProfileViewBasic } from "$/lib/types";
+import type {
+  ActorListResponse,
+  FeedResponse,
+  FeedViewPost,
+  ProfileLookupUnavailable,
+  ProfileViewBasic,
+} from "$/lib/types";
 import { formatJoinedDate, normalizeError } from "$/lib/utils/text";
 import { useNavigate } from "@solidjs/router";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Presence } from "solid-motionone";
+import { Icon } from "../shared/Icon";
 import { createActorListState, createFeedState, createProfilePanelState, tabLabel } from "./profile-state";
 import type { ProfilePanelState } from "./profile-state";
 import { ActorListOverlay } from "./ProfileActorList";
@@ -91,11 +98,13 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
     requestSequence += 1;
     const sequence = requestSequence;
     setState({
+      actorList: createActorListState(),
       authorFeed: createFeedState(),
       likesFeed: createFeedState(),
       profile: null,
       profileError: null,
       profileLoading: true,
+      profileUnavailable: null,
       scrollTop: 0,
     });
 
@@ -104,7 +113,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
 
   createEffect(() => {
     const actor = activeActor();
-    if (!actor || state.profileLoading || !!state.profileError) {
+    if (!actor || state.profileLoading || !!state.profileError || !!state.profileUnavailable) {
       return;
     }
 
@@ -126,18 +135,23 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
 
   async function loadProfile(sequence: number, actor: string) {
     try {
-      const profile = await getProfile(actor);
+      const result = await getProfile(actor);
       if (sequence !== requestSequence || actor !== activeActor()) {
         return;
       }
 
-      setState({ profile, profileError: null, profileLoading: false });
+      if (result.status === "available") {
+        setState({ profile: result.profile, profileError: null, profileLoading: false, profileUnavailable: null });
+        return;
+      }
+
+      setState({ profile: null, profileError: null, profileLoading: false, profileUnavailable: result });
     } catch (error) {
       if (sequence !== requestSequence || actor !== activeActor()) {
         return;
       }
 
-      setState({ profile: null, profileError: normalizeError(error), profileLoading: false });
+      setState({ profile: null, profileError: normalizeError(error), profileLoading: false, profileUnavailable: null });
     }
   }
 
@@ -233,6 +247,27 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
     if (tab !== state.activeTab) {
       setState("activeTab", tab);
     }
+  }
+
+  function retryProfile() {
+    const actor = activeActor();
+    if (!actor) {
+      return;
+    }
+
+    requestSequence += 1;
+    const sequence = requestSequence;
+    setState({
+      actorList: createActorListState(),
+      authorFeed: createFeedState(),
+      likesFeed: createFeedState(),
+      profile: null,
+      profileError: null,
+      profileLoading: true,
+      profileUnavailable: null,
+      scrollTop: 0,
+    });
+    void loadProfile(sequence, actor);
   }
 
   function openThread(uri: string) {
@@ -412,62 +447,68 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
         onScroll={(event) => setState("scrollTop", event.currentTarget.scrollTop)}>
         <Show when={!state.profileLoading} fallback={<ProfileLoadingView />}>
           <Show
-            when={!state.profileError && activeProfile()}
-            fallback={<ProfileErrorView error={state.profileError} />}>
-            {(profile) => (
-              <>
-                <ProfileHero
-                  coverOffset={coverOffset()}
-                  followLoading={state.followLoading}
-                  isSelf={isSelf()}
-                  joinedLabel={joinedLabel()}
-                  onFollow={handleFollow}
-                  onMessage={handleMessage}
-                  onOpenFollowers={() => openActorList("followers")}
-                  onOpenFollows={() => openActorList("follows")}
-                  onUnfollow={handleUnfollow}
-                  pinnedPostHref={pinnedPostHref()}
-                  profile={profile()}
-                  profileBadges={profileBadges()}
-                  rootRef={(element) => {
-                    setHeroHeight(element.offsetHeight || null);
-                  }}
-                  viewLabel={viewLabel()} />
+            when={state.profileUnavailable}
+            fallback={
+              <Show
+                when={!state.profileError && activeProfile()}
+                fallback={<ProfileErrorView error={state.profileError} onRetry={retryProfile} />}>
+                {(profile) => (
+                  <>
+                    <ProfileHero
+                      coverOffset={coverOffset()}
+                      followLoading={state.followLoading}
+                      isSelf={isSelf()}
+                      joinedLabel={joinedLabel()}
+                      onFollow={handleFollow}
+                      onMessage={handleMessage}
+                      onOpenFollowers={() => openActorList("followers")}
+                      onOpenFollows={() => openActorList("follows")}
+                      onUnfollow={handleUnfollow}
+                      pinnedPostHref={pinnedPostHref()}
+                      profile={profile()}
+                      profileBadges={profileBadges()}
+                      rootRef={(element) => {
+                        setHeroHeight(element.offsetHeight || null);
+                      }}
+                      viewLabel={viewLabel()} />
 
-                <Show when={showCompactHeader()}>
-                  <ProfileStickyHeader profile={profile()} profileBadges={profileBadges()} />
-                </Show>
+                    <Show when={showCompactHeader()}>
+                      <ProfileStickyHeader profile={profile()} profileBadges={profileBadges()} />
+                    </Show>
 
-                <ProfileTabs
-                  activeTab={state.activeTab}
-                  compactHeaderVisible={showCompactHeader()}
-                  onSelect={selectTab} />
-
-                <Show
-                  when={state.activeTab === "context"}
-                  fallback={
-                    <ProfileFeedSection
+                    <ProfileTabs
                       activeTab={state.activeTab}
-                      bookmarkPendingByUri={interactions.bookmarkPendingByUri()}
-                      cursor={activeFeedState().cursor}
-                      error={activeFeedState().error}
-                      items={visibleItems()}
-                      likePendingByUri={interactions.likePendingByUri()}
-                      loading={activeFeedState().loading}
-                      loadingMore={activeFeedState().loadingMore}
-                      onBookmark={(post) => void interactions.toggleBookmark(post)}
-                      onLike={(post) => void interactions.toggleLike(post)}
-                      onLoadMore={handleLoadMore}
-                      onOpenThread={openThread}
-                      onRepost={(post) => void interactions.toggleRepost(post)}
-                      repostPendingByUri={interactions.repostPendingByUri()} />
-                  }>
-                  <div class="px-3 pb-4 max-[520px]:px-2">
-                    <DiagnosticsPanel did={profile().did} embedded onOpenExplorerTarget={openExplorerTarget} />
-                  </div>
-                </Show>
-              </>
-            )}
+                      compactHeaderVisible={showCompactHeader()}
+                      onSelect={selectTab} />
+
+                    <Show
+                      when={state.activeTab === "context"}
+                      fallback={
+                        <ProfileFeedSection
+                          activeTab={state.activeTab}
+                          bookmarkPendingByUri={interactions.bookmarkPendingByUri()}
+                          cursor={activeFeedState().cursor}
+                          error={activeFeedState().error}
+                          items={visibleItems()}
+                          likePendingByUri={interactions.likePendingByUri()}
+                          loading={activeFeedState().loading}
+                          loadingMore={activeFeedState().loadingMore}
+                          onBookmark={(post) => void interactions.toggleBookmark(post)}
+                          onLike={(post) => void interactions.toggleLike(post)}
+                          onLoadMore={handleLoadMore}
+                          onOpenThread={openThread}
+                          onRepost={(post) => void interactions.toggleRepost(post)}
+                          repostPendingByUri={interactions.repostPendingByUri()} />
+                      }>
+                      <div class="px-3 pb-4 max-[520px]:px-2">
+                        <DiagnosticsPanel did={profile().did} embedded onOpenExplorerTarget={openExplorerTarget} />
+                      </div>
+                    </Show>
+                  </>
+                )}
+              </Show>
+            }>
+            {(unavailable) => <ProfileUnavailableView unavailable={unavailable()} />}
           </Show>
         </Show>
       </div>
@@ -502,11 +543,41 @@ function ProfileLoadingView() {
   );
 }
 
-function ProfileErrorView(props: { error: string | null }) {
+function ProfileUnavailableView(props: { unavailable: ProfileLookupUnavailable }) {
+  const title = () => props.unavailable.handle ?? props.unavailable.did ?? props.unavailable.requestedActor;
+
+  return (
+    <div class="grid min-h-120 place-items-center p-6">
+      <div class="grid max-w-lg gap-4 rounded-4xl bg-white/3 p-6 text-left shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+        <div class="flex items-center gap-3">
+          <span class="flex h-12 w-12 items-center justify-center rounded-full bg-white/6 text-on-surface-variant">
+            <Icon kind="danger" aria-hidden="true" />
+          </span>
+          <div class="min-w-0">
+            <p class="m-0 text-sm text-on-surface-variant">Profile unavailable</p>
+            <h2 class="m-0 truncate text-lg font-semibold text-on-surface">{title()}</h2>
+          </div>
+        </div>
+        <p class="m-0 text-sm leading-relaxed text-on-surface-variant">{props.unavailable.message}</p>
+      </div>
+    </div>
+  );
+}
+
+function ProfileErrorView(props: { error: string | null; onRetry: () => void }) {
   const error = () => props.error ?? "The profile could not be loaded.";
   return (
     <div class="grid min-h-120 place-items-center p-6">
-      <ProfileFeedMessage body={error()} title="Profile unavailable" />
+      <div class="grid gap-4">
+        <ProfileFeedMessage body={error()} title="Profile couldn't be loaded" />
+        <button
+          type="button"
+          class="inline-flex items-center justify-center gap-2 rounded-full border-0 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface transition duration-150 hover:-translate-y-px"
+          onClick={() => props.onRetry()}>
+          <Icon kind="refresh" aria-hidden="true" />
+          Retry
+        </button>
+      </div>
     </div>
   );
 }

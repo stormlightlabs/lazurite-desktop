@@ -76,7 +76,8 @@ function SyncHeader(
       <div class="grid gap-1">
         <div class="flex items-center gap-2">
           <p class="m-0 text-sm font-medium text-on-surface">Sync Status</p>
-          <span class={`rounded-full px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.12em] ${props.tone.className}`}>
+          <span
+            class={`rounded-full px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.12em] ${props.tone.className}`}>
             {props.tone.label}
           </span>
         </div>
@@ -99,13 +100,9 @@ function SyncHeader(
   );
 }
 
-function SyncActions(props: {
-  hasAnyPosts: boolean;
-  isReindexing: boolean;
-  isSyncing: boolean;
-  onReindex: () => void;
-  onSync: () => void;
-}) {
+function SyncActions(
+  props: { hasAnyPosts: boolean; isReindexing: boolean; isSyncing: boolean; onReindex: () => void; onSync: () => void },
+) {
   return (
     <div class="flex flex-wrap items-center gap-2">
       <Show when={props.hasAnyPosts}>

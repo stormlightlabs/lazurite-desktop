@@ -1,9 +1,9 @@
-import { parseActorList, parseProfile, parseProfileFeed } from "$/lib/profile";
-import type { CreateRecordResult } from "$/lib/types";
+import { parseActorList, parseProfileFeed, parseProfileResult } from "$/lib/profile";
+import type { CreateRecordResult, ProfileLookupResult } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
 
-export async function getProfile(actor: string) {
-  return parseProfile(await invoke("get_profile", { actor }));
+export async function getProfile(actor: string): Promise<ProfileLookupResult> {
+  return parseProfileResult(await invoke("get_profile", { actor }));
 }
 
 export async function getAuthorFeed(actor: string, cursor?: string | null, limit?: number) {

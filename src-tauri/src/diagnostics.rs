@@ -1,10 +1,15 @@
+use crate::actors::{
+    actor_unavailable_message, classify_actor_unavailability, ActorAvailability, ActorAvailabilityReason,
+};
 use crate::constellation::{BacklinksResponse, ConstellationClient, ConstellationLinkRecord};
 use crate::error::{AppError, Result};
 use crate::explorer;
 use crate::settings;
 use crate::state::AppState;
+use jacquard::api::app_bsky::actor::get_profile::GetProfile;
 use jacquard::api::app_bsky::actor::get_profiles::GetProfiles;
 use jacquard::api::app_bsky::graph::get_list::GetList;
+use jacquard::api::app_bsky::graph::get_relationships::{GetRelationships, GetRelationshipsOutputRelationshipsItem};
 use jacquard::api::app_bsky::graph::get_starter_packs::GetStarterPacks;
 use jacquard::api::com_atproto::label::query_labels::QueryLabels;
 use jacquard::client::{Agent, UnauthenticatedSession};
@@ -59,7 +64,10 @@ pub struct AccountLabelsResult {
 #[serde(rename_all = "camelCase")]
 pub struct DidProfileItem {
     pub did: String,
+    pub availability: ActorAvailability,
     pub profile: Option<Value>,
+    pub unavailable_reason: Option<ActorAvailabilityReason>,
+    pub unavailable_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -84,8 +92,11 @@ pub struct AccountBlockingItem {
     pub cid: String,
     pub subject_did: String,
     pub created_at: Option<String>,
+    pub availability: ActorAvailability,
     pub value: Value,
     pub profile: Option<Value>,
+    pub unavailable_reason: Option<ActorAvailabilityReason>,
+    pub unavailable_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -247,8 +258,8 @@ pub async fn get_account_blocked_by(
     let normalized_did = normalize_did(&did)?;
     let client = constellation_client(state)?;
     let response = match client
-        .get_distinct_dids(
-            normalized_did,
+        .get_backlinks(
+            normalized_did.clone(),
             BLOCK_SOURCE.to_string(),
             limit.or(Some(BLOCK_PREVIEW_LIMIT)),
             cursor,
@@ -267,12 +278,13 @@ pub async fn get_account_blocked_by(
         }
     };
 
-    let profiles = fetch_profiles_map(&response.dids).await?;
-    let items = response
-        .dids
+    let candidate_dids = extract_blocker_dids(&response.records);
+    let confirmed_dids = confirm_blocked_by(&normalized_did, &candidate_dids).await?;
+    let actor_states = fetch_actor_states(&confirmed_dids).await?;
+    let items = confirmed_dids
         .into_iter()
-        .map(|entry_did| DidProfileItem { profile: profiles.get(&entry_did).cloned(), did: entry_did })
-        .collect();
+        .map(|entry_did| build_did_profile_item(entry_did.clone(), actor_states.get(&entry_did)))
+        .collect::<Vec<_>>();
 
     Ok(AccountBlockedByResult { total: response.total, items, cursor: response.cursor })
 }
@@ -302,18 +314,24 @@ pub async fn get_account_blocking(did: String, cursor: Option<String>) -> Result
         .iter()
         .filter_map(|record| extract_subject_did(&record.value))
         .collect::<Vec<_>>();
-    let profiles = fetch_profiles_map(&subject_dids).await?;
+    let actor_states = fetch_actor_states(&subject_dids).await?;
 
     let items = parsed
         .records
         .into_iter()
         .filter_map(|record| {
             let subject_did = extract_subject_did(&record.value)?;
+            let actor_state = actor_states.get(&subject_did);
             Some(AccountBlockingItem {
                 created_at: extract_created_at(&record.value),
-                profile: profiles.get(&subject_did).cloned(),
+                availability: actor_state
+                    .map(|state| state.availability)
+                    .unwrap_or(ActorAvailability::Unavailable),
+                profile: actor_state.and_then(|state| state.profile.clone()),
                 uri: record.uri,
                 cid: record.cid,
+                unavailable_reason: actor_state.and_then(|state| state.unavailable_reason),
+                unavailable_message: actor_state.and_then(|state| state.unavailable_message.clone()),
                 subject_did,
                 value: record.value,
             })
@@ -476,6 +494,47 @@ fn did_identifier(did: &str) -> Result<AtIdentifier<'static>> {
     Ok(AtIdentifier::Did(Did::new(did)?.into_static()))
 }
 
+#[derive(Debug, Clone)]
+struct ActorState {
+    availability: ActorAvailability,
+    profile: Option<Value>,
+    unavailable_reason: Option<ActorAvailabilityReason>,
+    unavailable_message: Option<String>,
+}
+
+async fn fetch_actor_states(dids: &[String]) -> Result<BTreeMap<String, ActorState>> {
+    let unique_dids = dedupe_preserve_order(dids.to_vec());
+    if unique_dids.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+
+    let profiles = fetch_profiles_map(&unique_dids).await?;
+    let mut states = profiles
+        .into_iter()
+        .map(|(did, profile)| {
+            (
+                did,
+                ActorState {
+                    availability: ActorAvailability::Available,
+                    profile: Some(profile),
+                    unavailable_reason: None,
+                    unavailable_message: None,
+                },
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+
+    for did in unique_dids {
+        if states.contains_key(&did) {
+            continue;
+        }
+
+        states.insert(did.clone(), fetch_missing_actor_state(&did).await);
+    }
+
+    Ok(states)
+}
+
 async fn fetch_profiles_map(dids: &[String]) -> Result<BTreeMap<String, Value>> {
     let unique_dids = dedupe_preserve_order(dids.to_vec());
     if unique_dids.is_empty() {
@@ -523,6 +582,69 @@ async fn fetch_profiles_map(dids: &[String]) -> Result<BTreeMap<String, Value>> 
     }
 
     Ok(profiles)
+}
+
+async fn fetch_missing_actor_state(did: &str) -> ActorState {
+    let actor = match did_identifier(did) {
+        Ok(actor) => actor,
+        Err(error) => {
+            log_missing_resource("profile", did, error);
+            return unavailable_actor_state(ActorAvailabilityReason::Unavailable);
+        }
+    };
+    let client = public_client();
+
+    let output = match client.send(GetProfile::new().actor(actor).build()).await {
+        Ok(output) => output,
+        Err(error) => {
+            log::warn!("failed to load missing actor profile for {did}: {error}");
+            return actor_state_from_error(&error);
+        }
+    };
+
+    match output.into_output() {
+        Ok(output) => match serde_json::to_value(output.value) {
+            Ok(profile) => ActorState {
+                availability: ActorAvailability::Available,
+                profile: Some(profile),
+                unavailable_reason: None,
+                unavailable_message: None,
+            },
+            Err(error) => {
+                log::warn!("failed to serialize actor profile for {did}: {error}");
+                unavailable_actor_state(ActorAvailabilityReason::Unavailable)
+            }
+        },
+        Err(error) => {
+            log::warn!("failed to decode actor profile for {did}: {error}");
+            actor_state_from_error(&error)
+        }
+    }
+}
+
+fn actor_state_from_error(error: &impl std::fmt::Display) -> ActorState {
+    unavailable_actor_state(classify_actor_unavailability(error).unwrap_or(ActorAvailabilityReason::Unavailable))
+}
+
+fn unavailable_actor_state(reason: ActorAvailabilityReason) -> ActorState {
+    ActorState {
+        availability: ActorAvailability::Unavailable,
+        profile: None,
+        unavailable_reason: Some(reason),
+        unavailable_message: Some(actor_unavailable_message(reason).to_string()),
+    }
+}
+
+fn build_did_profile_item(did: String, actor_state: Option<&ActorState>) -> DidProfileItem {
+    DidProfileItem {
+        availability: actor_state
+            .map(|state| state.availability)
+            .unwrap_or(ActorAvailability::Unavailable),
+        did,
+        profile: actor_state.and_then(|state| state.profile.clone()),
+        unavailable_reason: actor_state.and_then(|state| state.unavailable_reason),
+        unavailable_message: actor_state.and_then(|state| state.unavailable_message.clone()),
+    }
 }
 
 async fn fetch_lists(list_uris: &[String]) -> Result<Vec<Value>> {
@@ -649,6 +771,68 @@ async fn fetch_profiles_lookup(dids: &[String]) -> Result<HashMap<String, Value>
     Ok(fetch_profiles_map(dids).await?.into_iter().collect())
 }
 
+fn extract_blocker_dids(records: &[ConstellationLinkRecord]) -> Vec<String> {
+    dedupe_preserve_order(records.iter().map(|record| record.did.clone()).collect())
+}
+
+async fn confirm_blocked_by(actor_did: &str, candidate_dids: &[String]) -> Result<Vec<String>> {
+    if candidate_dids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let actor = did_identifier(actor_did)?;
+    let client = public_client();
+    let mut confirmed = BTreeSet::new();
+
+    for chunk in candidate_dids.chunks(PUBLIC_BATCH_LIMIT) {
+        let others = chunk
+            .iter()
+            .filter_map(|did| match did_identifier(did) {
+                Ok(actor) => Some(actor),
+                Err(error) => {
+                    log_missing_resource("relationship", did, error);
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        if others.is_empty() {
+            continue;
+        }
+
+        let output = client
+            .send(GetRelationships::new().actor(actor.clone()).others(others).build())
+            .await
+            .map_err(|error| AppError::diagnostics("Couldn't confirm who blocks this profile.", error))?
+            .into_output()
+            .map_err(|error| AppError::diagnostics("Couldn't read who blocks this profile.", error))?
+            .into_static();
+
+        for did in extract_confirmed_blocked_by_dids(&output.relationships) {
+            confirmed.insert(did);
+        }
+    }
+
+    Ok(candidate_dids
+        .iter()
+        .filter(|did| confirmed.contains(did.as_str()))
+        .cloned()
+        .collect())
+}
+
+fn extract_confirmed_blocked_by_dids(relationships: &[GetRelationshipsOutputRelationshipsItem<'_>]) -> Vec<String> {
+    relationships
+        .iter()
+        .filter_map(|relationship| match relationship {
+            GetRelationshipsOutputRelationshipsItem::Relationship(relationship)
+                if relationship.blocked_by.is_some() =>
+            {
+                Some(relationship.did.to_string())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 fn extract_subject_did(value: &Value) -> Option<String> {
     value.get("subject").and_then(Value::as_str).map(str::to_string)
 }
@@ -659,7 +843,13 @@ fn extract_created_at(value: &Value) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{dedupe_preserve_order, extract_created_at, extract_subject_did, should_skip_missing_resource};
+    use super::{
+        dedupe_preserve_order, extract_blocker_dids, extract_confirmed_blocked_by_dids, extract_created_at,
+        extract_subject_did, should_skip_missing_resource,
+    };
+    use crate::constellation::ConstellationLinkRecord;
+    use jacquard::api::app_bsky::graph::{get_relationships::GetRelationshipsOutputRelationshipsItem, Relationship};
+    use jacquard::types::{aturi::AtUri, did::Did};
     use serde_json::json;
 
     #[test]
@@ -690,5 +880,53 @@ mod tests {
         ));
         assert!(should_skip_missing_resource(&"repo not found"));
         assert!(!should_skip_missing_resource(&"rate limit exceeded"));
+    }
+
+    #[test]
+    fn extract_blocker_dids_preserves_order_and_dedupes() {
+        let records = vec![
+            ConstellationLinkRecord {
+                did: "did:plc:one".to_string(),
+                collection: "app.bsky.graph.block".to_string(),
+                rkey: "1".to_string(),
+            },
+            ConstellationLinkRecord {
+                did: "did:plc:two".to_string(),
+                collection: "app.bsky.graph.block".to_string(),
+                rkey: "2".to_string(),
+            },
+            ConstellationLinkRecord {
+                did: "did:plc:one".to_string(),
+                collection: "app.bsky.graph.block".to_string(),
+                rkey: "3".to_string(),
+            },
+        ];
+
+        assert_eq!(
+            extract_blocker_dids(&records),
+            vec!["did:plc:one".to_string(), "did:plc:two".to_string()]
+        );
+    }
+
+    #[test]
+    fn extracts_only_confirmed_blocked_by_relationships() {
+        let relationships = vec![
+            GetRelationshipsOutputRelationshipsItem::Relationship(Box::new(
+                Relationship::new()
+                    .did(Did::new("did:plc:one").expect("did should parse"))
+                    .blocked_by(AtUri::new("at://did:plc:one/app.bsky.graph.block/1").expect("uri should parse"))
+                    .build(),
+            )),
+            GetRelationshipsOutputRelationshipsItem::Relationship(Box::new(
+                Relationship::new()
+                    .did(Did::new("did:plc:two").expect("did should parse"))
+                    .build(),
+            )),
+        ];
+
+        assert_eq!(
+            extract_confirmed_blocked_by_dids(&relationships),
+            vec!["did:plc:one".to_string()]
+        );
     }
 }
