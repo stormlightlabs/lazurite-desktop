@@ -46,3 +46,8 @@ pub async fn get_lexicon_favicons(
 ) -> Result<HashMap<String, Option<String>>, AppError> {
     explorer::get_lexicon_favicons(collections, &app).await
 }
+
+#[tauri::command]
+pub async fn clear_lexicon_favicon_cache(app: AppHandle) -> Result<(), AppError> {
+    explorer::clear_lexicon_favicon_cache(&app)
+}

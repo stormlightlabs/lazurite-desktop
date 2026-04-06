@@ -8,10 +8,12 @@ type ExplorerUrlBarProps = {
   canGoBack: boolean;
   canGoForward: boolean;
   canExport: boolean;
+  clearingIconCache: boolean;
   onInput: (value: string) => void;
   onSubmit: (value: string) => void;
   onBack: () => void;
   onForward: () => void;
+  onClearIconCache: () => void;
   onExport: () => void;
 };
 
@@ -157,6 +159,15 @@ export function ExplorerUrlBar(props: ExplorerUrlBarProps) {
           aria-label="Reload"
           title="Reload">
           <Icon kind="refresh" />
+        </button>
+
+        <button
+          onClick={() => props.onClearIconCache()}
+          disabled={props.clearingIconCache}
+          class="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all disabled:cursor-not-allowed disabled:opacity-30"
+          aria-label="Clear icon cache"
+          title="Clear icon cache">
+          <Icon iconClass={props.clearingIconCache ? "i-ri-loader-4-line" : "i-ri-delete-bin-6-line"} />
         </button>
 
         <button

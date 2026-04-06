@@ -1,4 +1,5 @@
 import {
+  clearLexiconFaviconCache,
   describeRepo,
   describeServer,
   exportRepoCar,
@@ -74,6 +75,7 @@ function hasCachedLexiconIcon(icons: Record<string, string | null>, collection: 
 
 export function ExplorerPanel() {
   const explorer = createExplorerState();
+  const [clearingIconCache, setClearingIconCache] = createSignal(false);
   const [statusMessage, setStatusMessage] = createSignal<{ kind: "error" | "success"; text: string } | null>(null);
   let resolveRequestId = 0;
 
@@ -100,10 +102,10 @@ export function ExplorerPanel() {
     }));
   }
 
-  async function hydrateLexiconIcons(collections: string[]) {
+  async function hydrateLexiconIcons(collections: string[], options?: { force?: boolean }) {
     const pendingCollections = [...new Set(collections)].filter((collection) => collection.trim().length > 0).filter((
       collection,
-    ) => !hasCachedLexiconIcon(explorer.state.lexiconIcons, collection));
+    ) => options?.force || !hasCachedLexiconIcon(explorer.state.lexiconIcons, collection));
 
     if (pendingCollections.length === 0) {
       return;
@@ -117,6 +119,27 @@ export function ExplorerPanel() {
         keyValues: { collections: pendingCollections.join(","), error: String(error) },
       });
     }
+  }
+
+  function currentLexiconCollections(): string[] {
+    const current = explorer.state.current;
+    if (!current) {
+      return [];
+    }
+
+    if (current.repoData) {
+      return current.repoData.collections.map((collection) => collection.nsid);
+    }
+
+    if (current.collectionData) {
+      return [current.collectionData.collection];
+    }
+
+    if (current.resolved?.collection) {
+      return [current.resolved.collection];
+    }
+
+    return [];
   }
 
   async function handleResolveInput(input: string) {
@@ -344,6 +367,30 @@ export function ExplorerPanel() {
     }
   }
 
+  async function handleClearIconCache() {
+    if (clearingIconCache()) {
+      return;
+    }
+
+    setClearingIconCache(true);
+    setStatusMessage(null);
+
+    try {
+      await clearLexiconFaviconCache();
+      explorer.resetLexiconIcons();
+      setStatusMessage({ kind: "success", text: "Cleared explorer icon cache." });
+
+      const collections = currentLexiconCollections();
+      if (collections.length > 0) {
+        await hydrateLexiconIcons(collections, { force: true });
+      }
+    } catch (error) {
+      setStatusMessage({ kind: "error", text: String(error) });
+    } finally {
+      setClearingIconCache(false);
+    }
+  }
+
   function handleRepoClick(did: string) {
     void handleResolveInput(`at://${did}`);
   }
@@ -419,10 +466,12 @@ export function ExplorerPanel() {
         canGoBack={canGoBack()}
         canGoForward={canGoForward()}
         canExport={canExport()}
+        clearingIconCache={clearingIconCache()}
         onInput={explorer.setInputValue}
         onSubmit={handleResolveInput}
         onBack={handleBack}
         onForward={handleForward}
+        onClearIconCache={handleClearIconCache}
         onExport={handleExport} />
 
       <Show when={breadcrumb().length > 0}>

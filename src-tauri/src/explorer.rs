@@ -32,7 +32,7 @@ pub const EXPLORER_NAVIGATION_EVENT: &str = "navigation:explorer-resolved";
 const PDS_REPO_LIST_LIMIT: i64 = 100;
 const QUERY_LABELS_LIMIT: i64 = 100;
 const FAVICON_FETCH_TIMEOUT: Duration = Duration::from_secs(2);
-const LEXICON_FAVICON_HOST_OVERRIDES: &[(&str, &str)] = &[("sh.tangled.", "tangled.org")];
+const LEXICON_FAVICON_HOST_OVERRIDES: &[(&str, &str)] = &[("sh.tangled.", "tangled.org"), ("chat.bsky.", "bsky.app")];
 
 type ExplorerClient = Agent<UnauthenticatedSession<JacquardResolver>>;
 
@@ -278,6 +278,11 @@ pub async fn get_lexicon_favicons(
     }
 
     Ok(icons)
+}
+
+pub fn clear_lexicon_favicon_cache(app: &AppHandle) -> Result<()> {
+    let cache_dir = resolve_favicon_cache_dir(app)?;
+    clear_favicon_cache_dir(&cache_dir)
 }
 
 pub async fn emit_explorer_navigation(app: &AppHandle, raw: &str) -> Result<()> {
@@ -564,6 +569,15 @@ fn resolve_favicon_cache_dir(app: &AppHandle) -> Result<PathBuf> {
     cache_dir.push("explorer");
     cache_dir.push("favicons");
     Ok(cache_dir)
+}
+
+fn clear_favicon_cache_dir(cache_dir: &std::path::Path) -> Result<()> {
+    if !cache_dir.exists() {
+        return Ok(());
+    }
+
+    std::fs::remove_dir_all(cache_dir)?;
+    Ok(())
 }
 
 async fn resolve_lexicon_favicon_data_url(
@@ -944,8 +958,8 @@ fn sanitize_did_for_filename(did: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_resolved_at_uri, canonical_at_uri, detect_favicon_mime, detect_input_kind, extract_favicon_urls,
-        extract_html_attribute, lexicon_favicon_hosts, normalize_handle, normalize_pds_url,
+        build_resolved_at_uri, canonical_at_uri, clear_favicon_cache_dir, detect_favicon_mime, detect_input_kind,
+        extract_favicon_urls, extract_html_attribute, lexicon_favicon_hosts, normalize_handle, normalize_pds_url,
         read_cached_favicon_data_url, rel_indicates_favicon, repo_car_filename, repo_metadata_from_did_doc,
         resolve_html_base_url, resolve_lexicon_favicon_data_url, sanitize_did_for_filename, write_cached_favicon,
         CachedFavicon, ExplorerInputKind, ExplorerTargetKind,
@@ -1178,6 +1192,17 @@ mod tests {
             .expect("client should build");
 
         assert!(super::fetch_host_favicon(&client, "127.0.0.1:9").await.is_none());
+    }
+
+    #[test]
+    fn clears_favicon_cache_directory_contents() {
+        let cache_dir = create_temp_cache_dir();
+        fs::write(cache_dir.join("icon.bin"), [1_u8, 2_u8, 3_u8]).expect("test cache file should be written");
+        fs::write(cache_dir.join("icon.mime"), "image/png").expect("test cache mime should be written");
+
+        clear_favicon_cache_dir(&cache_dir).expect("cache directory should clear");
+
+        assert!(!cache_dir.exists());
     }
 
     #[test]

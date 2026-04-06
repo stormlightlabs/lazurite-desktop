@@ -5,6 +5,7 @@ import { ExplorerPanel } from "./ExplorerPanel";
 const describeRepoMock = vi.hoisted(() => vi.fn());
 const describeServerMock = vi.hoisted(() => vi.fn());
 const exportRepoCarMock = vi.hoisted(() => vi.fn());
+const clearLexiconFaviconCacheMock = vi.hoisted(() => vi.fn());
 const getLexiconFaviconsMock = vi.hoisted(() => vi.fn());
 const getRecordMock = vi.hoisted(() => vi.fn());
 const getRecordBacklinksMock = vi.hoisted(() => vi.fn());
@@ -20,6 +21,7 @@ vi.mock(
     describeRepo: describeRepoMock,
     describeServer: describeServerMock,
     exportRepoCar: exportRepoCarMock,
+    clearLexiconFaviconCache: clearLexiconFaviconCacheMock,
     getLexiconFavicons: getLexiconFaviconsMock,
     getRecord: getRecordMock,
     listRecords: listRecordsMock,
@@ -41,6 +43,7 @@ describe("ExplorerPanel", () => {
     describeRepoMock.mockReset();
     describeServerMock.mockReset();
     exportRepoCarMock.mockReset();
+    clearLexiconFaviconCacheMock.mockReset();
     getLexiconFaviconsMock.mockReset();
     getRecordMock.mockReset();
     getRecordBacklinksMock.mockReset();
@@ -51,6 +54,7 @@ describe("ExplorerPanel", () => {
     listenMock.mockReset();
 
     exportRepoCarMock.mockResolvedValue({ did: "did:plc:alice", path: "/tmp/alice.car", bytesWritten: 64 });
+    clearLexiconFaviconCacheMock.mockResolvedValue(undefined);
     getLexiconFaviconsMock.mockResolvedValue({});
     getProfileMock.mockResolvedValue({
       status: "available",
@@ -277,5 +281,37 @@ describe("ExplorerPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /app\.bsky\.feed\.post/u }));
 
     expect(await screen.findAllByAltText("app.bsky.feed.post favicon")).not.toHaveLength(0);
+  });
+
+  it("clears and rehydrates the explorer icon cache for the current repo view", async () => {
+    resolveInputMock.mockResolvedValue({
+      input: "@alice.test",
+      inputKind: "handle",
+      targetKind: "repo",
+      normalizedInput: "did:plc:alice",
+      uri: "at://did:plc:alice",
+      did: "did:plc:alice",
+      handle: "alice.test",
+      pdsUrl: "https://pds.example.com",
+      collection: null,
+      rkey: null,
+    });
+    describeRepoMock.mockResolvedValue({ collections: ["sh.tangled.feed.star"] });
+    getLexiconFaviconsMock.mockResolvedValue({ "sh.tangled.feed.star": null });
+
+    renderPanel();
+
+    const input = screen.getByPlaceholderText(/at:\/\/did:\.\.\. or @handle or https:\/\/pds/u);
+    fireEvent.input(input, { target: { value: "@alice.test" } });
+    fireEvent.submit(input.closest("form")!);
+
+    expect(await screen.findByRole("button", { name: /sh\.tangled\.feed\.star/u })).toBeInTheDocument();
+    await waitFor(() => expect(getLexiconFaviconsMock).toHaveBeenCalledWith(["sh.tangled.feed.star"]));
+
+    fireEvent.click(screen.getByRole("button", { name: /clear icon cache/i }));
+
+    await waitFor(() => expect(clearLexiconFaviconCacheMock).toHaveBeenCalledOnce());
+    await waitFor(() => expect(getLexiconFaviconsMock).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Cleared explorer icon cache.")).toBeInTheDocument();
   });
 });

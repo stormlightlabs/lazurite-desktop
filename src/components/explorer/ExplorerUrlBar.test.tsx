@@ -22,10 +22,12 @@ describe("ExplorerUrlBar", () => {
         canGoBack={false}
         canGoForward={false}
         canExport={false}
+        clearingIconCache={false}
         onInput={onInput}
         onSubmit={onSubmit}
         onBack={() => {}}
         onForward={() => {}}
+        onClearIconCache={() => {}}
         onExport={() => {}} />
     ));
 
@@ -44,10 +46,12 @@ describe("ExplorerUrlBar", () => {
         canGoBack={false}
         canGoForward={false}
         canExport={false}
+        clearingIconCache={false}
         onInput={onInput}
         onSubmit={onSubmit}
         onBack={() => {}}
         onForward={() => {}}
+        onClearIconCache={() => {}}
         onExport={() => {}} />
     ));
 
@@ -65,10 +69,12 @@ describe("ExplorerUrlBar", () => {
         canGoBack={false}
         canGoForward={false}
         canExport={false}
+        clearingIconCache={false}
         onInput={onInput}
         onSubmit={onSubmit}
         onBack={() => {}}
         onForward={() => {}}
+        onClearIconCache={() => {}}
         onExport={() => {}} />
     ));
 
@@ -90,10 +96,12 @@ describe("ExplorerUrlBar", () => {
         canGoBack={false}
         canGoForward={false}
         canExport={false}
+        clearingIconCache={false}
         onInput={onInput}
         onSubmit={onSubmit}
         onBack={() => {}}
         onForward={() => {}}
+        onClearIconCache={() => {}}
         onExport={() => {}} />
     ));
 
@@ -103,5 +111,28 @@ describe("ExplorerUrlBar", () => {
     fireEvent.click(await screen.findByRole("option", { name: /alice\.test/u }));
 
     expect(onSubmit).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders a clear icon cache control", () => {
+    const onClearIconCache = vi.fn();
+
+    render(() => (
+      <ExplorerUrlBar
+        value=""
+        canGoBack={false}
+        canGoForward={false}
+        canExport={false}
+        clearingIconCache={false}
+        onInput={() => {}}
+        onSubmit={() => {}}
+        onBack={() => {}}
+        onForward={() => {}}
+        onClearIconCache={onClearIconCache}
+        onExport={() => {}} />
+    ));
+
+    fireEvent.click(screen.getByRole("button", { name: /clear icon cache/i }));
+
+    expect(onClearIconCache).toHaveBeenCalledOnce();
   });
 });

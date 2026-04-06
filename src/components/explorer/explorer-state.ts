@@ -73,6 +73,10 @@ export function createExplorerState() {
     setState("lexiconIcons", (current) => ({ ...current, ...icons }));
   }
 
+  function resetLexiconIcons() {
+    setState("lexiconIcons", {});
+  }
+
   function getBreadcrumb(): Array<{ label: string; level: ExplorerTargetKind; active: boolean }> {
     const current = state.current;
     if (!current || !current.resolved) return [];
@@ -121,6 +125,7 @@ export function createExplorerState() {
     canGoBack,
     canGoForward,
     mergeLexiconIcons,
+    resetLexiconIcons,
     getBreadcrumb,
   };
 }

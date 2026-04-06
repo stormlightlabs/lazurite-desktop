@@ -32,3 +32,7 @@ export async function queryLabels(uri: string): Promise<Record<string, unknown>>
 export async function getLexiconFavicons(collections: string[]): Promise<Record<string, string | null>> {
   return invoke("get_lexicon_favicons", { collections });
 }
+
+export async function clearLexiconFaviconCache(): Promise<void> {
+  return invoke("clear_lexicon_favicon_cache");
+}
