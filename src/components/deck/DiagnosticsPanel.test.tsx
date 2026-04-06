@@ -43,13 +43,13 @@ describe("DiagnosticsPanel", () => {
       lists: [{
         description: "Builders and product people.",
         memberCount: 12,
-        purpose: "curate",
+        purpose: "app.bsky.graph.defs#curatelist",
         title: "Builders",
         creator: { handle: "mira.test" },
       }, {
         description: "Moderation boundary set.",
         listItemCount: 5,
-        purpose: "modlist",
+        purpose: "app.bsky.graph.defs#modlist",
         title: "Safety",
         creator: { handle: "safety.test" },
       }],

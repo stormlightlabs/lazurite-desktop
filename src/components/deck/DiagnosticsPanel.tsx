@@ -107,19 +107,36 @@ function createIdleState(): DiagnosticsState {
 }
 
 function purposeLabel(purpose: string | null | undefined) {
-  switch ((purpose || "").toLowerCase()) {
+  const normalized = (purpose || "").toLowerCase();
+
+  switch (normalized) {
+    case "app.bsky.graph.defs#curatelist":
     case "curate":
     case "curation": {
       return "Curation";
     }
+    case "app.bsky.graph.defs#modlist":
     case "modlist":
     case "moderation": {
       return "Moderation";
     }
+    case "app.bsky.graph.defs#referencelist":
     case "reference": {
       return "Reference";
     }
     default: {
+      if (normalized.endsWith("#curatelist")) {
+        return "Curation";
+      }
+
+      if (normalized.endsWith("#modlist")) {
+        return "Moderation";
+      }
+
+      if (normalized.endsWith("#referencelist")) {
+        return "Reference";
+      }
+
       return "Other";
     }
   }
@@ -495,7 +512,7 @@ function DiagnosticsListsTab(
     <section class="grid gap-3">
       <DiagnosticsTabIntro
         title="Lists"
-        description="Lists are ordinary social structure. Purpose, owner context, and membership stay visible without scoring or judgment." />
+        description="Lists are collections of users and can be used for moderation or curation." />
       <Switch
         fallback={
           <div class="grid gap-4">
