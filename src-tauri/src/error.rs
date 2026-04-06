@@ -2,6 +2,28 @@ use tauri_plugin_log::log;
 
 pub type Result<T> = std::result::Result<T, AppError>;
 
+fn log_chain_with_level(level: log::Level, context: &str, error: &impl std::error::Error) {
+    log::log!(level, "{context}: {error}");
+    log::log!(level, "{context} debug: {error:?}");
+
+    let mut source = error.source();
+    let mut depth = 0;
+
+    while let Some(cause) = source {
+        depth += 1;
+        log::log!(level, "{context} cause[{depth}]: {cause}");
+        source = cause.source();
+    }
+}
+
+pub fn log_error_chain(context: &str, error: &impl std::error::Error) {
+    log_chain_with_level(log::Level::Error, context, error);
+}
+
+pub fn log_warn_chain(context: &str, error: &impl std::error::Error) {
+    log_chain_with_level(log::Level::Warn, context, error);
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeaheadFetchErrorKind {
     Decode,

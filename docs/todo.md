@@ -39,3 +39,8 @@ updated: 2026-03-31
 - [ ] Network relationship diff over time (requires historical snapshots)
 - [ ] Profile/identity history timeline (handle/DID/PDS changes)
 - [ ] Starter Pack search?
+
+## Release Readiness
+
+- [ ] Composer UI should be vertically centered (in the full window) with a more padding
+  in the input area. The backdrop needs a lower opacity as well.

@@ -1,5 +1,5 @@
 use super::auth::LazuriteOAuthSession;
-use super::error::{AppError, Result};
+use super::error::{log_error_chain, log_warn_chain, AppError, Result};
 use super::settings::{self, AppSettings};
 use super::state::AppState;
 use jacquard::api::app_bsky::notification::get_unread_count::GetUnreadCount;
@@ -76,12 +76,12 @@ pub async fn list_notifications(cursor: Option<String>, state: &AppState) -> Res
         .send(req.build())
         .await
         .map_err(|error| {
-            log::error!("listNotifications error: {error}");
+            log_error_chain("listNotifications error", &error);
             AppError::validation("listNotifications error")
         })?
         .into_output()
         .map_err(|error| {
-            log::error!("listNotifications output error: {error}");
+            log_error_chain("listNotifications output error", &error);
             AppError::validation("listNotifications output error")
         })?;
 
@@ -95,7 +95,7 @@ pub async fn update_seen(state: &AppState) -> Result<()> {
         .send(UpdateSeen::new().seen_at(Datetime::now()).build())
         .await
         .map_err(|error| {
-            log::error!("updateSeen error: {error}");
+            log_error_chain("updateSeen error", &error);
             AppError::validation("updateSeen error")
         })?;
 
@@ -104,7 +104,7 @@ pub async fn update_seen(state: &AppState) -> Result<()> {
     }
 
     response.into_output().map_err(|error| {
-        log::error!("updateSeen output error: {error}");
+        log_error_chain("updateSeen output error", &error);
         AppError::validation("updateSeen output error")
     })?;
 
@@ -118,13 +118,13 @@ pub async fn get_unread_count(state: &AppState) -> Result<i64> {
         .send(GetUnreadCount::new().build())
         .await
         .map_err(|error| {
-            log::error!("getUnreadCount error: {error}");
-            AppError::validation("getUnreadCount error")
+            log_warn_chain("getUnreadCount error", &error);
+            AppError::Validation("getUnreadCount error".into())
         })?
         .into_output()
         .map_err(|error| {
-            log::error!("getUnreadCount output error: {error}");
-            AppError::validation("getUnreadCount output error")
+            log_warn_chain("getUnreadCount output error", &error);
+            AppError::Validation("getUnreadCount output error".into())
         })?;
 
     Ok(output.count)
