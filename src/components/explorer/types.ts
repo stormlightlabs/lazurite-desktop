@@ -49,6 +49,7 @@ export type ExplorerState = {
   current: ExplorerViewState | null;
   history: ExplorerViewState[];
   historyIndex: number;
+  lexiconIcons: Record<string, string | null>;
 };
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };

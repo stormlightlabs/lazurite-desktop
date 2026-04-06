@@ -145,7 +145,7 @@ export function ActorSuggestionList(
       <div
         id={props.id}
         role="listbox"
-        class="absolute inset-x-0 top-[calc(100%+0.7rem)] z-10 rounded-3xl bg-(--surface-container-highest) p-2.5 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px]">
+        class="absolute inset-x-0 top-[calc(100%+0.7rem)] z-10 rounded-3xl bg-surface-container-highest p-2.5 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px]">
         <p class="px-2 pb-2 text-[0.68rem] uppercase tracking-[0.12em] text-on-surface-variant">{props.title}</p>
         <div class="grid gap-1.5">
           <For each={props.suggestions}>

@@ -5,6 +5,7 @@ import { ExplorerPanel } from "./ExplorerPanel";
 const describeRepoMock = vi.hoisted(() => vi.fn());
 const describeServerMock = vi.hoisted(() => vi.fn());
 const exportRepoCarMock = vi.hoisted(() => vi.fn());
+const getLexiconFaviconsMock = vi.hoisted(() => vi.fn());
 const getRecordMock = vi.hoisted(() => vi.fn());
 const getRecordBacklinksMock = vi.hoisted(() => vi.fn());
 const getProfileMock = vi.hoisted(() => vi.fn());
@@ -19,6 +20,7 @@ vi.mock(
     describeRepo: describeRepoMock,
     describeServer: describeServerMock,
     exportRepoCar: exportRepoCarMock,
+    getLexiconFavicons: getLexiconFaviconsMock,
     getRecord: getRecordMock,
     listRecords: listRecordsMock,
     queryLabels: queryLabelsMock,
@@ -39,6 +41,7 @@ describe("ExplorerPanel", () => {
     describeRepoMock.mockReset();
     describeServerMock.mockReset();
     exportRepoCarMock.mockReset();
+    getLexiconFaviconsMock.mockReset();
     getRecordMock.mockReset();
     getRecordBacklinksMock.mockReset();
     getProfileMock.mockReset();
@@ -48,11 +51,10 @@ describe("ExplorerPanel", () => {
     listenMock.mockReset();
 
     exportRepoCarMock.mockResolvedValue({ did: "did:plc:alice", path: "/tmp/alice.car", bytesWritten: 64 });
+    getLexiconFaviconsMock.mockResolvedValue({});
     getProfileMock.mockResolvedValue({
-      did: "did:plc:alice",
-      handle: "alice.test",
-      followersCount: 28,
-      followsCount: 14,
+      status: "available",
+      profile: { did: "did:plc:alice", handle: "alice.test", followersCount: 28, followsCount: 14 },
     });
     getRecordBacklinksMock.mockResolvedValue({
       likes: { cursor: null, records: [], total: 3 },
@@ -93,6 +95,17 @@ describe("ExplorerPanel", () => {
     expect(screen.getByText("14")).toBeInTheDocument();
     expect(screen.queryByText("0 records")).not.toBeInTheDocument();
     expect(screen.queryByText("Count unavailable")).not.toBeInTheDocument();
+  });
+
+  it("renders the initial empty state and submits example chips", async () => {
+    resolveInputMock.mockRejectedValueOnce(new Error("network unavailable"));
+
+    renderPanel();
+
+    expect(screen.getByText("Start from a handle, DID, URI, or PDS.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /@alice\.bsky\.social/u }));
+
+    await waitFor(() => expect(resolveInputMock).toHaveBeenCalledWith("@alice.bsky.social"));
   });
 
   it("loads additional collection pages", async () => {
@@ -223,5 +236,46 @@ describe("ExplorerPanel", () => {
     expect(await screen.findByText("Backlinks")).toBeInTheDocument();
     expect(await screen.findByText("3 records")).toBeInTheDocument();
     expect(screen.getByText("4 records")).toBeInTheDocument();
+  });
+
+  it("renders lexicon favicons in repo and collection views when available", async () => {
+    resolveInputMock.mockResolvedValueOnce({
+      input: "@alice.test",
+      inputKind: "handle",
+      targetKind: "repo",
+      normalizedInput: "did:plc:alice",
+      uri: "at://did:plc:alice",
+      did: "did:plc:alice",
+      handle: "alice.test",
+      pdsUrl: "https://pds.example.com",
+      collection: null,
+      rkey: null,
+    }).mockResolvedValueOnce({
+      input: "at://did:plc:alice/app.bsky.feed.post",
+      inputKind: "atUri",
+      targetKind: "collection",
+      normalizedInput: "at://did:plc:alice/app.bsky.feed.post",
+      uri: "at://did:plc:alice/app.bsky.feed.post",
+      did: "did:plc:alice",
+      handle: "alice.test",
+      pdsUrl: "https://pds.example.com",
+      collection: "app.bsky.feed.post",
+      rkey: null,
+    });
+    describeRepoMock.mockResolvedValue({ collections: ["app.bsky.feed.post"] });
+    listRecordsMock.mockResolvedValue({ cursor: null, records: [] });
+    getLexiconFaviconsMock.mockResolvedValue({ "app.bsky.feed.post": "data:image/png;base64,Zm9v" });
+
+    renderPanel();
+
+    const input = screen.getByPlaceholderText(/at:\/\/did:\.\.\. or @handle or https:\/\/pds/u);
+    fireEvent.input(input, { target: { value: "@alice.test" } });
+    fireEvent.submit(input.closest("form")!);
+
+    expect(await screen.findByAltText("app.bsky.feed.post favicon")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /app\.bsky\.feed\.post/u }));
+
+    expect(await screen.findAllByAltText("app.bsky.feed.post favicon")).not.toHaveLength(0);
   });
 });

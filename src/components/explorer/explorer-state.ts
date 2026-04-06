@@ -8,6 +8,7 @@ export function createExplorerState() {
     current: null,
     history: [],
     historyIndex: -1,
+    lexiconIcons: {},
   });
 
   function setInputValue(value: string) {
@@ -68,6 +69,10 @@ export function createExplorerState() {
     return state.historyIndex < state.history.length - 1;
   }
 
+  function mergeLexiconIcons(icons: Record<string, string | null>) {
+    setState("lexiconIcons", (current) => ({ ...current, ...icons }));
+  }
+
   function getBreadcrumb(): Array<{ label: string; level: ExplorerTargetKind; active: boolean }> {
     const current = state.current;
     if (!current || !current.resolved) return [];
@@ -105,7 +110,19 @@ export function createExplorerState() {
     return crumbs;
   }
 
-  return { state, setState, setInputValue, pushView, goBack, goForward, goUp, canGoBack, canGoForward, getBreadcrumb };
+  return {
+    state,
+    setState,
+    setInputValue,
+    pushView,
+    goBack,
+    goForward,
+    goUp,
+    canGoBack,
+    canGoForward,
+    mergeLexiconIcons,
+    getBreadcrumb,
+  };
 }
 
 export type ExplorerStore = ReturnType<typeof createExplorerState>;

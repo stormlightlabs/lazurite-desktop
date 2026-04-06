@@ -1,5 +1,6 @@
 use crate::error::AppError;
 use crate::explorer;
+use std::collections::HashMap;
 use tauri::AppHandle;
 
 #[tauri::command]
@@ -37,4 +38,11 @@ pub async fn export_repo_car(did: String, app: AppHandle) -> Result<explorer::Re
 #[tauri::command]
 pub async fn query_labels(uri: String) -> Result<serde_json::Value, AppError> {
     explorer::query_labels(uri).await
+}
+
+#[tauri::command]
+pub async fn get_lexicon_favicons(
+    collections: Vec<String>, app: AppHandle,
+) -> Result<HashMap<String, Option<String>>, AppError> {
+    explorer::get_lexicon_favicons(collections, &app).await
 }

@@ -1,9 +1,11 @@
-import { ArrowIcon, Icon } from "$/components/shared/Icon";
+import { LexiconIcon } from "$/components/explorer/LexiconIcon";
+import { ArrowIcon } from "$/components/shared/Icon";
 import { For, Show } from "solid-js";
 
 interface CollectionViewProps {
   did: string;
   collection: string;
+  lexiconIcon: string | null;
   records: Array<Record<string, unknown>>;
   cursor: string | null;
   loadingMore: boolean;
@@ -34,9 +36,7 @@ export function CollectionView(props: CollectionViewProps) {
     <div class="grid gap-6">
       <section class="rounded-2xl border border-white/5 p-6">
         <div class="flex items-center gap-3 mb-4">
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/15">
-            <Icon kind="folder" class="text-primary text-xl" />
-          </div>
+          <LexiconIcon class="h-12 w-12" src={props.lexiconIcon} title={props.collection} />
           <div>
             <h1 class="text-lg font-medium">{collectionName()}</h1>
             <p class="text-xs font-mono text-on-surface-variant">{props.collection}</p>

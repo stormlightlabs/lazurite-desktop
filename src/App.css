@@ -10,6 +10,7 @@
   --color-surface: var(--surface);
   --color-surface-container: var(--surface-container);
   --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
   --color-surface-bright: var(--surface-bright);
   --color-primary: var(--primary);
   --color-on-primary-fixed: var(--on-primary-fixed);
@@ -26,7 +27,7 @@
   --surface: #0e0e0e;
   --surface-container: #191919;
   --surface-container-high: #1f1f1f;
-  --surface-container-highest: rgba(36, 36, 36, 0.7);
+  --surface-container-highest: rgb(36, 36, 36);
   --surface-bright: rgba(255, 255, 255, 0.05);
   --primary: #7dafff;
   --primary-dim: #0073de;
@@ -45,7 +46,7 @@
     --surface: #ffffff;
     --surface-container: #ebeffb;
     --surface-container-high: #e1e8fa;
-    --surface-container-highest: rgba(234, 241, 255, 0.72);
+    --surface-container-highest: rgb(234, 241, 255);
     --surface-bright: rgba(24, 37, 66, 0.07);
     --on-surface: #0f1523;
     --on-surface-variant: #4e5e7e;

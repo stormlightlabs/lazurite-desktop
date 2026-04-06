@@ -114,6 +114,7 @@ pub fn run() {
             cmd::explorer::get_record,
             cmd::explorer::export_repo_car,
             cmd::explorer::query_labels,
+            cmd::explorer::get_lexicon_favicons,
             cmd::search::search_posts_network,
             cmd::search::search_posts,
             cmd::search::search_actors,

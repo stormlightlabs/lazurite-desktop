@@ -28,3 +28,7 @@ export async function exportRepoCar(did: string): Promise<RepoCarExport> {
 export async function queryLabels(uri: string): Promise<Record<string, unknown>> {
   return invoke("query_labels", { uri });
 }
+
+export async function getLexiconFavicons(collections: string[]): Promise<Record<string, string | null>> {
+  return invoke("get_lexicon_favicons", { collections });
+}

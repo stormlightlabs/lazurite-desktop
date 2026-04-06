@@ -1,3 +1,4 @@
+import { LexiconIcon } from "$/components/explorer/LexiconIcon";
 import { ArrowIcon, Icon } from "$/components/shared/Icon";
 import { For, Show } from "solid-js";
 
@@ -5,6 +6,7 @@ type RepoViewProps = {
   collections: Array<{ nsid: string }>;
   did: string;
   handle: string;
+  lexiconIcons: Record<string, string | null>;
   onCollectionClick: (collection: string) => void;
   onPdsClick: () => void;
   pdsUrl: string | null;
@@ -76,7 +78,10 @@ export function RepoView(props: RepoViewProps) {
                 onClick={() => props.onCollectionClick(collection.nsid)}
                 class="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-white/5">
                 <div class="flex items-center gap-3">
-                  <Icon kind="folder" class="text-on-surface-variant" />
+                  <LexiconIcon
+                    class="h-10 w-10"
+                    src={props.lexiconIcons[collection.nsid] ?? null}
+                    title={collection.nsid} />
                   <span class="text-sm">{collection.nsid}</span>
                 </div>
                 <ArrowIcon direction="right" class="text-on-surface-variant" />

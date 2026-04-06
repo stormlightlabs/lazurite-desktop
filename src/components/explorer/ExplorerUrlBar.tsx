@@ -1,4 +1,7 @@
+import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/actor-search";
 import { ArrowIcon, Icon } from "$/components/shared/Icon";
+import type { LoginSuggestion } from "$/lib/types";
+import { createEffect, createSignal, Show } from "solid-js";
 
 type ExplorerUrlBarProps = {
   value: string;
@@ -26,28 +29,113 @@ function NavButton(props: { direction: "left" | "right"; disabled: boolean; onCl
 }
 
 function UrlInputForm(props: { value: string; onInput: (value: string) => void; onSubmit: (value: string) => void }) {
+  let container: HTMLFormElement | undefined;
+  let input: HTMLInputElement | undefined;
+  const [focused, setFocused] = createSignal(false);
+  const typeahead = useActorSuggestions({
+    container: () => container,
+    disabled: () => !props.value.trim().startsWith("@"),
+    input: () => input,
+    value: () => props.value,
+  });
+
+  createEffect(() => {
+    if (focused() && typeahead.suggestions().length > 0 && props.value.trim().startsWith("@")) {
+      typeahead.focus();
+    }
+  });
+
   function handleSubmit(event: Event) {
     event.preventDefault();
     props.onSubmit(props.value);
   }
 
+  function applySuggestion(suggestion: LoginSuggestion) {
+    const nextValue = suggestion.handle.startsWith("@") ? suggestion.handle : `@${suggestion.handle}`;
+    props.onInput(nextValue);
+    typeahead.close();
+    props.onSubmit(nextValue);
+    input?.focus();
+  }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      typeahead.moveActiveIndex(1);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      typeahead.moveActiveIndex(-1);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      typeahead.close();
+      return;
+    }
+
+    if (event.key === "Enter" && typeahead.open() && typeahead.activeSuggestion()) {
+      event.preventDefault();
+      applySuggestion(typeahead.activeSuggestion() as LoginSuggestion);
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit} class="flex-1 relative">
+    <form
+      ref={(element) => {
+        container = element;
+      }}
+      onSubmit={handleSubmit}
+      class="flex-1 relative">
       <div class="flex items-center gap-3 px-4 py-2 rounded-xl bg-black/40 shadow-[inset_0_0_0_1px_rgba(125,175,255,0.12)]">
         <Icon kind="explore" class="text-primary/80" />
         <input
+          ref={(element) => {
+            input = element;
+          }}
           data-explorer-input
           type="text"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls="explorer-suggestions"
+          aria-activedescendant={typeahead.activeIndex() >= 0
+            ? `explorer-suggestions-option-${typeahead.activeIndex()}`
+            : undefined}
+          aria-expanded={typeahead.open()}
           value={props.value}
+          spellcheck={false}
           onInput={(event) => props.onInput(event.currentTarget.value)}
+          onFocus={() => {
+            setFocused(true);
+            typeahead.focus();
+          }}
+          onBlur={() => {
+            setFocused(false);
+            typeahead.close();
+          }}
+          onKeyDown={(event) => handleKeyDown(event)}
           class="flex-1 bg-transparent text-sm font-mono outline-none text-on-surface placeholder:text-on-surface-variant/50"
           placeholder="at://did:... or @handle or https://pds..." />
+        <Show when={typeahead.loading()}>
+          <span class="flex items-center text-on-surface-variant">
+            <Icon kind="loader" aria-hidden="true" />
+          </span>
+        </Show>
         <button
           type="submit"
           class="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all">
           <Icon kind="search" />
         </button>
       </div>
+      <ActorSuggestionList
+        activeIndex={typeahead.activeIndex()}
+        id="explorer-suggestions"
+        open={typeahead.open()}
+        suggestions={typeahead.suggestions()}
+        title="Suggested handles"
+        onSelect={applySuggestion} />
     </form>
   );
 }

@@ -2,6 +2,7 @@ import {
   describeRepo,
   describeServer,
   exportRepoCar,
+  getLexiconFavicons,
   getRecord,
   listRecords,
   queryLabels,
@@ -12,6 +13,7 @@ import type { ExplorerNavigation, ExplorerTargetKind } from "$/lib/api/types/exp
 import { NAVIGATION_EVENT } from "$/lib/constants/events";
 import { consumeQueuedExplorerTarget } from "$/lib/explorer-navigation";
 import { listen } from "@tauri-apps/api/event";
+import * as logger from "@tauri-apps/plugin-log";
 import { createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { produce } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
@@ -66,6 +68,10 @@ function extractCollections(repoData: Record<string, unknown>): Array<{ nsid: st
   return collections.toSorted((left, right) => left.nsid.localeCompare(right.nsid));
 }
 
+function hasCachedLexiconIcon(icons: Record<string, string | null>, collection: string) {
+  return Object.prototype.hasOwnProperty.call(icons, collection);
+}
+
 export function ExplorerPanel() {
   const explorer = createExplorerState();
   const [statusMessage, setStatusMessage] = createSignal<{ kind: "error" | "success"; text: string } | null>(null);
@@ -92,6 +98,25 @@ export function ExplorerPanel() {
         }
       }
     }));
+  }
+
+  async function hydrateLexiconIcons(collections: string[]) {
+    const pendingCollections = [...new Set(collections)].filter((collection) => collection.trim().length > 0).filter((
+      collection,
+    ) => !hasCachedLexiconIcon(explorer.state.lexiconIcons, collection));
+
+    if (pendingCollections.length === 0) {
+      return;
+    }
+
+    try {
+      const icons = await getLexiconFavicons(pendingCollections);
+      explorer.mergeLexiconIcons(icons);
+    } catch (error) {
+      logger.warn("Failed to load lexicon favicons for explorer", {
+        keyValues: { collections: pendingCollections.join(","), error: String(error) },
+      });
+    }
   }
 
   async function handleResolveInput(input: string) {
@@ -194,6 +219,12 @@ export function ExplorerPanel() {
 
       if (requestId !== resolveRequestId) return;
       explorer.pushView(finalViewState);
+
+      if (finalViewState.repoData) {
+        void hydrateLexiconIcons(finalViewState.repoData.collections.map((collection) => collection.nsid));
+      } else if (finalViewState.collectionData) {
+        void hydrateLexiconIcons([finalViewState.collectionData.collection]);
+      }
     } catch (error) {
       if (requestId !== resolveRequestId) return;
       setCurrentView({
@@ -414,9 +445,9 @@ export function ExplorerPanel() {
       </Show>
 
       <div class="flex-1 overflow-hidden">
-        <Presence exitBeforeEnter>
-          <Show when={currentView()} keyed>
-            {(view) => (
+        <Show when={currentView()} fallback={<InitialEmptyPanel onExampleClick={handleResolveInput} />}>
+          {(view) => (
+            <Presence exitBeforeEnter>
               <Motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -424,60 +455,112 @@ export function ExplorerPanel() {
                 transition={{ duration: 0.2 }}
                 class="h-full overflow-auto p-6">
                 <Switch>
-                  <Match when={view.error}>
+                  <Match when={view().error}>
                     <div class="rounded-3xl bg-[rgba(138,31,31,0.2)] p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(255,128,128,0.2)]">
-                      {view.error}
+                      {view().error}
                     </div>
                   </Match>
 
-                  <Match when={view.loading}>
+                  <Match when={view().loading}>
                     <ExplorerSkeleton />
                   </Match>
 
-                  <Match when={view.level === "pds" && view.pdsData}>
-                    <PdsView server={view.pdsData!.server} repos={view.pdsData!.repos} onRepoClick={handleRepoClick} />
+                  <Match when={view().level === "pds" && view().pdsData}>
+                    <PdsView
+                      server={view().pdsData!.server}
+                      repos={view().pdsData!.repos}
+                      onRepoClick={handleRepoClick} />
                   </Match>
 
-                  <Match when={view.level === "repo" && view.repoData}>
+                  <Match when={view().level === "repo" && view().repoData}>
                     <RepoView
-                      collections={view.repoData!.collections}
-                      did={view.repoData!.did}
-                      handle={view.repoData!.handle}
-                      onCollectionClick={(collection: string) => handleCollectionClick(view.repoData!.did, collection)}
-                      pdsUrl={view.repoData!.pdsUrl}
-                      onPdsClick={() => view.repoData?.pdsUrl && void handleResolveInput(view.repoData.pdsUrl)}
-                      socialSummary={view.repoData!.socialSummary} />
+                      collections={view().repoData!.collections}
+                      did={view().repoData!.did}
+                      handle={view().repoData!.handle}
+                      lexiconIcons={explorer.state.lexiconIcons}
+                      onCollectionClick={(collection: string) =>
+                        handleCollectionClick(view().repoData!.did, collection)}
+                      pdsUrl={view().repoData!.pdsUrl}
+                      onPdsClick={() => {
+                        const pdsUrl = view().repoData?.pdsUrl;
+                        if (pdsUrl) {
+                          void handleResolveInput(pdsUrl);
+                        }
+                      }}
+                      socialSummary={view().repoData!.socialSummary} />
                   </Match>
 
-                  <Match when={view.level === "collection" && view.collectionData}>
+                  <Match when={view().level === "collection" && view().collectionData}>
                     <CollectionView
-                      did={view.collectionData!.did}
-                      collection={view.collectionData!.collection}
-                      records={view.collectionData!.records}
-                      cursor={view.collectionData!.cursor}
-                      loadingMore={view.collectionData!.loadingMore}
+                      did={view().collectionData!.did}
+                      collection={view().collectionData!.collection}
+                      lexiconIcon={explorer.state.lexiconIcons[view().collectionData!.collection] ?? null}
+                      records={view().collectionData!.records}
+                      cursor={view().collectionData!.cursor}
+                      loadingMore={view().collectionData!.loadingMore}
                       onLoadMore={handleLoadMore}
                       onRecordClick={(rkey) =>
-                        handleRecordClick(view.collectionData!.did, view.collectionData!.collection, rkey)} />
+                        handleRecordClick(view().collectionData!.did, view().collectionData!.collection, rkey)} />
                   </Match>
 
-                  <Match when={view.level === "record" && view.recordData}>
+                  <Match when={view().level === "record" && view().recordData}>
                     <RecordView
-                      record={view.recordData!.record}
-                      cid={view.recordData!.cid}
-                      uri={view.recordData!.uri}
-                      labels={view.recordData!.labels} />
+                      record={view().recordData!.record}
+                      cid={view().recordData!.cid}
+                      uri={view().recordData!.uri}
+                      labels={view().recordData!.labels} />
                   </Match>
 
-                  <Match when={!view.loading && !view.error}>
+                  <Match when={!view().loading && !view().error}>
                     <EmptyPanel />
                   </Match>
                 </Switch>
               </Motion.div>
-            )}
-          </Show>
-        </Presence>
+            </Presence>
+          )}
+        </Show>
       </div>
+    </div>
+  );
+}
+
+function InitialEmptyPanel(props: { onExampleClick: (value: string) => void | Promise<void> }) {
+  const examples = [{ label: "@handle", value: "@alice.bsky.social" }, { label: "did", value: "did:plc:alice" }, {
+    label: "at://",
+    value: "at://did:plc:alice/app.bsky.feed.post/123",
+  }, { label: "PDS URL", value: "https://pds.example.com" }];
+
+  return (
+    <div class="flex h-full items-start overflow-auto p-6">
+      <section class="mx-auto grid w-full max-w-4xl gap-6 rounded-[1.75rem] bg-white/3 p-8 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+        <div class="grid gap-2">
+          <p class="overline-copy text-xs text-primary/80">AT Protocol Explorer</p>
+          <h1 class="m-0 text-[2rem] font-medium tracking-[-0.03em] text-on-surface">
+            Start from a handle, DID, URI, or PDS.
+          </h1>
+          <p class="m-0 max-w-2xl text-sm leading-6 text-on-surface-variant">
+            Browse repositories, collections, records, and server metadata without leaving Lazurite.
+          </p>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <For each={examples}>
+            {(example) => (
+              <button
+                type="button"
+                onClick={() => void props.onExampleClick(example.value)}
+                class="rounded-2xl bg-white/4 px-4 py-4 text-left transition duration-150 ease-out hover:bg-white/7 hover:-translate-y-px">
+                <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{example.label}</p>
+                <p class="mt-2 truncate text-sm font-mono text-primary">{example.value}</p>
+              </button>
+            )}
+          </For>
+        </div>
+
+        <p class="m-0 text-xs text-on-surface-variant">
+          Tip: start with <span class="font-mono text-primary">@</span> to get handle suggestions in the explorer bar.
+        </p>
+      </section>
     </div>
   );
 }

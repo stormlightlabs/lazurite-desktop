@@ -1,4 +1,5 @@
 use crate::error::{AppError, Result};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use jacquard::api::com_atproto::identity::resolve_handle::ResolveHandle;
 use jacquard::api::com_atproto::label::query_labels::QueryLabels;
 use jacquard::api::com_atproto::repo::describe_repo::DescribeRepo;
@@ -21,12 +22,17 @@ use jacquard::xrpc::XrpcClient;
 use jacquard::IntoStatic;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_log::log;
 
 pub const EXPLORER_NAVIGATION_EVENT: &str = "navigation:explorer-resolved";
 const PDS_REPO_LIST_LIMIT: i64 = 100;
 const QUERY_LABELS_LIMIT: i64 = 100;
+const FAVICON_FETCH_TIMEOUT: Duration = Duration::from_secs(2);
+const LEXICON_FAVICON_HOST_OVERRIDES: &[(&str, &str)] = &[("sh.tangled.", "tangled.org")];
 
 type ExplorerClient = Agent<UnauthenticatedSession<JacquardResolver>>;
 
@@ -244,6 +250,34 @@ pub async fn query_labels(uri: String) -> Result<Value> {
         .into_static();
 
     serde_json::to_value(output).map_err(AppError::from)
+}
+
+pub async fn get_lexicon_favicons(
+    collections: Vec<String>, app: &AppHandle,
+) -> Result<HashMap<String, Option<String>>> {
+    let client = match reqwest::Client::builder().timeout(FAVICON_FETCH_TIMEOUT).build() {
+        Ok(client) => client,
+        Err(error) => {
+            log::warn!("failed to construct favicon client: {error}");
+            return Ok(collections.into_iter().map(|collection| (collection, None)).collect());
+        }
+    };
+    let cache_dir = match resolve_favicon_cache_dir(app) {
+        Ok(cache_dir) => Some(cache_dir),
+        Err(error) => {
+            log::warn!("failed to resolve explorer favicon cache directory: {error}");
+            None
+        }
+    };
+
+    let mut icons = HashMap::with_capacity(collections.len());
+
+    for collection in collections {
+        let icon = resolve_lexicon_favicon_data_url(&client, cache_dir.as_deref(), &collection).await;
+        icons.insert(collection, icon);
+    }
+
+    Ok(icons)
 }
 
 pub async fn emit_explorer_navigation(app: &AppHandle, raw: &str) -> Result<()> {
@@ -522,6 +556,378 @@ fn resolve_car_export_path(app: &AppHandle, did: &str) -> Result<PathBuf> {
     Ok(app_data_dir)
 }
 
+fn resolve_favicon_cache_dir(app: &AppHandle) -> Result<PathBuf> {
+    let mut cache_dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|error| AppError::PathResolve(error.to_string()))?;
+    cache_dir.push("explorer");
+    cache_dir.push("favicons");
+    Ok(cache_dir)
+}
+
+async fn resolve_lexicon_favicon_data_url(
+    client: &reqwest::Client, cache_dir: Option<&std::path::Path>, collection: &str,
+) -> Option<String> {
+    let hosts = lexicon_favicon_hosts(collection)
+        .map_err(|error| {
+            log::warn!("failed to derive favicon hosts for {collection}: {error}");
+            error
+        })
+        .ok()?;
+
+    for host in hosts {
+        if let Some(cache_dir) = cache_dir {
+            if let Some(cached) = read_cached_favicon_data_url(cache_dir, &host) {
+                return Some(cached);
+            }
+        }
+
+        if let Some(icon) = fetch_host_favicon(client, &host).await {
+            if let Some(cache_dir) = cache_dir {
+                write_cached_favicon(cache_dir, &host, &icon);
+            }
+            return Some(icon.data_url);
+        }
+    }
+
+    None
+}
+
+async fn fetch_host_favicon(client: &reqwest::Client, host: &str) -> Option<CachedFavicon> {
+    let favicon_url = format!("https://{host}/favicon.ico");
+    if let Some(icon) = fetch_favicon_from_url(client, &favicon_url).await {
+        return Some(icon);
+    }
+
+    let root_url = format!("https://{host}/");
+    let html = match fetch_html_document(client, &root_url).await {
+        Some(html) => html,
+        None => return None,
+    };
+    let base_url = match reqwest::Url::parse(&root_url) {
+        Ok(url) => url,
+        Err(error) => {
+            log::warn!("failed to parse root favicon fallback URL {root_url}: {error}");
+            return None;
+        }
+    };
+
+    for candidate_url in extract_favicon_urls(&html, &base_url) {
+        if let Some(icon) = fetch_favicon_from_url(client, candidate_url.as_str()).await {
+            return Some(icon);
+        }
+    }
+
+    None
+}
+
+async fn fetch_favicon_from_url(client: &reqwest::Client, favicon_url: &str) -> Option<CachedFavicon> {
+    let response = match client.get(favicon_url).send().await {
+        Ok(response) => response,
+        Err(error) => {
+            log::warn!("failed to fetch favicon from {favicon_url}: {error}");
+            return None;
+        }
+    };
+
+    if !response.status().is_success() {
+        log::warn!("favicon request to {favicon_url} returned {}", response.status());
+        return None;
+    }
+
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let bytes = match response.bytes().await {
+        Ok(bytes) => bytes.to_vec(),
+        Err(error) => {
+            log::warn!("failed to read favicon bytes from {favicon_url}: {error}");
+            return None;
+        }
+    };
+    let mime = match detect_favicon_mime(content_type.as_deref(), &bytes) {
+        Some(mime) => mime,
+        None => {
+            log::warn!("favicon response from {favicon_url} was not a recognized image");
+            return None;
+        }
+    };
+
+    Some(CachedFavicon {
+        bytes: bytes.clone(),
+        mime: mime.clone(),
+        data_url: format!("data:{mime};base64,{}", BASE64_STANDARD.encode(&bytes)),
+    })
+}
+
+async fn fetch_html_document(client: &reqwest::Client, root_url: &str) -> Option<String> {
+    let response = match client.get(root_url).send().await {
+        Ok(response) => response,
+        Err(error) => {
+            log::warn!("failed to fetch HTML fallback document from {root_url}: {error}");
+            return None;
+        }
+    };
+
+    if !response.status().is_success() {
+        log::warn!("HTML fallback request to {root_url} returned {}", response.status());
+        return None;
+    }
+
+    match response.text().await {
+        Ok(html) => Some(html),
+        Err(error) => {
+            log::warn!("failed to read HTML fallback document from {root_url}: {error}");
+            None
+        }
+    }
+}
+
+fn extract_favicon_urls(html: &str, base_url: &reqwest::Url) -> Vec<reqwest::Url> {
+    let resolved_base_url = resolve_html_base_url(html, base_url);
+    let lowercase = html.to_ascii_lowercase();
+    let mut cursor = 0;
+    let mut urls = Vec::new();
+
+    while let Some(relative_start) = lowercase[cursor..].find("<link") {
+        let start = cursor + relative_start;
+        let Some(relative_end) = lowercase[start..].find('>') else {
+            break;
+        };
+        let end = start + relative_end + 1;
+        let tag = &html[start..end];
+
+        let rel = extract_html_attribute(tag, "rel");
+        let href = extract_html_attribute(tag, "href");
+
+        if let (Some(rel), Some(href)) = (rel, href) {
+            if !rel_indicates_favicon(&rel) {
+                cursor = end;
+                continue;
+            }
+
+            if let Ok(url) = resolved_base_url.join(&href) {
+                if matches!(url.scheme(), "http" | "https") && !urls.iter().any(|existing| existing == &url) {
+                    urls.push(url);
+                }
+            }
+        }
+
+        cursor = end;
+    }
+
+    urls
+}
+
+fn extract_html_attribute(tag: &str, attribute: &str) -> Option<String> {
+    let lowercase = tag.to_ascii_lowercase();
+    let lowercase_bytes = lowercase.as_bytes();
+    let bytes = tag.as_bytes();
+    let attribute_bytes = attribute.as_bytes();
+    let mut cursor = 0;
+
+    while cursor + attribute_bytes.len() <= lowercase_bytes.len() {
+        let start = lowercase[cursor..].find(attribute)? + cursor;
+        let before = start
+            .checked_sub(1)
+            .and_then(|index| lowercase_bytes.get(index))
+            .copied();
+        let after = lowercase_bytes.get(start + attribute_bytes.len()).copied();
+
+        let invalid_before = before
+            .is_some_and(|character| character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_' | b':'));
+        let invalid_after =
+            after.is_some_and(|character| character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_' | b':'));
+
+        if invalid_before || invalid_after {
+            cursor = start + attribute_bytes.len();
+            continue;
+        }
+
+        let mut value_start = start + attribute_bytes.len();
+        while bytes.get(value_start).is_some_and(u8::is_ascii_whitespace) {
+            value_start += 1;
+        }
+
+        if bytes.get(value_start) != Some(&b'=') {
+            cursor = start + attribute_bytes.len();
+            continue;
+        }
+
+        value_start += 1;
+        while bytes.get(value_start).is_some_and(u8::is_ascii_whitespace) {
+            value_start += 1;
+        }
+
+        let quote = *bytes.get(value_start)?;
+        if quote == b'"' || quote == b'\'' {
+            let value_end = tag[value_start + 1..].find(char::from(quote))?;
+            return Some(tag[value_start + 1..value_start + 1 + value_end].trim().to_string());
+        }
+
+        let value_end = tag[value_start..]
+            .find(|character: char| character.is_whitespace() || character == '>')
+            .unwrap_or(tag.len() - value_start);
+        return Some(tag[value_start..value_start + value_end].trim().to_string());
+    }
+
+    None
+}
+
+fn resolve_html_base_url(html: &str, request_url: &reqwest::Url) -> reqwest::Url {
+    let lowercase = html.to_ascii_lowercase();
+    let mut cursor = 0;
+
+    while let Some(relative_start) = lowercase[cursor..].find("<base") {
+        let start = cursor + relative_start;
+        let Some(relative_end) = lowercase[start..].find('>') else {
+            break;
+        };
+        let end = start + relative_end + 1;
+        let tag = &html[start..end];
+
+        if let Some(href) = extract_html_attribute(tag, "href") {
+            if let Ok(base_url) = request_url.join(&href) {
+                if matches!(base_url.scheme(), "http" | "https") {
+                    return base_url;
+                }
+            }
+        }
+
+        cursor = end;
+    }
+
+    request_url.clone()
+}
+
+fn rel_indicates_favicon(rel: &str) -> bool {
+    rel.to_ascii_lowercase().contains("icon")
+}
+
+fn lexicon_favicon_hosts(collection: &str) -> Result<Vec<String>> {
+    let domain_authority = parse_collection(collection)?.domain_authority().to_string();
+    let authority_labels: Vec<&str> = domain_authority.split('.').collect();
+    let mut hosts = Vec::new();
+
+    for (prefix, host) in LEXICON_FAVICON_HOST_OVERRIDES {
+        if collection.starts_with(prefix) && !hosts.iter().any(|candidate| candidate == host) {
+            hosts.push((*host).to_string());
+        }
+    }
+
+    if authority_labels.len() >= 2 {
+        let canonical_host = format!("{}.{}", authority_labels[1], authority_labels[0]);
+        if !hosts.iter().any(|candidate| candidate == &canonical_host) {
+            hosts.push(canonical_host);
+        }
+    }
+
+    Ok(hosts)
+}
+
+fn read_cached_favicon_data_url(cache_dir: &std::path::Path, host: &str) -> Option<String> {
+    let (bytes_path, mime_path) = favicon_cache_paths(cache_dir, host);
+    let mime = match std::fs::read_to_string(&mime_path) {
+        Ok(mime) => mime.trim().to_string(),
+        Err(error) => {
+            if mime_path.exists() {
+                log::warn!("failed to read cached favicon mime for {host}: {error}");
+            }
+            return None;
+        }
+    };
+    let bytes = match std::fs::read(&bytes_path) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            if bytes_path.exists() {
+                log::warn!("failed to read cached favicon bytes for {host}: {error}");
+            }
+            return None;
+        }
+    };
+
+    Some(format!("data:{mime};base64,{}", BASE64_STANDARD.encode(bytes)))
+}
+
+fn write_cached_favicon(cache_dir: &std::path::Path, host: &str, icon: &CachedFavicon) {
+    if let Err(error) = std::fs::create_dir_all(cache_dir) {
+        log::warn!(
+            "failed to create favicon cache directory {}: {error}",
+            cache_dir.display()
+        );
+        return;
+    }
+
+    let (bytes_path, mime_path) = favicon_cache_paths(cache_dir, host);
+
+    if let Err(error) = std::fs::write(&bytes_path, &icon.bytes) {
+        log::warn!("failed to write cached favicon bytes for {host}: {error}");
+        return;
+    }
+
+    if let Err(error) = std::fs::write(&mime_path, &icon.mime) {
+        log::warn!("failed to write cached favicon mime for {host}: {error}");
+    }
+}
+
+fn favicon_cache_paths(cache_dir: &std::path::Path, host: &str) -> (PathBuf, PathBuf) {
+    let safe_host = sanitize_host_for_filename(host);
+    (
+        cache_dir.join(format!("{safe_host}.bin")),
+        cache_dir.join(format!("{safe_host}.mime")),
+    )
+}
+
+fn sanitize_host_for_filename(host: &str) -> String {
+    host.chars()
+        .map(|character| match character {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' => character,
+            _ => '_',
+        })
+        .collect()
+}
+
+fn detect_favicon_mime(content_type: Option<&str>, bytes: &[u8]) -> Option<String> {
+    if let Some(content_type) = content_type {
+        let mime = content_type.split(';').next()?.trim().to_ascii_lowercase();
+        if mime.starts_with("image/") {
+            return Some(mime);
+        }
+    }
+
+    if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
+        return Some("image/png".to_string());
+    }
+
+    if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        return Some("image/jpeg".to_string());
+    }
+
+    if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        return Some("image/gif".to_string());
+    }
+
+    if bytes.starts_with(&[0x00, 0x00, 0x01, 0x00]) {
+        return Some("image/x-icon".to_string());
+    }
+
+    if String::from_utf8_lossy(bytes).contains("<svg") {
+        return Some("image/svg+xml".to_string());
+    }
+
+    None
+}
+
+#[derive(Debug, Clone)]
+struct CachedFavicon {
+    bytes: Vec<u8>,
+    mime: String,
+    data_url: String,
+}
+
 fn repo_car_filename(did: &str) -> String {
     format!("{}.car", sanitize_did_for_filename(did))
 }
@@ -538,12 +944,18 @@ fn sanitize_did_for_filename(did: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_resolved_at_uri, canonical_at_uri, detect_input_kind, normalize_handle, normalize_pds_url,
-        repo_car_filename, repo_metadata_from_did_doc, sanitize_did_for_filename, ExplorerInputKind,
-        ExplorerTargetKind,
+        build_resolved_at_uri, canonical_at_uri, detect_favicon_mime, detect_input_kind, extract_favicon_urls,
+        extract_html_attribute, lexicon_favicon_hosts, normalize_handle, normalize_pds_url,
+        read_cached_favicon_data_url, rel_indicates_favicon, repo_car_filename, repo_metadata_from_did_doc,
+        resolve_html_base_url, resolve_lexicon_favicon_data_url, sanitize_did_for_filename, write_cached_favicon,
+        CachedFavicon, ExplorerInputKind, ExplorerTargetKind,
     };
     use jacquard::types::aturi::AtUri;
     use jacquard::types::did_doc::DidDocument;
+    use reqwest::Client;
+    use std::fs;
+    use std::time::Duration;
+    use uuid::Uuid;
 
     #[test]
     fn detects_all_supported_input_kinds() {
@@ -624,6 +1036,151 @@ mod tests {
     }
 
     #[test]
+    fn derives_candidate_hosts_from_lexicon_nsids() {
+        assert_eq!(
+            lexicon_favicon_hosts("app.bsky.feed.post").expect("nsid should parse"),
+            vec!["bsky.app".to_string()]
+        );
+        assert_eq!(
+            lexicon_favicon_hosts("sh.tangled.repo.issue").expect("override nsid should parse"),
+            vec!["tangled.org".to_string(), "tangled.sh".to_string()]
+        );
+        assert!(lexicon_favicon_hosts("not-a-valid-nsid").is_err());
+    }
+
+    #[test]
+    fn detects_supported_favicon_mime_types() {
+        assert_eq!(
+            detect_favicon_mime(Some("image/vnd.microsoft.icon"), &[0x00, 0x00, 0x01, 0x00]),
+            Some("image/vnd.microsoft.icon".to_string())
+        );
+        assert_eq!(
+            detect_favicon_mime(None, &[0x89, b'P', b'N', b'G', 0x0D, 0x0A]),
+            Some("image/png".to_string())
+        );
+        assert!(detect_favicon_mime(Some("text/html"), b"<html></html>").is_none());
+    }
+
+    #[test]
+    fn extracts_favicon_urls_from_html_link_elements() {
+        let base_url = reqwest::Url::parse("https://bsky.app/").expect("base URL should parse");
+        let urls = extract_favicon_urls(
+            r#"
+                <html>
+                    <head>
+                        <link rel="stylesheet" href="/styles.css">
+                        <link rel="icon" href="/favicon-32.png">
+                        <link rel="shortcut icon" href="https://cdn.example.com/favicon.ico">
+                        <link rel="apple-touch-icon" href="/apple-touch.png">
+                    </head>
+                </html>
+            "#,
+            &base_url,
+        );
+
+        assert_eq!(
+            urls,
+            vec![
+                reqwest::Url::parse("https://bsky.app/favicon-32.png").expect("relative favicon URL should resolve"),
+                reqwest::Url::parse("https://cdn.example.com/favicon.ico").expect("absolute favicon URL should parse"),
+                reqwest::Url::parse("https://bsky.app/apple-touch.png")
+                    .expect("apple touch favicon URL should resolve"),
+            ]
+        );
+    }
+
+    #[test]
+    fn resolves_relative_favicon_urls_like_tangled() {
+        let base_url = reqwest::Url::parse("https://tangled.org/").expect("base URL should parse");
+        let urls = extract_favicon_urls(
+            r#"<link rel="icon" href="/static/logos/dolly.svg" sizes="any" type="image/svg+xml">"#,
+            &base_url,
+        );
+
+        assert_eq!(
+            urls,
+            vec![reqwest::Url::parse("https://tangled.org/static/logos/dolly.svg")
+                .expect("tangled favicon URL should resolve")]
+        );
+    }
+
+    #[test]
+    fn extracts_html_attributes_with_whitespace_and_quotes() {
+        let tag = r#"<link rel = "icon" href = '/static/logos/dolly.svg' type="image/svg+xml">"#;
+
+        assert_eq!(extract_html_attribute(tag, "rel"), Some("icon".to_string()));
+        assert_eq!(
+            extract_html_attribute(tag, "href"),
+            Some("/static/logos/dolly.svg".to_string())
+        );
+        assert_eq!(extract_html_attribute(tag, "type"), Some("image/svg+xml".to_string()));
+    }
+
+    #[test]
+    fn honors_html_base_href_when_resolving_favicon_urls() {
+        let request_url = reqwest::Url::parse("https://example.com/app/").expect("request URL should parse");
+        let html = r#"
+            <head>
+                <base href="https://cdn.example.com/assets/">
+                <link rel="icon" href="favicons/app.svg">
+            </head>
+        "#;
+
+        assert_eq!(
+            resolve_html_base_url(html, &request_url),
+            reqwest::Url::parse("https://cdn.example.com/assets/").expect("base href should resolve")
+        );
+        assert_eq!(
+            extract_favicon_urls(html, &request_url),
+            vec![reqwest::Url::parse("https://cdn.example.com/assets/favicons/app.svg")
+                .expect("favicon URL should resolve against base href")]
+        );
+    }
+
+    #[test]
+    fn recognizes_common_favicon_rel_patterns() {
+        assert!(rel_indicates_favicon("icon"));
+        assert!(rel_indicates_favicon("shortcut icon"));
+        assert!(rel_indicates_favicon("apple-touch-icon"));
+        assert!(rel_indicates_favicon("mask-icon"));
+        assert!(!rel_indicates_favicon("stylesheet"));
+    }
+
+    #[tokio::test]
+    async fn returns_cached_lexicon_favicon_without_fetching() {
+        let cache_dir = create_temp_cache_dir();
+        write_cached_favicon(
+            &cache_dir,
+            "bsky.app",
+            &CachedFavicon {
+                bytes: vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A],
+                mime: "image/png".to_string(),
+                data_url: "data:image/png;base64,ignored".to_string(),
+            },
+        );
+
+        let client = Client::builder()
+            .timeout(Duration::from_millis(200))
+            .build()
+            .expect("client should build");
+        let icon = resolve_lexicon_favicon_data_url(&client, Some(cache_dir.as_path()), "app.bsky.feed.post").await;
+
+        assert_eq!(icon, read_cached_favicon_data_url(&cache_dir, "bsky.app"),);
+
+        fs::remove_dir_all(cache_dir).expect("temporary cache directory should be removed");
+    }
+
+    #[tokio::test]
+    async fn failed_favicon_fetches_return_none() {
+        let client = Client::builder()
+            .timeout(Duration::from_millis(200))
+            .build()
+            .expect("client should build");
+
+        assert!(super::fetch_host_favicon(&client, "127.0.0.1:9").await.is_none());
+    }
+
+    #[test]
     fn at_uri_parser_distinguishes_repo_collection_and_record_levels() {
         let repo_uri = AtUri::new("at://did:plc:alice").expect("repo uri should parse");
         let collection_uri = AtUri::new("at://did:plc:alice/app.bsky.feed.post").expect("collection uri should parse");
@@ -671,5 +1228,11 @@ mod tests {
             .target_kind,
             ExplorerTargetKind::Record
         );
+    }
+
+    fn create_temp_cache_dir() -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(format!("lazurite-explorer-cache-{}", Uuid::new_v4()));
+        fs::create_dir_all(&path).expect("temporary cache directory should be created");
+        path
     }
 }
