@@ -58,6 +58,7 @@ const MIGRATIONS: &[Migration] = &[
         "embeddings_opt_in",
         include_str!("migrations/010_embeddings_opt_in.sql"),
     ),
+    Migration::new(11, "drafts", include_str!("migrations/011_drafts.sql")),
 ];
 
 pub fn initialize_database(app: &AppHandle) -> Result<DbPool, AppError> {

@@ -10,6 +10,7 @@ use tauri::AppHandle;
 
 pub mod columns;
 pub mod diagnostics;
+pub mod drafts;
 pub mod explorer;
 pub mod search;
 pub mod settings;

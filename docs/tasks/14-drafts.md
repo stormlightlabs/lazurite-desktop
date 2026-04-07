@@ -8,13 +8,13 @@ Depends on: Milestone 03 (Feeds — composer, `create_post`)
 
 ### Backend - `src-tauri/src/drafts.rs` + `src-tauri/src/commands/drafts.rs`
 
-- [ ] SQLite migration: `drafts` table (`id TEXT PRIMARY KEY, account_did TEXT NOT NULL, text TEXT NOT NULL, reply_parent_uri TEXT, reply_parent_cid TEXT, reply_root_uri TEXT, reply_root_cid TEXT, quote_uri TEXT, quote_cid TEXT, title TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL`)
-- [ ] `Draft` and `DraftInput` structs mirroring the schema
-- [ ] `list_drafts(account_did: String)` — return all drafts for the account, ordered by `updated_at` desc
-- [ ] `get_draft(id: String)` — single draft by ID
-- [ ] `save_draft(input: DraftInput)` — upsert: if `id` is present and exists, update; otherwise insert with new UUID
-- [ ] `delete_draft(id: String)` — hard delete
-- [ ] `submit_draft(id: String)` — load draft, call `create_post`, delete draft on success, return `CreateRecordResult`
+- [x] SQLite migration: `drafts` table (`id TEXT PRIMARY KEY, account_did TEXT NOT NULL, text TEXT NOT NULL, reply_parent_uri TEXT, reply_parent_cid TEXT, reply_root_uri TEXT, reply_root_cid TEXT, quote_uri TEXT, quote_cid TEXT, title TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL`)
+- [x] `Draft` and `DraftInput` structs mirroring the schema
+- [x] `list_drafts(account_did: String)` — return all drafts for the account, ordered by `updated_at` desc
+- [x] `get_draft(id: String)` — single draft by ID
+- [x] `save_draft(input: DraftInput)` — upsert: if `id` is present and exists, update; otherwise insert with new UUID
+- [x] `delete_draft(id: String)` — hard delete
+- [x] `submit_draft(id: String)` — load draft, call `create_post`, delete draft on success, return `CreateRecordResult`
 
 ### Frontend - Drafts List Panel
 

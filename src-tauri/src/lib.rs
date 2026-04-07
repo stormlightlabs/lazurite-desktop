@@ -6,6 +6,7 @@ mod constellation;
 mod conversations;
 mod db;
 mod diagnostics;
+mod drafts;
 mod error;
 mod explorer;
 mod feed;
@@ -154,7 +155,12 @@ pub fn run() {
             cmd::get_convo_for_members,
             cmd::get_messages,
             cmd::send_message,
-            cmd::update_read
+            cmd::update_read,
+            cmd::drafts::list_drafts,
+            cmd::drafts::get_draft,
+            cmd::drafts::save_draft,
+            cmd::drafts::delete_draft,
+            cmd::drafts::submit_draft
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
