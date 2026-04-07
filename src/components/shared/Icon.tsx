@@ -7,6 +7,7 @@ type ActionIconKind = "add" | "edit" | "delete" | "save" | "cancel";
 export type SettingsIconKind =
   | "computer"
   | "danger"
+  | "download"
   | "info"
   | "timeline"
   | "db"
@@ -218,6 +219,9 @@ export function SettingsIcon(props: IconProps & { kind: SettingsIconKind }) {
         </Match>
         <Match when={local.kind === "theme"}>
           <i class="i-ri-paint-line" />
+        </Match>
+        <Match when={local.kind === "download"}>
+          <i class="i-ri-download-2-line" />
         </Match>
       </Switch>
     </span>

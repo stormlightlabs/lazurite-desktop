@@ -11,6 +11,9 @@ const exportDataMock = vi.hoisted(() => vi.fn());
 const resetAppMock = vi.hoisted(() => vi.fn());
 const resetAndRestartAppMock = vi.hoisted(() => vi.fn());
 const getLogEntriesMock = vi.hoisted(() => vi.fn());
+const getDownloadDirectoryMock = vi.hoisted(() => vi.fn());
+const setDownloadDirectoryMock = vi.hoisted(() => vi.fn());
+const dialogOpenMock = vi.hoisted(() => vi.fn());
 const navigateMock = vi.hoisted(() => vi.fn());
 const infoMock = vi.hoisted(() => vi.fn());
 
@@ -38,6 +41,13 @@ vi.mock(
   }),
 );
 
+vi.mock(
+  "$/lib/api/media",
+  () => ({ getDownloadDirectory: getDownloadDirectoryMock, setDownloadDirectory: setDownloadDirectoryMock }),
+);
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: dialogOpenMock }));
+
 vi.mock("@solidjs/router", () => ({ useNavigate: () => navigateMock }));
 
 vi.mock("@tauri-apps/plugin-log", () => ({ info: infoMock }));
@@ -55,6 +65,7 @@ function createMockSettings(overrides = {}) {
     spacedustInstant: false,
     spacedustEnabled: false,
     globalShortcut: "Ctrl+Shift+N",
+    downloadDirectory: "/Users/test/Downloads",
     ...overrides,
   };
 }
@@ -101,6 +112,9 @@ describe("SettingsPanel", () => {
     exportDataMock.mockResolvedValue(void 0);
     resetAppMock.mockResolvedValue(void 0);
     resetAndRestartAppMock.mockResolvedValue(void 0);
+    getDownloadDirectoryMock.mockResolvedValue("/Users/test/Downloads");
+    setDownloadDirectoryMock.mockResolvedValue(void 0);
+    dialogOpenMock.mockResolvedValue(null);
   });
 
   it("loads and displays settings", async () => {
@@ -113,10 +127,28 @@ describe("SettingsPanel", () => {
     expect(await screen.findByText("Accounts")).toBeInTheDocument();
     expect(await screen.findByText("Services")).toBeInTheDocument();
     expect(await screen.findByText("Data")).toBeInTheDocument();
+    expect(await screen.findByText("Downloads")).toBeInTheDocument();
     expect(await screen.findByText("Danger Zone")).toBeInTheDocument();
     expect(await screen.findByText("Logs")).toBeInTheDocument();
     expect(await screen.findByText("About")).toBeInTheDocument();
     expect(await screen.findAllByText(/384 MB download/i)).toHaveLength(1);
+  });
+
+  it("places downloads between data and danger zone", async () => {
+    renderSettingsPanel();
+    await screen.findByText("Settings");
+
+    const headings = await screen.findAllByRole("heading", { level: 2 });
+    const titles = headings.map((heading) => heading.textContent?.trim() ?? "");
+    const dataIndex = titles.indexOf("Data");
+    const downloadsIndex = titles.indexOf("Downloads");
+    const dangerIndex = titles.indexOf("Danger Zone");
+
+    expect(dataIndex).toBeGreaterThanOrEqual(0);
+    expect(downloadsIndex).toBeGreaterThanOrEqual(0);
+    expect(dangerIndex).toBeGreaterThanOrEqual(0);
+    expect(dataIndex).toBeLessThan(downloadsIndex);
+    expect(downloadsIndex).toBeLessThan(dangerIndex);
   });
 
   it("displays cache size information", async () => {
@@ -205,6 +237,38 @@ describe("SettingsPanel", () => {
 
     fireEvent.click(csvButton);
     await waitFor(() => expect(exportDataMock).toHaveBeenCalledWith("csv"));
+  });
+
+  it("allows selecting the download folder from the directory picker", async () => {
+    getDownloadDirectoryMock.mockResolvedValueOnce("/Users/test/Downloads").mockResolvedValueOnce(
+      "/Users/test/Pictures",
+    );
+    dialogOpenMock.mockResolvedValue("/Users/test/Pictures");
+
+    renderSettingsPanel();
+
+    await screen.findByText("Settings");
+    const browseButton = await screen.findByRole("button", { name: /browse/i });
+    fireEvent.click(browseButton);
+
+    await waitFor(() => expect(setDownloadDirectoryMock).toHaveBeenCalledWith("/Users/test/Pictures"));
+    await waitFor(() => expect(screen.getByDisplayValue("/Users/test/Pictures")).toBeInTheDocument());
+    expect(await screen.findByText("Download folder updated.")).toBeInTheDocument();
+  });
+
+  it("resets the download folder to the default path", async () => {
+    getDownloadDirectoryMock.mockResolvedValueOnce("/Users/test/Pictures").mockResolvedValueOnce(
+      "/Users/test/Downloads",
+    );
+
+    renderSettingsPanel();
+
+    await screen.findByText("Settings");
+    const resetButton = await screen.findByRole("button", { name: /reset to default/i });
+    fireEvent.click(resetButton);
+
+    await waitFor(() => expect(setDownloadDirectoryMock).toHaveBeenCalledWith("~/Downloads"));
+    expect(await screen.findByText("Download folder reset to default.")).toBeInTheDocument();
   });
 
   it("shows confirmation modal with RESET text for app reset and restart", async () => {

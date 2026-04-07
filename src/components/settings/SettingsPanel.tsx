@@ -21,6 +21,7 @@ import { SettingsAbout } from "./SettingsAbout";
 import { AccountControl } from "./SettingsAccount";
 import { SettingsDangerZone } from "./SettingsDangerZone";
 import { SettingsData } from "./SettingsData";
+import { SettingsDownloads } from "./SettingsDownloads";
 import { SettingsLogs } from "./SettingsLogs";
 import { NotificationsControl } from "./SettingsNotification";
 import { SettingsService } from "./SettingsService";
@@ -288,6 +289,7 @@ export function SettingsPanel() {
                     cacheSize={panel.cacheSize}
                     handleClearCache={handleClearCache}
                     openConfirmation={openConfirmation} />
+                  <SettingsDownloads settings={settings()} />
                   <SettingsDangerZone
                     handleResetAndRestartApp={handleResetAndRestartApp}
                     openConfirmation={openConfirmation} />

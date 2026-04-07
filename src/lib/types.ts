@@ -266,6 +266,7 @@ export type AppSettings = {
   spacedustInstant: boolean;
   spacedustEnabled: boolean;
   globalShortcut: string;
+  downloadDirectory: string;
 };
 
 export type CacheSize = { feedsBytes: number; embeddingsBytes: number; ftsBytes: number; totalBytes: number };

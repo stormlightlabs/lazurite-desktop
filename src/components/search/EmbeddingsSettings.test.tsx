@@ -53,6 +53,7 @@ describe("EmbeddingsSettings", () => {
       spacedustInstant: false,
       spacedustEnabled: false,
       globalShortcut: "Ctrl+Shift+N",
+      downloadDirectory: "/Users/test/Downloads",
     });
     getEmbeddingsConfigMock.mockResolvedValue({
       enabled: false,

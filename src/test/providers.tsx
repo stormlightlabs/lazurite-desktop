@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS = {
   spacedustInstant: false,
   spacedustEnabled: false,
   globalShortcut: "Ctrl+Shift+N",
+  downloadDirectory: "/Users/test/Downloads",
 };
 
 const DEFAULT_EMBEDDINGS_CONFIG = {
