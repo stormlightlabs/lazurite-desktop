@@ -20,8 +20,6 @@ export type ExplorerColumnConfig = { targetUri: string };
 
 export type DiagnosticsColumnConfig = { did: string };
 
-export type MessagesColumnConfig = Record<string, never>;
-
 export type SearchColumnConfig = { mode: SearchMode; query: string };
 
 export type ProfileColumnConfig = {

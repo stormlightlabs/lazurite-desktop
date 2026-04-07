@@ -77,21 +77,21 @@ export type DiagnosticBacklinkGroup = {
   total?: number | null;
 };
 
-export type AccountListsResult = { lists: DiagnosticList[]; total: number; truncated: boolean };
-export type AccountLabelsResult = {
+type AccountListsResult = { lists: DiagnosticList[]; total: number; truncated: boolean };
+type AccountLabelsResult = {
   labels: DiagnosticLabel[];
   sourceProfiles: Record<string, unknown>;
   cursor: string | null;
 };
-export type AccountBlockedByResult = { items: DiagnosticDidProfile[]; total: number; cursor: string | null };
+type AccountBlockedByResult = { items: DiagnosticDidProfile[]; total: number; cursor: string | null };
 
-export type AccountBlockingItem = DiagnosticBlockItem;
+type AccountBlockingItem = DiagnosticBlockItem;
 
-export type AccountBlockingResult = { items: AccountBlockingItem[]; cursor: string | null };
+type AccountBlockingResult = { items: AccountBlockingItem[]; cursor: string | null };
 
-export type AccountStarterPacksResult = { starterPacks: DiagnosticStarterPack[]; total: number; truncated: boolean };
+type AccountStarterPacksResult = { starterPacks: DiagnosticStarterPack[]; total: number; truncated: boolean };
 
-export type RecordBacklinksResult = {
+type RecordBacklinksResult = {
   likes: DiagnosticBacklinkGroup;
   reposts: DiagnosticBacklinkGroup;
   replies: DiagnosticBacklinkGroup;

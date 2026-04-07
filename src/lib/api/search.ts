@@ -27,16 +27,6 @@ export type ActorResult = {
 
 export type ActorSearchResult = { cursor?: string | null; actors: ActorResult[] };
 
-type TStarterPack = {
-  uri: string;
-  cid: string;
-  record: { name: string; description?: string; createdAt: string };
-  creator: { did: string; handle: string; displayName?: string | null; avatar?: string | null };
-  indexedAt: string;
-};
-
-export type StarterPackSearchResult = { cursor?: string | null; starterPacks: Array<TStarterPack> };
-
 export type SavedPostSource = "like" | "bookmark";
 
 export type LocalPostResult = {
@@ -52,7 +42,7 @@ export type LocalPostResult = {
   semanticMatch: boolean;
 };
 
-export type SavedPostsPage = { posts: LocalPostResult[]; total: number; nextOffset?: number | null };
+type SavedPostsPage = { posts: LocalPostResult[]; total: number; nextOffset?: number | null };
 
 export type SyncStatus = {
   did: string;
@@ -111,24 +101,12 @@ export function searchActors(query: string, limit?: number, cursor?: string | nu
   return invoke("search_actors", { query, limit: limit ?? null, cursor: cursor ?? null });
 }
 
-export function searchStarterPacks(
-  query: string,
-  limit?: number,
-  cursor?: string | null,
-): Promise<StarterPackSearchResult> {
-  return invoke("search_starter_packs", { query, limit: limit ?? null, cursor: cursor ?? null });
-}
-
 export function syncPosts(did: string, source: SavedPostSource): Promise<SyncStatus> {
   return invoke("sync_posts", { did, source });
 }
 
 export function getSyncStatus(did: string): Promise<SyncStatus[]> {
   return invoke("get_sync_status", { did });
-}
-
-export function embedPendingPosts(): Promise<number> {
-  return invoke("embed_pending_posts");
 }
 
 export function reindexEmbeddings(): Promise<number> {
@@ -141,10 +119,6 @@ export function setEmbeddingsEnabled(enabled: boolean): Promise<void> {
 
 export function setEmbeddingsPreflightSeen(seen: boolean): Promise<void> {
   return invoke("set_embeddings_preflight_seen", { seen });
-}
-
-export function getEmbeddingsEnabled(): Promise<boolean> {
-  return invoke("get_embeddings_enabled");
 }
 
 export function getEmbeddingsConfig(): Promise<EmbeddingsConfig> {

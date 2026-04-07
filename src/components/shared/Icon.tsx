@@ -2,7 +2,7 @@ import type { SearchMode } from "$/lib/api/search";
 import type { ExplorerTargetKind } from "$/lib/api/types/explorer";
 import { type JSX, Match, splitProps, Switch } from "solid-js";
 
-export type ActionIconKind = "add" | "edit" | "delete" | "save" | "cancel";
+type ActionIconKind = "add" | "edit" | "delete" | "save" | "cancel";
 
 export type SettingsIconKind =
   | "computer"

@@ -46,7 +46,7 @@ type FeedComposerProps = {
   onTextChange: (value: string) => void;
 };
 
-export type ComposerSurfaceProps = Omit<FeedComposerProps, "open"> & { layout?: "dialog" | "window" };
+type ComposerSurfaceProps = Omit<FeedComposerProps, "open"> & { layout?: "dialog" | "window" };
 
 export function FeedComposer(props: FeedComposerProps) {
   return (

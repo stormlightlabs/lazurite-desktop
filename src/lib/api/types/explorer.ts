@@ -1,4 +1,4 @@
-export type ExplorerInputKind = "atUri" | "handle" | "did" | "pdsUrl";
+type ExplorerInputKind = "atUri" | "handle" | "did" | "pdsUrl";
 
 export type ExplorerTargetKind = "pds" | "repo" | "collection" | "record";
 
@@ -17,7 +17,7 @@ export type ResolvedExplorerInput = {
 
 export type ExplorerNavigation = { target: ResolvedExplorerInput };
 
-export type ExplorerHostedRepo = { did: string; head: string; rev: string; active: boolean; status: string | null };
+type ExplorerHostedRepo = { did: string; head: string; rev: string; active: boolean; status: string | null };
 
 export type ExplorerServerView = {
   pdsUrl: string;

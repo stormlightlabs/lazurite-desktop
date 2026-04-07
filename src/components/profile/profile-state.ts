@@ -1,7 +1,7 @@
 import type { ProfileTab } from "$/lib/profile";
 import type { FeedViewPost, ProfileLookupUnavailable, ProfileViewBasic, ProfileViewDetailed } from "$/lib/types";
 
-export type FeedState = {
+type FeedState = {
   cursor: string | null;
   error: string | null;
   items: FeedViewPost[];

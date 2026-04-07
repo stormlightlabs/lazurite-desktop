@@ -8,7 +8,7 @@ export type FeedState = {
   loadingMore: boolean;
 };
 
-export type ComposerState = {
+type ComposerState = {
   open: boolean;
   pending: boolean;
   quoteTarget: PostView | null;

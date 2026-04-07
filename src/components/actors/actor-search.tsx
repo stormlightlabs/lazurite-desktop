@@ -3,7 +3,7 @@ import { searchActorSuggestions } from "$/lib/api/actors";
 import type { ActorSuggestion } from "$/lib/types";
 import { type Accessor, createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 
-export const ACTOR_TYPEAHEAD_DEBOUNCE_MS = 180;
+const ACTOR_TYPEAHEAD_DEBOUNCE_MS = 180;
 
 type UseActorSuggestionsOptions = {
   container: Accessor<HTMLElement | undefined>;
@@ -13,7 +13,7 @@ type UseActorSuggestionsOptions = {
   value: Accessor<string>;
 };
 
-export function normalizeActorSuggestionQuery(value: string) {
+function normalizeActorSuggestionQuery(value: string) {
   const trimmed = value.trim();
   if (trimmed.length < 2 || trimmed.startsWith("did:") || /^https?:\/\//i.test(trimmed)) {
     return "";

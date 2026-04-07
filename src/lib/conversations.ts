@@ -1,4 +1,4 @@
-export const MESSAGES_ROUTE = "/messages";
+const MESSAGES_ROUTE = "/messages";
 
 export function buildMessagesRoute(memberDid?: string | null) {
   const trimmed = memberDid?.trim();

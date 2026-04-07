@@ -1,9 +1,8 @@
-import type { SearchMode } from "$/lib/api/search";
+import type { NetworkSearchSort, SearchMode } from "$/lib/api/search";
 
 export type SearchTab = "posts" | "profiles";
-export type NetworkSearchSort = "top" | "latest";
-export const SEARCH_ROUTE = "/search";
-export const SEARCH_PREFLIGHT_ROUTE = "/search/preflight";
+const SEARCH_ROUTE = "/search";
+const SEARCH_PREFLIGHT_ROUTE = "/search/preflight";
 
 export type PostSearchFilters = {
   author: string;
@@ -14,7 +13,7 @@ export type PostSearchFilters = {
   until: string;
 };
 
-export type SearchRouteState = PostSearchFilters & { mode: SearchMode; q: string; tab: SearchTab };
+type SearchRouteState = PostSearchFilters & { mode: SearchMode; q: string; tab: SearchTab };
 
 const CONTROLLED_POST_SEARCH_PARAMS = ["author", "mentions", "since", "sort", "tags", "until"] as const;
 const SEARCH_ROUTE_DEFAULTS: SearchRouteState = {
@@ -107,7 +106,7 @@ export function formatHashtagLabel(tag: string) {
   return normalized ? `#${normalized}` : "#";
 }
 
-export function normalizeDateInput(value?: string | null) {
+function normalizeDateInput(value?: string | null) {
   const trimmed = value?.trim() ?? "";
   if (!SEARCH_DATE_PATTERN.test(trimmed)) {
     return "";

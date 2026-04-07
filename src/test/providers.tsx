@@ -39,7 +39,7 @@ const DEFAULT_EMBEDDINGS_CONFIG = {
   downloadActive: false,
 };
 
-export function createAppSessionTestValue(overrides: Partial<AppSessionContextValue> = {}): AppSessionContextValue {
+function createAppSessionTestValue(overrides: Partial<AppSessionContextValue> = {}): AppSessionContextValue {
   const accounts = overrides.accounts ?? [DEFAULT_ACCOUNT];
   const activeSession = overrides.activeSession === undefined ? DEFAULT_SESSION : overrides.activeSession;
   const activeAccount = overrides.activeAccount === undefined
@@ -79,7 +79,7 @@ export function createAppSessionTestValue(overrides: Partial<AppSessionContextVa
   };
 }
 
-export function createAppShellUiTestValue(overrides: Partial<AppShellUiContextValue> = {}): AppShellUiContextValue {
+function createAppShellUiTestValue(overrides: Partial<AppShellUiContextValue> = {}): AppShellUiContextValue {
   return {
     narrowViewport: overrides.narrowViewport ?? false,
     railCollapsed: overrides.railCollapsed ?? false,
@@ -92,7 +92,7 @@ export function createAppShellUiTestValue(overrides: Partial<AppShellUiContextVa
   };
 }
 
-export function createAppPreferencesTestValue(
+function createAppPreferencesTestValue(
   overrides: Partial<AppPreferencesContextValue> = {},
 ): AppPreferencesContextValue {
   return {

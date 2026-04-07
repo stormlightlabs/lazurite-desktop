@@ -10,7 +10,7 @@ export type ActorSuggestion = { did: string; handle: string; displayName?: strin
 
 export type LoginSuggestion = ActorSuggestion;
 
-export type SavedFeedKind = "timeline" | "feed" | "list";
+type SavedFeedKind = "timeline" | "feed" | "list";
 
 export type SavedFeedItem = { id: string; type: SavedFeedKind; value: string; pinned: boolean };
 
@@ -27,7 +27,7 @@ export type FeedViewPrefs = Array<FeedViewPrefItem>;
 
 export type UserPreferences = { savedFeeds: SavedFeedItem[]; feedViewPrefs: FeedViewPrefs };
 
-export type AuthorViewerState = { following?: string | null };
+type AuthorViewerState = { following?: string | null };
 
 export type ProfileViewBasic = {
   did: string;
@@ -38,7 +38,7 @@ export type ProfileViewBasic = {
   viewer?: AuthorViewerState | null;
 };
 
-export type ProfileViewerState = {
+type ProfileViewerState = {
   blockedBy?: boolean | null;
   followedBy?: string | null;
   following?: string | null;
@@ -61,7 +61,7 @@ export type ProfileViewDetailed = ProfileViewBasic & {
   website?: string | null;
 };
 
-export type ProfileLookupAvailable = { status: "available"; profile: ProfileViewDetailed };
+type ProfileLookupAvailable = { status: "available"; profile: ProfileViewDetailed };
 
 export type ProfileLookupUnavailable = {
   status: "unavailable";
@@ -106,13 +106,13 @@ export type PostRecord = {
   [key: string]: unknown;
 };
 
-export type RichTextByteSlice = { byteEnd: number; byteStart: number };
+type RichTextByteSlice = { byteEnd: number; byteStart: number };
 
-export type RichTextLinkFacet = { $type: "app.bsky.richtext.facet#link"; uri: string };
+type RichTextLinkFacet = { $type: "app.bsky.richtext.facet#link"; uri: string };
 
-export type RichTextMentionFacet = { $type: "app.bsky.richtext.facet#mention"; did: string };
+type RichTextMentionFacet = { $type: "app.bsky.richtext.facet#mention"; did: string };
 
-export type RichTextTagFacet = { $type: "app.bsky.richtext.facet#tag"; tag: string };
+type RichTextTagFacet = { $type: "app.bsky.richtext.facet#tag"; tag: string };
 
 export type RichTextFacetFeature = RichTextLinkFacet | RichTextMentionFacet | RichTextTagFacet;
 
@@ -122,12 +122,12 @@ type ImageEmbed = { alt?: string; aspectRatio?: { height: number; width: number 
 
 export type ImagesEmbedView = { $type: "app.bsky.embed.images#view"; images: Array<ImageEmbed> };
 
-export type ExternalEmbedView = {
+type ExternalEmbedView = {
   $type: "app.bsky.embed.external#view";
   external: { description?: string; thumb?: string; title?: string; uri?: string };
 };
 
-export type EmbeddedQuoteRecord = {
+type EmbeddedQuoteRecord = {
   $type?: string;
   author?: ProfileViewBasic;
   cid?: string;
@@ -136,15 +136,15 @@ export type EmbeddedQuoteRecord = {
   value?: Record<string, unknown>;
 };
 
-export type RecordEmbedView = { $type: "app.bsky.embed.record#view"; record: EmbeddedQuoteRecord };
+type RecordEmbedView = { $type: "app.bsky.embed.record#view"; record: EmbeddedQuoteRecord };
 
-export type RecordWithMediaEmbedView = {
+type RecordWithMediaEmbedView = {
   $type: "app.bsky.embed.recordWithMedia#view";
   media?: EmbedView;
   record?: RecordEmbedView;
 };
 
-export type VideoEmbedView = {
+type VideoEmbedView = {
   $type: "app.bsky.embed.video#view";
   alt?: string;
   aspectRatio?: { height: number; width: number };
@@ -184,9 +184,9 @@ export type BlockedPost = {
 
 export type FeedReplyNode = ({ $type: "app.bsky.feed.defs#postView" } & PostView) | NotFoundPost | BlockedPost;
 
-export type FeedReplyRef = { grandparentAuthor?: ProfileViewBasic | null; parent: FeedReplyNode; root: FeedReplyNode };
+type FeedReplyRef = { grandparentAuthor?: ProfileViewBasic | null; parent: FeedReplyNode; root: FeedReplyNode };
 
-export type FeedReasonRepost = {
+type FeedReasonRepost = {
   $type: "app.bsky.feed.defs#reasonRepost";
   by: ProfileViewBasic;
   cid?: string | null;
@@ -194,7 +194,7 @@ export type FeedReasonRepost = {
   uri?: string | null;
 };
 
-export type FeedReasonPin = { $type: "app.bsky.feed.defs#reasonPin" };
+type FeedReasonPin = { $type: "app.bsky.feed.defs#reasonPin" };
 
 export type FeedViewPost = {
   feedContext?: string | null;
@@ -282,7 +282,7 @@ export type RefreshInterval = 30 | 60 | 120 | 300 | 0;
 
 export type Theme = "light" | "dark" | "auto";
 
-export type MessageViewSender = { did: string };
+type MessageViewSender = { did: string };
 
 export type MessageView = {
   $type?: "chat.bsky.convo.defs#messageView";
@@ -301,7 +301,7 @@ export type DeletedMessageView = {
   sentAt: string;
 };
 
-export type ConvoLastMessage = MessageView | DeletedMessageView;
+type ConvoLastMessage = MessageView | DeletedMessageView;
 
 export type ConvoView = {
   id: string;

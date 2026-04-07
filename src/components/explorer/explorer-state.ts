@@ -129,5 +129,3 @@ export function createExplorerState() {
     getBreadcrumb,
   };
 }
-
-export type ExplorerStore = ReturnType<typeof createExplorerState>;

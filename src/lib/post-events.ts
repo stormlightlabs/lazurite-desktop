@@ -8,7 +8,7 @@ export type PostViewUpdateDetail = {
   viewer?: Partial<ViewerState> | null;
 };
 
-export type BookmarkChangedDetail = { bookmarked: boolean; cid: string; uri: string };
+type BookmarkChangedDetail = { bookmarked: boolean; cid: string; uri: string };
 
 export function emitPostViewUpdated(detail: PostViewUpdateDetail) {
   globalThis.dispatchEvent(new CustomEvent<PostViewUpdateDetail>(POST_VIEW_UPDATED_EVENT, { detail }));

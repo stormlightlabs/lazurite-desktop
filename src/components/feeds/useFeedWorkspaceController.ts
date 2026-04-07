@@ -37,7 +37,7 @@ import {
   upsertFeedViewPrefs,
 } from "./workspace-state";
 
-export type FeedWorkspaceProps = {
+type FeedWorkspaceProps = {
   activeSession: ActiveSession;
   onError: (message: string) => void;
   onOpenThread: (uri: string) => void;

@@ -8,7 +8,7 @@ import { createStore } from "solid-js/store";
 
 const PAGE_LIMIT = 20;
 
-export type FeedColumnState = {
+type FeedColumnState = {
   bookmarkPendingByUri: Record<string, boolean>;
   cursor: string | null;
   error: string | null;

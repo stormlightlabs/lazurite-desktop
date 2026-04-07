@@ -28,7 +28,7 @@ export async function exportData(format: ExportFormat, path?: string) {
   }
 }
 
-export function resetApp() {
+function resetApp() {
   return invoke("reset_app");
 }
 

@@ -1,4 +1,4 @@
-import type { NetworkSearchSort } from "$/lib/search-routes";
+import type { NetworkSearchSort } from "$/lib/api/search";
 import { normalizeTagToken, type PostSearchFilters } from "$/lib/search-routes";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { ArrowIcon, Icon } from "../shared/Icon";
@@ -14,7 +14,7 @@ type PostSearchFiltersProps = {
   onChange: (next: Partial<PostSearchFilters>) => void;
 };
 
-export function SearchSortTabs(props: SearchSortTabsProps) {
+function SearchSortTabs(props: SearchSortTabsProps) {
   return (
     <div class="flex items-center gap-2" role="tablist" aria-label="Post search sort">
       <For each={["top", "latest"] as const}>

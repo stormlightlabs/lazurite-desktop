@@ -3,7 +3,6 @@ import type {
   DiagnosticsColumnConfig,
   ExplorerColumnConfig,
   FeedColumnConfig,
-  MessagesColumnConfig,
   ProfileColumnConfig,
   SearchColumnConfig,
 } from "$/lib/api/types/columns";
@@ -58,7 +57,7 @@ export function parseFeedConfig(config: string): FeedColumnConfig | null {
   }
 }
 
-export function parseExplorerConfig(config: string): ExplorerColumnConfig | null {
+function parseExplorerConfig(config: string): ExplorerColumnConfig | null {
   try {
     const parsed = JSON.parse(config) as unknown;
     if (parsed && typeof parsed === "object" && "targetUri" in parsed) {
@@ -77,15 +76,6 @@ export function parseDiagnosticsConfig(config: string): DiagnosticsColumnConfig 
       return parsed as DiagnosticsColumnConfig;
     }
     return null;
-  } catch {
-    return null;
-  }
-}
-
-export function parseMessagesConfig(config: string): MessagesColumnConfig | null {
-  try {
-    const parsed = JSON.parse(config) as unknown;
-    return parsed && typeof parsed === "object" ? parsed as MessagesColumnConfig : null;
   } catch {
     return null;
   }
@@ -115,7 +105,7 @@ export function parseProfileConfig(config: string): ProfileColumnConfig | null {
   }
 }
 
-export function feedConfigToSavedFeedItem(config: FeedColumnConfig): SavedFeedItem {
+function feedConfigToSavedFeedItem(config: FeedColumnConfig): SavedFeedItem {
   return {
     id: config.feedUri || "following",
     pinned: false,

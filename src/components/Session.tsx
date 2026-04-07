@@ -15,7 +15,7 @@ export function SessionEmptyState() {
   );
 }
 
-export function SessionExpiredState(props: { account: AccountSummary }) {
+function SessionExpiredState(props: { account: AccountSummary }) {
   return (
     <div class="flex items-center gap-4 [align-content:start] grid-cols-[auto_minmax(0,1fr)]">
       <AvatarBadge label={props.account.handle || props.account.did} src={props.account.avatar} tone="muted" />
@@ -30,7 +30,7 @@ export function SessionExpiredState(props: { account: AccountSummary }) {
   );
 }
 
-export function SessionProfile(props: { session: ActiveSession; activeAccount: AccountSummary | null }) {
+function SessionProfile(props: { session: ActiveSession; activeAccount: AccountSummary | null }) {
   return (
     <div class="grid items-center gap-4 [align-content:start] grid-cols-[auto_minmax(0,1fr)]">
       <AvatarBadge label={props.session.handle} src={props.activeAccount?.avatar} tone="primary" />
@@ -88,7 +88,7 @@ export function SessionSpotlight() {
   );
 }
 
-export function SessionBody(
+function SessionBody(
   props: {
     activeSession: ActiveSession | null;
     activeAccount: AccountSummary | null;

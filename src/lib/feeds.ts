@@ -20,9 +20,9 @@ import type {
 } from "./types";
 
 export const TIMELINE_ROUTE = "/timeline";
-export const THREAD_QUERY_PARAM = "thread";
+const THREAD_QUERY_PARAM = "thread";
 
-export function asPostRecord(value: unknown): PostRecord {
+function asPostRecord(value: unknown): PostRecord {
   return (asRecord(value) ?? {}) as PostRecord;
 }
 
@@ -181,11 +181,11 @@ export function getFeedCommand(feed: SavedFeedItem) {
   };
 }
 
-export function isRepostReason(item: FeedViewPost) {
+function isRepostReason(item: FeedViewPost) {
   return item.reason?.$type === "app.bsky.feed.defs#reasonRepost";
 }
 
-export function isQuoteEmbed(embed: Maybe<EmbedView>) {
+function isQuoteEmbed(embed: Maybe<EmbedView>) {
   return embed?.$type === "app.bsky.embed.record#view" || embed?.$type === "app.bsky.embed.recordWithMedia#view";
 }
 
@@ -198,16 +198,8 @@ export function isReplyItem(item: FeedViewPost) {
   return !!asRecord(record?.reply);
 }
 
-export function isReplyByUnfollowed(item: FeedViewPost) {
+function isReplyByUnfollowed(item: FeedViewPost) {
   return isReplyItem(item) && !item.post.author.viewer?.following;
-}
-
-export function getRootRef(item: FeedViewPost) {
-  if (item.reply?.root.$type === "app.bsky.feed.defs#postView") {
-    return toStrongRef(item.reply.root);
-  }
-
-  return toStrongRef(item.post);
 }
 
 export function getReplyRootPost(item: FeedViewPost) {
@@ -220,12 +212,6 @@ export function getReplyRootPost(item: FeedViewPost) {
 
 export function toStrongRef(post: PostView) {
   return { cid: post.cid, uri: post.uri } satisfies StrongRefInput;
-}
-
-export function canUseStrongRef(
-  post: Maybe<FeedReplyNode | ThreadNode>,
-): post is { $type: "app.bsky.feed.defs#postView" } & PostView {
-  return !!post && "$type" in post && post.$type === "app.bsky.feed.defs#postView";
 }
 
 export function isThreadViewPost(node: Maybe<ThreadNode>): node is ThreadViewPost {
@@ -296,7 +282,7 @@ export function applyFeedPreferences(items: FeedViewPost[], pref: FeedViewPrefIt
   });
 }
 
-export function getQuotedRecord(embed: Maybe<EmbedView>) {
+function getQuotedRecord(embed: Maybe<EmbedView>) {
   if (!embed) {
     return null;
   }
@@ -355,10 +341,6 @@ export function findRootPost(node: ThreadNode | null): PostView | null {
   return node.post;
 }
 
-export function encodeThreadRouteUri(uri: string) {
-  return encodeURIComponent(uri);
-}
-
 export function decodeThreadRouteUri(value: Maybe<string>) {
   if (!value) {
     return null;
@@ -396,7 +378,7 @@ export function buildPublicPostUrl(post: Pick<PostView, "author" | "uri">) {
   return buildPublicPostHref(post.author, post.uri) ?? post.uri;
 }
 
-export function buildPublicPostHref(author: Maybe<ProfileViewBasic>, uri: Maybe<string>) {
+function buildPublicPostHref(author: Maybe<ProfileViewBasic>, uri: Maybe<string>) {
   if (!author || typeof uri !== "string") {
     return null;
   }

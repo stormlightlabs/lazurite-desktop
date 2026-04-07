@@ -37,7 +37,7 @@ export function getProfileRouteActor(actor: { did: string; handle?: string | nul
   return actor.handle?.trim() || actor.did;
 }
 
-export function parseProfile(value: unknown): ProfileViewDetailed {
+function parseProfile(value: unknown): ProfileViewDetailed {
   const record = asRecord(value);
   if (!record || typeof record.did !== "string" || typeof record.handle !== "string") {
     throw new Error("profile payload is invalid");
