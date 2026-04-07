@@ -1,5 +1,6 @@
 import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { useAppSession } from "$/contexts/app-session";
+import { DraftsList } from "./DraftsList";
 import { FeedComposer } from "./FeedComposer";
 import { SavedFeedsDrawer } from "./FeedDrawer";
 import { FeedPane } from "./FeedPane";
@@ -59,8 +60,16 @@ export function FeedWorkspace() {
         onClearQuote={controller.clearQuoteComposer}
         onClearReply={controller.clearReplyComposer}
         onClose={controller.resetComposer}
+        onOpenDrafts={controller.openDraftsList}
         onSubmit={() => void controller.submitPost()}
         onTextChange={controller.setComposerText} />
+
+      <DraftsList
+        accountDid={activeSession().did}
+        composerHasContent={controller.composerHasContent()}
+        open={controller.workspace.showDraftsList}
+        onClose={controller.closeDraftsList}
+        onLoadDraft={controller.loadDraft} />
     </>
   );
 }

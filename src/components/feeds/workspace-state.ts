@@ -26,6 +26,7 @@ export function createInitialWorkspaceState(): FeedWorkspaceState {
     generators: {},
     localPrefs: {},
     preferences: null,
+    showDraftsList: false,
     showFeedsDrawer: false,
   };
 }

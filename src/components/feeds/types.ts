@@ -26,5 +26,6 @@ export type FeedWorkspaceState = {
   generators: Record<string, FeedGeneratorView>;
   localPrefs: Record<string, FeedViewPrefItem>;
   preferences: UserPreferences | null;
+  showDraftsList: boolean;
   showFeedsDrawer: boolean;
 };

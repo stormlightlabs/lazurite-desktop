@@ -18,12 +18,12 @@ Depends on: Milestone 03 (Feeds — composer, `create_post`)
 
 ### Frontend - Drafts List Panel
 
-- [ ] Drafts list panel component with `Presence` slide-up from composer
-- [ ] Draft cards: title or text preview, reply/quote context indicator, relative timestamp, delete button
-- [ ] Tap draft to load into composer (confirmation if composer has content)
-- [ ] Delete with confirmation
-- [ ] Empty state: *"No drafts yet. Saved posts will appear here."*
-- [ ] `Ctrl/Cmd+D` keyboard shortcut to open drafts list
+- [x] Drafts list panel component with `Presence` slide-up from composer
+- [x] Draft cards: title or text preview, reply/quote context indicator, relative timestamp, delete button
+- [x] Tap draft to load into composer (confirmation if composer has content)
+- [x] Delete with confirmation
+- [x] Empty state: *"No drafts yet. Saved posts will appear here."*
+- [x] `Ctrl/Cmd+D` keyboard shortcut to open drafts list
 
 ### Frontend - Composer Integration
 

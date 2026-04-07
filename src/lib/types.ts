@@ -318,3 +318,18 @@ export type ListConvosResponse = { convos: ConvoView[]; cursor?: string | null }
 export type GetConvoForMembersResponse = { convo: ConvoView };
 
 export type GetMessagesResponse = { messages: Array<MessageView | DeletedMessageView>; cursor?: string | null };
+
+export type Draft = {
+  id: string;
+  accountDid: string;
+  text: string;
+  replyParentUri: string | null;
+  replyParentCid: string | null;
+  replyRootUri: string | null;
+  replyRootCid: string | null;
+  quoteUri: string | null;
+  quoteCid: string | null;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+};

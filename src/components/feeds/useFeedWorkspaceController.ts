@@ -17,6 +17,7 @@ import {
   patchFeedItems,
   toStrongRef,
 } from "$/lib/feeds";
+import type { Draft } from "$/lib/types";
 import type { ActiveSession, EmbedInput, FeedViewPrefItem, PostView, ReplyRefInput, SavedFeedItem } from "$/lib/types";
 import { shouldIgnoreKey } from "$/lib/utils/events";
 import { escapeForRegex } from "$/lib/utils/text";
@@ -76,6 +77,11 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
   });
   const activeFeedState = createMemo(() => workspace.feedStates[activeFeed().id]);
   const visibleItems = createMemo(() => applyFeedPreferences(activeFeedState()?.items ?? [], activePref()));
+  const composerHasContent = createMemo(() => {
+    const { text, quoteTarget, replyTarget } = workspace.composer;
+    return text.trim().length > 0 || quoteTarget !== null || replyTarget !== null;
+  });
+
   const composerToken = createMemo(() => {
     const match = /(^|\s)([@#][^\s@#]*)$/u.exec(workspace.composer.text);
     return match?.[2] ?? null;
@@ -235,6 +241,12 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
   }
 
   function handleGlobalKeydown(event: KeyboardEvent) {
+    if ((event.metaKey || event.ctrlKey) && event.key === "d") {
+      event.preventDefault();
+      openDraftsList();
+      return;
+    }
+
     if (workspace.composer.open || shouldIgnoreKey(event)) {
       return;
     }
@@ -562,6 +574,20 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     setWorkspace("showFeedsDrawer", false);
   }
 
+  function openDraftsList() {
+    setWorkspace("showDraftsList", true);
+  }
+
+  function closeDraftsList() {
+    setWorkspace("showDraftsList", false);
+  }
+
+  function loadDraft(draft: Draft) {
+    setComposerText(draft.text);
+    setWorkspace("composer", "open", true);
+    setWorkspace("showDraftsList", false);
+  }
+
   return {
     activeFeed,
     activeFeedState,
@@ -569,10 +595,14 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     applySuggestion,
     clearQuoteComposer,
     clearReplyComposer,
+    closeDraftsList,
     closeFeedsDrawer,
+    composerHasContent,
     composerSuggestions,
     drawerFeeds,
+    loadDraft,
     openComposer,
+    openDraftsList,
     openThread,
     openQuoteComposer,
     openReplyComposer,

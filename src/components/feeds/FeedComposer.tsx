@@ -42,11 +42,15 @@ type FeedComposerProps = {
   onClearQuote: () => void;
   onClearReply: () => void;
   onClose: () => void;
+  onOpenDrafts?: () => void;
   onSubmit: () => void;
   onTextChange: (value: string) => void;
 };
 
-type ComposerSurfaceProps = Omit<FeedComposerProps, "open"> & { layout?: "dialog" | "window" };
+type ComposerSurfaceProps = Omit<FeedComposerProps, "open"> & {
+  layout?: "dialog" | "window";
+  onOpenDrafts?: () => void;
+};
 
 export function FeedComposer(props: FeedComposerProps) {
   return (
@@ -75,6 +79,7 @@ export function FeedComposer(props: FeedComposerProps) {
             onClearQuote={props.onClearQuote}
             onClearReply={props.onClearReply}
             onClose={props.onClose}
+            onOpenDrafts={props.onOpenDrafts}
             onSubmit={props.onSubmit}
             onTextChange={props.onTextChange} />
         </div>
@@ -102,6 +107,7 @@ export function ComposerSurface(props: ComposerSurfaceProps) {
           quoteTarget={props.quoteTarget}
           text={props.text}
           onClose={props.onClose}
+          onOpenDrafts={props.onOpenDrafts}
           onSubmit={props.onSubmit} />
         <ComposerBody
           activeAvatar={props.activeAvatar}
@@ -150,6 +156,7 @@ function ComposerHeader(
     quoteTarget: PostView | null;
     text: string;
     onClose: () => void;
+    onOpenDrafts?: () => void;
     onSubmit: () => void;
   },
 ) {
@@ -164,11 +171,28 @@ function ComposerHeader(
         </button>
         <ComposerTitle activeHandle={props.activeHandle} />
       </div>
-      <ComposerSubmitButton
-        disabled={props.pending || (!props.text.trim() && !props.quoteTarget)}
-        pending={props.pending}
-        onSubmit={props.onSubmit} />
+      <div class="flex items-center gap-2">
+        <ComposerDraftsButton onOpenDrafts={props.onOpenDrafts} />
+        <ComposerSubmitButton
+          disabled={props.pending || (!props.text.trim() && !props.quoteTarget)}
+          pending={props.pending}
+          onSubmit={props.onSubmit} />
+      </div>
     </header>
+  );
+}
+
+function ComposerDraftsButton(props: { onOpenDrafts?: () => void }) {
+  return (
+    <Show when={props.onOpenDrafts}>
+      <button
+        class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
+        type="button"
+        title="Drafts (Ctrl+D)"
+        onClick={() => props.onOpenDrafts?.()}>
+        <Icon aria-hidden="true" iconClass="i-ri-draft-line" />
+      </button>
+    </Show>
   );
 }
 
