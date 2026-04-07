@@ -240,13 +240,15 @@ export function extractHashtags(posts: PostView[]) {
 export function extractHandles(posts: PostView[], activeHandle: string | null) {
   const handles = new Set<string>();
   for (const post of posts) {
-    if (post.author.handle) {
-      handles.add(`@${post.author.handle.replace(/^@/, "")}`);
+    const handle = normalizeHandle(post.author.handle);
+    if (handle) {
+      handles.add(`@${handle}`);
     }
   }
 
-  if (activeHandle) {
-    handles.add(`@${activeHandle.replace(/^@/, "")}`);
+  const normalizedActiveHandle = normalizeHandle(activeHandle);
+  if (normalizedActiveHandle) {
+    handles.add(`@${normalizedActiveHandle}`);
   }
 
   return [...handles].toSorted((left, right) => left.localeCompare(right));
@@ -383,13 +385,31 @@ function buildPublicPostHref(author: Maybe<ProfileViewBasic>, uri: Maybe<string>
     return null;
   }
 
-  const handle = author.handle.replace(/^@/, "").trim();
+  const actor = normalizeHandle(author.handle) ?? normalizeDid(author.did);
   const segments = uri.split("/");
   const rkey = segments.at(-1)?.trim();
 
-  if (handle && rkey) {
-    return `https://bsky.app/profile/${encodeURIComponent(handle)}/post/${encodeURIComponent(rkey)}`;
+  if (actor && rkey) {
+    return `https://bsky.app/profile/${encodeURIComponent(actor)}/post/${encodeURIComponent(rkey)}`;
   }
 
   return null;
+}
+
+function normalizeHandle(value: string | null | undefined) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.replace(/^@/, "").trim();
+  return normalized || null;
+}
+
+function normalizeDid(value: string | null | undefined) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized || null;
 }

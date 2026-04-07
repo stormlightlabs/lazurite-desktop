@@ -148,6 +148,15 @@ describe("feed helpers", () => {
     expect(buildPublicPostUrl(createFeedItem().post)).toBe("https://bsky.app/profile/alice.test/post/1");
   });
 
+  it("falls back to did-based post urls when handle is missing", () => {
+    const postWithoutHandle = {
+      ...createFeedItem().post,
+      author: { did: "did:plc:alice", handle: undefined as unknown as string },
+    };
+
+    expect(buildPublicPostUrl(postWithoutHandle)).toBe("https://bsky.app/profile/did%3Aplc%3Aalice/post/1");
+  });
+
   it("rejects malformed feed payloads", () => {
     expect(() => parseFeedResponse({ cursor: null, feed: {} })).toThrow("feed response payload is invalid");
     expect(() => parseFeedResponse({ cursor: 42, feed: [] })).toThrow("feed response cursor is invalid");

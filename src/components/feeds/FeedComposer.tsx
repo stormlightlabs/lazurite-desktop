@@ -141,7 +141,7 @@ function getComposerViewportClass(layout: ComposerSurfaceProps["layout"]) {
     return "mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center p-6 max-[640px]:p-4";
   }
 
-  return "relative z-10 flex min-h-screen items-end justify-center p-4 pt-16";
+  return "relative z-10 flex min-h-screen items-center justify-center p-4 pt-16";
 }
 
 function getComposerPanelClass(layout: ComposerSurfaceProps["layout"]) {

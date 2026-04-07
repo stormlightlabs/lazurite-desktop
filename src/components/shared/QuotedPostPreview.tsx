@@ -1,5 +1,6 @@
 import { getDisplayName } from "$/lib/feeds";
 import type { ProfileViewBasic } from "$/lib/types";
+import { formatHandle } from "$/lib/utils/text";
 import { createMemo, Show } from "solid-js";
 
 export function QuotedPostPreview(
@@ -34,7 +35,7 @@ function QuotedPreviewContent(props: { author: ProfileViewBasic | null; preview:
           <p class="m-0 wrap-break-word text-sm font-semibold text-on-surface">
             {getDisplayName(author())}
             <span class="ml-1 break-all text-xs font-normal text-on-surface-variant">
-              @{author().handle.replace(/^@/, "")}
+              {formatHandle(author().handle, author().did)}
             </span>
           </p>
         )}

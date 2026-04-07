@@ -54,7 +54,7 @@ describe("ExplorerPanel", () => {
     listenMock.mockReset();
 
     exportRepoCarMock.mockResolvedValue({ did: "did:plc:alice", path: "/tmp/alice.car", bytesWritten: 64 });
-    clearLexiconFaviconCacheMock.mockResolvedValue(undefined);
+    clearLexiconFaviconCacheMock.mockResolvedValue(void 0);
     getLexiconFaviconsMock.mockResolvedValue({});
     getProfileMock.mockResolvedValue({
       status: "available",

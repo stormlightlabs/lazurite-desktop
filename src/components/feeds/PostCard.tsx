@@ -17,7 +17,7 @@ import {
 } from "$/lib/feeds";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { EmbedView, FeedViewPost, ImagesEmbedView, PostView, ProfileViewBasic, RichTextFacet } from "$/lib/types";
-import { formatCount } from "$/lib/utils/text";
+import { formatCount, formatHandle } from "$/lib/utils/text";
 import { createMemo, createSignal, For, Match, type ParentProps, Show, Switch } from "solid-js";
 import { Motion } from "solid-motionone";
 
@@ -51,6 +51,7 @@ export function PostCard(props: PostCardProps) {
   const postText = createMemo(() => getPostText(props.post));
   const replyCount = createMemo(() => formatCount(props.post.replyCount));
   const repostCount = createMemo(() => formatCount(props.post.repostCount));
+  const authorHandle = createMemo(() => formatHandle(props.post.author.handle, props.post.author.did));
   const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.post.author)));
   const reasonLabel = createMemo(() => {
     const reason = props.item?.reason;
@@ -68,7 +69,7 @@ export function PostCard(props: PostCardProps) {
 
     const parent = item.reply?.parent;
     if (parent?.$type === "app.bsky.feed.defs#postView") {
-      return `Replying to @${parent.author.handle.replace(/^@/, "")}`;
+      return `Replying to ${formatHandle(parent.author.handle, parent.author.did)}`;
     }
 
     return "Reply in thread";
@@ -179,9 +180,9 @@ export function PostCard(props: PostCardProps) {
           <PostPrimaryRegion onFocus={props.onFocus} onOpenThread={props.onOpenThread}>
             <PostHeader
               authorName={authorName()}
+              authorHandle={authorHandle()}
               createdAt={createdAt()}
-              profileHref={profileHref()}
-              post={props.post} />
+              profileHref={profileHref()} />
 
             <PostBodyText facets={getPostFacets(props.post)} text={postText()} />
 
@@ -227,7 +228,7 @@ export function PostCard(props: PostCardProps) {
   );
 }
 
-function PostHeader(props: { authorName: string; createdAt: string; post: PostView; profileHref: string }) {
+function PostHeader(props: { authorHandle: string; authorName: string; createdAt: string; profileHref: string }) {
   return (
     <header class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
       <a
@@ -240,7 +241,7 @@ function PostHeader(props: { authorName: string; createdAt: string; post: PostVi
         class="break-all text-xs text-on-surface-variant no-underline transition hover:text-primary"
         href={`#${props.profileHref}`}
         onClick={(event) => event.stopPropagation()}>
-        @{props.post.author.handle.replace(/^@/, "")}
+        {props.authorHandle}
       </a>
       <span class="text-xs text-on-surface-variant">{props.createdAt}</span>
     </header>

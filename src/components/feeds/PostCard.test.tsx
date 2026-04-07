@@ -95,6 +95,26 @@ describe("PostCard", () => {
     expect(screen.getByText("Replying to @bob.test")).toBeInTheDocument();
   });
 
+  it("falls back to did in reply context when parent handle is missing", () => {
+    render(() => (
+      <PostCard
+        item={{
+          post: createPost(),
+          reply: {
+            parent: {
+              $type: "app.bsky.feed.defs#postView",
+              ...createPost(),
+              author: { did: "did:plc:bob", handle: undefined as unknown as string },
+            },
+            root: { $type: "app.bsky.feed.defs#postView", ...createPost() },
+          },
+        }}
+        post={createPost()} />
+    ));
+
+    expect(screen.getByText("Replying to did:plc:bob")).toBeInTheDocument();
+  });
+
   it("renders recordWithMedia embeds as media plus quoted record", () => {
     render(() => (
       <PostCard

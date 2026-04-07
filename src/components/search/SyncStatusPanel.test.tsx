@@ -161,7 +161,7 @@ describe("SyncStatusPanel", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("sync-activity-bar")).not.toBeInTheDocument();
     });
-  }, 10000);
+  }, 10_000);
 
   it("shows source-specific progress bars", async () => {
     render(() => <SyncStatusPanel did="did:plc:test" />);
