@@ -1,7 +1,7 @@
 import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { useAppSession } from "$/contexts/app-session";
 import { addColumn, getColumns, removeColumn, reorderColumns, updateColumn } from "$/lib/api/columns";
-import { getFeedGenerators, getPreferences } from "$/lib/api/feeds";
+import { FeedController } from "$/lib/api/feeds";
 import type { Column, ColumnKind, ColumnWidth } from "$/lib/api/types/columns";
 import { getFeedName } from "$/lib/feeds";
 import type { FeedGeneratorView } from "$/lib/types";
@@ -188,7 +188,7 @@ export function DeckWorkspace() {
     );
 
     try {
-      const preferences = await getPreferences();
+      const preferences = await FeedController.getPreferences();
       const savedFeedTitles = Object.fromEntries(
         preferences.savedFeeds.map((feed) => [feed.value, getFeedName(feed, void 0)]),
       );
@@ -203,7 +203,7 @@ export function DeckWorkspace() {
       let generators: Record<string, FeedGeneratorView> = {};
 
       if (generatorUris.length > 0) {
-        const hydrated = await getFeedGenerators(generatorUris);
+        const hydrated = await FeedController.getFeedGenerators(generatorUris);
         generators = Object.fromEntries(hydrated.feeds.map((generator) => [generator.uri, generator]));
       }
 

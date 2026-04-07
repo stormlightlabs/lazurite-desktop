@@ -1,5 +1,5 @@
 import { useAppSession } from "$/contexts/app-session";
-import { createPost } from "$/lib/api/feeds";
+import { FeedController } from "$/lib/api/feeds";
 import { POST_CREATED_EVENT } from "$/lib/constants/events";
 import { emitTo } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -23,7 +23,7 @@ export function ComposerWindow() {
 
     setPending(true);
     try {
-      await createPost(nextText, null, null);
+      await FeedController.createPost(nextText, null, null);
       await emitTo("main", POST_CREATED_EVENT, null);
       await closeWindow();
     } catch (error) {

@@ -1,5 +1,5 @@
 import { usePostInteractions } from "$/components/posts/usePostInteractions";
-import { getFeedPage } from "$/lib/api/feeds";
+import { FeedController } from "$/lib/api/feeds";
 import { patchFeedItems } from "$/lib/feeds";
 import type { FeedViewPost, SavedFeedItem } from "$/lib/types";
 import * as logger from "@tauri-apps/plugin-log";
@@ -39,7 +39,7 @@ export function useFeedColumnState(getFeed: () => SavedFeedItem) {
 
   async function load(cursor: string | null = null) {
     try {
-      const page = await getFeedPage(getFeed(), cursor, PAGE_LIMIT);
+      const page = await FeedController.getFeedPage(getFeed(), cursor, PAGE_LIMIT);
 
       if (cursor) {
         setState("items", (prev) => [...prev, ...page.feed]);

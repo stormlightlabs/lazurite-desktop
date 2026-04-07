@@ -5,7 +5,10 @@ import { AddColumnPanel } from "./AddColumnPanel";
 const getFeedGeneratorsMock = vi.hoisted(() => vi.fn());
 const getPreferencesMock = vi.hoisted(() => vi.fn());
 
-vi.mock("$/lib/api/feeds", () => ({ getFeedGenerators: getFeedGeneratorsMock, getPreferences: getPreferencesMock }));
+vi.mock(
+  "$/lib/api/feeds",
+  () => ({ FeedController: { getFeedGenerators: getFeedGeneratorsMock, getPreferences: getPreferencesMock } }),
+);
 vi.mock("@tauri-apps/plugin-log", () => ({ error: vi.fn(), info: vi.fn(), warn: vi.fn() }));
 
 describe("AddColumnPanel", () => {

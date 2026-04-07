@@ -1,5 +1,5 @@
 import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/actor-search";
-import { getFeedGenerators, getPreferences } from "$/lib/api/feeds";
+import { FeedController } from "$/lib/api/feeds";
 import type { ColumnKind } from "$/lib/api/types/columns";
 import type { SearchMode } from "$/lib/api/types/search";
 import { getFeedName } from "$/lib/feeds";
@@ -38,12 +38,12 @@ function FeedPicker(props: { onSelect: (selection: FeedPickerSelection) => void 
 
   onMount(async () => {
     try {
-      const prefs = await getPreferences();
+      const prefs = await FeedController.getPreferences();
       setFeeds(prefs.savedFeeds);
 
       const uris = [...new Set(prefs.savedFeeds.filter((feed) => feed.type === "feed").map((feed) => feed.value))];
       if (uris.length > 0) {
-        const hydrated = await getFeedGenerators(uris);
+        const hydrated = await FeedController.getFeedGenerators(uris);
         setGenerators(Object.fromEntries(hydrated.feeds.map((generator) => [generator.uri, generator])));
       }
     } catch (err) {

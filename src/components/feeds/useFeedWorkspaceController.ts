@@ -1,14 +1,6 @@
 import { usePostInteractions } from "$/components/posts/usePostInteractions";
 import { DraftController } from "$/lib/api/drafts";
-import {
-  createPost,
-  getFeedGenerators,
-  getFeedPage,
-  getPostThread,
-  getPreferences,
-  updateFeedViewPref,
-  updateSavedFeeds,
-} from "$/lib/api/feeds";
+import { FeedController } from "$/lib/api/feeds";
 import { POST_CREATED_EVENT } from "$/lib/constants/events";
 import {
   applyFeedPreferences,
@@ -101,7 +93,7 @@ function findPostInThread(node: ThreadNode | null | undefined, uri: string): Pos
 
 async function resolvePostByUri(uri: string): Promise<PostView | null> {
   try {
-    const payload = await getPostThread(uri);
+    const payload = await FeedController.getPostThread(uri);
     const post = findPostInThread(payload.thread, uri);
     if (post) {
       return post;
@@ -633,7 +625,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     setWorkspace(reconcile(createInitialWorkspaceState()));
 
     try {
-      const nextPreferences = await getPreferences();
+      const nextPreferences = await FeedController.getPreferences();
       if (currentDid !== props.activeSession.did) {
         return;
       }
@@ -645,7 +637,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
         ...new Set(nextPreferences.savedFeeds.filter((feed) => feed.type === "feed").map((feed) => feed.value)),
       ];
       if (uris.length > 0) {
-        const hydrated = await getFeedGenerators(uris);
+        const hydrated = await FeedController.getFeedGenerators(uris);
         setWorkspace(
           "generators",
           reconcile(Object.fromEntries(hydrated.feeds.map((generator) => [generator.uri, generator]))),
@@ -681,7 +673,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     }
 
     try {
-      const payload = await getFeedPage(feed, state.cursor, DEFAULT_LIMIT);
+      const payload = await FeedController.getFeedPage(feed, state.cursor, DEFAULT_LIMIT);
       const items = append ? [...state.items, ...payload.feed] : payload.feed;
       setWorkspace("feedStates", feed.id, {
         cursor: payload.cursor ?? null,
@@ -851,7 +843,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
 
     setWorkspace("composer", "pending", true);
     try {
-      await createPost(text, replyTo, embed);
+      await FeedController.createPost(text, replyTo, embed);
 
       if (autosaveTimerId !== null) {
         clearTimeout(autosaveTimerId);
@@ -902,7 +894,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
 
   async function saveFeedPreferences(updatedFeeds: SavedFeedItem[]) {
     try {
-      await updateSavedFeeds(updatedFeeds);
+      await FeedController.updateSavedFeeds(updatedFeeds);
       setWorkspace("preferences", (current) => current ? { ...current, savedFeeds: updatedFeeds } : current);
     } catch (error) {
       props.onError(`Failed to update feeds: ${String(error)}`);
@@ -960,7 +952,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     setWorkspace("localPrefs", feed.value, nextPref);
 
     try {
-      await updateFeedViewPref(nextPref);
+      await FeedController.updateFeedViewPref(nextPref);
       setWorkspace(
         "preferences",
         (current) =>

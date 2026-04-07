@@ -4,6 +4,7 @@
 
 ### 2026-04-07
 
+- Image (single or gallery) & video player with blob downloading
 - Group notifications by reason & post, with clickable links to subjects and posts
 
 ### 2026-04-06

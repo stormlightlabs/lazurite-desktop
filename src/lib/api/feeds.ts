@@ -9,55 +9,71 @@ import type {
 } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
 
-export function getPreferences() {
+function getPreferences() {
   return invoke<UserPreferences>("get_preferences");
 }
 
-export async function getFeedGenerators(uris: string[]) {
+async function getFeedGenerators(uris: string[]) {
   return parseFeedGeneratorsResponse(await invoke("get_feed_generators", { uris }));
 }
 
-export async function getFeedPage(feed: SavedFeedItem, cursor: string | null, limit: number) {
+async function getFeedPage(feed: SavedFeedItem, cursor: string | null, limit: number) {
   const command = getFeedCommand(feed);
   return parseFeedResponse(await invoke(command.name, command.args(cursor, limit)));
 }
 
-export async function getPostThread(uri: string) {
+async function getPostThread(uri: string) {
   return parseThreadResponse(await invoke("get_post_thread", { uri }));
 }
 
-export function createPost(text: string, replyTo: ReplyRefInput | null, embed: EmbedInput | null) {
+function createPost(text: string, replyTo: ReplyRefInput | null, embed: EmbedInput | null) {
   return invoke<CreateRecordResult>("create_post", { embed, replyTo, text });
 }
 
-export function likePost(uri: string, cid: string) {
+function likePost(uri: string, cid: string) {
   return invoke<CreateRecordResult>("like_post", { cid, uri });
 }
 
-export function unlikePost(likeUri: string) {
+function unlikePost(likeUri: string) {
   return invoke("unlike_post", { likeUri });
 }
 
-export function repost(uri: string, cid: string) {
+function repost(uri: string, cid: string) {
   return invoke<CreateRecordResult>("repost", { cid, uri });
 }
 
-export function unrepost(repostUri: string) {
+function unrepost(repostUri: string) {
   return invoke("unrepost", { repostUri });
 }
 
-export function bookmarkPost(uri: string, cid: string) {
+function bookmarkPost(uri: string, cid: string) {
   return invoke("bookmark_post", { cid, uri });
 }
 
-export function removeBookmark(uri: string) {
+function removeBookmark(uri: string) {
   return invoke("remove_bookmark", { uri });
 }
 
-export function updateSavedFeeds(feeds: SavedFeedItem[]) {
+function updateSavedFeeds(feeds: SavedFeedItem[]) {
   return invoke("update_saved_feeds", { feeds });
 }
 
-export function updateFeedViewPref(pref: FeedViewPrefItem) {
+function updateFeedViewPref(pref: FeedViewPrefItem) {
   return invoke("update_feed_view_pref", { pref });
 }
+
+export const FeedController = {
+  getPreferences,
+  getFeedGenerators,
+  getFeedPage,
+  getPostThread,
+  createPost,
+  likePost,
+  unlikePost,
+  repost,
+  unrepost,
+  bookmarkPost,
+  removeBookmark,
+  updateSavedFeeds,
+  updateFeedViewPref,
+};

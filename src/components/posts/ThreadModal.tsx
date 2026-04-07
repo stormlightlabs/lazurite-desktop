@@ -1,6 +1,6 @@
 import { Icon } from "$/components/shared/Icon";
 import { useAppSession } from "$/contexts/app-session";
-import { getPostThread } from "$/lib/api/feeds";
+import { FeedController } from "$/lib/api/feeds";
 import { findRootPost, isBlockedNode, isNotFoundNode, isThreadViewPost, patchThreadNode } from "$/lib/feeds";
 import type { PostView, ThreadNode } from "$/lib/types";
 import { createEffect, createMemo, For, Match, onCleanup, Show, Switch } from "solid-js";
@@ -69,7 +69,7 @@ export function ThreadModal() {
     setState({ error: null, loading: true, thread: null, uri });
 
     try {
-      const payload = await getPostThread(uri);
+      const payload = await FeedController.getPostThread(uri);
       if (threadOverlay.threadUri() === uri) {
         setState({ error: null, loading: false, thread: payload.thread, uri });
       }

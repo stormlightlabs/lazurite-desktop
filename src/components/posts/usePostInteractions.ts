@@ -1,4 +1,4 @@
-import { bookmarkPost, likePost, removeBookmark, repost, unlikePost, unrepost } from "$/lib/api/feeds";
+import { FeedController } from "$/lib/api/feeds";
 import {
   emitBookmarkChanged,
   emitPostViewUpdated,
@@ -70,10 +70,10 @@ export function usePostInteractions(props: UsePostInteractionsProps) {
 
     try {
       if (previousLike) {
-        await unlikePost(previousLike);
+        await FeedController.unlikePost(previousLike);
         emitPostViewUpdated({ likeCount: Math.max(0, previousLikeCount - 1), uri: post.uri, viewer: { like: null } });
       } else {
-        const result = await likePost(post.uri, post.cid);
+        const result = await FeedController.likePost(post.uri, post.cid);
         props.patchPost(post.uri, (current) => ({ ...current, viewer: { ...current.viewer, like: result.uri } }));
         emitPostViewUpdated({ likeCount: previousLikeCount + 1, uri: post.uri, viewer: { like: result.uri } });
       }
@@ -120,14 +120,14 @@ export function usePostInteractions(props: UsePostInteractionsProps) {
 
     try {
       if (previousRepost) {
-        await unrepost(previousRepost);
+        await FeedController.unrepost(previousRepost);
         emitPostViewUpdated({
           repostCount: Math.max(0, previousRepostCount - 1),
           uri: post.uri,
           viewer: { repost: null },
         });
       } else {
-        const result = await repost(post.uri, post.cid);
+        const result = await FeedController.repost(post.uri, post.cid);
         props.patchPost(post.uri, (current) => ({ ...current, viewer: { ...current.viewer, repost: result.uri } }));
         emitPostViewUpdated({ repostCount: previousRepostCount + 1, uri: post.uri, viewer: { repost: result.uri } });
       }
@@ -161,9 +161,9 @@ export function usePostInteractions(props: UsePostInteractionsProps) {
 
     try {
       if (previousBookmarked) {
-        await removeBookmark(post.uri);
+        await FeedController.removeBookmark(post.uri);
       } else {
-        await bookmarkPost(post.uri, post.cid);
+        await FeedController.bookmarkPost(post.uri, post.cid);
       }
 
       emitPostViewUpdated({ uri: post.uri, viewer: { bookmarked: !previousBookmarked } });
