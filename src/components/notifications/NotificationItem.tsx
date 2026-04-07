@@ -2,28 +2,20 @@ import { Icon } from "$/components/shared/Icon";
 import { formatRelativeTime, getAvatarLabel, getDisplayName } from "$/lib/feeds";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { NotificationReason, NotificationView } from "$/lib/types";
-import { createMemo, Match, Show, Switch } from "solid-js";
+import { createMemo, Show } from "solid-js";
+import {
+  notificationBodyTargetUri,
+  notificationOriginalPostUri,
+  notificationReasonCopy,
+  notificationReasonIcon,
+} from "./notification-copy";
 
 function ReasonIcon(props: { reason: NotificationReason }) {
+  const icon = createMemo(() => notificationReasonIcon(props.reason));
+
   return (
     <div class="flex w-8 shrink-0 justify-center pt-0.5">
-      <Switch fallback={<Icon kind="notifications" class="text-on-surface-variant" aria-hidden="true" />}>
-        <Match when={props.reason === "like"}>
-          <Icon kind="heart" class="text-[#ff6b6b]" aria-hidden="true" />
-        </Match>
-        <Match when={props.reason === "repost"}>
-          <Icon kind="repost" class="text-[#4cd964]" aria-hidden="true" />
-        </Match>
-        <Match when={props.reason === "mention" || props.reason === "reply"}>
-          <Icon kind="reply" class="text-primary" aria-hidden="true" />
-        </Match>
-        <Match when={props.reason === "quote"}>
-          <Icon kind="quote" class="text-primary" aria-hidden="true" />
-        </Match>
-        <Match when={props.reason === "follow"}>
-          <Icon kind="follow" class="text-primary" aria-hidden="true" />
-        </Match>
-      </Switch>
+      <Icon kind={icon().kind} class={icon().className} aria-hidden="true" />
     </div>
   );
 }
@@ -39,37 +31,22 @@ function AuthorAvatar(props: { avatar?: string | null; label: string }) {
 }
 
 type NotificationItemProps = { notification: NotificationView };
+type NotificationInteractionProps = {
+  buildThreadHref?: (uri: string | null) => string;
+  onMarkRead?: (uris: string[]) => void;
+  onOpenThread?: (uri: string) => void;
+};
 
-export function NotificationItem(props: NotificationItemProps) {
+export function NotificationItem(props: NotificationItemProps & NotificationInteractionProps) {
   const name = createMemo(() => getDisplayName(props.notification.author));
-  const description = createMemo(() => {
-    switch (props.notification.reason) {
-      case "like": {
-        return "liked your post";
-      }
-      case "repost": {
-        return "reposted your post";
-      }
-      case "mention": {
-        return "mentioned you";
-      }
-      case "reply": {
-        return "replied to you";
-      }
-      case "quote": {
-        return "quoted your post";
-      }
-      case "follow": {
-        return "followed you";
-      }
-      default: {
-        return "interacted with your post";
-      }
-    }
-  });
+  const description = createMemo(() => notificationReasonCopy(props.notification.reason));
   const time = createMemo(() => formatRelativeTime(props.notification.indexedAt));
   const avatarLabel = createMemo(() => getAvatarLabel(props.notification.author));
   const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.notification.author)));
+  const bodyTargetUri = createMemo(() => notificationBodyTargetUri(props.notification));
+  const originalPostUri = createMemo(() => notificationOriginalPostUri(props.notification));
+  const originalPostHref = createMemo(() => props.buildThreadHref?.(originalPostUri() ?? null) ?? null);
+  const bodyInteractive = createMemo(() => !!props.onOpenThread && !!bodyTargetUri());
   const postText = createMemo<string | null>(() => {
     const record = props.notification.record;
     const text = record["text"];
@@ -77,24 +54,64 @@ export function NotificationItem(props: NotificationItemProps) {
   });
   const detail = createMemo(() => postText() ?? followDetail(props.notification));
 
+  function openBodyTarget() {
+    const uri = bodyTargetUri();
+    if (!uri || !props.onOpenThread) {
+      return;
+    }
+
+    props.onMarkRead?.([props.notification.uri]);
+    props.onOpenThread(uri);
+  }
+
+  function markRead() {
+    props.onMarkRead?.([props.notification.uri]);
+  }
+
   return (
     <article
       class="flex items-start gap-4 rounded-2xl px-4 py-4 transition-colors duration-150 hover:bg-surface-container-high"
       classList={{ "opacity-60": props.notification.isRead }}
       aria-label={`${name()} ${description()}`}>
       <ReasonIcon reason={props.notification.reason} />
-      <a class="shrink-0 no-underline" href={`#${profileHref()}`}>
+      <a
+        class="shrink-0 no-underline"
+        href={`#${profileHref()}`}
+        aria-label={`View @${props.notification.author.handle}`}
+        onClick={() => markRead()}>
         <AuthorAvatar avatar={props.notification.author.avatar} label={avatarLabel()} />
       </a>
 
-      <div class="min-w-0 flex-1">
+      <div
+        class="min-w-0 flex-1 rounded-xl p-1.5 transition duration-150"
+        classList={{
+          "cursor-pointer hover:bg-white/2 focus-visible:bg-white/3 focus-visible:ring-1 focus-visible:ring-primary/30":
+            bodyInteractive(),
+        }}
+        role={bodyInteractive() ? "button" : undefined}
+        tabIndex={bodyInteractive() ? 0 : undefined}
+        onClick={() => openBodyTarget()}
+        onKeyDown={(event) => {
+          if ((event.key === "Enter" || event.key === " ") && bodyInteractive()) {
+            event.preventDefault();
+            openBodyTarget();
+          }
+        }}>
         <p class="m-0 text-sm leading-relaxed text-on-surface">
           <a
             class="font-semibold text-on-surface no-underline transition hover:text-primary"
-            href={`#${profileHref()}`}>
+            href={`#${profileHref()}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              markRead();
+            }}>
             {name()}
           </a>{" "}
-          <span class="text-on-surface-variant">{description()}</span>
+          <NotificationDescription
+            description={description()}
+            onOpenOriginalPost={() => markRead()}
+            originalPostHref={originalPostHref()}
+            reason={props.notification.reason} />
         </p>
 
         <Show when={detail()}>
@@ -108,6 +125,35 @@ export function NotificationItem(props: NotificationItemProps) {
         <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" role="status" />
       </Show>
     </article>
+  );
+}
+
+function NotificationDescription(
+  props: {
+    description: string;
+    onOpenOriginalPost: () => void;
+    originalPostHref: string | null;
+    reason: NotificationReason;
+  },
+) {
+  const postHref = createMemo(() => props.originalPostHref);
+  const shouldLinkToOriginal = createMemo(() => (props.reason === "reply" || props.reason === "quote") && !!postHref());
+
+  return (
+    <Show when={shouldLinkToOriginal()} fallback={<span class="text-on-surface-variant">{props.description}</span>}>
+      <span class="text-on-surface-variant">
+        <span>{props.reason === "reply" ? "replied to " : "quoted "}</span>
+        <a
+          class="font-medium text-on-surface no-underline transition hover:text-primary hover:underline"
+          href={`#${postHref()}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            props.onOpenOriginalPost();
+          }}>
+          your post
+        </a>
+      </span>
+    </Show>
   );
 }
 

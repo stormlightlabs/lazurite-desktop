@@ -1,41 +1,91 @@
 import { useAppSession } from "$/contexts/app-session";
 import { listNotifications, updateSeen } from "$/lib/api/notifications";
 import { NOTIFICATIONS_UNREAD_COUNT_EVENT } from "$/lib/constants/events";
-import type { ListNotificationsResponse, NotificationView } from "$/lib/types";
+import { buildThreadOverlayRoute, formatRelativeTime, getAvatarLabel, getDisplayName } from "$/lib/feeds";
+import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
+import type { ListNotificationsResponse, NotificationReason, NotificationView, ProfileViewBasic } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
 import { listen } from "@tauri-apps/api/event";
 import * as logger from "@tauri-apps/plugin-log";
-import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createMemo, createSignal, For, Match, onCleanup, onMount, type ParentProps, Show, Switch } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
 import { Icon } from "../shared/Icon";
+import { notificationReasonCopy, notificationReasonIcon } from "./notification-copy";
+import {
+  buildAllNotificationsFeed,
+  groupActivityNotifications,
+  type GroupedNotificationFeedItem,
+  isMentionNotification,
+  type NotificationFeedItem,
+  type SingleNotificationFeedItem,
+  splitByReadState,
+  toSingleFeedItems,
+} from "./notification-grouping";
 import { NotificationItem } from "./NotificationItem";
 
-type Tab = "mentions" | "activity";
+type Tab = "all" | "mentions" | "activity";
 
-const MENTION_REASONS = new Set(["mention", "reply", "quote"]);
+function getCurrentRouteFromHash() {
+  const rawHash = globalThis.location.hash.replace(/^#/, "");
+  const hashRoute = rawHash.length > 0 ? rawHash : "/notifications";
+  const [pathname, ...searchTokens] = hashRoute.split("?");
+  const search = searchTokens.length > 0 ? `?${searchTokens.join("?")}` : "";
+
+  return { pathname: pathname || "/notifications", search };
+}
+
+function buildThreadHrefFromHash(uri: string | null) {
+  const { pathname, search } = getCurrentRouteFromHash();
+  return buildThreadOverlayRoute(pathname, search, uri);
+}
 
 function hasUnreadNotifications(items: NotificationView[]) {
   return items.some((notification) => !notification.isRead);
 }
 
+function groupedSummary(item: GroupedNotificationFeedItem) {
+  const [first, second] = item.actors;
+  const action = notificationReasonCopy(item.reason);
+
+  if (!first) {
+    return `${item.count} accounts ${action}`;
+  }
+
+  const firstName = getDisplayName(first);
+  if (!second) {
+    return `${firstName} ${action}`;
+  }
+
+  const secondName = getDisplayName(second);
+  if (item.actorCount === 2) {
+    return `${firstName} and ${secondName} ${action}`;
+  }
+
+  const others = item.actorCount - 2;
+  const label = others === 1 ? "other" : "others";
+  return `${firstName}, ${secondName}, and ${others} ${label} ${action}`;
+}
+
 export function NotificationsPanel() {
   const session = useAppSession();
-  // TODO: NotificationsStore via createStore
-  const [tab, setTab] = createSignal<Tab>("mentions");
+  const [tab, setTab] = createSignal<Tab>("all");
   const [notifications, setNotifications] = createSignal<NotificationView[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   let loadRequestId = 0;
   let markSeenPending = false;
 
-  const mentions = createMemo(() => notifications().filter((n) => MENTION_REASONS.has(n.reason)));
-  const activity = createMemo(() => notifications().filter((n) => !MENTION_REASONS.has(n.reason)));
-  const unreadMentions = createMemo(() => mentions().filter((n) => !n.isRead).length);
-  const unreadActivity = createMemo(() => activity().filter((n) => !n.isRead).length);
+  const mentionsRaw = createMemo(() => notifications().filter((notification) => isMentionNotification(notification)));
+  const activityRaw = createMemo(() => notifications().filter((notification) => !isMentionNotification(notification)));
+  const mentionsFeed = createMemo(() => toSingleFeedItems(mentionsRaw()));
+  const activityGrouped = createMemo(() => groupActivityNotifications(activityRaw()));
+  const allMixed = createMemo(() => buildAllNotificationsFeed(mentionsRaw(), activityGrouped()));
+  const unreadAll = createMemo(() => notifications().filter((notification) => !notification.isRead).length);
+  const unreadMentions = createMemo(() => mentionsRaw().filter((notification) => !notification.isRead).length);
+  const unreadActivity = createMemo(() => activityRaw().filter((notification) => !notification.isRead).length);
 
-  async function markSeen(options?: { notifications?: NotificationView[]; silent?: boolean }) {
-    const items = options?.notifications ?? notifications();
-    if (!hasUnreadNotifications(items) || markSeenPending) {
+  async function markSeen() {
+    if (!hasUnreadNotifications(notifications()) || markSeenPending) {
       return;
     }
 
@@ -43,19 +93,17 @@ export function NotificationsPanel() {
 
     try {
       await updateSeen();
-      setNotifications((prev) => prev.map((notification) => ({ ...notification, isRead: true })));
+      setNotifications((previous) => previous.map((notification) => ({ ...notification, isRead: true })));
       session.markNotificationsSeen();
     } catch (err) {
-      const error = normalizeError(err);
-      if (!options?.silent) {
-        logger.warn("failed to mark notifications as seen", { keyValues: { error } });
-      }
+      const errorMessage = normalizeError(err);
+      logger.warn("failed to mark notifications as seen", { keyValues: { error: errorMessage } });
     } finally {
       markSeenPending = false;
     }
   }
 
-  async function load(options?: { markSeen?: boolean }) {
+  async function load() {
     const requestId = ++loadRequestId;
     setLoading(true);
     setError(null);
@@ -67,10 +115,6 @@ export function NotificationsPanel() {
       }
 
       setNotifications(response.notifications);
-
-      if (options?.markSeen) {
-        await markSeen({ notifications: response.notifications, silent: true });
-      }
     } catch (err) {
       if (requestId === loadRequestId) {
         setError(normalizeError(err));
@@ -83,7 +127,38 @@ export function NotificationsPanel() {
   }
 
   function reloadNotifications() {
-    void load({ markSeen: true });
+    void load();
+  }
+
+  function markReadByUris(uris: string[]) {
+    if (uris.length === 0) {
+      return;
+    }
+
+    const urisToRead = new Set(uris);
+    const previous = notifications();
+    let changed = false;
+    const next = previous.map((notification) => {
+      if (notification.isRead || !urisToRead.has(notification.uri)) {
+        return notification;
+      }
+
+      changed = true;
+      return { ...notification, isRead: true };
+    });
+
+    if (!changed) {
+      return;
+    }
+
+    setNotifications(next);
+    if (next.every((notification) => notification.isRead)) {
+      session.markNotificationsSeen();
+    }
+  }
+
+  function openThread(uri: string) {
+    globalThis.location.hash = buildThreadHrefFromHash(uri);
   }
 
   onMount(() => {
@@ -102,14 +177,19 @@ export function NotificationsPanel() {
       <NotificationsHeader
         activeTab={tab()}
         unreadActivity={unreadActivity()}
+        unreadAll={unreadAll()}
         unreadMentions={unreadMentions()}
         onMarkSeen={() => void markSeen()}
         onSelectTab={setTab} />
       <NotificationsViewport
-        activity={activity()}
+        activity={activityGrouped()}
+        all={allMixed()}
+        buildThreadHref={buildThreadHrefFromHash}
         error={error()}
         loading={loading()}
-        mentions={mentions()}
+        mentions={mentionsFeed()}
+        onMarkRead={markReadByUris}
+        onOpenThread={openThread}
         tab={tab()} />
     </article>
   );
@@ -119,6 +199,7 @@ function NotificationsHeader(
   props: {
     activeTab: Tab;
     unreadActivity: number;
+    unreadAll: number;
     unreadMentions: number;
     onMarkSeen: () => void;
     onSelectTab: (tab: Tab) => void;
@@ -143,6 +224,11 @@ function NotificationsHeader(
 
       <nav class="flex flex-wrap gap-2" aria-label="Notification tabs">
         <TabButton
+          active={props.activeTab === "all"}
+          badge={props.unreadAll}
+          label="All"
+          onClick={() => props.onSelectTab("all")} />
+        <TabButton
           active={props.activeTab === "mentions"}
           badge={props.unreadMentions}
           label="Mentions"
@@ -159,17 +245,17 @@ function NotificationsHeader(
 
 function NotificationsViewport(
   props: {
-    activity: NotificationView[];
+    activity: NotificationFeedItem[];
+    all: NotificationFeedItem[];
+    buildThreadHref: (uri: string | null) => string;
     error: string | null;
     loading: boolean;
-    mentions: NotificationView[];
+    mentions: SingleNotificationFeedItem[];
+    onMarkRead: (uris: string[]) => void;
+    onOpenThread: (uri: string) => void;
     tab: Tab;
   },
 ) {
-  const activeItems = createMemo(() => (props.tab === "mentions" ? props.mentions : props.activity));
-  const emptyLabel = createMemo(() => (props.tab === "mentions" ? "No mentions yet" : "No activity yet"));
-  const ariaLabel = createMemo(() => (props.tab === "mentions" ? "Mentions" : "Activity"));
-
   return (
     <div class="min-h-0 overflow-y-auto px-3 pb-3">
       <Show when={props.loading} fallback={<NotificationsState error={props.error} loading={false} />}>
@@ -180,11 +266,32 @@ function NotificationsViewport(
 
       <Show when={!props.loading && !props.error}>
         <Presence>
+          <Show when={props.tab === "all"} keyed>
+            <NotificationList
+              ariaLabel="All notifications"
+              buildThreadHref={props.buildThreadHref}
+              emptyLabel="No notifications yet"
+              items={props.all}
+              onMarkRead={props.onMarkRead}
+              onOpenThread={props.onOpenThread} />
+          </Show>
           <Show when={props.tab === "mentions"} keyed>
-            <NotificationList ariaLabel={ariaLabel()} emptyLabel={emptyLabel()} items={activeItems()} />
+            <NotificationList
+              ariaLabel="Mentions"
+              buildThreadHref={props.buildThreadHref}
+              emptyLabel="No mentions yet"
+              items={props.mentions}
+              onMarkRead={props.onMarkRead}
+              onOpenThread={props.onOpenThread} />
           </Show>
           <Show when={props.tab === "activity"} keyed>
-            <NotificationList ariaLabel={ariaLabel()} emptyLabel={emptyLabel()} items={activeItems()} />
+            <NotificationList
+              ariaLabel="Activity"
+              buildThreadHref={props.buildThreadHref}
+              emptyLabel="No activity yet"
+              items={props.activity}
+              onMarkRead={props.onMarkRead}
+              onOpenThread={props.onOpenThread} />
           </Show>
         </Presence>
       </Show>
@@ -200,7 +307,18 @@ function NotificationsState(props: { error: string | null; loading: boolean }) {
   );
 }
 
-function NotificationList(props: { ariaLabel: string; emptyLabel: string; items: NotificationView[] }) {
+function NotificationList(
+  props: {
+    ariaLabel: string;
+    buildThreadHref: (uri: string | null) => string;
+    emptyLabel: string;
+    items: NotificationFeedItem[];
+    onMarkRead: (uris: string[]) => void;
+    onOpenThread: (uri: string) => void;
+  },
+) {
+  const sections = createMemo(() => splitByReadState(props.items));
+
   return (
     <Motion.div
       class="grid gap-2"
@@ -209,21 +327,201 @@ function NotificationList(props: { ariaLabel: string; emptyLabel: string; items:
       exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}>
       <Show when={props.items.length > 0} fallback={<EmptyState label={props.emptyLabel} />}>
-        <div role="list" aria-label={props.ariaLabel} class="grid gap-2">
-          <For each={props.items}>
-            {(notification, index) => (
-              <Motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: Math.min(index() * 0.03, 0.18) }}
-                role="listitem">
-                <NotificationItem notification={notification} />
-              </Motion.div>
-            )}
-          </For>
+        <div class="grid gap-4">
+          <Show when={sections().newer.length > 0}>
+            <NotificationSection
+              ariaLabel={`${props.ariaLabel} new`}
+              buildThreadHref={props.buildThreadHref}
+              items={sections().newer}
+              label="New"
+              onMarkRead={props.onMarkRead}
+              onOpenThread={props.onOpenThread} />
+          </Show>
+          <Show when={sections().earlier.length > 0}>
+            <NotificationSection
+              ariaLabel={`${props.ariaLabel} earlier`}
+              buildThreadHref={props.buildThreadHref}
+              items={sections().earlier}
+              label="Earlier"
+              onMarkRead={props.onMarkRead}
+              onOpenThread={props.onOpenThread} />
+          </Show>
         </div>
       </Show>
     </Motion.div>
+  );
+}
+
+function NotificationSection(
+  props: {
+    ariaLabel: string;
+    buildThreadHref: (uri: string | null) => string;
+    items: NotificationFeedItem[];
+    label: string;
+    onMarkRead: (uris: string[]) => void;
+    onOpenThread: (uri: string) => void;
+  },
+) {
+  return (
+    <section class="grid gap-2">
+      <h2 class="m-0 px-1 text-xs font-medium uppercase tracking-[0.14em] text-on-surface-variant">{props.label}</h2>
+      <div role="list" aria-label={props.ariaLabel} class="grid gap-2">
+        <For each={props.items}>
+          {(item, index) => (
+            <Motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: Math.min(index() * 0.03, 0.18) }}
+              role="listitem">
+              <NotificationFeedRow
+                buildThreadHref={props.buildThreadHref}
+                item={item}
+                onMarkRead={props.onMarkRead}
+                onOpenThread={props.onOpenThread} />
+            </Motion.div>
+          )}
+        </For>
+      </div>
+    </section>
+  );
+}
+
+function NotificationFeedRow(
+  props: {
+    buildThreadHref: (uri: string | null) => string;
+    item: NotificationFeedItem;
+    onMarkRead: (uris: string[]) => void;
+    onOpenThread: (uri: string) => void;
+  },
+) {
+  return (
+    <Switch>
+      <Match when={props.item.kind === "single"}>
+        <NotificationItem
+          buildThreadHref={props.buildThreadHref}
+          notification={(props.item as SingleNotificationFeedItem).notification}
+          onMarkRead={props.onMarkRead}
+          onOpenThread={props.onOpenThread} />
+      </Match>
+      <Match when={props.item.kind === "group"}>
+        <GroupedNotificationItem
+          item={props.item as GroupedNotificationFeedItem}
+          onMarkRead={props.onMarkRead}
+          onOpenThread={props.onOpenThread} />
+      </Match>
+    </Switch>
+  );
+}
+
+function GroupedReasonIcon(props: { reason: NotificationReason }) {
+  const icon = createMemo(() => notificationReasonIcon(props.reason));
+
+  return (
+    <div class="flex w-8 shrink-0 justify-center pt-0.5">
+      <Icon kind={icon().kind} class={icon().className} aria-hidden="true" />
+    </div>
+  );
+}
+
+function GroupedAuthorAvatar(props: { actor: ProfileViewBasic; onClick: () => void }) {
+  const label = createMemo(() => getAvatarLabel(props.actor));
+  const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.actor)));
+
+  return (
+    <a
+      class="block no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-container"
+      href={`#${profileHref()}`}
+      aria-label={`View @${props.actor.handle}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        props.onClick();
+      }}>
+      <span
+        class="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-container-high text-xs font-semibold text-on-surface-variant shadow-[0_0_0_2px_var(--surface-container)]"
+        aria-hidden="true">
+        <Show when={props.actor.avatar} fallback={label()}>
+          {(avatar) => <img src={avatar()} alt="" class="h-full w-full object-cover" />}
+        </Show>
+      </span>
+    </a>
+  );
+}
+
+function GroupedNotificationItem(
+  props: {
+    item: GroupedNotificationFeedItem;
+    onMarkRead: (uris: string[]) => void;
+    onOpenThread: (uri: string) => void;
+  },
+) {
+  const time = createMemo(() => formatRelativeTime(props.item.latestIndexedAt));
+  const summary = createMemo(() => groupedSummary(props.item));
+  const actors = createMemo(() => props.item.actors.slice(0, 3));
+  const bodyTargetUri = createMemo(() => props.item.reasonSubject ?? null);
+  const bodyInteractive = createMemo(() => !!bodyTargetUri());
+  const memberUris = createMemo(() => props.item.notifications.map((notification) => notification.uri));
+
+  function openBodyTarget() {
+    const uri = bodyTargetUri();
+    if (!uri) {
+      return;
+    }
+
+    props.onMarkRead(memberUris());
+    props.onOpenThread(uri);
+  }
+
+  return (
+    <article
+      class="flex items-start gap-4 rounded-2xl px-4 py-4 transition-colors duration-150 hover:bg-surface-container-high"
+      classList={{ "opacity-60": !props.item.isUnread }}
+      aria-label={summary()}>
+      <GroupedReasonIcon reason={props.item.reason} />
+
+      <InteractiveBodyRegion active={bodyInteractive()} onActivate={openBodyTarget}>
+        <div class="mb-1 flex items-center gap-2">
+          <div class="flex -space-x-2">
+            <For each={actors()}>
+              {(actor) => <GroupedAuthorAvatar actor={actor} onClick={() => props.onMarkRead(memberUris())} />}
+            </For>
+          </div>
+        </div>
+
+        <p class="m-0 text-sm leading-relaxed text-on-surface">{summary()}</p>
+
+        <Show when={props.item.sampleRecordText}>
+          {(value) => <p class="mt-1 line-clamp-2 text-sm text-on-secondary-container">{value()}</p>}
+        </Show>
+
+        <p class="mt-2 text-xs text-on-surface-variant">{time()}</p>
+      </InteractiveBodyRegion>
+
+      <Show when={props.item.isUnread}>
+        <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" role="status" />
+      </Show>
+    </article>
+  );
+}
+
+function InteractiveBodyRegion(props: ParentProps<{ active: boolean; onActivate: () => void }>) {
+  return (
+    <div
+      class="min-w-0 flex-1 rounded-xl p-1.5 transition duration-150"
+      classList={{
+        "cursor-pointer hover:bg-white/2 focus-visible:bg-white/3 focus-visible:ring-1 focus-visible:ring-primary/30":
+          props.active,
+      }}
+      role={props.active ? "button" : undefined}
+      tabIndex={props.active ? 0 : undefined}
+      onClick={() => props.onActivate()}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && props.active) {
+          event.preventDefault();
+          props.onActivate();
+        }
+      }}>
+      {props.children}
+    </div>
   );
 }
 
