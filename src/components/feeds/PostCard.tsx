@@ -5,7 +5,7 @@ import { ContextMenu, type ContextMenuAnchor, type ContextMenuItem } from "$/com
 import { Icon } from "$/components/shared/Icon";
 import { PostRichText } from "$/components/shared/PostRichText";
 import { QuotedPostPreview } from "$/components/shared/QuotedPostPreview";
-import { downloadImage } from "$/lib/api/media";
+import { MediaController } from "$/lib/api/media";
 import {
   buildPublicPostUrl,
   formatRelativeTime,
@@ -420,6 +420,8 @@ function PostEmbeds(props: { post: PostView }) {
 }
 
 function EmbedContent(props: { embed: EmbedView; post: PostView }) {
+  const postRkey = createMemo(() => postRkeyFromUri(props.post.uri));
+
   return (
     <Switch>
       <Match when={props.embed.$type === "app.bsky.embed.images#view"}>
@@ -436,6 +438,7 @@ function EmbedContent(props: { embed: EmbedView; post: PostView }) {
         <VideoEmbed
           alt={(props.embed as { alt?: string }).alt}
           aspectRatio={(props.embed as { aspectRatio?: { height: number; width: number } }).aspectRatio}
+          downloadFilename={postRkey() ?? undefined}
           playlist={(props.embed as { playlist?: string }).playlist}
           thumbnail={(props.embed as { thumbnail?: string }).thumbnail} />
       </Match>
@@ -476,9 +479,11 @@ function RecordWithMediaEmbedContent(props: { embed: EmbedView; post: PostView }
 
 function ImageEmbed(props: { embed: ImagesEmbedView; post: PostView }) {
   const images = createMemo(() => props.embed.images.slice(0, 4));
+  const postRkey = createMemo(() => postRkeyFromUri(props.post.uri));
   const [galleryStartIndex, setGalleryStartIndex] = createSignal<number | null>(null);
   const [menuAnchor, setMenuAnchor] = createSignal<ContextMenuAnchor | null>(null);
   const [menuOpen, setMenuOpen] = createSignal(false);
+  const [menuImageIndex, setMenuImageIndex] = createSignal<number | null>(null);
   const [menuImageUrl, setMenuImageUrl] = createSignal<string | null>(null);
   const [downloadPending, setDownloadPending] = createSignal(false);
   const [notice, setNotice] = createSignal<MediaNotice | null>(null);
@@ -522,6 +527,7 @@ function ImageEmbed(props: { embed: ImagesEmbedView; post: PostView }) {
   function closeMenu() {
     setMenuOpen(false);
     setMenuAnchor(null);
+    setMenuImageIndex(null);
     setMenuImageUrl(null);
   }
 
@@ -530,10 +536,11 @@ function ImageEmbed(props: { embed: ImagesEmbedView; post: PostView }) {
     setGalleryStartIndex(index);
   }
 
-  function openImageMenu(event: MouseEvent, url: string | undefined) {
+  function openImageMenu(event: MouseEvent, url: string | undefined, imageIndex: number) {
     event.preventDefault();
     event.stopPropagation();
 
+    setMenuImageIndex(imageIndex);
     setMenuImageUrl(url ?? null);
     setMenuAnchor({ kind: "point", x: event.clientX, y: event.clientY });
     setMenuOpen(true);
@@ -541,13 +548,16 @@ function ImageEmbed(props: { embed: ImagesEmbedView; post: PostView }) {
 
   async function downloadFromContextMenu() {
     const url = menuImageUrl();
+    const imageIndex = menuImageIndex();
     if (!url || downloadPending()) {
       return;
     }
 
     setDownloadPending(true);
     try {
-      const result = await downloadImage(url);
+      const requestedFilename = buildImageFilename(postRkey(), images().length, imageIndex)?.trim();
+      const result = await MediaController.downloadImage(url, requestedFilename ?? null);
+
       queueNotice({ kind: "success", message: `Saved ${filenameFromPath(result.path)}.`, path: result.path });
     } catch (error) {
       queueNotice({ kind: "error", message: toDownloadErrorMessage(error) });
@@ -565,7 +575,7 @@ function ImageEmbed(props: { embed: ImagesEmbedView; post: PostView }) {
               type="button"
               class="overflow-hidden rounded-[1.2rem] border-0 bg-black/30 p-0 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"
               onClick={(event) => openGallery(index(), event)}
-              onContextMenu={(event) => openImageMenu(event, image.fullsize ?? image.thumb)}>
+              onContextMenu={(event) => openImageMenu(event, image.fullsize ?? image.thumb, index())}>
               <img class="max-h-88 w-full object-cover" src={image.fullsize ?? image.thumb} alt={image.alt ?? ""} />
             </button>
           )}
@@ -579,6 +589,7 @@ function ImageEmbed(props: { embed: ImagesEmbedView; post: PostView }) {
         open={galleryStartIndex() !== null}
         postText={postText()}
         startIndex={galleryStartIndex() ?? 0}
+        downloadFilenameForIndex={(imageIndex) => buildImageFilename(postRkey(), images().length, imageIndex)}
         onClose={() => setGalleryStartIndex(null)} />
 
       <ContextMenu
@@ -629,6 +640,32 @@ function QuoteEmbed(props: { author: ProfileViewBasic | null; href?: string | nu
 
 function isInteractiveTarget(target: EventTarget | null) {
   return target instanceof Element && !!target.closest("a, button, input, textarea, select, [role='menuitem']");
+}
+
+function postRkeyFromUri(uri: string | null | undefined) {
+  if (typeof uri !== "string") {
+    return null;
+  }
+
+  const trimmed = uri.trim();
+  if (!trimmed.startsWith("at://")) {
+    return null;
+  }
+
+  const rkey = trimmed.split("/").at(-1)?.trim();
+  return rkey || null;
+}
+
+function buildImageFilename(postRkey: string | null, imageCount: number, imageIndex: number | null) {
+  if (!postRkey) {
+    return null;
+  }
+
+  if (imageCount > 1 && imageIndex !== null && imageIndex >= 0) {
+    return `${postRkey}_${imageIndex + 1}`;
+  }
+
+  return postRkey;
 }
 
 function filenameFromPath(path: string) {

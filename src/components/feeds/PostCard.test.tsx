@@ -7,7 +7,10 @@ const downloadImageMock = vi.hoisted(() => vi.fn());
 const downloadVideoMock = vi.hoisted(() => vi.fn());
 const listenMock = vi.hoisted(() => vi.fn());
 
-vi.mock("$/lib/api/media", () => ({ downloadImage: downloadImageMock, downloadVideo: downloadVideoMock }));
+vi.mock(
+  "$/lib/api/media",
+  () => ({ MediaController: { downloadImage: downloadImageMock, downloadVideo: downloadVideoMock } }),
+);
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 
 function createPost() {
@@ -199,6 +202,49 @@ describe("PostCard", () => {
     fireEvent.contextMenu(inlineImage);
     fireEvent.click(screen.getByRole("menuitem", { name: "Save image" }));
 
-    await waitFor(() => expect(downloadImageMock).toHaveBeenCalledWith("https://cdn.example.com/post-image.jpg"));
+    await waitFor(() =>
+      expect(downloadImageMock).toHaveBeenCalledWith("https://cdn.example.com/post-image.jpg", "123")
+    );
+  });
+
+  it("uses parent post rkey for video downloads", async () => {
+    downloadVideoMock.mockResolvedValue({ bytes: 200, path: "/tmp/123.mp4" });
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: { $type: "app.bsky.embed.video#view", playlist: "https://cdn.example.com/video/master.m3u8" },
+        }} />
+    ));
+
+    fireEvent.click(screen.getByRole("button", { name: "Download video" }));
+
+    await waitFor(() =>
+      expect(downloadVideoMock).toHaveBeenCalledWith("https://cdn.example.com/video/master.m3u8", "123")
+    );
+  });
+
+  it("uses indexed parent post rkeys for multi-image downloads", async () => {
+    downloadImageMock.mockResolvedValue({ bytes: 40, path: "/tmp/post-image.jpg" });
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.images#view",
+            images: [{ alt: "Inline image one", fullsize: "https://cdn.example.com/post-image-one.jpg" }, {
+              alt: "Inline image two",
+              fullsize: "https://cdn.example.com/post-image-two.jpg",
+            }],
+          },
+        }} />
+    ));
+
+    fireEvent.contextMenu(screen.getByAltText("Inline image two"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save image" }));
+
+    await waitFor(() =>
+      expect(downloadImageMock).toHaveBeenCalledWith("https://cdn.example.com/post-image-two.jpg", "123_2")
+    );
   });
 });

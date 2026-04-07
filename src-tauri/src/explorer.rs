@@ -6,12 +6,14 @@ use jacquard::api::com_atproto::repo::describe_repo::DescribeRepo;
 use jacquard::api::com_atproto::repo::get_record::GetRecord;
 use jacquard::api::com_atproto::repo::list_records::ListRecords;
 use jacquard::api::com_atproto::server::describe_server::DescribeServer;
+use jacquard::api::com_atproto::sync::get_blob::GetBlob;
 use jacquard::api::com_atproto::sync::get_repo::GetRepo;
 use jacquard::api::com_atproto::sync::list_repos::ListRepos;
 use jacquard::client::{Agent, UnauthenticatedSession};
 use jacquard::deps::fluent_uri::Uri;
 use jacquard::identity::{resolver::IdentityResolver, JacquardResolver};
 use jacquard::types::aturi::AtUri;
+use jacquard::types::cid::Cid;
 use jacquard::types::did::Did;
 use jacquard::types::did_doc::DidDocument;
 use jacquard::types::handle::Handle;
@@ -27,6 +29,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_log::log;
+use uuid::Uuid;
 
 pub const EXPLORER_NAVIGATION_EVENT: &str = "navigation:explorer-resolved";
 const PDS_REPO_LIST_LIMIT: i64 = 100;
@@ -98,6 +101,13 @@ pub struct ExplorerServerView {
 #[serde(rename_all = "camelCase")]
 pub struct RepoCarExport {
     pub did: String,
+    pub path: String,
+    pub bytes_written: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TempBlobFile {
     pub path: String,
     pub bytes_written: usize,
 }
@@ -231,6 +241,84 @@ pub async fn export_repo_car(did: String, app: &AppHandle) -> Result<RepoCarExpo
         path: export_path.to_string_lossy().into_owned(),
         bytes_written: output.body.len(),
     })
+}
+
+pub async fn fetch_blob_to_temp_file(
+    did: String, cid: String, extension: Option<String>, app: &AppHandle,
+) -> Result<TempBlobFile> {
+    let parsed_did = Did::new(did.trim())?.into_static();
+    let parsed_cid = parse_cid(&cid)?;
+    let client = client_for_repo_did(parsed_did.as_str()).await?;
+    let output = client
+        .send(GetBlob::new().did(parsed_did.clone()).cid(parsed_cid.clone()).build())
+        .await
+        .map_err(|error| AppError::validation(format!("getBlob request failed: {error}")))?
+        .into_output()
+        .map_err(|error| AppError::validation(format!("getBlob output failed: {error}")))?;
+
+    let blob_path = resolve_blob_temp_path(app, parsed_did.as_str(), parsed_cid.as_str(), extension.as_deref())?;
+    if let Some(parent) = blob_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    std::fs::write(&blob_path, &output.body).map_err(|error| {
+        log::error!(
+            "failed to write temporary blob file {} for did {} cid {}: {error}",
+            blob_path.display(),
+            parsed_did,
+            parsed_cid
+        );
+        AppError::validation("Couldn't save a temporary media file for playback.")
+    })?;
+
+    Ok(TempBlobFile { path: blob_path.to_string_lossy().into_owned(), bytes_written: output.body.len() })
+}
+
+pub fn delete_blob_temp_file(path: &str, app: &AppHandle) -> Result<()> {
+    let trimmed_path = path.trim();
+    if trimmed_path.is_empty() {
+        return Ok(());
+    }
+
+    let target_path = PathBuf::from(trimmed_path);
+    if !target_path.exists() {
+        return Ok(());
+    }
+
+    let blob_dir = resolve_blob_temp_dir(app)?;
+    if !blob_dir.exists() {
+        std::fs::create_dir_all(&blob_dir)?;
+    }
+
+    let canonical_blob_dir = std::fs::canonicalize(&blob_dir)?;
+    let canonical_target = std::fs::canonicalize(&target_path).map_err(|error| {
+        log::warn!(
+            "failed to resolve blob temp file path {}: {error}",
+            target_path.display()
+        );
+        AppError::validation("Couldn't remove the temporary media file.")
+    })?;
+
+    if !is_path_within_directory(&canonical_target, &canonical_blob_dir) {
+        log::warn!(
+            "refusing to delete temp blob outside managed directory: {} not in {}",
+            canonical_target.display(),
+            canonical_blob_dir.display()
+        );
+        return Err(AppError::validation("Couldn't remove the temporary media file."));
+    }
+
+    if canonical_target.is_file() {
+        std::fs::remove_file(&canonical_target).map_err(|error| {
+            log::warn!(
+                "failed to remove temporary blob file {}: {error}",
+                canonical_target.display()
+            );
+            AppError::validation("Couldn't remove the temporary media file.")
+        })?;
+    }
+
+    Ok(())
 }
 
 pub async fn query_labels(uri: String) -> Result<Value> {
@@ -551,6 +639,19 @@ fn parse_record_key(rkey: &str) -> Result<RecordKey<Rkey<'static>>> {
         .map_err(AppError::from)
 }
 
+fn parse_cid(cid: &str) -> Result<Cid<'static>> {
+    let trimmed = cid.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::validation("CID cannot be empty"));
+    }
+
+    let parsed = Cid::str(trimmed).into_static();
+    parsed
+        .to_ipld()
+        .map_err(|error| AppError::validation(format!("invalid CID: {error}")))?;
+    Ok(parsed)
+}
+
 fn resolve_car_export_path(app: &AppHandle, did: &str) -> Result<PathBuf> {
     let mut app_data_dir = app
         .path()
@@ -569,6 +670,58 @@ fn resolve_favicon_cache_dir(app: &AppHandle) -> Result<PathBuf> {
     cache_dir.push("explorer");
     cache_dir.push("favicons");
     Ok(cache_dir)
+}
+
+fn resolve_blob_temp_dir(app: &AppHandle) -> Result<PathBuf> {
+    let mut cache_dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|error| AppError::PathResolve(error.to_string()))?;
+    cache_dir.push("explorer");
+    cache_dir.push("temp-blob");
+    Ok(cache_dir)
+}
+
+fn resolve_blob_temp_path(app: &AppHandle, did: &str, cid: &str, extension: Option<&str>) -> Result<PathBuf> {
+    let mut cache_dir = resolve_blob_temp_dir(app)?;
+    let safe_extension = sanitize_blob_extension(extension).unwrap_or_else(|| "bin".to_string());
+    let file_name = format!(
+        "{}_{}_{}.{}",
+        sanitize_did_for_filename(did),
+        sanitize_cid_for_filename(cid),
+        Uuid::new_v4(),
+        safe_extension
+    );
+    cache_dir.push(file_name);
+    Ok(cache_dir)
+}
+
+fn sanitize_cid_for_filename(cid: &str) -> String {
+    cid.chars()
+        .map(|character| match character {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => character,
+            _ => '_',
+        })
+        .collect()
+}
+
+fn sanitize_blob_extension(extension: Option<&str>) -> Option<String> {
+    let normalized = extension
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.trim_start_matches('.').to_ascii_lowercase())?;
+    if normalized.is_empty() || normalized.len() > 12 {
+        return None;
+    }
+    if normalized.chars().all(|character| character.is_ascii_alphanumeric()) {
+        Some(normalized)
+    } else {
+        None
+    }
+}
+
+fn is_path_within_directory(path: &std::path::Path, directory: &std::path::Path) -> bool {
+    path.starts_with(directory)
 }
 
 fn clear_favicon_cache_dir(cache_dir: &std::path::Path) -> Result<()> {
@@ -959,10 +1112,11 @@ fn sanitize_did_for_filename(did: &str) -> String {
 mod tests {
     use super::{
         build_resolved_at_uri, canonical_at_uri, clear_favicon_cache_dir, detect_favicon_mime, detect_input_kind,
-        extract_favicon_urls, extract_html_attribute, lexicon_favicon_hosts, normalize_handle, normalize_pds_url,
-        read_cached_favicon_data_url, rel_indicates_favicon, repo_car_filename, repo_metadata_from_did_doc,
-        resolve_html_base_url, resolve_lexicon_favicon_data_url, sanitize_did_for_filename, write_cached_favicon,
-        CachedFavicon, ExplorerInputKind, ExplorerTargetKind,
+        extract_favicon_urls, extract_html_attribute, is_path_within_directory, lexicon_favicon_hosts,
+        normalize_handle, normalize_pds_url, read_cached_favicon_data_url, rel_indicates_favicon, repo_car_filename,
+        repo_metadata_from_did_doc, resolve_html_base_url, resolve_lexicon_favicon_data_url, sanitize_blob_extension,
+        sanitize_cid_for_filename, sanitize_did_for_filename, write_cached_favicon, CachedFavicon, ExplorerInputKind,
+        ExplorerTargetKind,
     };
     use jacquard::types::aturi::AtUri;
     use jacquard::types::did_doc::DidDocument;
@@ -1047,6 +1201,25 @@ mod tests {
     fn repo_car_filenames_are_filesystem_safe() {
         assert_eq!(sanitize_did_for_filename("did:plc:alice-123"), "did_plc_alice-123");
         assert_eq!(repo_car_filename("did:plc:alice-123"), "did_plc_alice-123.car");
+    }
+
+    #[test]
+    fn sanitizes_blob_filename_inputs() {
+        assert_eq!(sanitize_cid_for_filename("bafy/beih?123"), "bafy_beih_123");
+        assert_eq!(sanitize_blob_extension(Some(".mp4")), Some("mp4".to_string()));
+        assert_eq!(sanitize_blob_extension(Some("webm")), Some("webm".to_string()));
+        assert_eq!(sanitize_blob_extension(Some("m3u8?foo")), None);
+        assert_eq!(sanitize_blob_extension(Some("   ")), None);
+    }
+
+    #[test]
+    fn verifies_path_containment() {
+        let base = std::path::Path::new("/tmp/base");
+        let nested = std::path::Path::new("/tmp/base/nested/file.bin");
+        let outside = std::path::Path::new("/tmp/other/file.bin");
+
+        assert!(is_path_within_directory(nested, base));
+        assert!(!is_path_within_directory(outside, base));
     }
 
     #[test]

@@ -45,7 +45,9 @@ vi.mock(
 
 vi.mock(
   "$/lib/api/media",
-  () => ({ getDownloadDirectory: getDownloadDirectoryMock, setDownloadDirectory: setDownloadDirectoryMock }),
+  () => ({
+    MediaController: { getDownloadDirectory: getDownloadDirectoryMock, setDownloadDirectory: setDownloadDirectoryMock },
+  }),
 );
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: dialogOpenMock }));

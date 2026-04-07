@@ -1,18 +1,19 @@
 use super::error::{AppError, Result};
+use super::explorer;
 use super::settings::SettingsKey;
 use super::state::AppState;
+use image::ImageFormat;
+use jacquard::types::cid::Cid;
+use jacquard::types::did::Did;
 use reqwest::Url;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
-use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use tauri::AppHandle;
 use tauri_plugin_log::log;
 use uuid::Uuid;
-
-const DOWNLOAD_HTTP_TIMEOUT: Duration = Duration::from_secs(45);
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,16 +33,10 @@ pub struct DownloadProgress {
     pub complete: bool,
 }
 
-#[derive(Debug, Clone)]
-struct VariantPlaylist {
-    uri: Url,
-    bandwidth: u64,
-}
-
-#[derive(Debug, Clone)]
-struct MediaPlaylist {
-    init_segment: Option<Url>,
-    segments: Vec<Url>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BlobRef {
+    did: String,
+    cid: String,
 }
 
 pub fn get_download_directory(state: &AppState) -> Result<String> {
@@ -55,17 +50,19 @@ pub fn set_download_directory(path: &str, state: &AppState) -> Result<()> {
     db_set_download_directory(&conn, path)
 }
 
-pub async fn download_image(url: &str, filename: Option<&str>, state: &AppState) -> Result<DownloadResult> {
+pub async fn download_image(
+    url: &str, filename: Option<&str>, app: &AppHandle, state: &AppState,
+) -> Result<DownloadResult> {
     let download_directory = {
         let conn = state.auth_store.lock_connection()?;
         db_get_download_directory(&conn)?
     };
 
-    download_image_to_directory(url, filename, &download_directory).await
+    download_image_to_directory(url, filename, app, &download_directory).await
 }
 
 pub async fn download_video<F>(
-    url: &str, filename: Option<&str>, state: &AppState, mut emitter: F,
+    url: &str, filename: Option<&str>, app: &AppHandle, state: &AppState, mut emitter: F,
 ) -> Result<DownloadResult>
 where
     F: FnMut(DownloadProgress) -> Result<()>,
@@ -75,7 +72,7 @@ where
         db_get_download_directory(&conn)?
     };
 
-    download_video_to_directory(url, filename, &download_directory, &mut emitter).await
+    download_video_to_directory(url, filename, app, &download_directory, &mut emitter).await
 }
 
 fn db_get_download_directory(conn: &Connection) -> Result<PathBuf> {
@@ -108,62 +105,36 @@ fn db_set_download_directory(conn: &Connection, path: &str) -> Result<()> {
 }
 
 async fn download_image_to_directory(
-    url: &str, filename: Option<&str>, download_directory: &Path,
+    url: &str, filename: Option<&str>, app: &AppHandle, download_directory: &Path,
 ) -> Result<DownloadResult> {
     ensure_directory_is_writable(download_directory)?;
-
     let source_url = parse_http_url(url)?;
-    let client = reqwest::Client::builder()
-        .timeout(DOWNLOAD_HTTP_TIMEOUT)
-        .build()
-        .map_err(|error| {
-            log::error!("failed to construct HTTP client for image download: {error}");
-            AppError::validation("Couldn't start the image download.")
-        })?;
-
-    let response = client.get(source_url.clone()).send().await.map_err(|error| {
-        log::error!("image download request failed for {source_url}: {error}");
-        AppError::validation("Couldn't download the image right now.")
-    })?;
-
-    if !response.status().is_success() {
-        log::warn!(
-            "image download request returned non-success status {} for {}",
-            response.status(),
+    let temp_blob = fetch_blob_to_temp_file(&source_url, app, Some("blob")).await?;
+    let bytes = fs::read(&temp_blob.path).map_err(|error| {
+        log::error!(
+            "failed to read temporary blob file {} for image download {}: {error}",
+            temp_blob.path,
             source_url
         );
-        return Err(AppError::validation(
-            "Couldn't download the image because the server rejected the request.",
-        ));
-    }
-
-    let content_type = response
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|header| header.to_str().ok())
-        .map(str::to_string);
-    let bytes = response.bytes().await.map_err(|error| {
-        log::error!("failed to read image response body for {source_url}: {error}");
         AppError::validation("Couldn't read the downloaded image data.")
     })?;
+    cleanup_blob_temp_file(&temp_blob.path, app);
 
-    let default_extension = content_type
-        .as_deref()
-        .and_then(extension_from_image_content_type)
-        .unwrap_or("jpg");
-    let output_name = build_filename(&source_url, filename, "image", Some(default_extension));
+    let content_type = content_type_from_url(&source_url);
+    let png_bytes = transcode_image_to_png(&bytes, &source_url, content_type.as_deref())?;
+    let output_name = build_filename(&source_url, filename, "image", Some("png"), true);
     let output_path = resolve_unique_path(download_directory, &output_name);
 
-    fs::write(&output_path, &bytes).map_err(|error| {
+    fs::write(&output_path, &png_bytes).map_err(|error| {
         log::error!("failed to write image download to {}: {error}", output_path.display());
         AppError::validation("Couldn't save the image. Check that your download folder exists and is writable.")
     })?;
 
-    Ok(DownloadResult { path: output_path.to_string_lossy().into_owned(), bytes: bytes.len() as u64 })
+    Ok(DownloadResult { path: output_path.to_string_lossy().into_owned(), bytes: png_bytes.len() as u64 })
 }
 
 async fn download_video_to_directory<F>(
-    url: &str, filename: Option<&str>, download_directory: &Path, emit_progress: &mut F,
+    url: &str, filename: Option<&str>, app: &AppHandle, download_directory: &Path, emit_progress: &mut F,
 ) -> Result<DownloadResult>
 where
     F: FnMut(DownloadProgress) -> Result<()>,
@@ -171,122 +142,69 @@ where
     ensure_directory_is_writable(download_directory)?;
 
     let source_url = parse_http_url(url)?;
-    let client = reqwest::Client::builder()
-        .timeout(DOWNLOAD_HTTP_TIMEOUT)
-        .build()
-        .map_err(|error| {
-            log::error!("failed to construct HTTP client for video download: {error}");
-            AppError::validation("Couldn't start the video download.")
-        })?;
-
-    let manifest = fetch_text(&client, &source_url, "video playlist").await?;
-    let variants = parse_master_variants(&source_url, &manifest)?;
-    let (playlist_url, media_playlist_body) =
-        if let Some(variant) = variants.iter().max_by_key(|variant| variant.bandwidth) {
-            let body = fetch_text(&client, &variant.uri, "video variant playlist").await?;
-            (variant.uri.clone(), body)
-        } else {
-            (source_url.clone(), manifest)
-        };
-
-    let playlist = parse_media_playlist(&playlist_url, &media_playlist_body)?;
-
-    let output_name = build_filename(&playlist_url, filename, "video", Some("mp4"));
+    let output_name = build_filename(&source_url, filename, "video", Some("mp4"), true);
     let output_path = resolve_unique_path(download_directory, &output_name);
-    let mut output_file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&output_path)
-        .map_err(|error| {
-            log::error!("failed to create output video file {}: {error}", output_path.display());
-            AppError::validation("Couldn't create a file in your download folder.")
-        })?;
-
-    let mut downloaded_bytes: u64 = 0;
-    let total_segments = playlist.segments.len();
+    let total_segments = 1;
 
     maybe_emit_progress(
         emit_progress,
         DownloadProgress {
             url: source_url.to_string(),
             path: output_path.to_string_lossy().into_owned(),
-            downloaded_bytes,
+            downloaded_bytes: 0,
             downloaded_segments: 0,
             total_segments,
             complete: false,
         },
     );
 
-    let write_result = async {
-        if let Some(init_segment_url) = &playlist.init_segment {
-            let init_bytes = fetch_binary(&client, init_segment_url, "video init segment").await?;
-            output_file.write_all(&init_bytes).map_err(|error| {
-                log::error!(
-                    "failed to write video init segment to {}: {error}",
+    let temp_blob = match fetch_blob_to_temp_file(&source_url, app, Some("mp4")).await {
+        Ok(blob) => blob,
+        Err(error) => {
+            if let Err(cleanup_error) = fs::remove_file(&output_path) {
+                log::warn!(
+                    "failed to delete partial video download {}: {cleanup_error}",
                     output_path.display()
                 );
-                AppError::validation("Couldn't write the video to disk.")
-            })?;
-            downloaded_bytes += init_bytes.len() as u64;
+            }
+            return Err(error);
         }
-
-        for (index, segment_url) in playlist.segments.iter().enumerate() {
-            let segment = fetch_binary(&client, segment_url, "video segment").await?;
-            output_file.write_all(&segment).map_err(|error| {
-                log::error!(
-                    "failed to write video segment {} to {}: {error}",
-                    segment_url,
+    };
+    let copied_bytes = match fs::copy(&temp_blob.path, &output_path) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            cleanup_blob_temp_file(&temp_blob.path, app);
+            if let Err(cleanup_error) = fs::remove_file(&output_path) {
+                log::warn!(
+                    "failed to delete partial video download {}: {cleanup_error}",
                     output_path.display()
                 );
-                AppError::validation("Couldn't write the video to disk.")
-            })?;
-            downloaded_bytes += segment.len() as u64;
-
-            maybe_emit_progress(
-                emit_progress,
-                DownloadProgress {
-                    url: source_url.to_string(),
-                    path: output_path.to_string_lossy().into_owned(),
-                    downloaded_bytes,
-                    downloaded_segments: index + 1,
-                    total_segments,
-                    complete: false,
-                },
-            );
-        }
-
-        output_file.flush().map_err(|error| {
-            log::error!("failed to flush output video file {}: {error}", output_path.display());
-            AppError::validation("Couldn't finish writing the video to disk.")
-        })?;
-
-        Ok::<(), AppError>(())
-    }
-    .await;
-
-    if let Err(error) = write_result {
-        if let Err(cleanup_error) = fs::remove_file(&output_path) {
-            log::warn!(
-                "failed to delete partial video download {}: {cleanup_error}",
+            }
+            log::error!(
+                "failed to copy temporary blob {} to download output {}: {error}",
+                temp_blob.path,
                 output_path.display()
             );
+            return Err(AppError::validation(
+                "Couldn't save the video. Check that your download folder exists and is writable.",
+            ));
         }
-        return Err(error);
-    }
+    };
+    cleanup_blob_temp_file(&temp_blob.path, app);
 
     maybe_emit_progress(
         emit_progress,
         DownloadProgress {
             url: source_url.to_string(),
             path: output_path.to_string_lossy().into_owned(),
-            downloaded_bytes,
+            downloaded_bytes: copied_bytes,
             downloaded_segments: total_segments,
             total_segments,
             complete: true,
         },
     );
 
-    Ok(DownloadResult { path: output_path.to_string_lossy().into_owned(), bytes: downloaded_bytes })
+    Ok(DownloadResult { path: output_path.to_string_lossy().into_owned(), bytes: copied_bytes })
 }
 
 fn maybe_emit_progress<F>(emit_progress: &mut F, payload: DownloadProgress)
@@ -296,184 +214,6 @@ where
     if let Err(error) = emit_progress(payload) {
         log::warn!("failed to emit download-progress event: {error}");
     }
-}
-
-async fn fetch_text(client: &reqwest::Client, url: &Url, label: &str) -> Result<String> {
-    let response = client.get(url.clone()).send().await.map_err(|error| {
-        log::error!("failed to fetch {label} {url}: {error}");
-        AppError::validation("Couldn't download the video playlist.")
-    })?;
-
-    if !response.status().is_success() {
-        log::warn!("{label} request for {url} returned status {}", response.status());
-        return Err(AppError::validation(
-            "Couldn't download the video playlist from the server.",
-        ));
-    }
-
-    response.text().await.map_err(|error| {
-        log::error!("failed to read {label} response body for {url}: {error}");
-        AppError::validation("Couldn't read the video playlist data.")
-    })
-}
-
-async fn fetch_binary(client: &reqwest::Client, url: &Url, label: &str) -> Result<Vec<u8>> {
-    let response = client.get(url.clone()).send().await.map_err(|error| {
-        log::error!("failed to fetch {label} {url}: {error}");
-        AppError::validation("Couldn't download part of the video.")
-    })?;
-
-    if !response.status().is_success() {
-        log::warn!("{label} request for {url} returned status {}", response.status());
-        return Err(AppError::validation(
-            "Couldn't download part of the video from the server.",
-        ));
-    }
-
-    response.bytes().await.map(|bytes| bytes.to_vec()).map_err(|error| {
-        log::error!("failed to read {label} response body for {url}: {error}");
-        AppError::validation("Couldn't read part of the downloaded video.")
-    })
-}
-
-fn parse_master_variants(base_url: &Url, manifest: &str) -> Result<Vec<VariantPlaylist>> {
-    let mut variants = Vec::new();
-    let mut pending_bandwidth: Option<u64> = None;
-
-    for raw_line in manifest.lines() {
-        let line = raw_line.trim();
-        if line.is_empty() {
-            continue;
-        }
-
-        if let Some(attributes) = line.strip_prefix("#EXT-X-STREAM-INF:") {
-            let parsed = parse_m3u8_attributes(attributes);
-            let bandwidth = parsed
-                .get("BANDWIDTH")
-                .and_then(|value| value.parse::<u64>().ok())
-                .unwrap_or(0);
-            pending_bandwidth = Some(bandwidth);
-            continue;
-        }
-
-        if let Some(bandwidth) = pending_bandwidth.take() {
-            if line.starts_with('#') {
-                continue;
-            }
-
-            let uri = resolve_manifest_url(base_url, line)?;
-            variants.push(VariantPlaylist { uri, bandwidth });
-        }
-    }
-
-    Ok(variants)
-}
-
-fn parse_media_playlist(base_url: &Url, playlist: &str) -> Result<MediaPlaylist> {
-    let mut init_segment: Option<Url> = None;
-    let mut segments: Vec<Url> = Vec::new();
-
-    for raw_line in playlist.lines() {
-        let line = raw_line.trim();
-        if line.is_empty() {
-            continue;
-        }
-
-        if let Some(attributes) = line.strip_prefix("#EXT-X-MAP:") {
-            let parsed = parse_m3u8_attributes(attributes);
-            if let Some(uri) = parsed.get("URI") {
-                init_segment = Some(resolve_manifest_url(base_url, uri)?);
-            }
-            continue;
-        }
-
-        if let Some(attributes) = line.strip_prefix("#EXT-X-KEY:") {
-            let parsed = parse_m3u8_attributes(attributes);
-            let method = parsed
-                .get("METHOD")
-                .map(String::as_str)
-                .unwrap_or("NONE")
-                .to_ascii_uppercase();
-            if method != "NONE" {
-                return Err(AppError::validation(
-                    "This video stream is encrypted and can't be downloaded yet.",
-                ));
-            }
-            continue;
-        }
-
-        if line.starts_with('#') {
-            continue;
-        }
-
-        segments.push(resolve_manifest_url(base_url, line)?);
-    }
-
-    if segments.is_empty() {
-        return Err(AppError::validation(
-            "The video playlist did not contain any downloadable segments.",
-        ));
-    }
-
-    Ok(MediaPlaylist { init_segment, segments })
-}
-
-fn parse_m3u8_attributes(raw: &str) -> HashMap<String, String> {
-    let mut attributes = HashMap::new();
-    let mut current = String::new();
-    let mut in_quotes = false;
-
-    for character in raw.chars() {
-        match character {
-            '"' => {
-                in_quotes = !in_quotes;
-                current.push(character);
-            }
-            ',' if !in_quotes => {
-                if let Some((key, value)) = parse_m3u8_attribute_chunk(&current) {
-                    attributes.insert(key, value);
-                }
-                current.clear();
-            }
-            _ => current.push(character),
-        }
-    }
-
-    if let Some((key, value)) = parse_m3u8_attribute_chunk(&current) {
-        attributes.insert(key, value);
-    }
-
-    attributes
-}
-
-fn parse_m3u8_attribute_chunk(chunk: &str) -> Option<(String, String)> {
-    let (key, value) = chunk.split_once('=')?;
-    let normalized_key = key.trim().to_ascii_uppercase();
-    if normalized_key.is_empty() {
-        return None;
-    }
-
-    let normalized_value = value.trim().trim_matches('"').to_string();
-    Some((normalized_key, normalized_value))
-}
-
-fn resolve_manifest_url(base_url: &Url, candidate: &str) -> Result<Url> {
-    let trimmed = candidate.trim();
-    if trimmed.is_empty() {
-        return Err(AppError::validation(
-            "The video playlist referenced an empty segment URL.",
-        ));
-    }
-
-    let url = Url::parse(trimmed)
-        .or_else(|_| base_url.join(trimmed))
-        .map_err(|error| {
-            log::error!("failed to resolve manifest URL '{trimmed}' against {base_url}: {error}");
-            AppError::validation("The video playlist contained an invalid segment URL.")
-        })?;
-
-    ensure_http_url(&url)?;
-    Ok(url)
 }
 
 fn parse_http_url(raw_url: &str) -> Result<Url> {
@@ -563,6 +303,131 @@ fn default_download_directory_path() -> Result<PathBuf> {
     normalize_and_validate_directory(&path.to_string_lossy())
 }
 
+async fn fetch_blob_to_temp_file(
+    source_url: &Url, app: &AppHandle, extension: Option<&str>,
+) -> Result<explorer::TempBlobFile> {
+    let blob_ref = blob_ref_from_url(source_url)?;
+    explorer::fetch_blob_to_temp_file(
+        blob_ref.did,
+        blob_ref.cid,
+        extension.map(|value| value.to_string()),
+        app,
+    )
+    .await
+}
+
+fn cleanup_blob_temp_file(path: &str, app: &AppHandle) {
+    if let Err(error) = explorer::delete_blob_temp_file(path, app) {
+        log::warn!("failed to clean up temporary blob file {}: {error}", path);
+    }
+}
+
+fn blob_ref_from_url(source_url: &Url) -> Result<BlobRef> {
+    let segments: Vec<String> = source_url
+        .path_segments()
+        .map(|values| {
+            values
+                .filter(|value| !value.is_empty())
+                .map(decode_known_url_encoding)
+                .collect()
+        })
+        .unwrap_or_default();
+    if segments.is_empty() {
+        return Err(AppError::validation("The media URL is missing path segments."));
+    }
+
+    for (index, segment) in segments.iter().enumerate() {
+        if Did::new(segment).is_ok() {
+            if let Some(candidate) = segments.get(index + 1).and_then(|value| normalize_cid_candidate(value)) {
+                if Cid::str(candidate).to_ipld().is_ok() {
+                    return Ok(BlobRef { did: segment.clone(), cid: candidate.to_string() });
+                }
+            }
+        }
+    }
+
+    Err(AppError::validation(
+        "Couldn't parse a valid DID/CID blob reference from the media URL.",
+    ))
+}
+
+fn normalize_cid_candidate(segment: &str) -> Option<&str> {
+    let without_query = segment.split('?').next().unwrap_or(segment);
+    let without_fragment = without_query.split('#').next().unwrap_or(without_query);
+    let without_suffix = without_fragment.split('@').next().unwrap_or(without_fragment);
+    let without_extension = without_suffix.split('.').next().unwrap_or(without_suffix);
+    let trimmed = without_extension.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+fn decode_known_url_encoding(segment: &str) -> String {
+    segment.replace("%3A", ":").replace("%3a", ":")
+}
+
+fn content_type_from_url(source_url: &Url) -> Option<String> {
+    let path = source_url.path().to_ascii_lowercase();
+    if path.ends_with(".png") || path.contains("@png") {
+        return Some("image/png".to_string());
+    }
+    if path.ends_with(".webp") || path.contains("@webp") {
+        return Some("image/webp".to_string());
+    }
+    if path.ends_with(".gif") || path.contains("@gif") {
+        return Some("image/gif".to_string());
+    }
+    if path.ends_with(".bmp") || path.contains("@bmp") {
+        return Some("image/bmp".to_string());
+    }
+    if path.ends_with(".avif") || path.contains("@avif") {
+        return Some("image/avif".to_string());
+    }
+    if path.ends_with(".svg") || path.contains("@svg") {
+        return Some("image/svg+xml".to_string());
+    }
+    if path.ends_with(".jpg") || path.ends_with(".jpeg") || path.contains("@jpeg") || path.contains("@jpg") {
+        return Some("image/jpeg".to_string());
+    }
+
+    None
+}
+
+fn transcode_image_to_png(bytes: &[u8], source_url: &Url, content_type: Option<&str>) -> Result<Vec<u8>> {
+    let normalized_content_type = content_type
+        .and_then(|value| value.split(';').next())
+        .map(str::trim)
+        .map(str::to_ascii_lowercase);
+    if normalized_content_type.as_deref() == Some("image/svg+xml") {
+        return Err(AppError::validation("This image format can't be saved as PNG yet."));
+    }
+
+    let decoded = image::load_from_memory(bytes).map_err(|error| {
+        log::warn!(
+            "failed to decode downloaded image as raster for {} (content-type: {:?}): {error}",
+            source_url,
+            normalized_content_type
+        );
+        AppError::validation("Couldn't decode the downloaded image data.")
+    })?;
+
+    let mut encoded = Vec::new();
+    decoded
+        .write_to(&mut Cursor::new(&mut encoded), ImageFormat::Png)
+        .map_err(|error| {
+            log::error!(
+                "failed to transcode image download to PNG for {} (content-type: {:?}): {error}",
+                source_url,
+                normalized_content_type
+            );
+            AppError::validation("Couldn't save this image as PNG.")
+        })?;
+
+    Ok(encoded)
+}
+
 fn expand_tilde(path: &str) -> PathBuf {
     if path == "~" {
         return dirs::home_dir().unwrap_or_else(|| PathBuf::from(path));
@@ -577,27 +442,9 @@ fn expand_tilde(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-fn extension_from_image_content_type(content_type: &str) -> Option<&'static str> {
-    let normalized = content_type
-        .split(';')
-        .next()
-        .unwrap_or(content_type)
-        .trim()
-        .to_ascii_lowercase();
-
-    match normalized.as_str() {
-        "image/jpeg" | "image/jpg" => Some("jpg"),
-        "image/png" => Some("png"),
-        "image/webp" => Some("webp"),
-        "image/gif" => Some("gif"),
-        "image/avif" => Some("avif"),
-        "image/svg+xml" => Some("svg"),
-        "image/bmp" => Some("bmp"),
-        _ => None,
-    }
-}
-
-fn build_filename(source_url: &Url, requested: Option<&str>, default_stem: &str, default_ext: Option<&str>) -> String {
+fn build_filename(
+    source_url: &Url, requested: Option<&str>, default_stem: &str, default_ext: Option<&str>, force_extension: bool,
+) -> String {
     let requested_name = requested
         .map(str::trim)
         .filter(|name| !name.is_empty())
@@ -616,10 +463,11 @@ fn build_filename(source_url: &Url, requested: Option<&str>, default_stem: &str,
         filename = default_stem.to_string();
     }
 
-    if Path::new(&filename).extension().is_none() {
-        if let Some(extension) = default_ext.filter(|extension| !extension.is_empty()) {
-            filename.push('.');
-            filename.push_str(extension);
+    if let Some(extension) = default_ext.filter(|extension| !extension.is_empty()) {
+        let mut path = PathBuf::from(&filename);
+        if force_extension || path.extension().is_none() {
+            path.set_extension(extension.trim_start_matches('.'));
+            filename = path.to_string_lossy().into_owned();
         }
     }
 
@@ -681,98 +529,8 @@ fn resolve_unique_path(directory: &Path, filename: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
-    use std::io::{Read, Write};
-    use std::net::{SocketAddr, TcpListener};
-    use std::sync::mpsc;
-    use std::thread;
-
-    #[derive(Clone)]
-    struct TestResponse {
-        status_line: &'static str,
-        content_type: &'static str,
-        body: Vec<u8>,
-    }
-
-    struct TestServer {
-        address: SocketAddr,
-        shutdown_tx: mpsc::Sender<()>,
-        handle: Option<thread::JoinHandle<()>>,
-    }
-
-    impl TestServer {
-        fn url(&self, path: &str) -> String {
-            format!("http://{}{}", self.address, path)
-        }
-    }
-
-    impl Drop for TestServer {
-        fn drop(&mut self) {
-            let _ = self.shutdown_tx.send(());
-            if let Some(handle) = self.handle.take() {
-                let _ = handle.join();
-            }
-        }
-    }
-
-    fn start_test_server(routes: HashMap<String, TestResponse>) -> TestServer {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("test server should bind");
-        listener
-            .set_nonblocking(true)
-            .expect("test server listener should be nonblocking");
-        let address = listener.local_addr().expect("test server should expose local address");
-        let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>();
-
-        let handle = thread::spawn(move || loop {
-            if shutdown_rx.try_recv().is_ok() {
-                break;
-            }
-
-            match listener.accept() {
-                Ok((mut stream, _)) => {
-                    let mut buffer = [0_u8; 4096];
-                    let read = match stream.read(&mut buffer) {
-                        Ok(read) if read > 0 => read,
-                        _ => continue,
-                    };
-
-                    let request_line = String::from_utf8_lossy(&buffer[..read]);
-                    let target = request_line
-                        .lines()
-                        .next()
-                        .and_then(|line| line.split_whitespace().nth(1))
-                        .unwrap_or("/")
-                        .split('?')
-                        .next()
-                        .unwrap_or("/")
-                        .to_string();
-
-                    let response = routes.get(&target).cloned().unwrap_or(TestResponse {
-                        status_line: "HTTP/1.1 404 Not Found",
-                        content_type: "text/plain",
-                        body: b"not found".to_vec(),
-                    });
-
-                    let headers = format!(
-                        "{}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                        response.status_line,
-                        response.content_type,
-                        response.body.len()
-                    );
-
-                    if stream.write_all(headers.as_bytes()).is_ok() {
-                        let _ = stream.write_all(&response.body);
-                    }
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                    thread::sleep(Duration::from_millis(5));
-                }
-                Err(_) => break,
-            }
-        });
-
-        TestServer { address, shutdown_tx, handle: Some(handle) }
-    }
+    use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
+    use std::io::Cursor;
 
     fn settings_db() -> Connection {
         let conn = Connection::open_in_memory().expect("in-memory db should open");
@@ -785,6 +543,21 @@ mod tests {
         let path = std::env::temp_dir().join(format!("lazurite-media-tests-{}", Uuid::new_v4()));
         fs::create_dir_all(&path).expect("temporary directory should be created");
         path
+    }
+
+    fn test_image_bytes(format: ImageFormat) -> Vec<u8> {
+        let mut image = RgbaImage::new(1, 1);
+        image.put_pixel(0, 0, Rgba([0xFF, 0x66, 0x00, 0xFF]));
+
+        let mut bytes = Vec::new();
+        DynamicImage::ImageRgba8(image)
+            .write_to(&mut Cursor::new(&mut bytes), format)
+            .expect("test image should encode");
+        bytes
+    }
+
+    fn is_png(bytes: &[u8]) -> bool {
+        bytes.starts_with(&[0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1A, b'\n'])
     }
 
     #[test]
@@ -829,118 +602,77 @@ mod tests {
     }
 
     #[test]
-    fn parse_master_variants_extracts_bandwidth_and_urls() {
-        let base_url = Url::parse("https://example.com/path/master.m3u8").expect("url should parse");
-        let manifest =
-            "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1280000\nlow.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=2560000\nhigh.m3u8\n";
+    fn blob_ref_parses_from_bsky_image_and_video_urls() {
+        let image_cid = "bafyreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku";
+        let image_url = Url::parse(&format!(
+            "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:alice/{image_cid}@jpeg"
+        ))
+        .expect("image url should parse");
+        let image_ref = blob_ref_from_url(&image_url).expect("image blob ref should parse");
+        assert_eq!(image_ref.did, "did:plc:alice");
+        assert_eq!(image_ref.cid, image_cid);
 
-        let variants = parse_master_variants(&base_url, manifest).expect("master playlist should parse");
-
-        assert_eq!(variants.len(), 2);
-        assert_eq!(variants[0].bandwidth, 1_280_000);
-        assert_eq!(variants[1].bandwidth, 2_560_000);
-        assert_eq!(variants[1].uri.as_str(), "https://example.com/path/high.m3u8");
+        let video_cid = "bafyreic6b7f6qtk2obzmd2i4uj5qvlnxbv5b3pa3y3n6k5s2ucx6ws73mi";
+        let video_url = Url::parse(&format!(
+            "https://video.bsky.app/watch/did:plc:alice/{video_cid}/playlist.m3u8"
+        ))
+        .expect("video url should parse");
+        let video_ref = blob_ref_from_url(&video_url).expect("video blob ref should parse");
+        assert_eq!(video_ref.did, "did:plc:alice");
+        assert_eq!(video_ref.cid, video_cid);
     }
 
     #[test]
-    fn parse_media_playlist_extracts_segments_and_init_map() {
-        let base_url = Url::parse("https://cdn.example.com/video/index.m3u8").expect("url should parse");
-        let playlist = "#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4\"\n#EXTINF:1.0,\nseg-1.ts\n#EXTINF:1.0,\nseg-2.ts\n";
-
-        let parsed = parse_media_playlist(&base_url, playlist).expect("media playlist should parse");
-
-        assert_eq!(parsed.segments.len(), 2);
-        assert_eq!(
-            parsed.init_segment.as_ref().map(Url::as_str),
-            Some("https://cdn.example.com/video/init.mp4")
-        );
-        assert_eq!(parsed.segments[0].as_str(), "https://cdn.example.com/video/seg-1.ts");
+    fn blob_ref_rejects_urls_without_did_cid_pair() {
+        let bad_url = Url::parse("https://example.com/media/playlist.m3u8").expect("url should parse");
+        let error = blob_ref_from_url(&bad_url).expect_err("blob ref parsing should fail");
+        assert!(error.to_string().contains("DID/CID"));
     }
 
-    #[tokio::test]
-    async fn download_image_writes_file_to_target_directory() {
-        let server = start_test_server(HashMap::from([(
-            "/image.jpg".to_string(),
-            TestResponse { status_line: "HTTP/1.1 200 OK", content_type: "image/jpeg", body: b"fake-jpeg".to_vec() },
-        )]));
-        let directory = temp_directory();
+    #[test]
+    fn content_type_is_inferred_from_media_url() {
+        let png_url = Url::parse("https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:alice/bafy@png")
+            .expect("png url should parse");
+        assert_eq!(content_type_from_url(&png_url).as_deref(), Some("image/png"));
 
-        let result = download_image_to_directory(&server.url("/image.jpg"), None, &directory)
-            .await
-            .expect("image download should succeed");
-
-        assert_eq!(result.bytes, 9);
-        assert!(result.path.ends_with("image.jpg"));
-        assert_eq!(
-            fs::read(result.path).expect("downloaded image should be readable"),
-            b"fake-jpeg"
-        );
+        let jpeg_url = Url::parse("https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:alice/bafy@jpeg")
+            .expect("jpeg url should parse");
+        assert_eq!(content_type_from_url(&jpeg_url).as_deref(), Some("image/jpeg"));
     }
 
-    #[tokio::test]
-    async fn download_video_downloads_highest_bandwidth_variant_and_emits_progress() {
-        let server = start_test_server(HashMap::from([
-            (
-                "/master.m3u8".to_string(),
-                TestResponse {
-                    status_line: "HTTP/1.1 200 OK",
-                    content_type: "application/vnd.apple.mpegurl",
-                    body: b"#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=64000\nlow.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=128000\nhigh.m3u8\n"
-                        .to_vec(),
-                },
-            ),
-            (
-                "/high.m3u8".to_string(),
-                TestResponse {
-                    status_line: "HTTP/1.1 200 OK",
-                    content_type: "application/vnd.apple.mpegurl",
-                    body: b"#EXTM3U\n#EXTINF:1.0,\nseg-a.ts\n#EXTINF:1.0,\nseg-b.ts\n".to_vec(),
-                },
-            ),
-            (
-                "/seg-a.ts".to_string(),
-                TestResponse {
-                    status_line: "HTTP/1.1 200 OK",
-                    content_type: "video/mp2t",
-                    body: b"segment-a".to_vec(),
-                },
-            ),
-            (
-                "/seg-b.ts".to_string(),
-                TestResponse {
-                    status_line: "HTTP/1.1 200 OK",
-                    content_type: "video/mp2t",
-                    body: b"segment-b".to_vec(),
-                },
-            ),
-        ]));
-        let directory = temp_directory();
-        let mut progress_events = Vec::new();
+    #[test]
+    fn transcode_image_to_png_converts_valid_image_bytes() {
+        let jpeg = test_image_bytes(ImageFormat::Jpeg);
+        let source_url = Url::parse("https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:alice/bafy@jpeg")
+            .expect("url should parse");
+        let converted =
+            transcode_image_to_png(&jpeg, &source_url, Some("image/jpeg")).expect("image transcode should succeed");
+        assert!(is_png(&converted));
+    }
 
-        let result = download_video_to_directory(
-            &server.url("/master.m3u8"),
-            Some("clip.mp4"),
-            &directory,
-            &mut |progress| {
-                progress_events.push(progress);
-                Ok(())
-            },
-        )
-        .await
-        .expect("video download should succeed");
-
-        assert!(result.path.ends_with("clip.mp4"));
-        assert_eq!(result.bytes, (b"segment-a".len() + b"segment-b".len()) as u64);
-
-        let final_progress = progress_events
-            .last()
-            .expect("at least one progress event should be emitted");
-        assert!(final_progress.complete);
-        assert_eq!(final_progress.downloaded_segments, 2);
-        assert_eq!(final_progress.total_segments, 2);
+    #[test]
+    fn normalize_cid_candidate_strips_suffixes() {
         assert_eq!(
-            fs::read(result.path).expect("downloaded video should be readable"),
-            b"segment-asegment-b"
+            normalize_cid_candidate("bafy123@jpeg").expect("candidate should parse"),
+            "bafy123"
+        );
+        assert_eq!(
+            normalize_cid_candidate("bafy123.mp4?x=1").expect("candidate should parse"),
+            "bafy123"
+        );
+        assert!(normalize_cid_candidate("").is_none());
+    }
+
+    #[test]
+    fn build_filename_replaces_existing_extension_when_forced() {
+        let source_url = Url::parse("https://cdn.example.com/path/master.m3u8").expect("url should parse");
+        assert_eq!(
+            build_filename(&source_url, None, "video", Some("mp4"), true),
+            "master.mp4"
+        );
+        assert_eq!(
+            build_filename(&source_url, Some("custom.m3u8"), "video", Some("mp4"), true),
+            "custom.mp4"
         );
     }
 }

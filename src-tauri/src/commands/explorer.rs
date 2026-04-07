@@ -36,6 +36,18 @@ pub async fn export_repo_car(did: String, app: AppHandle) -> Result<explorer::Re
 }
 
 #[tauri::command]
+pub async fn fetch_blob_to_temp_file(
+    did: String, cid: String, extension: Option<String>, app: AppHandle,
+) -> Result<explorer::TempBlobFile, AppError> {
+    explorer::fetch_blob_to_temp_file(did, cid, extension, &app).await
+}
+
+#[tauri::command]
+pub fn delete_blob_temp_file(path: String, app: AppHandle) -> Result<(), AppError> {
+    explorer::delete_blob_temp_file(&path, &app)
+}
+
+#[tauri::command]
 pub async fn query_labels(uri: String) -> Result<serde_json::Value, AppError> {
     explorer::query_labels(uri).await
 }

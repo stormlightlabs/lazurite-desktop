@@ -1,6 +1,6 @@
 import { type MediaNotice, MediaNoticeToast } from "$/components/feeds/MediaNoticeToast";
 import { Icon } from "$/components/shared/Icon";
-import { downloadImage } from "$/lib/api/media";
+import { MediaController } from "$/lib/api/media";
 import { clamp, normalizeError } from "$/lib/utils/text";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
@@ -12,6 +12,7 @@ type GalleryImage = { alt?: string; fullsize?: string; thumb?: string };
 type ImageGalleryProps = {
   authorHandle?: string;
   authorHref?: string;
+  downloadFilenameForIndex?: (index: number) => string | null | undefined;
   images: GalleryImage[];
   open: boolean;
   postText?: string;
@@ -113,7 +114,10 @@ export function ImageGallery(props: ImageGalleryProps) {
 
     setDownloadPending(true);
     try {
-      const result = await downloadImage(currentImage);
+      const requestedFilename = props.downloadFilenameForIndex?.(index())?.trim();
+      const result = requestedFilename
+        ? await MediaController.downloadImage(currentImage, requestedFilename)
+        : await MediaController.downloadImage(currentImage);
       queueNotice({ kind: "success", message: `Saved ${filenameFromPath(result.path)}.`, path: result.path });
     } catch (error) {
       queueNotice({ kind: "error", message: toDownloadErrorMessage(error) });

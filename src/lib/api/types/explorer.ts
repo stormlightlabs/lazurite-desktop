@@ -27,3 +27,5 @@ export type ExplorerServerView = {
 };
 
 export type RepoCarExport = { did: string; path: string; bytesWritten: number };
+
+export type TempBlobFile = { path: string; bytesWritten: number };

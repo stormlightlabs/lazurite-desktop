@@ -1,6 +1,7 @@
 import { type MediaNotice, MediaNoticeToast } from "$/components/feeds/MediaNoticeToast";
 import { Icon } from "$/components/shared/Icon";
-import { type DownloadProgress, downloadVideo } from "$/lib/api/media";
+import { MediaController } from "$/lib/api/media";
+import type { DownloadProgress } from "$/lib/api/types/media";
 import { normalizeError } from "$/lib/utils/text";
 import { listen } from "@tauri-apps/api/event";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -10,6 +11,7 @@ import type { JSX } from "solid-js";
 type VideoEmbedProps = {
   alt?: string;
   aspectRatio?: { height: number; width: number };
+  downloadFilename?: string;
   playlist?: string;
   thumbnail?: string;
 };
@@ -149,7 +151,8 @@ export function VideoEmbed(props: VideoEmbedProps) {
     }
 
     try {
-      const result = await downloadVideo(playlist);
+      const requestedFilename = props.downloadFilename?.trim();
+      const result = await MediaController.downloadVideo(playlist, requestedFilename ?? null);
       queueNotice({ kind: "success", message: `Saved ${filenameFromPath(result.path)}.`, path: result.path });
     } catch (error) {
       queueNotice({ kind: "error", message: toDownloadErrorMessage(error, "Couldn't save the video right now.") });

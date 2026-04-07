@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ExplorerServerView, RepoCarExport, ResolvedExplorerInput } from "./types/explorer";
+import type { ExplorerServerView, RepoCarExport, ResolvedExplorerInput, TempBlobFile } from "./types/explorer";
 
 export async function resolveInput(input: string): Promise<ResolvedExplorerInput> {
   return invoke("resolve_input", { input });
@@ -23,6 +23,14 @@ export async function getRecord(did: string, collection: string, rkey: string): 
 
 export async function exportRepoCar(did: string): Promise<RepoCarExport> {
   return invoke("export_repo_car", { did });
+}
+
+export async function fetchBlobToTempFile(did: string, cid: string, extension?: string | null): Promise<TempBlobFile> {
+  return invoke("fetch_blob_to_temp_file", { cid, did, extension: extension ?? null });
+}
+
+export async function deleteBlobTempFile(path: string): Promise<void> {
+  return invoke("delete_blob_temp_file", { path });
 }
 
 export async function queryLabels(uri: string): Promise<Record<string, unknown>> {

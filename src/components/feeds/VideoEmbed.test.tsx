@@ -6,7 +6,7 @@ const downloadVideoMock = vi.hoisted(() => vi.fn());
 const listenMock = vi.hoisted(() => vi.fn());
 const revealItemInDirMock = vi.hoisted(() => vi.fn());
 
-vi.mock("$/lib/api/media", () => ({ downloadVideo: downloadVideoMock }));
+vi.mock("$/lib/api/media", () => ({ MediaController: { downloadVideo: downloadVideoMock } }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: revealItemInDirMock }));
 
@@ -46,7 +46,9 @@ describe("VideoEmbed", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Download video" }));
 
-    await waitFor(() => expect(downloadVideoMock).toHaveBeenCalledWith("https://cdn.example.com/video/master.m3u8"));
+    await waitFor(() =>
+      expect(downloadVideoMock).toHaveBeenCalledWith("https://cdn.example.com/video/master.m3u8", null)
+    );
     expect(await screen.findByText("Saved example.mp4.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open in Finder" }));

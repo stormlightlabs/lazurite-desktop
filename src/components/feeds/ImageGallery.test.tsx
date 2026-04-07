@@ -5,7 +5,7 @@ import { ImageGallery } from "./ImageGallery";
 const downloadImageMock = vi.hoisted(() => vi.fn());
 const revealItemInDirMock = vi.hoisted(() => vi.fn());
 
-vi.mock("$/lib/api/media", () => ({ downloadImage: downloadImageMock }));
+vi.mock("$/lib/api/media", () => ({ MediaController: { downloadImage: downloadImageMock } }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: revealItemInDirMock }));
 
 const GALLERY_IMAGES = [{ alt: "First image", fullsize: "https://cdn.example.com/first.jpg" }, {
@@ -53,6 +53,7 @@ describe("ImageGallery", () => {
       <ImageGallery
         authorHandle="@alice.test"
         authorHref="/profile/alice.test"
+        downloadFilenameForIndex={(index) => `post-rkey_${index + 1}`}
         images={[...GALLERY_IMAGES]}
         open
         postText="Gallery post"
@@ -62,7 +63,9 @@ describe("ImageGallery", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Download image" }));
 
-    await waitFor(() => expect(downloadImageMock).toHaveBeenCalledWith("https://cdn.example.com/first.jpg"));
+    await waitFor(() =>
+      expect(downloadImageMock).toHaveBeenCalledWith("https://cdn.example.com/first.jpg", "post-rkey_1")
+    );
     expect(await screen.findByText("Saved gallery.jpg.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open in Finder" }));

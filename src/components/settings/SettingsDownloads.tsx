@@ -1,4 +1,4 @@
-import { getDownloadDirectory, setDownloadDirectory } from "$/lib/api/media";
+import { MediaController } from "$/lib/api/media";
 import type { AppSettings } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -28,7 +28,7 @@ export function SettingsDownloads(props: SettingsDownloadsProps) {
 
   async function refreshDirectory() {
     try {
-      setDirectory(await getDownloadDirectory());
+      setDirectory(await MediaController.getDownloadDirectory());
     } catch (error) {
       logger.error("failed to load download directory", { keyValues: { error: normalizeError(error) } });
       queueFeedback({ kind: "error", message: "Couldn't load your download folder." });
@@ -49,7 +49,7 @@ export function SettingsDownloads(props: SettingsDownloadsProps) {
         return;
       }
 
-      await setDownloadDirectory(nextDirectory);
+      await MediaController.setDownloadDirectory(nextDirectory);
       await refreshDirectory();
       queueFeedback({ kind: "success", message: "Download folder updated." });
     } catch (error) {
@@ -68,7 +68,7 @@ export function SettingsDownloads(props: SettingsDownloadsProps) {
     setPending(true);
     dismissFeedback();
     try {
-      await setDownloadDirectory("~/Downloads");
+      await MediaController.setDownloadDirectory("~/Downloads");
       await refreshDirectory();
       queueFeedback({ kind: "success", message: "Download folder reset to default." });
     } catch (error) {

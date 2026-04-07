@@ -117,6 +117,8 @@ pub fn run() {
             cmd::explorer::list_records,
             cmd::explorer::get_record,
             cmd::explorer::export_repo_car,
+            cmd::explorer::fetch_blob_to_temp_file,
+            cmd::explorer::delete_blob_temp_file,
             cmd::explorer::query_labels,
             cmd::explorer::get_lexicon_favicons,
             cmd::explorer::clear_lexicon_favicon_cache,

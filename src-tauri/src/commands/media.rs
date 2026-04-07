@@ -17,16 +17,16 @@ pub fn set_download_directory(path: String, state: State<'_, AppState>) -> Resul
 
 #[tauri::command]
 pub async fn download_image(
-    url: String, filename: Option<String>, state: State<'_, AppState>,
+    url: String, filename: Option<String>, app: AppHandle, state: State<'_, AppState>,
 ) -> Result<DownloadResult> {
-    media::download_image(&url, filename.as_deref(), &state).await
+    media::download_image(&url, filename.as_deref(), &app, &state).await
 }
 
 #[tauri::command]
 pub async fn download_video(
     url: String, filename: Option<String>, app: AppHandle, state: State<'_, AppState>,
 ) -> Result<DownloadResult> {
-    media::download_video(&url, filename.as_deref(), &state, |progress| {
+    media::download_video(&url, filename.as_deref(), &app, &state, |progress| {
         app.emit("download-progress", &progress)?;
         Ok(())
     })

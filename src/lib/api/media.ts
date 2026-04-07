@@ -1,15 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-
-type DownloadResult = { path: string; bytes: number };
-
-export type DownloadProgress = {
-  url: string;
-  path: string;
-  downloadedBytes: number;
-  downloadedSegments: number;
-  totalSegments: number;
-  complete: boolean;
-};
+import type { DownloadResult } from "./types/media";
 
 export function getDownloadDirectory() {
   return invoke<string>("get_download_directory");
@@ -26,3 +16,5 @@ export function downloadImage(url: string, filename?: string | null) {
 export function downloadVideo(url: string, filename?: string | null) {
   return invoke<DownloadResult>("download_video", { filename: filename ?? null, url });
 }
+
+export const MediaController = { getDownloadDirectory, setDownloadDirectory, downloadImage, downloadVideo };
