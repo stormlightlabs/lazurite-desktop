@@ -1,4 +1,4 @@
-import type { NetworkSearchSort, SearchMode } from "$/lib/api/search";
+import type { NetworkSearchSort, SearchMode } from "$/lib/api/types/search";
 
 export type SearchTab = "posts" | "profiles";
 const SEARCH_ROUTE = "/search";

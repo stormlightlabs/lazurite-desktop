@@ -1,5 +1,6 @@
 import { Icon } from "$/components/shared/Icon";
-import { getSyncStatus, reindexEmbeddings, syncPosts, type SyncStatus } from "$/lib/api/search";
+import { SearchController } from "$/lib/api/search";
+import type { SyncStatus } from "$/lib/api/types/search";
 import { formatRelativeTime } from "$/lib/feeds";
 import * as logger from "@tauri-apps/plugin-log";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
@@ -123,7 +124,7 @@ export function SyncStatusPanel(props: SyncStatusPanelProps) {
 
   async function loadSyncStatus() {
     try {
-      const status = await getSyncStatus(props.did);
+      const status = await SearchController.getSyncStatus(props.did);
       setSyncStatus(status);
       props.onStatusChange?.(status);
     } catch (error) {
@@ -134,8 +135,8 @@ export function SyncStatusPanel(props: SyncStatusPanelProps) {
   async function handleSync() {
     setIsSyncing(true);
     try {
-      await syncPosts(props.did, "like");
-      await syncPosts(props.did, "bookmark");
+      await SearchController.syncPosts(props.did, "like");
+      await SearchController.syncPosts(props.did, "bookmark");
       await loadSyncStatus();
     } catch (error) {
       logger.error("sync failed", { keyValues: { error: String(error) } });
@@ -147,7 +148,7 @@ export function SyncStatusPanel(props: SyncStatusPanelProps) {
   async function handleReindex() {
     setIsReindexing(true);
     try {
-      const count = await reindexEmbeddings();
+      const count = await SearchController.reindexEmbeddings();
       logger.info("reindex complete", { keyValues: { count: String(count) } });
       await loadSyncStatus();
     } catch (error) {

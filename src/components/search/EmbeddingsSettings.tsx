@@ -1,7 +1,7 @@
 /* eslint react/jsx-max-depth: ["error", { "max": 5 }] */
 import { Icon } from "$/components/shared/Icon";
 import { useAppPreferences } from "$/contexts/app-preferences";
-import type { EmbeddingsConfig } from "$/lib/api/search";
+import type { EmbeddingsConfig } from "$/lib/api/types/search";
 import { formatBytes, formatEtaSeconds, formatProgress } from "$/lib/utils/text";
 import { createEffect, createMemo, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { Motion, Presence } from "solid-motionone";

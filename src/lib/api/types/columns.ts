@@ -1,4 +1,4 @@
-import type { SearchMode } from "../search";
+import type { SearchMode } from "./search";
 
 export type ColumnKind = "feed" | "explorer" | "diagnostics" | "messages" | "search" | "profile";
 

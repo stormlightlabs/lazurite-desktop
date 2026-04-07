@@ -8,7 +8,7 @@ import { HashtagPanel } from "./HashtagPanel";
 const searchPostsNetworkMock = vi.hoisted(() => vi.fn());
 const threadOverlayMock = vi.hoisted(() => ({ openThread: vi.fn() }));
 
-vi.mock("$/lib/api/search", () => ({ searchPostsNetwork: searchPostsNetworkMock }));
+vi.mock("$/lib/api/search", () => ({ SearchController: { searchPostsNetwork: searchPostsNetworkMock } }));
 vi.mock(
   "$/components/posts/useThreadOverlayNavigation",
   () => ({ useThreadOverlayNavigation: () => threadOverlayMock }),

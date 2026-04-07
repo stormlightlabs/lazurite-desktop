@@ -12,7 +12,13 @@ const threadOverlayMock = vi.hoisted(() => ({ openThread: vi.fn() }));
 
 vi.mock(
   "$/lib/api/search",
-  () => ({ getSyncStatus: getSyncStatusMock, listSavedPosts: listSavedPostsMock, syncPosts: syncPostsMock }),
+  () => ({
+    SearchController: {
+      getSyncStatus: getSyncStatusMock,
+      listSavedPosts: listSavedPostsMock,
+      syncPosts: syncPostsMock,
+    },
+  }),
 );
 vi.mock(
   "$/components/posts/useThreadOverlayNavigation",

@@ -1,4 +1,4 @@
-import type { NetworkSearchSort } from "$/lib/api/search";
+import type { NetworkSearchSort } from "$/lib/api/types/search";
 import { normalizeTagToken, type PostSearchFilters } from "$/lib/search-routes";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { ArrowIcon, Icon } from "../shared/Icon";

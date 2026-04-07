@@ -1,4 +1,4 @@
-import type { LocalPostResult } from "$/lib/api/search";
+import type { LocalPostResult } from "$/lib/api/types/search";
 import { For } from "solid-js";
 import { Motion } from "solid-motionone";
 import { SearchResultCard } from "./SearchResultCard";

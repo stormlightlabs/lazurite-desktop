@@ -1,17 +1,18 @@
 import { PostCard } from "$/components/feeds/PostCard";
 import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { Icon } from "$/components/shared/Icon";
-import { type NetworkSearchResult, searchPostsNetwork } from "$/lib/api/search";
+import { SearchController } from "$/lib/api/search";
+import type { NetworkSearchResult } from "$/lib/api/types/search";
 import {
   buildHashtagQuery,
   buildPostSearchRoute,
   decodeHashtagRouteTag,
   formatHashtagLabel,
   parsePostSearchFilters,
-  type PostSearchFilters,
   toLocalDayStartIso,
   toLocalDayUntilIso,
 } from "$/lib/search-routes";
+import type { PostSearchFilters } from "$/lib/search-routes";
 import { normalizeError } from "$/lib/utils/text";
 import { useLocation, useNavigate, useParams } from "@solidjs/router";
 import * as logger from "@tauri-apps/plugin-log";
@@ -57,7 +58,7 @@ export function HashtagPanel() {
 
   async function performSearch(f: PostSearchFilters, t: string) {
     try {
-      const results = await searchPostsNetwork({
+      const results = await SearchController.searchPostsNetwork({
         author: f.author || null,
         limit: 25,
         mentions: f.mentions || null,

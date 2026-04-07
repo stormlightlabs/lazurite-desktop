@@ -5,29 +5,20 @@ import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayN
 import { Icon, SearchModeIcon } from "$/components/shared/Icon";
 import { useAppPreferences } from "$/contexts/app-preferences";
 import { useAppSession } from "$/contexts/app-session";
-import {
-  type ActorResult,
-  type ActorSearchResult,
-  getSyncStatus,
-  type LocalPostResult,
-  type NetworkSearchParams,
-  type NetworkSearchResult,
-  searchActors,
-  type SearchMode,
-  searchPosts,
-  searchPostsNetwork,
-  type SyncStatus,
-} from "$/lib/api/search";
+import { SearchController } from "$/lib/api/search";
+import type {
+  ActorResult,
+  ActorSearchResult,
+  LocalPostResult,
+  NetworkSearchParams,
+  NetworkSearchResult,
+  SearchMode,
+  SyncStatus,
+} from "$/lib/api/types/search";
 import { formatRelativeTime } from "$/lib/feeds";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
-import {
-  buildSearchRoute,
-  parseSearchRouteState,
-  type PostSearchFilters,
-  type SearchTab,
-  toLocalDayStartIso,
-  toLocalDayUntilIso,
-} from "$/lib/search-routes";
+import { buildSearchRoute, parseSearchRouteState, toLocalDayStartIso, toLocalDayUntilIso } from "$/lib/search-routes";
+import type { PostSearchFilters, SearchTab } from "$/lib/search-routes";
 import type { ProfileViewBasic } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
 import { useLocation, useNavigate } from "@solidjs/router";
@@ -151,7 +142,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
       setSearch({ error: null, loading: true });
 
       try {
-        const response = await searchActors(searchQuery, 25);
+        const response = await SearchController.searchActors(searchQuery, 25);
         setSearch({
           actorResults: response,
           error: null,
@@ -194,7 +185,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
 
     try {
       if (state.mode === "network") {
-        const response = await searchPostsNetwork(buildNetworkSearchParams(state));
+        const response = await SearchController.searchPostsNetwork(buildNetworkSearchParams(state));
         setSearch({
           actorResults: null,
           hasSearched: true,
@@ -203,7 +194,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
           results: [],
         });
       } else {
-        const response = await searchPosts(searchQuery, state.mode, 50);
+        const response = await SearchController.searchPosts(searchQuery, state.mode, 50);
         setSearch({
           actorResults: null,
           hasSearched: true,
@@ -342,7 +333,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
     }
 
     if (props.embedded && session.activeDid) {
-      void getSyncStatus(session.activeDid).then((status) => {
+      void SearchController.getSyncStatus(session.activeDid).then((status) => {
         setSearch("syncStatus", status);
       }).catch((error) => {
         logger.warn("failed to load embedded search sync status", { keyValues: { error: normalizeError(error) } });

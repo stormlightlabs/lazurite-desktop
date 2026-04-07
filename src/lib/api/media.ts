@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type DownloadResult = { path: string; bytes: number };
+type DownloadResult = { path: string; bytes: number };
 
 export type DownloadProgress = {
   url: string;

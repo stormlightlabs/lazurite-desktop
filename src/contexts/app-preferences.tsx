@@ -1,11 +1,6 @@
-import {
-  getEmbeddingsConfig,
-  prepareEmbeddingsModel as prepareEmbeddingsModelRequest,
-  setEmbeddingsEnabled as setEmbeddingsEnabledRequest,
-  setEmbeddingsPreflightSeen as setEmbeddingsPreflightSeenRequest,
-} from "$/lib/api/search";
-import type { EmbeddingsConfig } from "$/lib/api/search";
+import { SearchController } from "$/lib/api/search";
 import { SettingsController } from "$/lib/api/settings";
+import type { EmbeddingsConfig } from "$/lib/api/types/search";
 import type { AppSettings } from "$/lib/types";
 import * as logger from "@tauri-apps/plugin-log";
 import { createContext, onMount, type ParentProps, splitProps, untrack, useContext } from "solid-js";
@@ -76,7 +71,7 @@ function createAppPreferencesValue(): AppPreferencesContextValue {
     setPreferences("embeddingsLoading", true);
 
     try {
-      const nextConfig = await getEmbeddingsConfig();
+      const nextConfig = await SearchController.getEmbeddingsConfig();
       setPreferences("embeddingsConfig", nextConfig);
       setPreferences("settings", (current) => {
         if (!current) {
@@ -94,7 +89,7 @@ function createAppPreferencesValue(): AppPreferencesContextValue {
 
   async function prepareEmbeddingsModel() {
     try {
-      const nextConfig = await prepareEmbeddingsModelRequest();
+      const nextConfig = await SearchController.prepareEmbeddingsModel();
       setPreferences("embeddingsConfig", nextConfig);
       setPreferences("settings", (current) => {
         if (!current) {
@@ -110,7 +105,7 @@ function createAppPreferencesValue(): AppPreferencesContextValue {
 
   async function setEmbeddingsEnabled(enabled: boolean) {
     try {
-      await setEmbeddingsEnabledRequest(enabled);
+      await SearchController.setEmbeddingsEnabled(enabled);
       setPreferences("settings", (current) => {
         if (!current) {
           return current;
@@ -128,7 +123,7 @@ function createAppPreferencesValue(): AppPreferencesContextValue {
 
   async function setEmbeddingsPreflightSeen(seen: boolean) {
     try {
-      await setEmbeddingsPreflightSeenRequest(seen);
+      await SearchController.setEmbeddingsPreflightSeen(seen);
       setPreferences("embeddingsConfig", (current) => current ? { ...current, preflightSeen: seen } : current);
     } catch (error) {
       logger.error("failed to set embeddings preflight seen", {

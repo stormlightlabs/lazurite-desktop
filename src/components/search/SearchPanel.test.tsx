@@ -16,11 +16,13 @@ const threadOverlayMock = vi.hoisted(() => ({ openThread: vi.fn() }));
 vi.mock(
   "$/lib/api/search",
   () => ({
-    getSyncStatus: getSyncStatusMock,
-    searchActors: searchActorsMock,
-    searchPosts: searchPostsMock,
-    searchPostsNetwork: searchPostsNetworkMock,
-    syncPosts: syncPostsMock,
+    SearchController: {
+      getSyncStatus: getSyncStatusMock,
+      searchActors: searchActorsMock,
+      searchPosts: searchPostsMock,
+      searchPostsNetwork: searchPostsNetworkMock,
+      syncPosts: syncPostsMock,
+    },
   }),
 );
 vi.mock("$/lib/api/actors", () => ({ searchActorSuggestions: searchActorSuggestionsMock }));

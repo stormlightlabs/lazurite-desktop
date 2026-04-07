@@ -5,8 +5,8 @@ import { SearchQueryInput } from "$/components/search/SearchQueryInput";
 import { Icon } from "$/components/shared/Icon";
 import { PostCount } from "$/components/shared/PostCount";
 import { useAppSession } from "$/contexts/app-session";
-import { getSyncStatus, listSavedPosts, syncPosts } from "$/lib/api/search";
-import type { LocalPostResult, SavedPostSource, SyncStatus } from "$/lib/api/search";
+import { SearchController } from "$/lib/api/search";
+import type { LocalPostResult, SavedPostSource, SyncStatus } from "$/lib/api/types/search";
 import { formatRelativeTime } from "$/lib/feeds";
 import { subscribeBookmarkChanged } from "$/lib/post-events";
 import { normalizeError } from "$/lib/utils/text";
@@ -191,7 +191,7 @@ export function SavedPostsPanel() {
     setState("syncStatusLoading", true);
 
     try {
-      const status = await getSyncStatus(did);
+      const status = await SearchController.getSyncStatus(did);
       if (did !== activeDid) {
         return;
       }
@@ -253,7 +253,7 @@ export function SavedPostsPanel() {
     setState("tabs", source, "error", null);
 
     try {
-      const page = await listSavedPosts(source, PAGE_SIZE, offset);
+      const page = await SearchController.listSavedPosts(source, PAGE_SIZE, offset);
       if (did !== activeDid || requestId !== browseRequestIds[source]) {
         return;
       }
@@ -296,7 +296,7 @@ export function SavedPostsPanel() {
     setState("searchTabs", source, "error", null);
 
     try {
-      const page = await listSavedPosts(source, PAGE_SIZE, offset, query);
+      const page = await SearchController.listSavedPosts(source, PAGE_SIZE, offset, query);
       if (did !== activeDid || requestId !== searchRequestIds[source] || trimmedQuery() !== query) {
         return;
       }
@@ -362,8 +362,8 @@ export function SavedPostsPanel() {
     setState("refreshing", true);
 
     try {
-      await syncPosts(session.activeDid, "bookmark");
-      await syncPosts(session.activeDid, "like");
+      await SearchController.syncPosts(session.activeDid, "bookmark");
+      await SearchController.syncPosts(session.activeDid, "like");
       await Promise.all([
         loadSyncStatus(session.activeDid),
         isSearching()

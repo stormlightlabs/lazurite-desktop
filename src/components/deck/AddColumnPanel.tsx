@@ -1,7 +1,7 @@
 import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/actor-search";
 import { getFeedGenerators, getPreferences } from "$/lib/api/feeds";
-import type { SearchMode } from "$/lib/api/search";
 import type { ColumnKind } from "$/lib/api/types/columns";
+import type { SearchMode } from "$/lib/api/types/search";
 import { getFeedName } from "$/lib/feeds";
 import type { FeedGeneratorView, LoginSuggestion, SavedFeedItem } from "$/lib/types";
 import * as logger from "@tauri-apps/plugin-log";
@@ -506,7 +506,7 @@ function AddColumnPanelBody(
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-column-panel-title"
-      class="relative z-10 flex h-full w-full max-w-88 flex-col bg-(--surface-container-highest) shadow-[-18px_0_48px_rgba(0,0,0,0.38)] backdrop-blur-[20px]"
+      class="relative z-10 flex h-full w-full max-w-88 flex-col bg-surface-container-highest shadow-[-18px_0_48px_rgba(0,0,0,0.38)] backdrop-blur-[20px]"
       initial={{ opacity: 0, x: 32 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 40 }}

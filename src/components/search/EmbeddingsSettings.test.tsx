@@ -13,10 +13,12 @@ const updateSettingMock = vi.hoisted(() => vi.fn());
 vi.mock(
   "$/lib/api/search",
   () => ({
-    getEmbeddingsConfig: getEmbeddingsConfigMock,
-    prepareEmbeddingsModel: prepareEmbeddingsModelMock,
-    setEmbeddingsEnabled: setEmbeddingsEnabledMock,
-    setEmbeddingsPreflightSeen: setEmbeddingsPreflightSeenMock,
+    SearchController: {
+      getEmbeddingsConfig: getEmbeddingsConfigMock,
+      prepareEmbeddingsModel: prepareEmbeddingsModelMock,
+      setEmbeddingsEnabled: setEmbeddingsEnabledMock,
+      setEmbeddingsPreflightSeen: setEmbeddingsPreflightSeenMock,
+    },
   }),
 );
 

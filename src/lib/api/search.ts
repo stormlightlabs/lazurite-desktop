@@ -1,74 +1,17 @@
-import type { PostView } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
+import type {
+  ActorSearchResult,
+  EmbeddingsConfig,
+  LocalPostResult,
+  NetworkSearchParams,
+  NetworkSearchResult,
+  SavedPostSource,
+  SavedPostsPage,
+  SearchMode,
+  SyncStatus,
+} from "./types/search";
 
-export type SearchMode = "network" | "keyword" | "semantic" | "hybrid";
-export type NetworkSearchSort = "top" | "latest";
-
-export type NetworkSearchResult = { cursor?: string | null; hitsTotal?: number | null; posts: PostView[] };
-export type NetworkSearchParams = {
-  query: string;
-  sort?: NetworkSearchSort;
-  since?: string | null;
-  until?: string | null;
-  mentions?: string | null;
-  author?: string | null;
-  tags?: string[];
-  limit?: number;
-  cursor?: string | null;
-};
-
-export type ActorResult = {
-  did: string;
-  handle: string;
-  displayName?: string | null;
-  avatar?: string | null;
-  description?: string | null;
-};
-
-export type ActorSearchResult = { cursor?: string | null; actors: ActorResult[] };
-
-export type SavedPostSource = "like" | "bookmark";
-
-export type LocalPostResult = {
-  uri: string;
-  cid: string;
-  authorDid: string;
-  authorHandle?: string | null;
-  text?: string | null;
-  createdAt?: string | null;
-  source: SavedPostSource;
-  score: number;
-  keywordMatch: boolean;
-  semanticMatch: boolean;
-};
-
-type SavedPostsPage = { posts: LocalPostResult[]; total: number; nextOffset?: number | null };
-
-export type SyncStatus = {
-  did: string;
-  source: SavedPostSource;
-  cursor?: string | null;
-  lastSyncedAt?: string | null;
-  postCount?: number;
-};
-
-export type EmbeddingsConfig = {
-  enabled: boolean;
-  preflightSeen: boolean;
-  modelName: string;
-  dimensions: number;
-  modelSizeBytes?: number | null;
-  downloaded: boolean;
-  downloadActive: boolean;
-  downloadProgress?: number | null;
-  downloadEtaSeconds?: number | null;
-  downloadFile?: string | null;
-  downloadFileIndex?: number | null;
-  downloadFileTotal?: number | null;
-  lastError?: string | null;
-};
-
-export function searchPostsNetwork(params: NetworkSearchParams): Promise<NetworkSearchResult> {
+function searchPostsNetwork(params: NetworkSearchParams): Promise<NetworkSearchResult> {
   return invoke("search_posts_network", {
     queryParams: {
       author: params.author ?? null,
@@ -84,47 +27,56 @@ export function searchPostsNetwork(params: NetworkSearchParams): Promise<Network
   });
 }
 
-export function searchPosts(query: string, mode: SearchMode, limit: number): Promise<LocalPostResult[]> {
+function searchPosts(query: string, mode: SearchMode, limit: number): Promise<LocalPostResult[]> {
   return invoke("search_posts", { query, mode, limit });
 }
 
-export function listSavedPosts(
-  source: SavedPostSource,
-  limit: number,
-  offset = 0,
-  query?: string,
-): Promise<SavedPostsPage> {
+function listSavedPosts(source: SavedPostSource, limit: number, offset = 0, query?: string): Promise<SavedPostsPage> {
   return invoke("list_saved_posts", { source, limit, offset, query: query?.trim() ? query.trim() : null });
 }
 
-export function searchActors(query: string, limit?: number, cursor?: string | null): Promise<ActorSearchResult> {
+function searchActors(query: string, limit?: number, cursor?: string | null): Promise<ActorSearchResult> {
   return invoke("search_actors", { query, limit: limit ?? null, cursor: cursor ?? null });
 }
 
-export function syncPosts(did: string, source: SavedPostSource): Promise<SyncStatus> {
+function syncPosts(did: string, source: SavedPostSource): Promise<SyncStatus> {
   return invoke("sync_posts", { did, source });
 }
 
-export function getSyncStatus(did: string): Promise<SyncStatus[]> {
+function getSyncStatus(did: string): Promise<SyncStatus[]> {
   return invoke("get_sync_status", { did });
 }
 
-export function reindexEmbeddings(): Promise<number> {
+function reindexEmbeddings(): Promise<number> {
   return invoke("reindex_embeddings");
 }
 
-export function setEmbeddingsEnabled(enabled: boolean): Promise<void> {
+function setEmbeddingsEnabled(enabled: boolean): Promise<void> {
   return invoke("set_embeddings_enabled", { enabled });
 }
 
-export function setEmbeddingsPreflightSeen(seen: boolean): Promise<void> {
+function setEmbeddingsPreflightSeen(seen: boolean): Promise<void> {
   return invoke("set_embeddings_preflight_seen", { seen });
 }
 
-export function getEmbeddingsConfig(): Promise<EmbeddingsConfig> {
+function getEmbeddingsConfig(): Promise<EmbeddingsConfig> {
   return invoke("get_embeddings_config");
 }
 
-export function prepareEmbeddingsModel(): Promise<EmbeddingsConfig> {
+function prepareEmbeddingsModel(): Promise<EmbeddingsConfig> {
   return invoke("prepare_embeddings_model");
 }
+
+export const SearchController = {
+  searchPostsNetwork,
+  searchPosts,
+  listSavedPosts,
+  searchActors,
+  syncPosts,
+  getSyncStatus,
+  reindexEmbeddings,
+  setEmbeddingsEnabled,
+  setEmbeddingsPreflightSeen,
+  getEmbeddingsConfig,
+  prepareEmbeddingsModel,
+};

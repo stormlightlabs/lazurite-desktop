@@ -25,7 +25,7 @@ export type GroupedNotificationFeedItem = {
   sampleRecordText: string | null;
 };
 
-export const MENTION_REASONS = new Set(["mention", "reply", "quote"]);
+const MENTION_REASONS = new Set(["mention", "reply", "quote"]);
 
 export function isMentionNotification(notification: NotificationView) {
   return MENTION_REASONS.has(notification.reason);
@@ -36,7 +36,7 @@ function toTimestamp(value: string) {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-export function compareByNewest(left: { latestIndexedAt: string }, right: { latestIndexedAt: string }) {
+function compareByNewest(left: { latestIndexedAt: string }, right: { latestIndexedAt: string }) {
   const timestampDelta = toTimestamp(right.latestIndexedAt) - toTimestamp(left.latestIndexedAt);
   if (timestampDelta !== 0) {
     return timestampDelta;

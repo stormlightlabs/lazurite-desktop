@@ -1,7 +1,7 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import { Icon } from "../shared/Icon";
 
-export type SettingsFeedback = { kind: "error" | "success"; message: string };
+type SettingsFeedback = { kind: "error" | "success"; message: string };
 
 export function useTransientFeedback(timeoutMs = 5000) {
   const [feedback, setFeedback] = createSignal<SettingsFeedback | null>(null);

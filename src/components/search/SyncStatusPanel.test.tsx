@@ -8,7 +8,13 @@ const reindexEmbeddingsMock = vi.hoisted(() => vi.fn());
 
 vi.mock(
   "$/lib/api/search",
-  () => ({ getSyncStatus: getSyncStatusMock, syncPosts: syncPostsMock, reindexEmbeddings: reindexEmbeddingsMock }),
+  () => ({
+    SearchController: {
+      getSyncStatus: getSyncStatusMock,
+      syncPosts: syncPostsMock,
+      reindexEmbeddings: reindexEmbeddingsMock,
+    },
+  }),
 );
 
 vi.mock("@tauri-apps/plugin-log", () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }));
