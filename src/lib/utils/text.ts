@@ -98,3 +98,7 @@ export function formatHandle(handle: string | null | undefined, did: string | nu
 
   return handle.startsWith("did:") || handle.startsWith("@") ? handle : `@${handle}`;
 }
+
+export function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}

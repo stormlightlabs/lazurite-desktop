@@ -1,4 +1,5 @@
 import { Icon } from "$/components/shared/Icon";
+import { clamp } from "$/lib/utils/text";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 
@@ -202,10 +203,6 @@ export function ContextMenu(props: ContextMenuProps) {
       </Show>
     </Portal>
   );
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
 }
 
 function findLastEnabledIndex(items: ContextMenuItem[]) {

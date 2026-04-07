@@ -29,6 +29,9 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.5.3
+      hls.js:
+        specifier: ^1.6.15
+        version: 1.6.15
       solid-js:
         specifier: ^1.9.3
         version: 1.9.12
@@ -1572,6 +1575,9 @@ packages:
 
   hey-listen@1.0.8:
     resolution: {integrity: sha512-COpmrF2NOg4TBWUJ5UVyaCU2A88wEMkUPK4hNqyCkqHbxT92BbvfjoSozkAIIm6XhicGlJHhFdullInrdhwU8Q==}
+
+  hls.js@1.6.15:
+    resolution: {integrity: sha512-E3a5VwgXimGHwpRGV+WxRTKeSp2DW5DI5MWv34ulL3t5UNmyJWCQ1KmLEHbYzcfThfXG8amBL+fCYPneGHC4VA==}
 
   html-encoding-sniffer@6.0.0:
     resolution: {integrity: sha512-CV9TW3Y3f8/wT0BRFc1/KAVQ3TUHiXmaAb6VW9vtiMFf7SLoMd1PdAc4W3KFOFETBJUb90KatHqlsZMWV+R9Gg==}
@@ -4294,6 +4300,8 @@ snapshots:
       function-bind: 1.1.2
 
   hey-listen@1.0.8: {}
+
+  hls.js@1.6.15: {}
 
   html-encoding-sniffer@6.0.0:
     dependencies:

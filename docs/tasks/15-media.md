@@ -19,31 +19,31 @@ Depends on: Milestone 03 (Feeds — PostCard, EmbedContent), Milestone 06 (Setti
 
 ### Frontend - Video Player (`src/components/feeds/VideoEmbed.tsx`)
 
-- [ ] `VideoEmbed` component: `<video>` element with poster from `thumbnail`, native controls
-- [ ] Lazy-load HLS.js — attach to video element only when `playlist` URL is m3u8
-- [ ] Click-to-play: show thumbnail + centered play button overlay, start playback on click
-- [ ] Respect `aspectRatio` from embed to prevent layout shift
-- [ ] Render `alt` text as caption below player when present
-- [ ] Replace `ExternalEmbed` fallback in `EmbedContent` switch for `app.bsky.embed.video#view`
-- [ ] Download button in player controls area → invoke `download_video` command
+- [x] `VideoEmbed` component: `<video>` element with poster from `thumbnail`, native controls
+- [x] Lazy-load HLS.js — attach to video element only when `playlist` URL is m3u8
+- [x] Click-to-play: show thumbnail + centered play button overlay, start playback on click
+- [x] Respect `aspectRatio` from embed to prevent layout shift
+- [x] Render `alt` text as caption below player when present
+- [x] Replace `ExternalEmbed` fallback in `EmbedContent` switch for `app.bsky.embed.video#view`
+- [x] Download button in player controls area → invoke `download_video` command
 
 ### Frontend - Image Gallery (`src/components/feeds/ImageGallery.tsx`)
 
-- [ ] Gallery overlay: glass background (`surface_container_highest` 70% + backdrop-blur 20px)
-- [ ] Display `fullsize` image with `object-contain`, constrained to viewport
-- [ ] `Presence` fade-in/fade-out transitions
-- [ ] Left/right navigation arrows + position indicator for multi-image posts
-- [ ] Keyboard: `Escape` close, `ArrowLeft`/`ArrowRight` navigate
-- [ ] Caption panel: alt text (`body-md`), post text truncated to 2 lines with expand, author handle as link
-- [ ] Download button in gallery toolbar → invoke `download_image` command
-- [ ] Wire `ImageEmbed` click handler to open gallery at the clicked image index
+- [x] Gallery overlay: glass background (`surface_container_highest` 70% + backdrop-blur 20px)
+- [x] Display `fullsize` image with `object-contain`, constrained to viewport
+- [x] `Presence` fade-in/fade-out transitions
+- [x] Left/right navigation arrows + position indicator for multi-image posts
+- [x] Keyboard: `Escape` close, `ArrowLeft`/`ArrowRight` navigate
+- [x] Caption panel: alt text (`body-md`), post text truncated to 2 lines with expand, author handle as link
+- [x] Download button in gallery toolbar → invoke `download_image` command
+- [x] Wire `ImageEmbed` click handler to open gallery at the clicked image index
 
 ### Frontend - Download UX
 
-- [ ] Download button spinner/progress indicator while active
-- [ ] Success toast: filename + "Open in Finder" action (via `tauri-plugin-opener`)
-- [ ] Error toast: human-readable failure message
-- [ ] Right-click context menu on inline images with "Save image" option
+- [x] Download button spinner/progress indicator while active
+- [x] Success toast: filename + "Open in Finder" action (via `tauri-plugin-opener`)
+- [x] Error toast: human-readable failure message
+- [x] Right-click context menu on inline images with "Save image" option
 
 ### Frontend - Settings Integration
 

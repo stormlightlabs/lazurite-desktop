@@ -1,7 +1,14 @@
 import { buildHashtagRoute } from "$/lib/search-routes";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PostCard } from "./PostCard";
+
+const downloadImageMock = vi.hoisted(() => vi.fn());
+const downloadVideoMock = vi.hoisted(() => vi.fn());
+const listenMock = vi.hoisted(() => vi.fn());
+
+vi.mock("$/lib/api/media", () => ({ downloadImage: downloadImageMock, downloadVideo: downloadVideoMock }));
+vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 
 function createPost() {
   return {
@@ -28,6 +35,13 @@ function createPost() {
 }
 
 describe("PostCard", () => {
+  beforeEach(() => {
+    downloadImageMock.mockReset();
+    downloadVideoMock.mockReset();
+    listenMock.mockReset();
+    listenMock.mockResolvedValue(() => {});
+  });
+
   it("renders links, mentions, and hashtags from facets", () => {
     render(() => <PostCard post={createPost()} />);
 
@@ -145,5 +159,46 @@ describe("PostCard", () => {
       "href",
       "https://bsky.app/profile/bob.test/post/quoted",
     );
+  });
+
+  it("renders inline video embed player for video attachments", () => {
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.video#view",
+            alt: "Attached clip",
+            playlist: "https://cdn.example.com/video/master.m3u8",
+            thumbnail: "https://cdn.example.com/video/thumb.jpg",
+          },
+        }} />
+    ));
+
+    expect(screen.getByRole("button", { name: "Play video" })).toBeInTheDocument();
+    expect(screen.getByText("Attached clip")).toBeInTheDocument();
+  });
+
+  it("opens gallery on image click and supports right-click save", async () => {
+    downloadImageMock.mockResolvedValue({ bytes: 40, path: "/tmp/post-image.jpg" });
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.images#view",
+            images: [{ alt: "Inline image", fullsize: "https://cdn.example.com/post-image.jpg" }],
+          },
+        }} />
+    ));
+
+    const inlineImage = screen.getByAltText("Inline image");
+    fireEvent.click(inlineImage);
+    expect(await screen.findByText("1 / 1")).toBeInTheDocument();
+
+    fireEvent.contextMenu(inlineImage);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save image" }));
+
+    await waitFor(() => expect(downloadImageMock).toHaveBeenCalledWith("https://cdn.example.com/post-image.jpg"));
   });
 });
