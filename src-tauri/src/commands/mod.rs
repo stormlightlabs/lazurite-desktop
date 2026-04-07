@@ -12,6 +12,7 @@ pub mod columns;
 pub mod diagnostics;
 pub mod drafts;
 pub mod explorer;
+pub mod media;
 pub mod search;
 pub mod settings;
 

@@ -10,6 +10,7 @@ mod drafts;
 mod error;
 mod explorer;
 mod feed;
+mod media;
 mod notifications;
 mod search;
 mod settings;
@@ -73,6 +74,8 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -140,6 +143,10 @@ pub fn run() {
             cmd::settings::export_data,
             cmd::settings::reset_app,
             cmd::settings::get_log_entries,
+            cmd::media::get_download_directory,
+            cmd::media::set_download_directory,
+            cmd::media::download_image,
+            cmd::media::download_video,
             cmd::diagnostics::get_account_lists,
             cmd::diagnostics::get_account_labels,
             cmd::diagnostics::get_account_blocked_by,

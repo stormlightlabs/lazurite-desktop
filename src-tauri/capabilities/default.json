@@ -10,6 +10,18 @@
     "opener:default",
     "deep-link:default",
     "log:default",
-    "notification:default"
+    "notification:default",
+    "dialog:default",
+    {
+      "identifier": "fs:default",
+      "allow": [
+        {
+          "path": "$DOWNLOAD"
+        },
+        {
+          "path": "$DOWNLOAD/*"
+        }
+      ]
+    }
   ]
 }

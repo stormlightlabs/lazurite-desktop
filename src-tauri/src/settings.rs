@@ -9,11 +9,12 @@ use reqwest::Url;
 use rusqlite::{params, Connection};
 use serde::Serialize;
 use std::fs;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_global_shortcut::Shortcut;
 use tauri_plugin_log::log;
+use uuid::Uuid;
 
 const APP_DEFAULT_THEME: &str = "auto";
 const APP_DEFAULT_TIMELINE_REFRESH_SECS: u32 = 60;
@@ -34,6 +35,7 @@ pub enum SettingsKey {
     SpacedustInstant,
     SpacedustEnabled,
     GlobalShortcut,
+    DownloadDirectory,
 }
 
 impl SettingsKey {
@@ -50,6 +52,7 @@ impl SettingsKey {
             SettingsKey::SpacedustInstant => "spacedust_instant",
             SettingsKey::SpacedustEnabled => "spacedust_enabled",
             SettingsKey::GlobalShortcut => "global_shortcut",
+            SettingsKey::DownloadDirectory => "download_directory",
         }
     }
 
@@ -66,6 +69,7 @@ impl SettingsKey {
             "spacedust_instant" => Some(Self::SpacedustInstant),
             "spacedust_enabled" => Some(Self::SpacedustEnabled),
             "global_shortcut" => Some(Self::GlobalShortcut),
+            "download_directory" => Some(Self::DownloadDirectory),
             _ => None,
         }
     }
@@ -83,6 +87,7 @@ impl SettingsKey {
             Self::SpacedustInstant,
             Self::SpacedustEnabled,
             Self::GlobalShortcut,
+            Self::DownloadDirectory,
         ]
     }
 }
@@ -107,6 +112,7 @@ pub struct AppSettings {
     pub spacedust_instant: bool,
     pub spacedust_enabled: bool,
     pub global_shortcut: String,
+    pub download_directory: String,
 }
 
 impl Default for AppSettings {
@@ -123,6 +129,7 @@ impl Default for AppSettings {
             spacedust_instant: false,
             spacedust_enabled: false,
             global_shortcut: APP_DEFAULT_GLOBAL_SHORTCUT.to_string(),
+            download_directory: default_download_directory_value(),
         }
     }
 }
@@ -212,6 +219,77 @@ fn validate_global_shortcut_value(value: &str) -> Result<String> {
     Ok(trimmed.to_string())
 }
 
+fn default_download_directory_value() -> String {
+    dirs::download_dir()
+        .or_else(|| dirs::home_dir().map(|home| home.join("Downloads")))
+        .unwrap_or_else(|| PathBuf::from("."))
+        .to_string_lossy()
+        .into_owned()
+}
+
+fn expand_tilde(path: &str) -> PathBuf {
+    if path == "~" {
+        return dirs::home_dir().unwrap_or_else(|| PathBuf::from(path));
+    }
+
+    if let Some(rest) = path.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(rest);
+        }
+    }
+
+    PathBuf::from(path)
+}
+
+fn normalize_download_directory_value(value: &str) -> Result<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::validation("download_directory must not be empty"));
+    }
+
+    let expanded = expand_tilde(trimmed);
+    if !expanded.exists() {
+        return Err(AppError::validation("download_directory must exist"));
+    }
+
+    if !expanded.is_dir() {
+        return Err(AppError::validation("download_directory must be a directory"));
+    }
+
+    let probe_path = expanded.join(format!(".lazurite-download-check-{}", Uuid::new_v4()));
+    let mut probe_file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&probe_path)
+        .map_err(|error| {
+            log::warn!("download_directory '{}' is not writable: {error}", expanded.display());
+            AppError::validation("download_directory must be writable")
+        })?;
+    probe_file.write_all(b"ok").map_err(|error| {
+        log::warn!(
+            "download_directory '{}' probe write failed: {error}",
+            expanded.display()
+        );
+        AppError::validation("download_directory must be writable")
+    })?;
+    if let Err(error) = fs::remove_file(&probe_path) {
+        log::warn!(
+            "failed to remove download_directory probe file '{}': {error}",
+            probe_path.display()
+        );
+    }
+
+    let canonical = fs::canonicalize(&expanded).map_err(|error| {
+        log::warn!(
+            "failed to canonicalize download_directory '{}': {error}",
+            expanded.display()
+        );
+        AppError::validation("download_directory must be a valid path")
+    })?;
+
+    Ok(canonical.to_string_lossy().into_owned())
+}
+
 fn validate_and_normalize_setting(key: SettingsKey, value: &str) -> Result<String> {
     match key {
         SettingsKey::Theme => {
@@ -230,6 +308,7 @@ fn validate_and_normalize_setting(key: SettingsKey, value: &str) -> Result<Strin
         | SettingsKey::SpacedustEnabled => normalize_bool_value(value, &key),
         SettingsKey::ConstellationUrl | SettingsKey::SpacedustUrl => validate_url_setting(&key, value),
         SettingsKey::GlobalShortcut => validate_global_shortcut_value(value),
+        SettingsKey::DownloadDirectory => normalize_download_directory_value(value),
     }
 }
 
@@ -250,6 +329,7 @@ fn apply_setting_to_snapshot(settings: &mut AppSettings, key: SettingsKey, value
         SettingsKey::SpacedustInstant => settings.spacedust_instant = parse_bool(&value),
         SettingsKey::SpacedustEnabled => settings.spacedust_enabled = parse_bool(&value),
         SettingsKey::GlobalShortcut => settings.global_shortcut = value,
+        SettingsKey::DownloadDirectory => settings.download_directory = value,
     }
 }
 
@@ -735,6 +815,7 @@ mod tests {
         assert!(!settings.spacedust_instant);
         assert!(!settings.spacedust_enabled);
         assert_eq!(settings.global_shortcut, "Ctrl+Shift+N");
+        assert_eq!(settings.download_directory, default_download_directory_value());
     }
 
     #[test]
@@ -839,6 +920,34 @@ mod tests {
         let error = validate_and_normalize_setting(SettingsKey::GlobalShortcut, "not-a-shortcut")
             .expect_err("invalid shortcut should reject");
         assert!(error.to_string().contains("global_shortcut"));
+    }
+
+    #[test]
+    fn download_directory_values_are_validated() {
+        let temp_directory = std::env::temp_dir().join(format!("lazurite-settings-download-{}", Uuid::new_v4()));
+        fs::create_dir_all(&temp_directory).expect("temporary directory should be created");
+
+        let normalized = validate_and_normalize_setting(
+            SettingsKey::DownloadDirectory,
+            temp_directory.to_str().expect("path should be utf-8"),
+        )
+        .expect("download directory should validate");
+        assert_eq!(
+            normalized,
+            fs::canonicalize(&temp_directory)
+                .expect("temp directory should canonicalize")
+                .to_string_lossy()
+        );
+
+        let missing_path = std::env::temp_dir().join(format!("lazurite-settings-missing-{}", Uuid::new_v4()));
+        let error = validate_and_normalize_setting(
+            SettingsKey::DownloadDirectory,
+            missing_path.to_str().expect("path should be utf-8"),
+        )
+        .expect_err("missing path should be rejected");
+        assert!(error.to_string().contains("download_directory"));
+
+        let _ = fs::remove_dir_all(temp_directory);
     }
 
     #[test]

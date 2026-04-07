@@ -8,14 +8,14 @@ Depends on: Milestone 03 (Feeds — PostCard, EmbedContent), Milestone 06 (Setti
 
 ### Backend - `src-tauri/src/media.rs` + `src-tauri/src/commands/media.rs`
 
-- [ ] Add `DownloadDirectory` variant to `SettingsKey` enum, default to `~/Downloads` via `dirs::download_dir()`
-- [ ] `get_download_directory()` — resolve current download path (setting or OS default), validate it exists
-- [ ] `set_download_directory(path: String)` — validate path is a writable directory, persist to `app_settings`
-- [ ] `download_image(url: String, filename: Option<String>)` — HTTP fetch → write to download dir, return `{ path, bytes }`
-- [ ] `download_video(url: String, filename: Option<String>)` — fetch m3u8 manifest, resolve best variant, download TS segments, concatenate to MP4, return `{ path, bytes }`
-- [ ] Emit `download-progress` events during video download for frontend progress UI
-- [ ] Filename collision handling: append `_1`, `_2`, etc. if file already exists
-- [ ] Add `dialog:default` and scoped `fs` permissions to `capabilities/default.json`
+- [x] Add `DownloadDirectory` variant to `SettingsKey` enum, default to `~/Downloads` via `dirs::download_dir()`
+- [x] `get_download_directory()` — resolve current download path (setting or OS default), validate it exists
+- [x] `set_download_directory(path: String)` — validate path is a writable directory, persist to `app_settings`
+- [x] `download_image(url: String, filename: Option<String>)` — HTTP fetch → write to download dir, return `{ path, bytes }`
+- [x] `download_video(url: String, filename: Option<String>)` — fetch m3u8 manifest, resolve best variant, download TS segments, concatenate to MP4, return `{ path, bytes }`
+- [x] Emit `download-progress` events during video download for frontend progress UI
+- [x] Filename collision handling: append `_1`, `_2`, etc. if file already exists
+- [x] Add `dialog:default` and scoped `fs` permissions to `capabilities/default.json`
 
 ### Frontend - Video Player (`src/components/feeds/VideoEmbed.tsx`)
 
