@@ -333,3 +333,15 @@ export type Draft = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type DraftInput = {
+  id?: string | null;
+  text: string;
+  replyParentUri?: string | null;
+  replyParentCid?: string | null;
+  replyRootUri?: string | null;
+  replyRootCid?: string | null;
+  quoteUri?: string | null;
+  quoteCid?: string | null;
+  title?: string | null;
+};

@@ -11,6 +11,7 @@ type DraftsListProps = {
   accountDid: string;
   composerHasContent: boolean;
   open: boolean;
+  refreshNonce: number;
   onClose: () => void;
   onLoadDraft: (draft: Draft) => void;
 };
@@ -23,7 +24,9 @@ export function DraftsList(props: DraftsListProps) {
   const [confirmLoadDraft, setConfirmLoadDraft] = createSignal<Draft | null>(null);
 
   createEffect(() => {
+    const refreshNonce = props.refreshNonce;
     if (props.open) {
+      void refreshNonce;
       void fetchDrafts();
     } else {
       setConfirmDeleteId(null);

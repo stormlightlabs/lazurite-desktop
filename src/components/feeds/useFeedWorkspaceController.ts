@@ -1,8 +1,10 @@
 import { usePostInteractions } from "$/components/posts/usePostInteractions";
+import { deleteDraft, getDraft, listDrafts, saveDraft } from "$/lib/api/drafts";
 import {
   createPost,
   getFeedGenerators,
   getFeedPage,
+  getPostThread,
   getPreferences,
   updateFeedViewPref,
   updateSavedFeeds,
@@ -14,14 +16,27 @@ import {
   extractHashtags,
   getFeedName,
   getReplyRootPost,
+  isThreadViewPost,
   patchFeedItems,
   toStrongRef,
 } from "$/lib/feeds";
-import type { Draft } from "$/lib/types";
-import type { ActiveSession, EmbedInput, FeedViewPrefItem, PostView, ReplyRefInput, SavedFeedItem } from "$/lib/types";
+import type {
+  ActiveSession,
+  Draft,
+  DraftInput,
+  EmbedInput,
+  FeedViewPrefItem,
+  PostView,
+  ReplyRefInput,
+  SavedFeedItem,
+  StrongRefInput,
+  ThreadNode,
+} from "$/lib/types";
 import { shouldIgnoreKey } from "$/lib/utils/events";
 import { escapeForRegex } from "$/lib/utils/text";
+import { normalizeError } from "$/lib/utils/text";
 import { listen } from "@tauri-apps/api/event";
+import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, onCleanup, onMount, untrack } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import type { FeedWorkspaceState } from "./types";
@@ -46,6 +61,100 @@ type FeedWorkspaceProps = {
 
 const DEFAULT_LIMIT = 30;
 
+type HydrationMaps = { inFlightByUri: Map<string, Promise<PostView | null>>; postByUri: Map<string, PostView | null> };
+
+function toDraftStrongRef(uri: string | null, cid: string | null): StrongRefInput | null {
+  if (!uri && !cid) {
+    return null;
+  }
+
+  if (!uri || !cid) {
+    return null;
+  }
+
+  return { cid, uri };
+}
+
+function findPostInThread(node: ThreadNode | null | undefined, uri: string): PostView | null {
+  if (!node || !isThreadViewPost(node)) {
+    return null;
+  }
+
+  if (node.post.uri === uri) {
+    return node.post;
+  }
+
+  const parentMatch = findPostInThread(node.parent, uri);
+  if (parentMatch) {
+    return parentMatch;
+  }
+
+  for (const reply of node.replies ?? []) {
+    const replyMatch = findPostInThread(reply, uri);
+    if (replyMatch) {
+      return replyMatch;
+    }
+  }
+
+  return null;
+}
+
+async function resolvePostByUri(uri: string): Promise<PostView | null> {
+  try {
+    const payload = await getPostThread(uri);
+    const post = findPostInThread(payload.thread, uri);
+    if (post) {
+      return post;
+    }
+
+    logger.warn(`Hydration thread for ${uri} did not include the requested post`);
+    return null;
+  } catch (error) {
+    logger.warn(`Failed to hydrate draft context for ${uri}: ${normalizeError(error)}`);
+    return null;
+  }
+}
+
+function createHydrationMaps(): HydrationMaps {
+  return { inFlightByUri: new Map<string, Promise<PostView | null>>(), postByUri: new Map<string, PostView | null>() };
+}
+
+function resolvePostByUriCached(uri: string, hydration: HydrationMaps): Promise<PostView | null> {
+  const cached = hydration.postByUri.get(uri);
+  if (cached !== undefined) {
+    return Promise.resolve(cached);
+  }
+
+  const inFlight = hydration.inFlightByUri.get(uri);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const request = resolvePostByUri(uri).then((post) => {
+    hydration.postByUri.set(uri, post);
+    return post;
+  }).finally(() => {
+    hydration.inFlightByUri.delete(uri);
+  });
+  hydration.inFlightByUri.set(uri, request);
+  return request;
+}
+
+async function hydratePostsByUri(uris: string[], hydration: HydrationMaps): Promise<Map<string, PostView>> {
+  const uniqueUris = [...new Set(uris)];
+  await Promise.all(uniqueUris.map((uri) => resolvePostByUriCached(uri, hydration)));
+
+  const hydratedByUri = new Map<string, PostView>();
+  for (const uri of uniqueUris) {
+    const post = hydration.postByUri.get(uri);
+    if (post) {
+      hydratedByUri.set(uri, post);
+    }
+  }
+
+  return hydratedByUri;
+}
+
 export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
   const [workspace, setWorkspace] = createStore<FeedWorkspaceState>(createInitialWorkspaceState());
   const interactions = usePostInteractions({ onError: props.onError, patchPost });
@@ -57,6 +166,8 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
   let sentinel: HTMLDivElement | undefined;
   let lastFocusedUri: string | null = null;
   const postRefs = new Map<string, HTMLElement>();
+  let autosaveTimerId: ReturnType<typeof setTimeout> | null = null;
+  const hydration = createHydrationMaps();
 
   const savedFeeds = createMemo(() => {
     const stored = workspace.preferences?.savedFeeds ?? [];
@@ -78,8 +189,9 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
   const activeFeedState = createMemo(() => workspace.feedStates[activeFeed().id]);
   const visibleItems = createMemo(() => applyFeedPreferences(activeFeedState()?.items ?? [], activePref()));
   const composerHasContent = createMemo(() => {
-    const { text, quoteTarget, replyTarget } = workspace.composer;
-    return text.trim().length > 0 || quoteTarget !== null || replyTarget !== null;
+    const { quoteRef, quoteTarget, replyParentRef, replyRootRef, replyTarget, text } = workspace.composer;
+    return text.trim().length > 0 || quoteTarget !== null || replyTarget !== null || quoteRef !== null
+      || (replyParentRef !== null && replyRootRef !== null);
   });
 
   const composerToken = createMemo(() => {
@@ -215,8 +327,189 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     onCleanup(() => {
       globalThis.removeEventListener("keydown", handleGlobalKeydown);
       unlistenPostCreated?.();
+      if (autosaveTimerId !== null) {
+        clearTimeout(autosaveTimerId);
+        autosaveTimerId = null;
+      }
+      hydration.inFlightByUri.clear();
+      hydration.postByUri.clear();
     });
   });
+
+  function autosaveKey(): string {
+    return `lazurite:autosave:${props.activeSession.did}`;
+  }
+
+  function getAutosaveId(): string | null {
+    try {
+      return localStorage.getItem(autosaveKey());
+    } catch {
+      return null;
+    }
+  }
+
+  function setAutosaveId(id: string): void {
+    try {
+      localStorage.setItem(autosaveKey(), id);
+    } catch {
+      logger.debug("failed to set autosave id (localStorage unavailable)", { keyValues: { id } });
+    }
+  }
+
+  function clearAutosaveId(): void {
+    const k = autosaveKey();
+    try {
+      localStorage.removeItem(k);
+    } catch {
+      logger.debug("failed to clear autosave id (localStorage unavailable)", { keyValues: { key: k } });
+    }
+  }
+
+  function composerHasDraftableContent(): boolean {
+    const { quoteRef, quoteTarget, replyParentRef, replyRootRef, replyTarget, text } = workspace.composer;
+    return text.trim().length > 0 || quoteTarget !== null || replyTarget !== null || quoteRef !== null
+      || replyParentRef !== null || replyRootRef !== null;
+  }
+
+  function getCurrentComposerRefs(): {
+    quoteRef: StrongRefInput | null;
+    replyParentRef: StrongRefInput | null;
+    replyRootRef: StrongRefInput | null;
+  } {
+    const quoteRef = workspace.composer.quoteTarget
+      ? toStrongRef(workspace.composer.quoteTarget)
+      : workspace.composer.quoteRef;
+    const replyParentRef = workspace.composer.replyTarget
+      ? toStrongRef(workspace.composer.replyTarget)
+      : workspace.composer.replyParentRef;
+    const replyRootRef = workspace.composer.replyRoot
+      ? toStrongRef(workspace.composer.replyRoot)
+      : workspace.composer.replyRootRef;
+    return { quoteRef, replyParentRef, replyRootRef };
+  }
+
+  async function saveCurrentDraft(options?: { manual?: boolean }): Promise<Draft | null> {
+    if (!composerHasDraftableContent()) {
+      setWorkspace("composer", "autosaveStatus", "idle");
+      return null;
+    }
+
+    setWorkspace("composer", "autosaveStatus", "saving");
+
+    const { draftId, text } = workspace.composer;
+    const { quoteRef, replyParentRef, replyRootRef } = getCurrentComposerRefs();
+    if ((replyParentRef && !replyRootRef) || (!replyParentRef && replyRootRef)) {
+      logger.warn("Skipping draft save because reply references are incomplete");
+      setWorkspace("composer", "autosaveStatus", "idle");
+      if (options?.manual) {
+        props.onError("Couldn't save this draft because its reply context is incomplete.");
+      }
+      return null;
+    }
+
+    const input: DraftInput = {
+      id: draftId ?? undefined,
+      text,
+      quoteCid: quoteRef?.cid ?? null,
+      quoteUri: quoteRef?.uri ?? null,
+      replyParentCid: replyParentRef?.cid ?? null,
+      replyParentUri: replyParentRef?.uri ?? null,
+      replyRootCid: replyRootRef?.cid ?? null,
+      replyRootUri: replyRootRef?.uri ?? null,
+    };
+
+    try {
+      const result = await saveDraft(input);
+      setWorkspace("composer", "draftId", result.id);
+      setWorkspace("composer", "quoteRef", quoteRef);
+      setWorkspace("composer", "replyParentRef", replyParentRef);
+      setWorkspace("composer", "replyRootRef", replyRootRef);
+      setWorkspace("composer", "autosaveStatus", "saved");
+      setAutosaveId(result.id);
+      await refreshDraftCount();
+      bumpDraftsListRefresh();
+      return result;
+    } catch (error) {
+      logger.error(`Autosave failed: ${normalizeError(error)}`);
+      setWorkspace("composer", "autosaveStatus", "idle");
+      if (options?.manual) {
+        props.onError("Couldn't save your draft. Please try again.");
+      }
+      return null;
+    }
+  }
+
+  function scheduleAutosave() {
+    if (autosaveTimerId !== null) {
+      clearTimeout(autosaveTimerId);
+      autosaveTimerId = null;
+    }
+
+    setWorkspace("composer", "autosaveStatus", "idle");
+    if (!composerHasDraftableContent()) {
+      return;
+    }
+
+    autosaveTimerId = setTimeout(() => {
+      autosaveTimerId = null;
+      void saveCurrentDraft();
+    }, 3000);
+  }
+
+  async function refreshDraftCount() {
+    try {
+      const drafts = await listDrafts(props.activeSession.did);
+      setWorkspace("draftCount", drafts.length);
+    } catch (error) {
+      logger.error(`Failed to refresh draft count: ${normalizeError(error)}`);
+    }
+  }
+
+  function bumpDraftsListRefresh() {
+    setWorkspace("draftsListRefreshNonce", (current) => current + 1);
+  }
+
+  async function hydrateDraftTargets(draft: Draft) {
+    const requestedUris = [draft.quoteUri, draft.replyParentUri, draft.replyRootUri].filter((value): value is string =>
+      typeof value === "string" && value.length > 0
+    );
+    if (requestedUris.length === 0) {
+      return;
+    }
+
+    const hydratedByUri = await hydratePostsByUri(requestedUris, hydration);
+
+    if (workspace.composer.draftId !== draft.id || !workspace.composer.open) {
+      return;
+    }
+
+    if (draft.quoteUri) {
+      setWorkspace("composer", "quoteTarget", hydratedByUri.get(draft.quoteUri) ?? null);
+    }
+
+    if (draft.replyParentUri) {
+      setWorkspace("composer", "replyTarget", hydratedByUri.get(draft.replyParentUri) ?? null);
+    }
+
+    if (draft.replyRootUri) {
+      setWorkspace("composer", "replyRoot", hydratedByUri.get(draft.replyRootUri) ?? null);
+    }
+  }
+
+  async function bootstrapDraftRestore() {
+    const savedId = getAutosaveId();
+    if (!savedId) {
+      return;
+    }
+
+    try {
+      await getDraft(savedId);
+      setWorkspace("restoreDraftId", savedId);
+    } catch (error) {
+      logger.error(`Autosave draft ${savedId} not found, clearing: ${normalizeError(error)}`);
+      clearAutosaveId();
+    }
+  }
 
   function registerScroller(element: HTMLDivElement) {
     scroller = element;
@@ -241,7 +534,19 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
   }
 
   function handleGlobalKeydown(event: KeyboardEvent) {
-    if ((event.metaKey || event.ctrlKey) && event.key === "d") {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+      if (workspace.composer.open) {
+        event.preventDefault();
+        if (autosaveTimerId !== null) {
+          clearTimeout(autosaveTimerId);
+          autosaveTimerId = null;
+        }
+        void saveCurrentDraft({ manual: true });
+      }
+      return;
+    }
+
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
       event.preventDefault();
       openDraftsList();
       return;
@@ -345,6 +650,8 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
       const nextActive = nextPreferences.savedFeeds.find((feed) => feed.pinned) ?? nextPreferences.savedFeeds[0]
         ?? DEFAULT_TIMELINE;
       setWorkspace("activeFeedId", nextActive.id);
+
+      await Promise.all([bootstrapDraftRestore(), refreshDraftCount()]);
     } catch (error) {
       props.onError(`Failed to load feeds: ${String(error)}`);
     }
@@ -410,30 +717,101 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
 
   function setComposerText(text: string) {
     setWorkspace("composer", "text", text);
+    if (workspace.composer.open) {
+      scheduleAutosave();
+    }
   }
 
-  function resetComposer() {
+  function resetComposerState() {
     setWorkspace(
       "composer",
-      (current) => ({ ...current, open: false, quoteTarget: null, replyRoot: null, replyTarget: null, text: "" }),
+      (_current) => ({
+        autosaveStatus: "idle",
+        draftId: null,
+        open: false,
+        pending: false,
+        quoteRef: null,
+        quoteTarget: null,
+        replyParentRef: null,
+        replyRoot: null,
+        replyRootRef: null,
+        replyTarget: null,
+        text: "",
+      }),
     );
   }
 
+  async function resetComposer() {
+    const { draftId } = workspace.composer;
+    if (autosaveTimerId !== null) {
+      clearTimeout(autosaveTimerId);
+      autosaveTimerId = null;
+    }
+
+    if (draftId) {
+      try {
+        await deleteDraft(draftId);
+        await refreshDraftCount();
+        bumpDraftsListRefresh();
+      } catch (error) {
+        logger.error(`Failed to delete autosave draft on discard: ${normalizeError(error)}`);
+      }
+    }
+
+    clearAutosaveId();
+    resetComposerState();
+  }
+
+  async function saveAndCloseComposer() {
+    if (autosaveTimerId !== null) {
+      clearTimeout(autosaveTimerId);
+      autosaveTimerId = null;
+    }
+
+    const hadContent = composerHasDraftableContent();
+    const saved = await saveCurrentDraft({ manual: true });
+    if (!hadContent || saved) {
+      clearAutosaveId();
+      resetComposerState();
+    }
+  }
+
   function openReplyComposer(post: PostView, root: PostView) {
-    setWorkspace("composer", (current) => ({ ...current, open: true, replyRoot: root, replyTarget: post }));
+    setWorkspace(
+      "composer",
+      (current) => ({
+        ...current,
+        open: true,
+        replyParentRef: toStrongRef(post),
+        replyRoot: root,
+        replyRootRef: toStrongRef(root),
+        replyTarget: post,
+      }),
+    );
+    scheduleAutosave();
   }
 
   function openQuoteComposer(post: PostView) {
-    setWorkspace("composer", (current) => ({ ...current, open: true, quoteTarget: post }));
+    setWorkspace("composer", (current) => ({ ...current, open: true, quoteRef: toStrongRef(post), quoteTarget: post }));
+    scheduleAutosave();
   }
 
   function clearQuoteComposer() {
     setWorkspace("composer", "quoteTarget", null);
+    setWorkspace("composer", "quoteRef", null);
+    if (workspace.composer.open) {
+      scheduleAutosave();
+    }
   }
 
   function clearReplyComposer() {
     setWorkspace("composer", "replyTarget", null);
     setWorkspace("composer", "replyRoot", null);
+    setWorkspace("composer", "replyParentRef", null);
+    setWorkspace("composer", "replyRootRef", null);
+    if (workspace.composer.open) {
+      scheduleAutosave();
+    }
   }
 
   function applySuggestion(value: string) {
@@ -442,11 +820,8 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
       return;
     }
 
-    setWorkspace(
-      "composer",
-      "text",
-      (current) => current.replace(new RegExp(`${escapeForRegex(token)}$`, "u"), `${value} `),
-    );
+    const nextText = workspace.composer.text.replace(new RegExp(`${escapeForRegex(token)}$`, "u"), `${value} `);
+    setComposerText(nextText);
   }
 
   async function submitPost() {
@@ -454,16 +829,42 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     const reply = workspace.composer.replyTarget;
     const root = workspace.composer.replyRoot;
     const quote = workspace.composer.quoteTarget;
+    const draftId = workspace.composer.draftId;
+    const replyParentRef = reply ? toStrongRef(reply) : workspace.composer.replyParentRef;
+    const replyRootRef = root ? toStrongRef(root) : workspace.composer.replyRootRef;
+    const quoteRef = quote ? toStrongRef(quote) : workspace.composer.quoteRef;
 
-    const replyTo: ReplyRefInput | null = reply && root
-      ? { parent: toStrongRef(reply), root: toStrongRef(root) }
+    if ((replyParentRef && !replyRootRef) || (!replyParentRef && replyRootRef)) {
+      props.onError("Couldn't submit this draft because its reply context is incomplete.");
+      return;
+    }
+
+    const replyTo: ReplyRefInput | null = replyParentRef && replyRootRef
+      ? { parent: replyParentRef, root: replyRootRef }
       : null;
-    const embed: EmbedInput | null = quote ? { type: "record", record: toStrongRef(quote) } : null;
+    const embed: EmbedInput | null = quoteRef ? { record: quoteRef, type: "record" } : null;
 
     setWorkspace("composer", "pending", true);
     try {
       await createPost(text, replyTo, embed);
-      resetComposer();
+
+      if (autosaveTimerId !== null) {
+        clearTimeout(autosaveTimerId);
+        autosaveTimerId = null;
+      }
+
+      if (draftId) {
+        try {
+          await deleteDraft(draftId);
+          await refreshDraftCount();
+          bumpDraftsListRefresh();
+        } catch (error) {
+          logger.error(`Failed to delete draft after submit: ${normalizeError(error)}`);
+        }
+      }
+
+      clearAutosaveId();
+      resetComposerState();
       await refreshActiveFeed();
     } catch (error) {
       props.onError(`Failed to create post: ${String(error)}`);
@@ -583,9 +984,72 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
   }
 
   function loadDraft(draft: Draft) {
-    setComposerText(draft.text);
-    setWorkspace("composer", "open", true);
+    if (autosaveTimerId !== null) {
+      clearTimeout(autosaveTimerId);
+      autosaveTimerId = null;
+    }
+
+    const replyParentRef = toDraftStrongRef(draft.replyParentUri, draft.replyParentCid);
+    const replyRootRef = toDraftStrongRef(draft.replyRootUri, draft.replyRootCid);
+    const quoteRef = toDraftStrongRef(draft.quoteUri, draft.quoteCid);
+    if (
+      (draft.replyParentUri && !replyParentRef) || (draft.replyRootUri && !replyRootRef)
+      || (draft.quoteUri && !quoteRef)
+    ) {
+      logger.warn(`Draft ${draft.id} has partial strong references; invalid references were dropped`);
+    }
+
+    setWorkspace(
+      "composer",
+      (current) => ({
+        ...current,
+        autosaveStatus: "idle",
+        draftId: draft.id,
+        open: true,
+        quoteRef,
+        quoteTarget: null,
+        replyParentRef,
+        replyRoot: null,
+        replyRootRef,
+        replyTarget: null,
+        text: draft.text,
+      }),
+    );
     setWorkspace("showDraftsList", false);
+    void hydrateDraftTargets(draft);
+  }
+
+  async function restoreDraft() {
+    const id = workspace.restoreDraftId;
+    if (!id) {
+      return;
+    }
+
+    try {
+      const draft = await getDraft(id);
+      loadDraft(draft);
+    } catch (error) {
+      logger.error(`Failed to restore draft ${id}: ${normalizeError(error)}`);
+    } finally {
+      bumpDraftsListRefresh();
+      setWorkspace("restoreDraftId", null);
+    }
+  }
+
+  async function dismissRestore() {
+    const id = workspace.restoreDraftId;
+    setWorkspace("restoreDraftId", null);
+    clearAutosaveId();
+
+    if (id) {
+      try {
+        await deleteDraft(id);
+        await refreshDraftCount();
+        bumpDraftsListRefresh();
+      } catch (error) {
+        logger.error(`Failed to delete dismissed restore draft ${id}: ${normalizeError(error)}`);
+      }
+    }
   }
 
   return {
@@ -599,6 +1063,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     closeFeedsDrawer,
     composerHasContent,
     composerSuggestions,
+    dismissRestore,
     drawerFeeds,
     loadDraft,
     openComposer,
@@ -615,6 +1080,8 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     rememberScrollTop,
     reorderPinnedFeeds,
     resetComposer,
+    restoreDraft,
+    saveAndCloseComposer,
     setFeedPref,
     setFocusedIndex,
     setComposerText,

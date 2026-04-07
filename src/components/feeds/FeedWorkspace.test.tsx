@@ -81,6 +81,7 @@ describe("FeedWorkspace", () => {
     invokeMock.mockReset();
     listenMock.mockReset();
     listenMock.mockResolvedValue(() => {});
+    globalThis.localStorage?.removeItem?.(`lazurite:autosave:${ACTIVE_SESSION.did}`);
     globalThis.location.hash = "#/timeline";
 
     Object.defineProperty(globalThis, "IntersectionObserver", {
@@ -120,6 +121,10 @@ describe("FeedWorkspace", () => {
 
       if (command === "get_timeline" && args.cursor === "cursor-2") {
         return nextPage.promise;
+      }
+
+      if (command === "list_drafts") {
+        return Promise.resolve([]);
       }
 
       throw new Error(`unexpected invoke: ${command}`);
@@ -170,6 +175,10 @@ describe("FeedWorkspace", () => {
 
       if (command === "update_feed_view_pref") {
         return Promise.resolve(null);
+      }
+
+      if (command === "list_drafts") {
+        return Promise.resolve([]);
       }
 
       throw new Error(`unexpected invoke: ${command}`);

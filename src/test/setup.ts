@@ -6,6 +6,11 @@ import { Dynamic } from "solid-js/web";
 import { afterEach, vi } from "vitest";
 
 vi.mock(
+  "@tauri-apps/plugin-log",
+  () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn(), trace: vi.fn() }),
+);
+
+vi.mock(
   "solid-motionone",
   () => ({
     Motion: new Proxy({}, {

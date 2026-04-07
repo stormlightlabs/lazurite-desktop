@@ -87,6 +87,15 @@ fn db_get_draft(conn: &Connection, id: &str) -> Result<Draft> {
     .ok_or_else(|| AppError::validation(format!("draft {id} not found")))
 }
 
+fn db_get_draft_for_account(conn: &Connection, id: &str, account_did: &str) -> Result<Draft> {
+    let draft = db_get_draft(conn, id)?;
+    if draft.account_did != account_did {
+        return Err(AppError::validation("draft does not belong to the active account"));
+    }
+
+    Ok(draft)
+}
+
 fn db_save_draft(conn: &Connection, account_did: &str, input: &DraftInput) -> Result<Draft> {
     let id = match &input.id {
         Some(existing_id) => {
@@ -164,52 +173,73 @@ fn db_delete_draft(conn: &Connection, id: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn list_drafts(account_did: &str, state: &AppState) -> Result<Vec<Draft>> {
-    let conn = state.auth_store.lock_connection()?;
-    db_list_drafts(&conn, account_did)
+fn db_delete_draft_for_account(conn: &Connection, id: &str, account_did: &str) -> Result<()> {
+    let owner = conn
+        .query_row("SELECT account_did FROM drafts WHERE id = ?1", params![id], |row| {
+            row.get::<_, String>(0)
+        })
+        .optional()?;
+
+    match owner {
+        None => {
+            log::warn!("delete_draft: no draft found with id {id}");
+            Ok(())
+        }
+        Some(owner_did) => {
+            if owner_did != account_did {
+                return Err(AppError::validation("draft does not belong to the active account"));
+            }
+
+            db_delete_draft(conn, id)
+        }
+    }
 }
 
-pub fn get_draft(id: &str, state: &AppState) -> Result<Draft> {
-    let conn = state.auth_store.lock_connection()?;
-    db_get_draft(&conn, id)
-}
-
-pub fn save_draft(input: &DraftInput, state: &AppState) -> Result<Draft> {
-    let account_did = state
+fn active_account_did(state: &AppState) -> Result<String> {
+    state
         .active_session
         .read()
         .map_err(|error| AppError::state_poisoned(format!("active_session poisoned: {error}")))?
         .as_ref()
-        .ok_or_else(|| AppError::validation("no active account"))?
-        .did
-        .clone();
+        .ok_or_else(|| AppError::validation("no active account"))
+        .map(|session| session.did.clone())
+}
+
+pub fn list_drafts(account_did: &str, state: &AppState) -> Result<Vec<Draft>> {
+    let active_did = active_account_did(state)?;
+    if account_did != active_did {
+        return Err(AppError::validation("account does not match the active account"));
+    }
+
+    let conn = state.auth_store.lock_connection()?;
+    db_list_drafts(&conn, &active_did)
+}
+
+pub fn get_draft(id: &str, state: &AppState) -> Result<Draft> {
+    let active_did = active_account_did(state)?;
+    let conn = state.auth_store.lock_connection()?;
+    db_get_draft_for_account(&conn, id, &active_did)
+}
+
+pub fn save_draft(input: &DraftInput, state: &AppState) -> Result<Draft> {
+    let account_did = active_account_did(state)?;
 
     let conn = state.auth_store.lock_connection()?;
     db_save_draft(&conn, &account_did, input)
 }
 
 pub fn delete_draft(id: &str, state: &AppState) -> Result<()> {
+    let active_did = active_account_did(state)?;
     let conn = state.auth_store.lock_connection()?;
-    db_delete_draft(&conn, id)
+    db_delete_draft_for_account(&conn, id, &active_did)
 }
 
 pub async fn submit_draft(id: String, state: &AppState) -> Result<CreateRecordResult> {
-    let account_did = state
-        .active_session
-        .read()
-        .map_err(|error| AppError::state_poisoned(format!("active_session poisoned: {error}")))?
-        .as_ref()
-        .ok_or_else(|| AppError::validation("no active account"))?
-        .did
-        .clone();
+    let account_did = active_account_did(state)?;
 
     let draft = {
         let conn = state.auth_store.lock_connection()?;
-        let draft = db_get_draft(&conn, &id)?;
-        if draft.account_did != account_did {
-            return Err(AppError::validation("draft does not belong to the active account"));
-        }
-        draft
+        db_get_draft_for_account(&conn, &id, &account_did)?
     };
 
     let reply_to = build_reply_ref(&draft)?;
@@ -471,6 +501,15 @@ mod tests {
     }
 
     #[test]
+    fn get_draft_for_account_rejects_foreign_draft() {
+        let conn = draft_db();
+        let draft = insert_draft(&conn, "did:plc:alice", "alice secret");
+
+        let result = db_get_draft_for_account(&conn, &draft.id, "did:plc:bob");
+        assert!(result.is_err(), "should reject loading another account's draft");
+    }
+
+    #[test]
     fn delete_draft_removes_draft() {
         let conn = draft_db();
         let draft = insert_draft(&conn, "did:plc:alice", "to be deleted");
@@ -486,6 +525,25 @@ mod tests {
         let conn = draft_db();
         // Deleting a non-existent draft should not error
         db_delete_draft(&conn, "ghost-id").expect("delete of missing draft should not error");
+    }
+
+    #[test]
+    fn delete_draft_for_account_rejects_foreign_draft() {
+        let conn = draft_db();
+        let draft = insert_draft(&conn, "did:plc:alice", "alice only");
+
+        let delete_result = db_delete_draft_for_account(&conn, &draft.id, "did:plc:bob");
+        assert!(delete_result.is_err(), "should reject deleting another account's draft");
+
+        let still_exists = db_get_draft(&conn, &draft.id).expect("draft should remain after rejected delete");
+        assert_eq!(still_exists.account_did, "did:plc:alice");
+    }
+
+    #[test]
+    fn delete_draft_for_account_is_idempotent_for_missing_id() {
+        let conn = draft_db();
+        db_delete_draft_for_account(&conn, "ghost-id", "did:plc:alice")
+            .expect("delete of missing draft should not error");
     }
 
     #[test]

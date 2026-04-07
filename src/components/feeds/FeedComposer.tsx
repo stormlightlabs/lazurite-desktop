@@ -4,6 +4,7 @@ import { buildPublicPostUrl, getDisplayName, getPostText } from "$/lib/feeds";
 import type { PostView } from "$/lib/types";
 import { createMemo, For, Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
+import type { AutosaveStatus } from "./types";
 
 type ComposerSuggestion = { label: string; type: "handle" | "hashtag" };
 
@@ -32,6 +33,8 @@ export function ComposerLauncher(props: { activeAvatar?: string | null; activeHa
 type FeedComposerProps = {
   activeAvatar?: string | null;
   activeHandle: string | null;
+  autosaveStatus?: AutosaveStatus;
+  draftCount?: number;
   open: boolean;
   pending: boolean;
   quoteTarget: PostView | null;
@@ -43,6 +46,7 @@ type FeedComposerProps = {
   onClearReply: () => void;
   onClose: () => void;
   onOpenDrafts?: () => void;
+  onSaveDraft?: () => void;
   onSubmit: () => void;
   onTextChange: (value: string) => void;
 };
@@ -50,6 +54,7 @@ type FeedComposerProps = {
 type ComposerSurfaceProps = Omit<FeedComposerProps, "open"> & {
   layout?: "dialog" | "window";
   onOpenDrafts?: () => void;
+  onSaveDraft?: () => void;
 };
 
 export function FeedComposer(props: FeedComposerProps) {
@@ -69,6 +74,8 @@ export function FeedComposer(props: FeedComposerProps) {
           <ComposerSurface
             activeAvatar={props.activeAvatar}
             activeHandle={props.activeHandle}
+            autosaveStatus={props.autosaveStatus}
+            draftCount={props.draftCount}
             layout="dialog"
             pending={props.pending}
             quoteTarget={props.quoteTarget}
@@ -80,6 +87,7 @@ export function FeedComposer(props: FeedComposerProps) {
             onClearReply={props.onClearReply}
             onClose={props.onClose}
             onOpenDrafts={props.onOpenDrafts}
+            onSaveDraft={props.onSaveDraft}
             onSubmit={props.onSubmit}
             onTextChange={props.onTextChange} />
         </div>
@@ -103,11 +111,13 @@ export function ComposerSurface(props: ComposerSurfaceProps) {
         <ComposerHeader
           activeAvatar={props.activeAvatar}
           activeHandle={props.activeHandle}
+          draftCount={props.draftCount}
           pending={props.pending}
           quoteTarget={props.quoteTarget}
           text={props.text}
           onClose={props.onClose}
           onOpenDrafts={props.onOpenDrafts}
+          onSaveDraft={props.onSaveDraft}
           onSubmit={props.onSubmit} />
         <ComposerBody
           activeAvatar={props.activeAvatar}
@@ -120,7 +130,7 @@ export function ComposerSurface(props: ComposerSurfaceProps) {
           onClearQuote={props.onClearQuote}
           onClearReply={props.onClearReply}
           onTextChange={props.onTextChange} />
-        <ComposerFooter count={count()} progress={progress()} />
+        <ComposerFooter autosaveStatus={props.autosaveStatus ?? "idle"} count={count()} progress={progress()} />
       </Motion.section>
     </div>
   );
@@ -152,11 +162,13 @@ function ComposerHeader(
   props: {
     activeAvatar?: string | null;
     activeHandle: string | null;
+    draftCount?: number;
     pending: boolean;
     quoteTarget: PostView | null;
     text: string;
     onClose: () => void;
     onOpenDrafts?: () => void;
+    onSaveDraft?: () => void;
     onSubmit: () => void;
   },
 ) {
@@ -172,7 +184,8 @@ function ComposerHeader(
         <ComposerTitle activeHandle={props.activeHandle} />
       </div>
       <div class="flex items-center gap-2">
-        <ComposerDraftsButton onOpenDrafts={props.onOpenDrafts} />
+        <ComposerSaveDraftButton onSaveDraft={props.onSaveDraft} />
+        <ComposerDraftsButton draftCount={props.draftCount} onOpenDrafts={props.onOpenDrafts} />
         <ComposerSubmitButton
           disabled={props.pending || (!props.text.trim() && !props.quoteTarget)}
           pending={props.pending}
@@ -182,15 +195,35 @@ function ComposerHeader(
   );
 }
 
-function ComposerDraftsButton(props: { onOpenDrafts?: () => void }) {
+function ComposerSaveDraftButton(props: { onSaveDraft?: () => void }) {
+  return (
+    <Show when={props.onSaveDraft}>
+      <button
+        class="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border-0 bg-transparent px-3 text-sm text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
+        type="button"
+        title="Save as draft (Ctrl+S)"
+        onClick={() => props.onSaveDraft?.()}>
+        <Icon aria-hidden="true" iconClass="i-ri-save-line" />
+        <span class="max-[520px]:hidden">Save</span>
+      </button>
+    </Show>
+  );
+}
+
+function ComposerDraftsButton(props: { draftCount?: number; onOpenDrafts?: () => void }) {
   return (
     <Show when={props.onOpenDrafts}>
       <button
-        class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
+        class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
         type="button"
         title="Drafts (Ctrl+D)"
         onClick={() => props.onOpenDrafts?.()}>
         <Icon aria-hidden="true" iconClass="i-ri-draft-line" />
+        <Show when={(props.draftCount ?? 0) > 0}>
+          <span class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.6rem] font-semibold leading-none text-on-primary-fixed">
+            {props.draftCount}
+          </span>
+        </Show>
       </button>
     </Show>
   );
@@ -365,12 +398,23 @@ function SuggestionChip(props: { suggestion: ComposerSuggestion; onApplySuggesti
   );
 }
 
-function ComposerFooter(props: { count: number; progress: number }) {
+function ComposerFooter(props: { autosaveStatus: AutosaveStatus; count: number; progress: number }) {
   return (
     <footer class="flex items-center justify-between border-t border-white/5 px-6 py-4">
       <ComposerToolbar />
+      <AutosaveIndicator status={props.autosaveStatus} />
       <ComposerCounter count={props.count} progress={props.progress} />
     </footer>
+  );
+}
+
+function AutosaveIndicator(props: { status: AutosaveStatus }) {
+  return (
+    <Show when={props.status !== "idle"}>
+      <span class="text-xs text-on-surface-variant">
+        <Show when={props.status === "saving"} fallback="Saved">Saving...</Show>
+      </span>
+    </Show>
   );
 }
 
