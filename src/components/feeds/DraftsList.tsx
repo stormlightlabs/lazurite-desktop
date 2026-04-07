@@ -1,5 +1,5 @@
 import { Icon } from "$/components/shared/Icon";
-import { deleteDraft, listDrafts } from "$/lib/api/drafts";
+import { DraftController } from "$/lib/api/drafts";
 import { formatRelativeTime } from "$/lib/feeds";
 import type { Draft } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
@@ -38,7 +38,7 @@ export function DraftsList(props: DraftsListProps) {
     setLoading(true);
     setError(null);
     try {
-      const result = await listDrafts(props.accountDid);
+      const result = await DraftController.listDrafts(props.accountDid);
       setDrafts(result);
     } catch (err) {
       logger.error(`Failed to load drafts: ${normalizeError(err)}`);
@@ -71,7 +71,7 @@ export function DraftsList(props: DraftsListProps) {
     }
 
     try {
-      await deleteDraft(id);
+      await DraftController.deleteDraft(id);
       setDrafts((prev) => prev.filter((d) => d.id !== id));
     } catch (err) {
       logger.error(`Failed to delete draft ${id}: ${normalizeError(err)}`);

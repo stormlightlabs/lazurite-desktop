@@ -1,5 +1,5 @@
 import { usePostInteractions } from "$/components/posts/usePostInteractions";
-import { deleteDraft, getDraft, listDrafts, saveDraft } from "$/lib/api/drafts";
+import { DraftController } from "$/lib/api/drafts";
 import {
   createPost,
   getFeedGenerators,
@@ -173,19 +173,23 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     const stored = workspace.preferences?.savedFeeds ?? [];
     return stored.length > 0 ? stored : [DEFAULT_TIMELINE];
   });
+
   const pinnedFeeds = createMemo(() => {
     const pinned = savedFeeds().filter((feed) => feed.pinned);
     return pinned.length > 0 ? pinned : [DEFAULT_TIMELINE];
   });
+
   const drawerFeeds = createMemo(() => savedFeeds().filter((feed) => !feed.pinned));
   const activeFeed = createMemo(() => {
     const feedId = workspace.activeFeedId;
     return savedFeeds().find((feed) => feed.id === feedId) ?? pinnedFeeds()[0] ?? DEFAULT_TIMELINE;
   });
+
   const activePref = createMemo(() => {
     const feed = activeFeed();
     return workspace.localPrefs[feed.value] ?? createDefaultFeedPref(feed);
   });
+
   const activeFeedState = createMemo(() => workspace.feedStates[activeFeed().id]);
   const visibleItems = createMemo(() => applyFeedPreferences(activeFeedState()?.items ?? [], activePref()));
   const composerHasContent = createMemo(() => {
@@ -198,6 +202,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     const match = /(^|\s)([@#][^\s@#]*)$/u.exec(workspace.composer.text);
     return match?.[2] ?? null;
   });
+
   const composerSuggestions = createMemo(() => {
     const token = composerToken();
     if (!token) {
@@ -419,7 +424,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     };
 
     try {
-      const result = await saveDraft(input);
+      const result = await DraftController.saveDraft(input);
       setWorkspace("composer", "draftId", result.id);
       setWorkspace("composer", "quoteRef", quoteRef);
       setWorkspace("composer", "replyParentRef", replyParentRef);
@@ -458,7 +463,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
 
   async function refreshDraftCount() {
     try {
-      const drafts = await listDrafts(props.activeSession.did);
+      const drafts = await DraftController.listDrafts(props.activeSession.did);
       setWorkspace("draftCount", drafts.length);
     } catch (error) {
       logger.error(`Failed to refresh draft count: ${normalizeError(error)}`);
@@ -503,7 +508,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     }
 
     try {
-      await getDraft(savedId);
+      await DraftController.getDraft(savedId);
       setWorkspace("restoreDraftId", savedId);
     } catch (error) {
       logger.error(`Autosave draft ${savedId} not found, clearing: ${normalizeError(error)}`);
@@ -750,7 +755,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
 
     if (draftId) {
       try {
-        await deleteDraft(draftId);
+        await DraftController.deleteDraft(draftId);
         await refreshDraftCount();
         bumpDraftsListRefresh();
       } catch (error) {
@@ -855,7 +860,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
 
       if (draftId) {
         try {
-          await deleteDraft(draftId);
+          await DraftController.deleteDraft(draftId);
           await refreshDraftCount();
           bumpDraftsListRefresh();
         } catch (error) {
@@ -1026,7 +1031,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     }
 
     try {
-      const draft = await getDraft(id);
+      const draft = await DraftController.getDraft(id);
       loadDraft(draft);
     } catch (error) {
       logger.error(`Failed to restore draft ${id}: ${normalizeError(error)}`);
@@ -1043,7 +1048,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
 
     if (id) {
       try {
-        await deleteDraft(id);
+        await DraftController.deleteDraft(id);
         await refreshDraftCount();
         bumpDraftsListRefresh();
       } catch (error) {

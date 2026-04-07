@@ -4,7 +4,7 @@ import {
   parseGetMessagesResponse,
   parseListConvosResponse,
   parseSendMessageResponse,
-} from "./conversations";
+} from "../conversations";
 
 function createMember(overrides: Record<string, unknown> = {}) {
   return { did: "did:plc:bob", displayName: "Bob", handle: "bob.test", ...overrides };

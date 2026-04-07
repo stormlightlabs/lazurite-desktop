@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseListNotificationsResponse } from "./notifications";
+import { parseListNotificationsResponse } from "../notifications";
 
 function createNotification() {
   return {
