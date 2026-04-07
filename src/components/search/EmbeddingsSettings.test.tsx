@@ -20,7 +20,10 @@ vi.mock(
   }),
 );
 
-vi.mock("$/lib/api/settings", () => ({ getSettings: getSettingsMock, updateSetting: updateSettingMock }));
+vi.mock(
+  "$/lib/api/settings",
+  () => ({ SettingsController: { getSettings: getSettingsMock, updateSetting: updateSettingMock } }),
+);
 
 vi.mock("@tauri-apps/plugin-log", () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }));
 

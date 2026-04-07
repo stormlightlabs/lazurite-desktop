@@ -1,7 +1,5 @@
 import type { AppSettings, CacheClearScope, CacheSize, ExportFormat, LogEntry, LogLevelFilter } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
-import * as logger from "@tauri-apps/plugin-log";
-import { normalizeError } from "../utils/text";
 
 export function getSettings() {
   return invoke<AppSettings>("get_settings");
@@ -19,13 +17,9 @@ export function clearCache(scope: CacheClearScope) {
   return invoke("clear_cache", { scope });
 }
 
-export async function exportData(format: ExportFormat, path?: string) {
-  try {
-    const now = Date.now();
-    await invoke("export_data", { format, path: path ?? `lazurite_${now}_export.${format}` });
-  } catch (err) {
-    logger.error("failed to export data", { keyValues: { error: normalizeError(err) } });
-  }
+export function exportData(format: ExportFormat, path?: string) {
+  const now = Date.now();
+  return invoke("export_data", { format, path: path ?? `lazurite_${now}_export.${format}` });
 }
 
 function resetApp() {
@@ -48,3 +42,13 @@ function restartClient(hash: string) {
   globalThis.location.replace(url.toString());
   globalThis.setTimeout(() => globalThis.location.reload(), 0);
 }
+
+export const SettingsController = {
+  getSettings,
+  updateSetting,
+  getCacheSize,
+  clearCache,
+  exportData,
+  resetAndRestartApp,
+  getLogEntries,
+};

@@ -30,14 +30,16 @@ const DEFAULT_EMBEDDINGS_CONFIG = {
 vi.mock(
   "$/lib/api/settings",
   () => ({
-    getSettings: getSettingsMock,
-    updateSetting: updateSettingMock,
-    getCacheSize: getCacheSizeMock,
-    clearCache: clearCacheMock,
-    exportData: exportDataMock,
-    resetApp: resetAppMock,
-    resetAndRestartApp: resetAndRestartAppMock,
-    getLogEntries: getLogEntriesMock,
+    SettingsController: {
+      getSettings: getSettingsMock,
+      updateSetting: updateSettingMock,
+      getCacheSize: getCacheSizeMock,
+      clearCache: clearCacheMock,
+      exportData: exportDataMock,
+      resetApp: resetAppMock,
+      resetAndRestartApp: resetAndRestartAppMock,
+      getLogEntries: getLogEntriesMock,
+    },
   }),
 );
 
@@ -207,6 +209,7 @@ describe("SettingsPanel", () => {
 
     fireEvent.click(clearFeedsButton);
     await waitFor(() => expect(clearCacheMock).toHaveBeenCalledWith("feeds"));
+    expect(await screen.findByText("Cleared feeds cache.")).toBeInTheDocument();
   });
 
   it("shows confirmation modal before clearing all cache", async () => {
@@ -227,6 +230,7 @@ describe("SettingsPanel", () => {
 
     fireEvent.click(jsonButton);
     await waitFor(() => expect(exportDataMock).toHaveBeenCalledWith("json"));
+    expect(await screen.findByText("Exported data as JSON.")).toBeInTheDocument();
   });
 
   it("allows exporting data as CSV", async () => {
@@ -237,6 +241,19 @@ describe("SettingsPanel", () => {
 
     fireEvent.click(csvButton);
     await waitFor(() => expect(exportDataMock).toHaveBeenCalledWith("csv"));
+    expect(await screen.findByText("Exported data as CSV.")).toBeInTheDocument();
+  });
+
+  it("shows export errors inline in data settings", async () => {
+    exportDataMock.mockRejectedValueOnce(new Error("export path is invalid"));
+    renderSettingsPanel();
+
+    await screen.findByText("Settings");
+    const jsonButton = await screen.findByRole("button", { name: /json/i });
+    fireEvent.click(jsonButton);
+
+    expect(await screen.findByText("Couldn't export data — check that the destination path is valid."))
+      .toBeInTheDocument();
   });
 
   it("allows selecting the download folder from the directory picker", async () => {

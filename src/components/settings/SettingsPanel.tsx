@@ -1,6 +1,6 @@
 import { EmbeddingsSettings } from "$/components/search/EmbeddingsSettings";
 import { useAppPreferences } from "$/contexts/app-preferences";
-import { clearCache, getCacheSize, getLogEntries, resetAndRestartApp } from "$/lib/api/settings";
+import { SettingsController } from "$/lib/api/settings";
 import type {
   AppSettings,
   CacheClearScope,
@@ -157,7 +157,7 @@ function SettingsSkeleton() {
 
 async function handleResetAndRestartApp() {
   try {
-    await resetAndRestartApp();
+    await SettingsController.resetAndRestartApp();
   } catch (err) {
     logger.error("failed to reset and restart app", { keyValues: { error: normalizeError(err) } });
   }
@@ -180,7 +180,7 @@ export function SettingsPanel() {
 
   async function loadCacheSize() {
     try {
-      setPanel("cacheSize", await getCacheSize());
+      setPanel("cacheSize", await SettingsController.getCacheSize());
     } catch (err) {
       logger.error("failed to load cache size", { keyValues: { error: normalizeError(err) } });
     }
@@ -188,7 +188,7 @@ export function SettingsPanel() {
 
   async function loadLogs(level = panel.logLevel) {
     try {
-      setPanel("logs", await getLogEntries(100, level));
+      setPanel("logs", await SettingsController.getLogEntries(100, level));
     } catch (err) {
       logger.error("failed to load logs", { keyValues: { error: normalizeError(err) } });
     }
@@ -200,10 +200,11 @@ export function SettingsPanel() {
 
   async function handleClearCache(scope: CacheClearScope) {
     try {
-      await clearCache(scope);
+      await SettingsController.clearCache(scope);
       await loadCacheSize();
     } catch (err) {
       logger.error("failed to clear cache", { keyValues: { scope, error: normalizeError(err) } });
+      throw err;
     }
   }
 

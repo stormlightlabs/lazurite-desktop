@@ -3,19 +3,16 @@ import type { AppSettings } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
 import { open } from "@tauri-apps/plugin-dialog";
 import * as logger from "@tauri-apps/plugin-log";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
-import { Icon } from "../shared/Icon";
+import { createEffect, createSignal, onMount } from "solid-js";
 import { SettingsCard } from "./SettingsCard";
+import { SettingsInlineFeedback, useTransientFeedback } from "./SettingsInlineFeedback";
 
 type SettingsDownloadsProps = { settings: AppSettings | null };
-
-type DirectoryFeedback = { kind: "error" | "success"; message: string };
 
 export function SettingsDownloads(props: SettingsDownloadsProps) {
   const [directory, setDirectory] = createSignal("");
   const [pending, setPending] = createSignal(false);
-  const [feedback, setFeedback] = createSignal<DirectoryFeedback | null>(null);
-  let feedbackTimer: ReturnType<typeof setTimeout> | null = null;
+  const { feedback, dismissFeedback, queueFeedback } = useTransientFeedback();
 
   createEffect(() => {
     const currentDirectory = directory();
@@ -28,29 +25,6 @@ export function SettingsDownloads(props: SettingsDownloadsProps) {
   onMount(() => {
     void refreshDirectory();
   });
-
-  onCleanup(() => {
-    if (feedbackTimer !== null) {
-      clearTimeout(feedbackTimer);
-    }
-  });
-
-  function dismissFeedback() {
-    setFeedback(null);
-    if (feedbackTimer !== null) {
-      clearTimeout(feedbackTimer);
-      feedbackTimer = null;
-    }
-  }
-
-  function queueFeedback(nextFeedback: DirectoryFeedback) {
-    dismissFeedback();
-    setFeedback(nextFeedback);
-    feedbackTimer = setTimeout(() => {
-      setFeedback(null);
-      feedbackTimer = null;
-    }, 5000);
-  }
 
   async function refreshDirectory() {
     try {
@@ -139,21 +113,7 @@ export function SettingsDownloads(props: SettingsDownloadsProps) {
           </button>
         </div>
 
-        <Show when={feedback()}>
-          {(currentFeedback) => (
-            <div
-              role={currentFeedback().kind === "error" ? "alert" : "status"}
-              aria-live={currentFeedback().kind === "error" ? "assertive" : "polite"}
-              class="inline-flex w-fit items-center gap-2 rounded-full bg-surface-container-high px-3 py-1.5 text-sm"
-              classList={{
-                "text-emerald-300": currentFeedback().kind === "success",
-                "text-red-300": currentFeedback().kind === "error",
-              }}>
-              <Icon kind={currentFeedback().kind === "success" ? "complete" : "danger"} aria-hidden="true" />
-              <span>{currentFeedback().message}</span>
-            </div>
-          )}
-        </Show>
+        <SettingsInlineFeedback feedback={feedback()} />
       </div>
     </SettingsCard>
   );

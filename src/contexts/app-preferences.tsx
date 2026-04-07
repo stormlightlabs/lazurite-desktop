@@ -5,7 +5,7 @@ import {
   setEmbeddingsPreflightSeen as setEmbeddingsPreflightSeenRequest,
 } from "$/lib/api/search";
 import type { EmbeddingsConfig } from "$/lib/api/search";
-import { getSettings, updateSetting as updateSettingRequest } from "$/lib/api/settings";
+import { SettingsController } from "$/lib/api/settings";
 import type { AppSettings } from "$/lib/types";
 import * as logger from "@tauri-apps/plugin-log";
 import { createContext, onMount, type ParentProps, splitProps, untrack, useContext } from "solid-js";
@@ -46,7 +46,7 @@ function createAppPreferencesValue(): AppPreferencesContextValue {
     setPreferences("settingsLoading", true);
 
     try {
-      setPreferences("settings", await getSettings());
+      setPreferences("settings", await SettingsController.getSettings());
     } catch (error) {
       logger.error("failed to load settings", { keyValues: { error: String(error) } });
     } finally {
@@ -58,7 +58,7 @@ function createAppPreferencesValue(): AppPreferencesContextValue {
     const serialized = typeof value === "boolean" ? (value ? "1" : "0") : String(value);
 
     try {
-      await updateSettingRequest(key, serialized);
+      await SettingsController.updateSetting(key, serialized);
 
       setPreferences("settings", (current) => {
         if (!current) {
