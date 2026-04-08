@@ -3,6 +3,7 @@ import type {
   FeedViewPost,
   FeedViewPrefItem,
   PostView,
+  ReportSubjectInput,
   StrongRefInput,
   UserPreferences,
 } from "$/lib/types";
@@ -46,3 +47,5 @@ export type FeedWorkspaceState = {
   showDraftsList: boolean;
   showFeedsDrawer: boolean;
 };
+
+export type ReportTarget = { subject: ReportSubjectInput; subjectLabel: string };

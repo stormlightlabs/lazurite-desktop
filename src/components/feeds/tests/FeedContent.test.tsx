@@ -1,7 +1,7 @@
 import { render } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
-import { FeedContent } from "./FeedContent";
+import { FeedContent } from "../FeedContent";
 
 function createFeedItem(id: string) {
   return {

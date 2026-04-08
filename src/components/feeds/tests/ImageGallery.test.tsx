@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ImageGallery } from "./ImageGallery";
+import { ImageGallery } from "../ImageGallery";
 
 const downloadImageMock = vi.hoisted(() => vi.fn());
 const revealItemInDirMock = vi.hoisted(() => vi.fn());

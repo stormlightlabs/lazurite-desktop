@@ -1,6 +1,3 @@
-import { ImageGallery } from "$/components/feeds/ImageGallery";
-import { type MediaNotice, MediaNoticeToast } from "$/components/feeds/MediaNoticeToast";
-import { VideoEmbed } from "$/components/feeds/VideoEmbed";
 import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
 import { ModeratedBlurOverlay } from "$/components/moderation/ModeratedBlurOverlay";
 import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
@@ -9,8 +6,6 @@ import { useModerationDecision } from "$/components/moderation/useModerationDeci
 import { ContextMenu, type ContextMenuAnchor, type ContextMenuItem } from "$/components/shared/ContextMenu";
 import { Icon } from "$/components/shared/Icon";
 import { PostRichText } from "$/components/shared/PostRichText";
-import { QuotedPostPreview } from "$/components/shared/QuotedPostPreview";
-import { MediaController } from "$/lib/api/media";
 import { ModerationController } from "$/lib/api/moderation";
 import {
   buildPublicPostUrl,
@@ -20,30 +15,197 @@ import {
   getPostCreatedAt,
   getPostFacets,
   getPostText,
-  getQuotedAuthor,
-  getQuotedHref,
-  getQuotedText,
   isReplyItem,
 } from "$/lib/feeds";
 import { collectModerationLabels } from "$/lib/moderation";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type {
-  EmbedView,
   FeedViewPost,
-  ImagesEmbedView,
   ModerationLabel,
   ModerationReasonType,
   ModerationUiDecision,
   PostView,
-  ProfileViewBasic,
-  ReportSubjectInput,
   RichTextFacet,
 } from "$/lib/types";
 import { formatCount, formatHandle, normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { createMemo, createSignal, For, Match, onCleanup, type ParentProps, Show, Switch } from "solid-js";
+import { createMemo, createSignal, type ParentProps, Show } from "solid-js";
 import { Motion } from "solid-motionone";
+import { EmbedContent } from "./embeds/ContentEmbed";
+import type { ReportTarget } from "./types";
+
+function isInteractiveTarget(target: EventTarget | null) {
+  return target instanceof Element && !!target.closest("a, button, input, textarea, select, [role='menuitem']");
+}
+
+function PostHeader(props: { authorHandle: string; authorName: string; createdAt: string; profileHref: string }) {
+  return (
+    <header class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <a
+        class="wrap-break-word text-base font-semibold tracking-[-0.01em] text-on-surface no-underline transition hover:text-primary"
+        href={`#${props.profileHref}`}
+        onClick={(event) => event.stopPropagation()}>
+        {props.authorName}
+      </a>
+      <a
+        class="break-all text-xs text-on-surface-variant no-underline transition hover:text-primary"
+        href={`#${props.profileHref}`}
+        onClick={(event) => event.stopPropagation()}>
+        {props.authorHandle}
+      </a>
+      <span class="text-xs text-on-surface-variant">{props.createdAt}</span>
+    </header>
+  );
+}
+
+function PostPrimaryRegion(props: ParentProps<{ onFocus?: () => void; onOpenThread?: () => void }>) {
+  const interactive = () => !!props.onOpenThread;
+
+  return (
+    <div
+      class="min-w-0 rounded-2xl p-2 outline-none transition duration-150 ease-out"
+      classList={{
+        "cursor-pointer hover:bg-white/2 focus-visible:bg-white/3 focus-visible:ring-1 focus-visible:ring-primary/30":
+          interactive(),
+      }}
+      aria-label={interactive() ? "Open thread" : undefined}
+      role={interactive() ? "button" : undefined}
+      tabIndex={interactive() ? 0 : undefined}
+      onClick={() => props.onOpenThread?.()}
+      onFocus={() => props.onFocus?.()}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && props.onOpenThread) {
+          event.preventDefault();
+          props.onOpenThread();
+        }
+      }}>
+      {props.children}
+    </div>
+  );
+}
+
+type PostActionButtonProps = {
+  active?: boolean;
+  busy?: boolean;
+  icon: string;
+  iconActive?: string;
+  label: string;
+  onClick?: () => void;
+  pulse?: boolean;
+};
+
+function PostActionButton(props: PostActionButtonProps) {
+  return (
+    <button
+      aria-label={props.label}
+      class="inline-flex min-w-0 items-center gap-1.5 rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary disabled:cursor-wait disabled:opacity-70 max-[520px]:px-2.5"
+      classList={{ "text-primary": !!props.active }}
+      type="button"
+      disabled={props.busy}
+      onClick={(event) => {
+        event.stopPropagation();
+        props.onClick?.();
+      }}>
+      <Motion.span
+        class="flex items-center"
+        animate={{ scale: props.pulse ? [1, 1.3, 1] : 1 }}
+        transition={{ duration: 0.28 }}>
+        <Icon aria-hidden="true" iconClass={props.active ? props.iconActive ?? props.icon : props.icon} />
+      </Motion.span>
+      <span class="max-w-24 truncate">{props.busy ? "..." : props.label}</span>
+    </button>
+  );
+}
+
+// FIXME: this is an absurdly large number of props
+type PostActionsProps = {
+  bookmarkPending: boolean;
+  isBookmarked: boolean;
+  isLiked: boolean;
+  isReposted: boolean;
+  likeCount: string;
+  likePending: boolean;
+  menuOpen: boolean;
+  pulseLike: boolean;
+  pulseRepost: boolean;
+  replyCount: string;
+  repostCount: string;
+  repostPending: boolean;
+  triggerRef: (element: HTMLButtonElement) => void;
+  onBookmark?: () => void;
+  onLike?: () => void;
+  onMenuOpen: (element: HTMLButtonElement) => void;
+  onOpenThread?: () => void;
+  onQuote?: () => void;
+  onReply?: () => void;
+  onRepost?: () => void;
+};
+
+function PostActions(props: PostActionsProps) {
+  return (
+    <footer class="mt-4 flex min-w-0 flex-wrap items-center gap-2 max-[520px]:gap-1">
+      <PostActionButton
+        active={props.isLiked}
+        busy={props.likePending}
+        icon="i-ri-heart-3-line"
+        iconActive="i-ri-heart-3-fill"
+        label={props.likeCount}
+        pulse={props.pulseLike}
+        onClick={props.onLike} />
+      <PostActionButton icon="i-ri-chat-1-line" label={props.replyCount} onClick={props.onReply} />
+      <PostActionButton
+        active={props.isReposted}
+        busy={props.repostPending}
+        icon="i-ri-repeat-2-line"
+        iconActive="i-ri-repeat-2-fill"
+        label={props.repostCount}
+        pulse={props.pulseRepost}
+        onClick={props.onRepost} />
+      <PostActionButton
+        active={props.isBookmarked}
+        busy={props.bookmarkPending}
+        icon="i-ri-bookmark-line"
+        iconActive="i-ri-bookmark-fill"
+        label={props.isBookmarked ? "Saved" : "Save"}
+        onClick={props.onBookmark} />
+      <PostActionButton icon="i-ri-chat-quote-line" label="Quote" onClick={props.onQuote} />
+      <PostActionButton icon="i-ri-node-tree" label="Thread" onClick={props.onOpenThread} />
+      <button
+        aria-label="More actions"
+        ref={(element) => props.triggerRef(element)}
+        aria-expanded={props.menuOpen}
+        aria-haspopup="menu"
+        class="inline-flex items-center justify-center rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary max-[520px]:px-2.5"
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onMenuOpen(event.currentTarget);
+        }}>
+        <Icon aria-hidden="true" iconClass="i-ri-more-fill" />
+      </button>
+    </footer>
+  );
+}
+
+function PostBodyText(props: { facets: RichTextFacet[]; text: string }) {
+  return (
+    <Show when={props.text.trim().length > 0}>
+      <PostRichText class="m-0" facets={props.facets} text={props.text} />
+    </Show>
+  );
+}
+
+function ModeratedPostBody(
+  props: { decision: ModerationUiDecision; labels: ModerationLabel[]; post: PostView; text: string },
+) {
+  return (
+    <Show when={props.text.trim().length > 0}>
+      <ModeratedBlurOverlay decision={props.decision} labels={props.labels} class="mt-3">
+        <PostBodyText facets={getPostFacets(props.post)} text={props.text} />
+      </ModeratedBlurOverlay>
+    </Show>
+  );
+}
 
 type PostCardProps = {
   bookmarkPending?: boolean;
@@ -64,8 +226,6 @@ type PostCardProps = {
   repostPending?: boolean;
   showActions?: boolean;
 };
-
-type ReportTarget = { subject: ReportSubjectInput; subjectLabel: string };
 
 export function PostCard(props: PostCardProps) {
   const authorName = createMemo(() => getDisplayName(props.post.author));
@@ -284,7 +444,13 @@ export function PostCard(props: PostCardProps) {
               post={props.post}
               text={postText()} />
 
-            <PostEmbeds decision={mediaDecision()} labels={mediaLabels()} post={props.post} />
+            <Show when={props.post.embed}>
+              {(current) => (
+                <ModeratedBlurOverlay decision={mediaDecision()} labels={mediaLabels()} class="mt-4">
+                  <EmbedContent embed={current()} post={props.post} />
+                </ModeratedBlurOverlay>
+              )}
+            </Show>
           </PostPrimaryRegion>
 
           <Show when={props.showActions !== false}>
@@ -330,447 +496,4 @@ export function PostCard(props: PostCardProps) {
         onSubmit={submitReport} />
     </article>
   );
-}
-
-function PostHeader(props: { authorHandle: string; authorName: string; createdAt: string; profileHref: string }) {
-  return (
-    <header class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-      <a
-        class="wrap-break-word text-base font-semibold tracking-[-0.01em] text-on-surface no-underline transition hover:text-primary"
-        href={`#${props.profileHref}`}
-        onClick={(event) => event.stopPropagation()}>
-        {props.authorName}
-      </a>
-      <a
-        class="break-all text-xs text-on-surface-variant no-underline transition hover:text-primary"
-        href={`#${props.profileHref}`}
-        onClick={(event) => event.stopPropagation()}>
-        {props.authorHandle}
-      </a>
-      <span class="text-xs text-on-surface-variant">{props.createdAt}</span>
-    </header>
-  );
-}
-
-function PostPrimaryRegion(props: ParentProps<{ onFocus?: () => void; onOpenThread?: () => void }>) {
-  const interactive = () => !!props.onOpenThread;
-
-  return (
-    <div
-      class="min-w-0 rounded-2xl p-2 outline-none transition duration-150 ease-out"
-      classList={{
-        "cursor-pointer hover:bg-white/2 focus-visible:bg-white/3 focus-visible:ring-1 focus-visible:ring-primary/30":
-          interactive(),
-      }}
-      aria-label={interactive() ? "Open thread" : undefined}
-      role={interactive() ? "button" : undefined}
-      tabIndex={interactive() ? 0 : undefined}
-      onClick={() => props.onOpenThread?.()}
-      onFocus={() => props.onFocus?.()}
-      onKeyDown={(event) => {
-        if ((event.key === "Enter" || event.key === " ") && props.onOpenThread) {
-          event.preventDefault();
-          props.onOpenThread();
-        }
-      }}>
-      {props.children}
-    </div>
-  );
-}
-
-function PostActions(
-  props: {
-    bookmarkPending: boolean;
-    isBookmarked: boolean;
-    isLiked: boolean;
-    isReposted: boolean;
-    likeCount: string;
-    likePending: boolean;
-    menuOpen: boolean;
-    pulseLike: boolean;
-    pulseRepost: boolean;
-    replyCount: string;
-    repostCount: string;
-    repostPending: boolean;
-    triggerRef: (element: HTMLButtonElement) => void;
-    onBookmark?: () => void;
-    onLike?: () => void;
-    onMenuOpen: (element: HTMLButtonElement) => void;
-    onOpenThread?: () => void;
-    onQuote?: () => void;
-    onReply?: () => void;
-    onRepost?: () => void;
-  },
-) {
-  return (
-    <footer class="mt-4 flex min-w-0 flex-wrap items-center gap-2 max-[520px]:gap-1">
-      <ActionButton
-        active={props.isLiked}
-        busy={props.likePending}
-        icon="i-ri-heart-3-line"
-        iconActive="i-ri-heart-3-fill"
-        label={props.likeCount}
-        pulse={props.pulseLike}
-        onClick={props.onLike} />
-      <ActionButton icon="i-ri-chat-1-line" label={props.replyCount} onClick={props.onReply} />
-      <ActionButton
-        active={props.isReposted}
-        busy={props.repostPending}
-        icon="i-ri-repeat-2-line"
-        iconActive="i-ri-repeat-2-fill"
-        label={props.repostCount}
-        pulse={props.pulseRepost}
-        onClick={props.onRepost} />
-      <ActionButton
-        active={props.isBookmarked}
-        busy={props.bookmarkPending}
-        icon="i-ri-bookmark-line"
-        iconActive="i-ri-bookmark-fill"
-        label={props.isBookmarked ? "Saved" : "Save"}
-        onClick={props.onBookmark} />
-      <ActionButton icon="i-ri-chat-quote-line" label="Quote" onClick={props.onQuote} />
-      <ActionButton icon="i-ri-node-tree" label="Thread" onClick={props.onOpenThread} />
-      <button
-        aria-label="More actions"
-        ref={(element) => props.triggerRef(element)}
-        aria-expanded={props.menuOpen}
-        aria-haspopup="menu"
-        class="inline-flex items-center justify-center rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary max-[520px]:px-2.5"
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          props.onMenuOpen(event.currentTarget);
-        }}>
-        <Icon aria-hidden="true" iconClass="i-ri-more-fill" />
-      </button>
-    </footer>
-  );
-}
-
-function PostBodyText(props: { facets: RichTextFacet[]; text: string }) {
-  return (
-    <Show when={props.text.trim().length > 0}>
-      <PostRichText class="m-0" facets={props.facets} text={props.text} />
-    </Show>
-  );
-}
-
-function ModeratedPostBody(
-  props: { decision: ModerationUiDecision; labels: ModerationLabel[]; post: PostView; text: string },
-) {
-  return (
-    <Show when={props.text.trim().length > 0}>
-      <ModeratedBlurOverlay decision={props.decision} labels={props.labels} class="mt-3">
-        <PostBodyText facets={getPostFacets(props.post)} text={props.text} />
-      </ModeratedBlurOverlay>
-    </Show>
-  );
-}
-
-function ActionButton(
-  props: {
-    active?: boolean;
-    busy?: boolean;
-    icon: string;
-    iconActive?: string;
-    label: string;
-    onClick?: () => void;
-    pulse?: boolean;
-  },
-) {
-  return (
-    <button
-      aria-label={props.label}
-      class="inline-flex min-w-0 items-center gap-1.5 rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary disabled:cursor-wait disabled:opacity-70 max-[520px]:px-2.5"
-      classList={{ "text-primary": !!props.active }}
-      type="button"
-      disabled={props.busy}
-      onClick={(event) => {
-        event.stopPropagation();
-        props.onClick?.();
-      }}>
-      <Motion.span
-        class="flex items-center"
-        animate={{ scale: props.pulse ? [1, 1.3, 1] : 1 }}
-        transition={{ duration: 0.28 }}>
-        <Icon aria-hidden="true" iconClass={props.active ? props.iconActive ?? props.icon : props.icon} />
-      </Motion.span>
-      <span class="max-w-24 truncate">{props.busy ? "..." : props.label}</span>
-    </button>
-  );
-}
-
-function PostEmbeds(props: { decision: ModerationUiDecision; labels: ModerationLabel[]; post: PostView }) {
-  return (
-    <Show when={props.post.embed}>
-      {(current) => (
-        <ModeratedBlurOverlay decision={props.decision} labels={props.labels} class="mt-4">
-          <EmbedContent embed={current()} post={props.post} />
-        </ModeratedBlurOverlay>
-      )}
-    </Show>
-  );
-}
-
-function EmbedContent(props: { embed: EmbedView; post: PostView }) {
-  const postRkey = createMemo(() => postRkeyFromUri(props.post.uri));
-
-  return (
-    <Switch>
-      <Match when={props.embed.$type === "app.bsky.embed.images#view"}>
-        <ImageEmbed embed={props.embed as ImagesEmbedView} post={props.post} />
-      </Match>
-      <Match when={props.embed.$type === "app.bsky.embed.external#view"}>
-        <ExternalEmbed
-          description={(props.embed as { external: { description?: string } }).external.description}
-          thumb={(props.embed as { external: { thumb?: string } }).external.thumb}
-          title={(props.embed as { external: { title?: string } }).external.title}
-          uri={(props.embed as { external: { uri?: string } }).external.uri} />
-      </Match>
-      <Match when={props.embed.$type === "app.bsky.embed.video#view"}>
-        <VideoEmbed
-          alt={(props.embed as { alt?: string }).alt}
-          aspectRatio={(props.embed as { aspectRatio?: { height: number; width: number } }).aspectRatio}
-          downloadFilename={postRkey() ?? undefined}
-          playlist={(props.embed as { playlist?: string }).playlist}
-          thumbnail={(props.embed as { thumbnail?: string }).thumbnail} />
-      </Match>
-      <Match when={props.embed.$type === "app.bsky.embed.record#view"}>
-        <RecordEmbedContent embed={props.embed} />
-      </Match>
-      <Match when={props.embed.$type === "app.bsky.embed.recordWithMedia#view"}>
-        <RecordWithMediaEmbedContent embed={props.embed} post={props.post} />
-      </Match>
-    </Switch>
-  );
-}
-
-function RecordEmbedContent(props: { embed: EmbedView }) {
-  return (
-    <QuoteEmbed
-      author={getQuotedAuthor(props.embed)}
-      href={getQuotedHref(props.embed)}
-      text={getQuotedText(props.embed)}
-      title="Quoted post" />
-  );
-}
-
-function RecordWithMediaEmbedContent(props: { embed: EmbedView; post: PostView }) {
-  const media = () => ("media" in props.embed ? props.embed.media : null);
-
-  return (
-    <div class="grid gap-3">
-      <Show when={media()}>{(current) => <EmbedContent embed={current() as EmbedView} post={props.post} />}</Show>
-      <QuoteEmbed
-        author={getQuotedAuthor(props.embed)}
-        href={getQuotedHref(props.embed)}
-        text={getQuotedText(props.embed)}
-        title="Quoted post" />
-    </div>
-  );
-}
-
-function ImageEmbed(props: { embed: ImagesEmbedView; post: PostView }) {
-  const images = createMemo(() => props.embed.images.slice(0, 4));
-  const postRkey = createMemo(() => postRkeyFromUri(props.post.uri));
-  const [galleryStartIndex, setGalleryStartIndex] = createSignal<number | null>(null);
-  const [menuAnchor, setMenuAnchor] = createSignal<ContextMenuAnchor | null>(null);
-  const [menuOpen, setMenuOpen] = createSignal(false);
-  const [menuImageIndex, setMenuImageIndex] = createSignal<number | null>(null);
-  const [menuImageUrl, setMenuImageUrl] = createSignal<string | null>(null);
-  const [downloadPending, setDownloadPending] = createSignal(false);
-  const [notice, setNotice] = createSignal<MediaNotice | null>(null);
-  let noticeTimer: ReturnType<typeof setTimeout> | null = null;
-
-  const postText = createMemo(() => getPostText(props.post));
-  const authorHandle = createMemo(() => formatHandle(props.post.author.handle, props.post.author.did));
-  const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.post.author)));
-  const menuItems = createMemo<ContextMenuItem[]>(
-    () => [{
-      disabled: !menuImageUrl() || downloadPending(),
-      icon: downloadPending() ? "i-ri-loader-4-line animate-spin" : "i-ri-download-2-line",
-      label: downloadPending() ? "Saving..." : "Save image",
-      onSelect: () => void downloadFromContextMenu(),
-    }]
-  );
-
-  onCleanup(() => {
-    if (noticeTimer !== null) {
-      clearTimeout(noticeTimer);
-    }
-  });
-
-  function dismissNotice() {
-    setNotice(null);
-    if (noticeTimer !== null) {
-      clearTimeout(noticeTimer);
-      noticeTimer = null;
-    }
-  }
-
-  function queueNotice(next: MediaNotice) {
-    dismissNotice();
-    setNotice(next);
-    noticeTimer = setTimeout(() => {
-      setNotice(null);
-      noticeTimer = null;
-    }, 6000);
-  }
-
-  function closeMenu() {
-    setMenuOpen(false);
-    setMenuAnchor(null);
-    setMenuImageIndex(null);
-    setMenuImageUrl(null);
-  }
-
-  function openGallery(index: number, event: MouseEvent) {
-    event.stopPropagation();
-    setGalleryStartIndex(index);
-  }
-
-  function openImageMenu(event: MouseEvent, url: string | undefined, imageIndex: number) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    setMenuImageIndex(imageIndex);
-    setMenuImageUrl(url ?? null);
-    setMenuAnchor({ kind: "point", x: event.clientX, y: event.clientY });
-    setMenuOpen(true);
-  }
-
-  async function downloadFromContextMenu() {
-    const url = menuImageUrl();
-    const imageIndex = menuImageIndex();
-    if (!url || downloadPending()) {
-      return;
-    }
-
-    setDownloadPending(true);
-    try {
-      const requestedFilename = buildImageFilename(postRkey(), images().length, imageIndex)?.trim();
-      const result = await MediaController.downloadImage(url, requestedFilename ?? null);
-
-      queueNotice({ kind: "success", message: `Saved ${filenameFromPath(result.path)}.`, path: result.path });
-    } catch (error) {
-      queueNotice({ kind: "error", message: toDownloadErrorMessage(error) });
-    } finally {
-      setDownloadPending(false);
-    }
-  }
-
-  return (
-    <>
-      <div class="grid min-w-0 gap-2" classList={{ "grid-cols-2": props.embed.images.length > 1 }}>
-        <For each={images()}>
-          {(image, index) => (
-            <button
-              type="button"
-              class="overflow-hidden rounded-[1.2rem] border-0 bg-black/30 p-0 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"
-              onClick={(event) => openGallery(index(), event)}
-              onContextMenu={(event) => openImageMenu(event, image.fullsize ?? image.thumb, index())}>
-              <img class="max-h-88 w-full object-cover" src={image.fullsize ?? image.thumb} alt={image.alt ?? ""} />
-            </button>
-          )}
-        </For>
-      </div>
-
-      <ImageGallery
-        authorHandle={authorHandle()}
-        authorHref={profileHref()}
-        images={images()}
-        open={galleryStartIndex() !== null}
-        postText={postText()}
-        startIndex={galleryStartIndex() ?? 0}
-        downloadFilenameForIndex={(imageIndex) => buildImageFilename(postRkey(), images().length, imageIndex)}
-        onClose={() => setGalleryStartIndex(null)} />
-
-      <ContextMenu
-        anchor={menuAnchor()}
-        items={menuItems()}
-        label="Image actions"
-        open={menuOpen()}
-        onClose={closeMenu} />
-
-      <MediaNoticeToast notice={notice()} onDismiss={dismissNotice} onOpenPath={revealItemInDir} />
-    </>
-  );
-}
-
-function ExternalEmbed(props: { description?: string; thumb?: string; title?: string; uri?: string }) {
-  return (
-    <a
-      class="grid min-w-0 gap-3 overflow-hidden rounded-2xl bg-black/30 p-3 text-inherit no-underline shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] transition duration-150 ease-out hover:bg-black/40"
-      href={props.uri}
-      rel="noreferrer"
-      target="_blank"
-      onClick={(event) => event.stopPropagation()}>
-      <Show when={props.thumb}>
-        {(thumb) => <img class="max-h-64 w-full rounded-2xl object-cover" src={thumb()} alt="" />}
-      </Show>
-      <div class="grid gap-1">
-        <p class="m-0 wrap-break-word text-sm font-semibold text-on-surface">{props.title || "External link"}</p>
-        <Show when={props.description}>
-          {(description) => (
-            <p class="m-0 wrap-break-word text-sm leading-[1.55] text-on-surface-variant">{description()}</p>
-          )}
-        </Show>
-        <Show when={props.uri}>
-          {(uri) => (
-            <p class="m-0 break-all text-xs uppercase tracking-[0.08em] text-primary">
-              {uri().replace(/^https?:\/\//, "")}
-            </p>
-          )}
-        </Show>
-      </div>
-    </a>
-  );
-}
-
-function QuoteEmbed(props: { author: ProfileViewBasic | null; href?: string | null; text?: unknown; title: string }) {
-  return <QuotedPostPreview author={props.author} href={props.href} text={props.text} title={props.title} />;
-}
-
-function isInteractiveTarget(target: EventTarget | null) {
-  return target instanceof Element && !!target.closest("a, button, input, textarea, select, [role='menuitem']");
-}
-
-function postRkeyFromUri(uri: string | null | undefined) {
-  if (typeof uri !== "string") {
-    return null;
-  }
-
-  const trimmed = uri.trim();
-  if (!trimmed.startsWith("at://")) {
-    return null;
-  }
-
-  const rkey = trimmed.split("/").at(-1)?.trim();
-  return rkey || null;
-}
-
-function buildImageFilename(postRkey: string | null, imageCount: number, imageIndex: number | null) {
-  if (!postRkey) {
-    return null;
-  }
-
-  if (imageCount > 1 && imageIndex !== null && imageIndex >= 0) {
-    return `${postRkey}_${imageIndex + 1}`;
-  }
-
-  return postRkey;
-}
-
-function filenameFromPath(path: string) {
-  const parts = path.split(/[/\\]/u);
-  return parts.at(-1) || "downloaded file";
-}
-
-function toDownloadErrorMessage(error: unknown) {
-  const message = normalizeError(error);
-  if (/download folder|writable|save|directory|exists/iu.test(message)) {
-    return "Couldn't save — check that the download folder exists.";
-  }
-
-  return "Couldn't save this image right now.";
 }

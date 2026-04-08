@@ -2,7 +2,7 @@ import { AppTestProviders } from "$/test/providers";
 import { HashRouter, Route } from "@solidjs/router";
 import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FeedWorkspace } from "./FeedWorkspace";
+import { FeedWorkspace } from "../FeedWorkspace";
 
 const invokeMock = vi.hoisted(() => vi.fn());
 const listenMock = vi.hoisted(() => vi.fn());

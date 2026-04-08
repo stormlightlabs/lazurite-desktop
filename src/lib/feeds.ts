@@ -413,3 +413,17 @@ function normalizeDid(value: string | null | undefined) {
   const normalized = value.trim();
   return normalized || null;
 }
+
+export function postRkeyFromUri(uri: string | null | undefined) {
+  if (typeof uri !== "string") {
+    return null;
+  }
+
+  const trimmed = uri.trim();
+  if (!trimmed.startsWith("at://")) {
+    return null;
+  }
+
+  const rkey = trimmed.split("/").at(-1)?.trim();
+  return rkey || null;
+}
