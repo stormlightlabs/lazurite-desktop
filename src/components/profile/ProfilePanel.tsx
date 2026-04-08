@@ -274,6 +274,10 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
     void postNavigation.openPost(uri);
   }
 
+  function openEngagement(uri: string, tab: "likes" | "reposts" | "quotes") {
+    void postNavigation.openPostEngagement(uri, tab);
+  }
+
   function openExplorerTarget(target: string) {
     queueExplorerTarget(target);
     void navigate("/explorer");
@@ -496,6 +500,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
                           onBookmark={(post) => void interactions.toggleBookmark(post)}
                           onLike={(post) => void interactions.toggleLike(post)}
                           onLoadMore={handleLoadMore}
+                          onOpenEngagement={openEngagement}
                           onOpenThread={openThread}
                           onRepost={(post) => void interactions.toggleRepost(post)}
                           repostPendingByUri={interactions.repostPendingByUri()} />

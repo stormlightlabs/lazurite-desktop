@@ -33,6 +33,7 @@ const baseProps = {
   onBookmark: vi.fn(async () => {}),
   onFocusIndex: vi.fn(),
   onLike: vi.fn(async () => {}),
+  onOpenEngagement: vi.fn(async () => {}),
   onOpenThread: vi.fn(async () => {}),
   onQuote: vi.fn(),
   onReply: vi.fn(),

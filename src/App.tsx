@@ -11,6 +11,7 @@ import { LoginPanel } from "./components/LoginPanel";
 import { MessagesPanel } from "./components/messages/MessagesPanel";
 import { NotificationsPanel } from "./components/notifications/NotificationsPanel";
 import { HeaderPanel } from "./components/panels/Header";
+import { PostEngagementPanel } from "./components/posts/PostEngagementPanel";
 import { PostPanel } from "./components/posts/PostPanel";
 import { ThreadDrawer } from "./components/posts/ThreadDrawer";
 import { ProfilePanel } from "./components/profile/ProfilePanel";
@@ -86,6 +87,7 @@ function AppContent() {
           renderComposer={() => <ComposerWindow />}
           renderMessages={(props) => <MessagesPanel memberDid={props.memberDid} />}
           renderNotifications={() => <NotificationsPanel />}
+          renderPostEngagement={(props) => <PostEngagementPanel uri={props.uri} />}
           renderPost={(props) => <PostPanel uri={props.uri} />}
           renderProfile={(props) => <ProfilePanel actor={props.actor} />}
           renderShell={AppShell}

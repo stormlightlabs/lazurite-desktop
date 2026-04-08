@@ -12,6 +12,7 @@ import {
   patchFeedItems,
   toStrongRef,
 } from "$/lib/feeds";
+import type { PostEngagementTab } from "$/lib/post-engagement-routes";
 import type {
   ActiveSession,
   Draft,
@@ -48,6 +49,7 @@ import {
 type FeedWorkspaceProps = {
   activeSession: ActiveSession;
   onError: (message: string) => void;
+  onOpenPostEngagement: (uri: string, tab: PostEngagementTab) => void;
   onOpenThread: (uri: string) => void;
 };
 
@@ -708,6 +710,10 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     props.onOpenThread(uri);
   }
 
+  function openPostEngagement(uri: string, tab: PostEngagementTab) {
+    props.onOpenPostEngagement(uri, tab);
+  }
+
   function openComposer() {
     setWorkspace("composer", "open", true);
   }
@@ -1065,6 +1071,7 @@ export function useFeedWorkspaceController(props: FeedWorkspaceProps) {
     loadDraft,
     openComposer,
     openDraftsList,
+    openPostEngagement,
     openThread,
     openQuoteComposer,
     openReplyComposer,

@@ -51,6 +51,7 @@ function FeedScroller(
         onBookmark={props.controller.toggleBookmark}
         onFocusIndex={props.controller.setFocusedIndex}
         onLike={props.controller.toggleLike}
+        onOpenEngagement={props.controller.openPostEngagement}
         onOpenThread={props.controller.openThread}
         onQuote={props.controller.openQuoteComposer}
         onReply={props.controller.openReplyComposer}

@@ -1,4 +1,5 @@
 import { getReplyRootPost } from "$/lib/feeds";
+import type { PostEngagementTab } from "$/lib/post-engagement-routes";
 import type { FeedViewPost, PostView } from "$/lib/types";
 import { For, Show } from "solid-js";
 import { EmptyFeedState, FeedSkeleton, LoadingMoreIndicator } from "./FeedEmpty";
@@ -38,6 +39,7 @@ export function FeedContent(
     onFocusIndex: (index: number) => void;
     onBookmark: (post: PostView) => Promise<void> | void;
     onLike: (post: PostView) => Promise<void> | void;
+    onOpenEngagement: (uri: string, tab: PostEngagementTab) => Promise<void> | void;
     onOpenThread: (uri: string) => Promise<void> | void;
     onQuote: (post: PostView) => void;
     onReply: (post: PostView, root: PostView) => void;
@@ -62,6 +64,7 @@ export function FeedContent(
             onBookmark={() => void props.onBookmark(item.post)}
             onFocus={() => props.onFocusIndex(index())}
             onLike={() => void props.onLike(item.post)}
+            onOpenEngagement={(tab) => void props.onOpenEngagement(item.post.uri, tab)}
             onOpenThread={() => void props.onOpenThread(item.post.uri)}
             onQuote={() => props.onQuote(item.post)}
             onReply={() => props.onReply(item.post, getReplyRootPost(item))}

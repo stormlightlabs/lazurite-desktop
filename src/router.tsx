@@ -29,6 +29,7 @@ type AppRouterProps = {
   renderComposer: () => JSX.Element;
   renderMessages: Component<TMessagesRouteProps>;
   renderNotifications: () => JSX.Element;
+  renderPostEngagement: Component<TPostRouteProps>;
   renderPost: Component<TPostRouteProps>;
   renderProfile: Component<TProfileRouteProps>;
   renderShell: Component<AppShellProps>;
@@ -113,6 +114,16 @@ export function AppRouter(props: AppRouterProps) {
     );
   };
 
+  const PostEngagementRoute = () => {
+    const params = useParams<{ encodedUri: string }>();
+
+    return (
+      <ProtectedRouteView>
+        <Dynamic component={props.renderPostEngagement} uri={decodePostRouteUri(params.encodedUri)} />
+      </ProtectedRouteView>
+    );
+  };
+
   const HashtagRoute = () => {
     const params = useParams<{ hashtag: string }>();
     const tag = decodeHashtagRouteTag(params.hashtag);
@@ -187,6 +198,7 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/hashtag/:hashtag" component={HashtagRoute} />
       <Route path="/saved" component={SavedPostsRoute} />
       <Route path="/notifications" component={NotificationsRoute} />
+      <Route path="/post/:encodedUri/engagement" component={PostEngagementRoute} />
       <Route path="/post/:encodedUri" component={PostRoute} />
       <Route path="/messages" component={MessagesRoute} />
       <Route path="/messages/:memberDid" component={MemberMessagesRoute} />

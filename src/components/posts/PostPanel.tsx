@@ -161,6 +161,7 @@ export function PostPanel(props: { uri: string | null }) {
             loading={state.loading}
             onBookmark={(post) => void interactions.toggleBookmark(post)}
             onLike={(post) => void interactions.toggleLike(post)}
+            onOpenEngagement={(uri, tab) => void postNavigation.openPostEngagement(uri, tab)}
             onOpenPost={(uri) => void postNavigation.openPost(uri)}
             onRepost={(post) => void interactions.toggleRepost(post)}
             parentChain={parentChain()}
@@ -180,6 +181,7 @@ function ThreadState(
     loading: boolean;
     onBookmark: (post: PostView) => void;
     onLike: (post: PostView) => void;
+    onOpenEngagement: (uri: string, tab: "likes" | "reposts" | "quotes") => void;
     onOpenPost: (uri: string) => void;
     onRepost: (post: PostView) => void;
     parentChain: ThreadViewPost[];
@@ -210,6 +212,7 @@ function ThreadState(
                     likePending={!!props.likePendingByUri[parent.post.uri]}
                     onBookmark={() => props.onBookmark(parent.post)}
                     onLike={() => props.onLike(parent.post)}
+                    onOpenEngagement={(tab) => props.onOpenEngagement(parent.post.uri, tab)}
                     onOpenThread={() => props.onOpenPost(parent.post.uri)}
                     onRepost={() => props.onRepost(parent.post)}
                     post={parent.post}
@@ -225,6 +228,7 @@ function ThreadState(
               likePending={!!props.likePendingByUri[focused().post.uri]}
               onBookmark={() => props.onBookmark(focused().post)}
               onLike={() => props.onLike(focused().post)}
+              onOpenEngagement={(tab) => props.onOpenEngagement(focused().post.uri, tab)}
               onOpenThread={() => props.onOpenPost(focused().post.uri)}
               onRepost={() => props.onRepost(focused().post)}
               post={focused().post}
@@ -240,6 +244,7 @@ function ThreadState(
                       node={reply}
                       onBookmark={props.onBookmark}
                       onLike={props.onLike}
+                      onOpenEngagement={props.onOpenEngagement}
                       onOpenPost={props.onOpenPost}
                       onRepost={props.onRepost}
                       repostPendingByUri={props.repostPendingByUri} />
@@ -261,6 +266,7 @@ function ThreadReplies(
     node: ThreadNode;
     onBookmark: (post: PostView) => void;
     onLike: (post: PostView) => void;
+    onOpenEngagement: (uri: string, tab: "likes" | "reposts" | "quotes") => void;
     onOpenPost: (uri: string) => void;
     onRepost: (post: PostView) => void;
     repostPendingByUri: Record<string, boolean>;
@@ -284,6 +290,7 @@ function ThreadReplies(
               likePending={!!props.likePendingByUri[current().post.uri]}
               onBookmark={() => props.onBookmark(current().post)}
               onLike={() => props.onLike(current().post)}
+              onOpenEngagement={(tab) => props.onOpenEngagement(current().post.uri, tab)}
               onOpenThread={() => props.onOpenPost(current().post.uri)}
               onRepost={() => props.onRepost(current().post)}
               post={current().post}
@@ -299,6 +306,7 @@ function ThreadReplies(
                       node={reply}
                       onBookmark={props.onBookmark}
                       onLike={props.onLike}
+                      onOpenEngagement={props.onOpenEngagement}
                       onOpenPost={props.onOpenPost}
                       onRepost={props.onRepost}
                       repostPendingByUri={props.repostPendingByUri} />

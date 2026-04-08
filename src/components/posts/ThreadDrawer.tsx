@@ -157,7 +157,7 @@ export function ThreadDrawer() {
             transition={{ duration: 0.22 }}>
             <ThreadDrawerHeader
               activeUri={activeUri()}
-              onMaximize={(uri) => void postNavigation.openPost(uri)}
+              onMaximize={(uri) => void postNavigation.openPostScreen(uri)}
               parentThreadHref={parentThreadHref()}
               onClose={() => void threadOverlay.closeThread()} />
             <ThreadDrawerBody
@@ -168,6 +168,7 @@ export function ThreadDrawer() {
               loading={state.loading}
               onBookmark={(post) => void interactions.toggleBookmark(post)}
               onLike={(post) => void interactions.toggleLike(post)}
+              onOpenEngagement={(uri, tab) => void postNavigation.openPostEngagement(uri, tab)}
               onOpenThread={(uri) => void threadOverlay.openThread(uri)}
               onRepost={(post) => void interactions.toggleRepost(post)}
               repostPendingByUri={interactions.repostPendingByUri()}
@@ -189,6 +190,7 @@ function ThreadDrawerBody(
     loading: boolean;
     onBookmark: (post: PostView) => void;
     onLike: (post: PostView) => void;
+    onOpenEngagement: (uri: string, tab: "likes" | "reposts" | "quotes") => void;
     onOpenThread: (uri: string) => void;
     onRepost: (post: PostView) => void;
     repostPendingByUri: Record<string, boolean>;
@@ -218,6 +220,7 @@ function ThreadDrawerBody(
               node={props.thread!}
               onBookmark={props.onBookmark}
               onLike={props.onLike}
+              onOpenEngagement={props.onOpenEngagement}
               onOpenThread={props.onOpenThread}
               onRepost={props.onRepost}
               repostPendingByUri={props.repostPendingByUri}
@@ -293,6 +296,7 @@ function ThreadNodeView(
     node: ThreadNode;
     onBookmark: (post: PostView) => void;
     onLike: (post: PostView) => void;
+    onOpenEngagement: (uri: string, tab: "likes" | "reposts" | "quotes") => void;
     onOpenThread: (uri: string) => void;
     onRepost: (post: PostView) => void;
     repostPendingByUri: Record<string, boolean>;
@@ -322,6 +326,7 @@ function ThreadNodeView(
                     node={parent()}
                     onBookmark={props.onBookmark}
                     onLike={props.onLike}
+                    onOpenEngagement={props.onOpenEngagement}
                     onOpenThread={props.onOpenThread}
                     onRepost={props.onRepost}
                     repostPendingByUri={props.repostPendingByUri}
@@ -336,6 +341,7 @@ function ThreadNodeView(
               likePending={!!props.likePendingByUri[threadNode().post.uri]}
               onBookmark={() => props.onBookmark(threadNode().post)}
               onLike={() => props.onLike(threadNode().post)}
+              onOpenEngagement={(tab) => props.onOpenEngagement(threadNode().post.uri, tab)}
               onOpenThread={() => props.onOpenThread(threadNode().post.uri)}
               onRepost={() => props.onRepost(threadNode().post)}
               post={threadNode().post}
@@ -352,6 +358,7 @@ function ThreadNodeView(
                       node={reply}
                       onBookmark={props.onBookmark}
                       onLike={props.onLike}
+                      onOpenEngagement={props.onOpenEngagement}
                       onOpenThread={props.onOpenThread}
                       onRepost={props.onRepost}
                       repostPendingByUri={props.repostPendingByUri}

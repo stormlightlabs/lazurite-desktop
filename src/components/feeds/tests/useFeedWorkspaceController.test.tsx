@@ -102,6 +102,7 @@ function ControllerHarness() {
   const controller = useFeedWorkspaceController({
     activeSession: ACTIVE_SESSION,
     onError: onErrorMock,
+    onOpenPostEngagement: () => {},
     onOpenThread: () => {},
   });
 

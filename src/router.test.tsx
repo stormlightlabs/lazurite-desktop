@@ -31,6 +31,9 @@ function renderRouter(hash: string, options: { preferences?: Record<string, unkn
   globalThis.location.hash = hash;
   const renderComposer = vi.fn(() => <div data-testid="composer-view">composer</div>);
   const renderNotifications = vi.fn(() => <div data-testid="notifications-view">notifications</div>);
+  const renderPostEngagement = vi.fn((props: { uri: string | null }) => (
+    <div data-testid="post-engagement-view">{props.uri ?? "none"}</div>
+  ));
   const renderPost = vi.fn((props: { uri: string | null }) => <div data-testid="post-view">{props.uri ?? "none"}</div>);
   const renderProfile = vi.fn((props: { actor: string | null }) => (
     <div data-testid="profile-view">
@@ -56,6 +59,7 @@ function renderRouter(hash: string, options: { preferences?: Record<string, unkn
         renderComposer={renderComposer}
         renderMessages={renderMessages}
         renderNotifications={renderNotifications}
+        renderPostEngagement={renderPostEngagement}
         renderPost={renderPost}
         renderProfile={renderProfile}
         renderShell={Shell}
@@ -63,7 +67,15 @@ function renderRouter(hash: string, options: { preferences?: Record<string, unkn
     </AppTestProviders>
   ));
 
-  return { renderComposer, renderMessages, renderNotifications, renderPost, renderProfile, renderTimeline };
+  return {
+    renderComposer,
+    renderMessages,
+    renderNotifications,
+    renderPost,
+    renderPostEngagement,
+    renderProfile,
+    renderTimeline,
+  };
 }
 
 describe("AppRouter", () => {
@@ -117,6 +129,16 @@ describe("AppRouter", () => {
     await screen.findByTestId("post-view");
 
     expect(renderPost.mock.lastCall?.[0].uri).toBe(uri);
+    expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "false");
+  });
+
+  it("renders post engagement routes with the decoded post uri", async () => {
+    const uri = "at://did:plc:alice/app.bsky.feed.post/123";
+    const { renderPostEngagement } = renderRouter(`#/post/${encodeURIComponent(uri)}/engagement?tab=quotes`);
+
+    await screen.findByTestId("post-engagement-view");
+
+    expect(renderPostEngagement.mock.lastCall?.[0].uri).toBe(uri);
     expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "false");
   });
 

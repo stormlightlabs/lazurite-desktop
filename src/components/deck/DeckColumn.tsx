@@ -1,6 +1,7 @@
 import { ExplorerPanel } from "$/components/explorer/ExplorerPanel";
 import { FeedContent } from "$/components/feeds/FeedContent";
 import { MessagesPanel } from "$/components/messages/MessagesPanel";
+import { usePostNavigation } from "$/components/posts/usePostNavigation";
 import { ProfilePanel } from "$/components/profile/ProfilePanel";
 import { SearchPanel } from "$/components/search/SearchPanel";
 import type { Column, ColumnWidth } from "$/lib/api/types/columns";
@@ -157,6 +158,7 @@ function FeedBody(props: FeedBodyProps) {
 type FeedBodyContentProps = { feed: SavedFeedItem; onOpenThread: (uri: string) => void };
 
 function FeedBodyContent(props: FeedBodyContentProps) {
+  const postNavigation = usePostNavigation();
   const {
     bookmarkPendingByUri,
     likePendingByUri,
@@ -187,6 +189,7 @@ function FeedBodyContent(props: FeedBodyContentProps) {
         onBookmark={(post: PostView) => toggleBookmark(post)}
         onFocusIndex={() => void 0}
         onLike={(post: PostView) => toggleLike(post)}
+        onOpenEngagement={(uri, tab) => Promise.resolve(postNavigation.openPostEngagement(uri, tab))}
         onOpenThread={(uri: string) => Promise.resolve(props.onOpenThread(uri))}
         onQuote={() => void 0}
         onReply={() => void 0}

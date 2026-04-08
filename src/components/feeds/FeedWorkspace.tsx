@@ -1,3 +1,4 @@
+import { usePostNavigation } from "$/components/posts/usePostNavigation";
 import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { Icon } from "$/components/shared/Icon";
 import { useAppSession } from "$/contexts/app-session";
@@ -12,6 +13,7 @@ import { useFeedWorkspaceController } from "./useFeedWorkspaceController";
 
 export function FeedWorkspace() {
   const session = useAppSession();
+  const postNavigation = usePostNavigation();
   const threadOverlay = useThreadOverlayNavigation();
   const activeSession = () => {
     if (!session.activeSession) {
@@ -23,6 +25,7 @@ export function FeedWorkspace() {
   const controller = useFeedWorkspaceController({
     activeSession: activeSession(),
     onError: session.reportError,
+    onOpenPostEngagement: (uri, tab) => void postNavigation.openPostEngagement(uri, tab),
     onOpenThread: (uri) => void threadOverlay.openThread(uri),
   });
 

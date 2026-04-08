@@ -1,3 +1,4 @@
+import type { PostEngagementTab } from "$/lib/post-engagement-routes";
 import type { ProfileTab } from "$/lib/profile";
 import type { FeedViewPost, PostView } from "$/lib/types";
 import { For, Match, Show, Switch } from "solid-js";
@@ -11,6 +12,7 @@ function ProfilePostList(
     items: FeedViewPost[];
     likePendingByUri: Record<string, boolean>;
     onBookmark: (post: PostView) => void;
+    onOpenEngagement: (uri: string, tab: PostEngagementTab) => void;
     onLike: (post: PostView) => void;
     onOpenThread: (uri: string) => void;
     onRepost: (post: PostView) => void;
@@ -26,6 +28,7 @@ function ProfilePostList(
             likePending={!!props.likePendingByUri[item.post.uri]}
             onBookmark={() => props.onBookmark(item.post)}
             onLike={() => props.onLike(item.post)}
+            onOpenEngagement={(tab) => props.onOpenEngagement(item.post.uri, tab)}
             post={item.post}
             item={item}
             onOpenThread={() => props.onOpenThread(item.post.uri)}
@@ -97,6 +100,7 @@ export function ProfileFeedSection(
     loading: boolean;
     loadingMore: boolean;
     onBookmark: (post: PostView) => void;
+    onOpenEngagement: (uri: string, tab: PostEngagementTab) => void;
     onLike: (post: PostView) => void;
     onLoadMore: () => void;
     onOpenThread: (uri: string) => void;
@@ -120,6 +124,7 @@ export function ProfileFeedSection(
               items={props.items}
               likePendingByUri={props.likePendingByUri}
               onBookmark={props.onBookmark}
+              onOpenEngagement={props.onOpenEngagement}
               onLike={props.onLike}
               onOpenThread={props.onOpenThread}
               onRepost={props.onRepost}

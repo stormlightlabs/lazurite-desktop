@@ -38,6 +38,25 @@ describe("AppRail", () => {
     expect(link).toHaveAttribute("href", "#/saved");
   });
 
+  it("tracks in-app history and enables back/forward controls", async () => {
+    renderRail();
+
+    const backButton = await screen.findByRole("button", { name: "Back" });
+    const forwardButton = await screen.findByRole("button", { name: "Forward" });
+    expect(backButton).toBeDisabled();
+    expect(forwardButton).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("link", { name: "Profile" }));
+    await waitFor(() => expect(globalThis.location.hash).toBe("#/profile"));
+    expect(backButton).toBeEnabled();
+    expect(forwardButton).toBeDisabled();
+
+    fireEvent.click(backButton);
+    await waitFor(() => expect(globalThis.location.hash).toBe("#/timeline"));
+    expect(backButton).toBeDisabled();
+    expect(forwardButton).toBeEnabled();
+  });
+
   it("opens the support URL with the opener plugin", async () => {
     renderRail();
 

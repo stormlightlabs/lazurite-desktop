@@ -36,6 +36,7 @@ function createPost() {
     cid: "cid-post",
     indexedAt: "2026-03-28T12:00:00.000Z",
     likeCount: 4,
+    quoteCount: 2,
     record: {
       createdAt: "2026-03-28T12:00:00.000Z",
       facets: [{
@@ -93,17 +94,18 @@ describe("PostCard", () => {
     expect(onOpenThread).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps profile navigation avatar-only and does not open thread on avatar/action clicks", () => {
+  it("keeps profile navigation avatar/handle-only and does not open thread on profile/action clicks", () => {
     const onOpenThread = vi.fn();
     const onLike = vi.fn();
     render(() => <PostCard post={createPost()} onLike={onLike} onOpenThread={onOpenThread} />);
 
     expect(screen.getByRole("link", { name: "View @alice.test" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Alice" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "@alice.test" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "@alice.test" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("link", { name: "View @alice.test" }));
-    fireEvent.click(screen.getByRole("button", { name: "4" }));
+    fireEvent.click(screen.getByRole("link", { name: "@alice.test" }));
+    fireEvent.click(screen.getByRole("button", { name: "Like" }));
 
     expect(onOpenThread).not.toHaveBeenCalled();
     expect(onLike).toHaveBeenCalledTimes(1);
@@ -120,11 +122,17 @@ describe("PostCard", () => {
 
   it("opens the shared menu from the overflow trigger and from right click", async () => {
     Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(void 0) } });
+    const onOpenEngagement = vi.fn();
 
-    render(() => <PostCard post={createPost()} onOpenThread={vi.fn()} />);
+    render(() => <PostCard post={createPost()} onOpenEngagement={onOpenEngagement} onOpenThread={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "More actions" }));
     expect(screen.getByRole("menu", { name: "Post actions" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "4 likes" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "1 repost" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "2 quotes" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: "4 likes" }));
+    expect(onOpenEngagement).toHaveBeenCalledWith("likes");
 
     fireEvent.pointerDown(document.body);
     await waitFor(() => expect(screen.queryByRole("menu", { name: "Post actions" })).not.toBeInTheDocument());
@@ -132,6 +140,32 @@ describe("PostCard", () => {
     fireEvent.contextMenu(screen.getByRole("article"));
     expect(screen.getByRole("menu", { name: "Post actions" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Copy post link" })).toBeInTheDocument();
+  });
+
+  it("uses shift-click on like/repost/quote to open engagement lists without toggling actions", () => {
+    const onLike = vi.fn();
+    const onQuote = vi.fn();
+    const onRepost = vi.fn();
+    const onOpenEngagement = vi.fn();
+    render(() => (
+      <PostCard
+        post={createPost()}
+        onLike={onLike}
+        onOpenEngagement={onOpenEngagement}
+        onQuote={onQuote}
+        onRepost={onRepost} />
+    ));
+
+    fireEvent.click(screen.getByRole("button", { name: "Like" }), { shiftKey: true });
+    fireEvent.click(screen.getByRole("button", { name: "Repost" }), { shiftKey: true });
+    fireEvent.click(screen.getByRole("button", { name: "Quote" }), { shiftKey: true });
+
+    expect(onOpenEngagement).toHaveBeenNthCalledWith(1, "likes");
+    expect(onOpenEngagement).toHaveBeenNthCalledWith(2, "reposts");
+    expect(onOpenEngagement).toHaveBeenNthCalledWith(3, "quotes");
+    expect(onLike).not.toHaveBeenCalled();
+    expect(onRepost).not.toHaveBeenCalled();
+    expect(onQuote).not.toHaveBeenCalled();
   });
 
   it("hides Thread action when no known thread context exists", () => {

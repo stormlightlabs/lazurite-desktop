@@ -19,6 +19,7 @@ import {
   isReplyItem,
 } from "$/lib/feeds";
 import { collectModerationLabels } from "$/lib/moderation";
+import type { PostEngagementTab } from "$/lib/post-engagement-routes";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type {
   EmbedView,
@@ -57,11 +58,16 @@ function mergeModerationDecisions(
   };
 }
 
-function PostHeader(props: { authorHandle: string; authorName: string; createdAt: string }) {
+function PostHeader(props: { authorHandle: string; authorHref: string; authorName: string; createdAt: string }) {
   return (
     <header class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
       <span class="wrap-break-word text-base font-semibold tracking-[-0.01em] text-on-surface">{props.authorName}</span>
-      <span class="break-all text-xs text-on-surface-variant">{props.authorHandle}</span>
+      <a
+        class="break-all text-xs text-primary no-underline transition hover:underline"
+        href={`#${props.authorHref}`}
+        onClick={(event) => event.stopPropagation()}>
+        {props.authorHandle}
+      </a>
       <span class="text-xs text-on-surface-variant">{props.createdAt}</span>
     </header>
   );
@@ -80,7 +86,13 @@ function PostPrimaryRegion(props: ParentProps<{ onFocus?: () => void; onOpenThre
       aria-label={interactive() ? "Open thread" : undefined}
       role={interactive() ? "button" : undefined}
       tabIndex={interactive() ? 0 : undefined}
-      onClick={() => props.onOpenThread?.()}
+      onClick={(event) => {
+        if (isInteractiveTarget(event.target)) {
+          return;
+        }
+
+        props.onOpenThread?.();
+      }}
       onFocus={() => props.onFocus?.()}
       onKeyDown={(event) => {
         if ((event.key === "Enter" || event.key === " ") && props.onOpenThread) {
@@ -95,25 +107,26 @@ function PostPrimaryRegion(props: ParentProps<{ onFocus?: () => void; onOpenThre
 
 type PostActionButtonProps = {
   active?: boolean;
+  ariaLabel?: string;
   busy?: boolean;
   icon: string;
   iconActive?: string;
   label: string;
-  onClick?: () => void;
+  onClick?: (event: MouseEvent) => void;
   pulse?: boolean;
 };
 
 function PostActionButton(props: PostActionButtonProps) {
   return (
     <button
-      aria-label={props.label}
+      aria-label={props.ariaLabel ?? props.label}
       class="inline-flex min-w-0 items-center gap-1.5 rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary disabled:cursor-wait disabled:opacity-70 max-[520px]:px-2.5"
       classList={{ "text-primary": !!props.active }}
       type="button"
       disabled={props.busy}
       onClick={(event) => {
         event.stopPropagation();
-        props.onClick?.();
+        props.onClick?.(event);
       }}>
       <Motion.span
         class="flex items-center"
@@ -135,18 +148,20 @@ type PostActionStatus = {
   likePending: boolean;
   pulseLike: boolean;
   pulseRepost: boolean;
+  quoteCount: string;
   replyCount: string;
   repostCount: string;
   repostPending: boolean;
 };
 
 type PostActionHandlers = {
-  onBookmark?: () => void;
-  onLike?: () => void;
+  onBookmark?: (event: MouseEvent) => void;
+  onLike?: (event: MouseEvent) => void;
+  onOpenEngagement?: (tab: PostEngagementTab) => void;
   onOpenThread?: () => void;
-  onQuote?: () => void;
-  onReply?: () => void;
-  onRepost?: () => void;
+  onQuote?: (event: MouseEvent) => void;
+  onReply?: (event: MouseEvent) => void;
+  onRepost?: (event: MouseEvent) => void;
 };
 
 type PostActionsProps = {
@@ -169,15 +184,21 @@ function PostActions(props: PostActionsProps) {
     <footer class="mt-4 flex min-w-0 flex-wrap items-center gap-2 max-[520px]:gap-1">
       <PostActionButton
         active={status.state.isLiked}
+        ariaLabel="Like"
         busy={status.state.likePending}
         icon="i-ri-heart-3-line"
         iconActive="i-ri-heart-3-fill"
         label={status.state.likeCount}
         pulse={status.state.pulseLike}
         onClick={actions.handlers.onLike} />
-      <PostActionButton icon="i-ri-chat-1-line" label={status.state.replyCount} onClick={actions.handlers.onReply} />
+      <PostActionButton
+        ariaLabel="Reply"
+        icon="i-ri-chat-1-line"
+        label={status.state.replyCount}
+        onClick={actions.handlers.onReply} />
       <PostActionButton
         active={status.state.isReposted}
+        ariaLabel="Repost"
         busy={status.state.repostPending}
         icon="i-ri-repeat-2-line"
         iconActive="i-ri-repeat-2-fill"
@@ -186,12 +207,17 @@ function PostActions(props: PostActionsProps) {
         onClick={actions.handlers.onRepost} />
       <PostActionButton
         active={status.state.isBookmarked}
+        ariaLabel={status.state.isBookmarked ? "Unsave" : "Save"}
         busy={status.state.bookmarkPending}
         icon="i-ri-bookmark-line"
         iconActive="i-ri-bookmark-fill"
         label={status.state.isBookmarked ? "Saved" : "Save"}
         onClick={actions.handlers.onBookmark} />
-      <PostActionButton icon="i-ri-chat-quote-line" label="Quote" onClick={actions.handlers.onQuote} />
+      <PostActionButton
+        ariaLabel="Quote"
+        icon="i-ri-chat-quote-line"
+        label={status.state.quoteCount}
+        onClick={actions.handlers.onQuote} />
       <Show when={visibility.showThreadAction}>
         <PostActionButton icon="i-ri-node-tree" label="Thread" onClick={actions.handlers.onOpenThread} />
       </Show>
@@ -300,6 +326,7 @@ type PostCardProps = {
   onBookmark?: () => void;
   onFocus?: () => void;
   onLike?: () => void;
+  onOpenEngagement?: (tab: PostEngagementTab) => void;
   onOpenThread?: () => void;
   onQuote?: () => void;
   onReply?: () => void;
@@ -316,7 +343,7 @@ export function PostCard(props: PostCardProps) {
   const [view, interactions, actionFlags] = splitProps(
     props,
     ["focused", "item", "post", "registerRef", "showActions"],
-    ["onBookmark", "onFocus", "onLike", "onOpenThread", "onQuote", "onReply", "onRepost"],
+    ["onBookmark", "onFocus", "onLike", "onOpenEngagement", "onOpenThread", "onQuote", "onReply", "onRepost"],
     ["bookmarkPending", "likePending", "pulseLike", "pulseRepost", "repostPending"],
   );
 
@@ -327,6 +354,7 @@ export function PostCard(props: PostCardProps) {
   const isReposted = createMemo(() => !!view.post.viewer?.repost);
   const likeCount = createMemo(() => formatCount(view.post.likeCount));
   const postText = createMemo(() => getPostText(view.post));
+  const quoteCount = createMemo(() => formatCount(view.post.quoteCount));
   const replyCount = createMemo(() => formatCount(view.post.replyCount));
   const repostCount = createMemo(() => formatCount(view.post.repostCount));
   const authorHandle = createMemo(() => formatHandle(view.post.author.handle, view.post.author.did));
@@ -415,6 +443,22 @@ export function PostCard(props: PostCardProps) {
 
     if (interactions.onOpenThread && showThreadAction()) {
       items.push({ icon: "i-ri-node-tree", label: "Open thread", onSelect: interactions.onOpenThread });
+    }
+
+    if (interactions.onOpenEngagement) {
+      items.push({
+        icon: "i-ri-heart-3-line",
+        label: `${formatCount(view.post.likeCount)} ${view.post.likeCount === 1 ? "like" : "likes"}`,
+        onSelect: () => interactions.onOpenEngagement?.("likes"),
+      }, {
+        icon: "i-ri-repeat-2-line",
+        label: `${formatCount(view.post.repostCount)} ${view.post.repostCount === 1 ? "repost" : "reposts"}`,
+        onSelect: () => interactions.onOpenEngagement?.("reposts"),
+      }, {
+        icon: "i-ri-chat-quote-line",
+        label: `${formatCount(view.post.quoteCount)} ${view.post.quoteCount === 1 ? "quote" : "quotes"}`,
+        onSelect: () => interactions.onOpenEngagement?.("quotes"),
+      });
     }
 
     items.push({
@@ -517,22 +561,28 @@ export function PostCard(props: PostCardProps) {
       </Show>
 
       <div class="flex min-w-0 gap-3">
-        <a
-          aria-label={`View @${view.post.author.handle}`}
-          class="shrink-0 no-underline"
-          href={`#${profileHref()}`}
-          onClick={(event) => event.stopPropagation()}>
-          <ModeratedAvatar
-            avatar={view.post.author.avatar}
-            class="relative mt-0.5 h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] shadow-[0_0_0_2px_rgba(14,14,14,1),0_0_0_3px_rgba(125,175,255,0.28)]"
-            hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
-            label={getAvatarLabel(view.post.author)}
-            fallbackClass="text-sm font-semibold text-on-primary-fixed" />
-        </a>
+        <div class="shrink-0">
+          <a
+            aria-label={`View @${view.post.author.handle}`}
+            class="no-underline"
+            href={`#${profileHref()}`}
+            onClick={(event) => event.stopPropagation()}>
+            <ModeratedAvatar
+              avatar={view.post.author.avatar}
+              class="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] shadow-[0_0_0_2px_rgba(14,14,14,1),0_0_0_3px_rgba(125,175,255,0.28)]"
+              hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
+              label={getAvatarLabel(view.post.author)}
+              fallbackClass="text-sm font-semibold text-on-primary-fixed" />
+          </a>
+        </div>
 
         <div class="min-w-0 flex-1">
           <PostPrimaryRegion onFocus={interactions.onFocus} onOpenThread={interactions.onOpenThread}>
-            <PostHeader authorName={authorName()} authorHandle={authorHandle()} createdAt={createdAt()} />
+            <PostHeader
+              authorName={authorName()}
+              authorHandle={authorHandle()}
+              authorHref={profileHref()}
+              createdAt={createdAt()} />
 
             <ModerationBadgeRow decision={contentDecision()} labels={contentLabels()} />
 
@@ -552,12 +602,33 @@ export function PostCard(props: PostCardProps) {
           <Show when={view.showActions !== false}>
             <PostActions
               handlers={{
-                onBookmark: interactions.onBookmark,
-                onLike: interactions.onLike,
+                onBookmark: () => interactions.onBookmark?.(),
+                onLike: (event) => {
+                  if (event.shiftKey && interactions.onOpenEngagement) {
+                    interactions.onOpenEngagement("likes");
+                    return;
+                  }
+
+                  interactions.onLike?.();
+                },
                 onOpenThread: interactions.onOpenThread,
-                onQuote: interactions.onQuote,
-                onReply: interactions.onReply,
-                onRepost: interactions.onRepost,
+                onQuote: (event) => {
+                  if (event.shiftKey && interactions.onOpenEngagement) {
+                    interactions.onOpenEngagement("quotes");
+                    return;
+                  }
+
+                  interactions.onQuote?.();
+                },
+                onReply: () => interactions.onReply?.(),
+                onRepost: (event) => {
+                  if (event.shiftKey && interactions.onOpenEngagement) {
+                    interactions.onOpenEngagement("reposts");
+                    return;
+                  }
+
+                  interactions.onRepost?.();
+                },
               }}
               menu={{
                 open: menuOpen(),
@@ -576,6 +647,7 @@ export function PostCard(props: PostCardProps) {
                 likePending: !!actionFlags.likePending,
                 pulseLike: !!actionFlags.pulseLike,
                 pulseRepost: !!actionFlags.pulseRepost,
+                quoteCount: quoteCount(),
                 replyCount: replyCount(),
                 repostCount: repostCount(),
                 repostPending: !!actionFlags.repostPending,
