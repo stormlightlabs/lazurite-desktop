@@ -1,3 +1,4 @@
+// TODO: there is a lot of prop drilling in this module, and could benefit from the splitProps pattern.
 import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/actor-search";
 import { FeedController } from "$/lib/api/feeds";
 import type { ColumnKind } from "$/lib/api/types/columns";
@@ -392,19 +393,19 @@ function TypeaheadLoading(props: { visible: boolean }) {
   );
 }
 
-function PanelContent(
-  props: {
-    tab: PanelTab;
-    onFeedSelect: (selection: FeedPickerSelection) => void;
-    onExplorerSubmit: (uri: string) => void;
-    onDiagnosticsSubmit: (did: string) => void;
-    onMessagesSubmit: () => void;
-    onProfileSubmit: (
-      selection: { actor: string; did?: string | null; displayName?: string | null; handle?: string | null },
-    ) => void;
-    onSearchSubmit: (query: string, mode: SearchMode) => void;
-  },
-) {
+type PanelContentProps = {
+  tab: PanelTab;
+  onFeedSelect: (selection: FeedPickerSelection) => void;
+  onExplorerSubmit: (uri: string) => void;
+  onDiagnosticsSubmit: (did: string) => void;
+  onMessagesSubmit: () => void;
+  onProfileSubmit: (
+    selection: { actor: string; did?: string | null; displayName?: string | null; handle?: string | null },
+  ) => void;
+  onSearchSubmit: (query: string, mode: SearchMode) => void;
+};
+
+function PanelContent(props: PanelContentProps) {
   return (
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
       <Switch>
@@ -454,13 +455,13 @@ function AddColumnPanelHeader(props: { onClose: () => void }) {
   );
 }
 
-function AddColumnPanelTabs(
-  props: {
-    activeTab: PanelTab;
-    onTabChange: (tab: PanelTab) => void;
-    tabs: Array<{ icon: string; id: PanelTab; label: string }>;
-  },
-) {
+type AddColumnPanelTabsProps = {
+  activeTab: PanelTab;
+  onTabChange: (tab: PanelTab) => void;
+  tabs: Array<{ icon: string; id: PanelTab; label: string }>;
+};
+
+function AddColumnPanelTabs(props: AddColumnPanelTabsProps) {
   return (
     <div class="grid shrink-0 grid-cols-2 gap-1 px-5 py-3">
       <For each={props.tabs}>
@@ -561,6 +562,7 @@ export function AddColumnPanel(props: AddColumnPanelProps) {
     props.onAdd("profile", JSON.stringify(selection));
   }
 
+  // TODO: use IconKind for Icon
   const tabs: Array<{ icon: string; id: PanelTab; label: string }> = [
     { icon: "i-ri-rss-line", id: "feed", label: "Feed" },
     { icon: "i-ri-compass-discover-line", id: "explorer", label: "Explorer" },
