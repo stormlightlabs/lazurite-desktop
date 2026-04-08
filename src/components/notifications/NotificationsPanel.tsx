@@ -1,6 +1,6 @@
+import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
 import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
-import { useModerationDecision } from "$/components/moderation/useModerationDecision";
-import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
+import { useThreadOverlayNavigation } from "$/components/posts/hooks/useThreadOverlayNavigation";
 import { useAppSession } from "$/contexts/app-session";
 import { listNotifications, updateSeen } from "$/lib/api/notifications";
 import { NOTIFICATIONS_UNREAD_COUNT_EVENT } from "$/lib/constants/events";

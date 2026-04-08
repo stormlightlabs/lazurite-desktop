@@ -1,7 +1,7 @@
 import { ExplorerPanel } from "$/components/explorer/ExplorerPanel";
 import { FeedContent } from "$/components/feeds/FeedContent";
 import { MessagesPanel } from "$/components/messages/MessagesPanel";
-import { usePostNavigation } from "$/components/posts/usePostNavigation";
+import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
 import { ProfilePanel } from "$/components/profile/ProfilePanel";
 import { SearchPanel } from "$/components/search/SearchPanel";
 import type { Column, ColumnWidth } from "$/lib/api/types/columns";

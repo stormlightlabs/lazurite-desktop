@@ -1,6 +1,6 @@
 import { DiagnosticsPanel } from "$/components/deck/DiagnosticsPanel";
-import { usePostInteractions } from "$/components/posts/usePostInteractions";
-import { usePostNavigation } from "$/components/posts/usePostNavigation";
+import { usePostInteractions } from "$/components/posts/hooks/usePostInteractions";
+import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
 import { ProfileSkeleton } from "$/components/ProfileSkeleton";
 import { useAppSession } from "$/contexts/app-session";
 import {

@@ -1,5 +1,5 @@
-import { usePostNavigation } from "$/components/posts/usePostNavigation";
-import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
+import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
+import { useThreadOverlayNavigation } from "$/components/posts/hooks/useThreadOverlayNavigation";
 import { Icon } from "$/components/shared/Icon";
 import { useAppSession } from "$/contexts/app-session";
 import { Show } from "solid-js";
@@ -9,7 +9,7 @@ import { FeedComposer } from "./FeedComposer";
 import { SavedFeedsDrawer } from "./FeedDrawer";
 import { FeedPane } from "./FeedPane";
 import { FeedWorkspaceSidebar } from "./FeedWorkspaceSidebar";
-import { useFeedWorkspaceController } from "./useFeedWorkspaceController";
+import { useFeedWorkspaceController } from "./hooks/useFeedWorkspaceController";
 
 export function FeedWorkspace() {
   const session = useAppSession();

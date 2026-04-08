@@ -97,10 +97,7 @@ export function SettingsLogs(props: SettingsLogsProps) {
               class="ui-button-secondary px-3 py-1.5 text-xs">
               Copy all
             </button>
-            <button
-              type="button"
-              onClick={() => void props.loadLogs()}
-              class="ui-button-secondary px-3 py-1.5 text-xs">
+            <button type="button" onClick={() => void props.loadLogs()} class="ui-button-secondary px-3 py-1.5 text-xs">
               Refresh
             </button>
           </div>

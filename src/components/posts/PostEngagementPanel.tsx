@@ -1,4 +1,4 @@
-import { usePostNavigation } from "$/components/posts/usePostNavigation";
+import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
 import { Icon } from "$/components/shared/Icon";
 import { QuotedPostPreview } from "$/components/shared/QuotedPostPreview";
 import { type DiagnosticBacklinkGroup, type DiagnosticBacklinkItem, getRecordBacklinks } from "$/lib/api/diagnostics";

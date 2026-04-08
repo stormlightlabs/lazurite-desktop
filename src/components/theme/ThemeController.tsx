@@ -1,10 +1,10 @@
 import { useAppPreferences } from "$/contexts/app-preferences";
 import {
   applyThemeToDocument,
+  type EffectiveTheme,
   normalizeThemeSetting,
   resolveEffectiveTheme,
   toEffectiveTheme,
-  type EffectiveTheme,
 } from "$/lib/theme";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
@@ -38,33 +38,27 @@ export function ThemeController() {
 
     try {
       const currentWindow = getCurrentWindow();
-      void currentWindow
-        .theme()
-        .then((theme) => {
-          if (cancelled) {
-            return;
-          }
+      void currentWindow.theme().then((theme) => {
+        if (cancelled) {
+          return;
+        }
 
-          setSystemTheme((current) => toEffectiveTheme(theme, current));
-        })
-        .catch(() => {
-          // Browser test environments may not provide native window theme APIs.
-        });
+        setSystemTheme((current) => toEffectiveTheme(theme, current));
+      }).catch(() => {
+        // Browser test environments may not provide native window theme APIs.
+      });
 
-      void currentWindow
-        .onThemeChanged(({ payload }) => {
-          setSystemTheme((current) => toEffectiveTheme(payload, current));
-        })
-        .then((unlisten) => {
-          if (cancelled) {
-            unlisten();
-            return;
-          }
-          unlistenThemeChange = unlisten;
-        })
-        .catch(() => {
-          // Browser test environments may not provide native window theme APIs.
-        });
+      void currentWindow.onThemeChanged(({ payload }) => {
+        setSystemTheme((current) => toEffectiveTheme(payload, current));
+      }).then((unlisten) => {
+        if (cancelled) {
+          unlisten();
+          return;
+        }
+        unlistenThemeChange = unlisten;
+      }).catch(() => {
+        // Browser test environments may not provide native window theme APIs.
+      });
     } catch {
       // Browser test environments may not provide native window APIs.
     }

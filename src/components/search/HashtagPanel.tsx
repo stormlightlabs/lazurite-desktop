@@ -1,5 +1,5 @@
 import { PostCard } from "$/components/feeds/PostCard";
-import { usePostNavigation } from "$/components/posts/usePostNavigation";
+import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
 import { Icon } from "$/components/shared/Icon";
 import { SearchController } from "$/lib/api/search";
 import type { NetworkSearchResult } from "$/lib/api/types/search";

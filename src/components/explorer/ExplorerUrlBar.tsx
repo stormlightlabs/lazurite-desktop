@@ -1,4 +1,4 @@
-import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/actor-search";
+import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/ActorSearch";
 import { ArrowIcon, Icon } from "$/components/shared/Icon";
 import type { LoginSuggestion } from "$/lib/types";
 import { createEffect, createSignal, Show } from "solid-js";

@@ -6,8 +6,8 @@ import { isBlockedNode, isNotFoundNode, isThreadViewPost, patchThreadNode } from
 import type { PostView, ThreadNode, ThreadViewPost } from "$/lib/types";
 import { createEffect, createMemo, For, Match, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
-import { usePostInteractions } from "./usePostInteractions";
-import { usePostNavigation } from "./usePostNavigation";
+import { usePostInteractions } from "./hooks/usePostInteractions";
+import { usePostNavigation } from "./hooks/usePostNavigation";
 
 type PostPanelState = { error: string | null; loading: boolean; thread: ThreadNode | null; uri: string | null };
 

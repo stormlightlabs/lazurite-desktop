@@ -1,4 +1,4 @@
-import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/actor-search";
+import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/ActorSearch";
 import { Icon } from "$/components/shared/Icon";
 import type { LoginSuggestion } from "$/lib/types";
 import * as logger from "@tauri-apps/plugin-log";

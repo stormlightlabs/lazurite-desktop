@@ -1,4 +1,4 @@
-import { usePostNavigation } from "$/components/posts/usePostNavigation";
+import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
 import { LocalPostResultsList, LocalPostResultsSkeletons } from "$/components/search/LocalPostResultsList";
 import { SearchEmptyState } from "$/components/search/SearchEmptyState";
 import { SearchQueryInput } from "$/components/search/SearchQueryInput";

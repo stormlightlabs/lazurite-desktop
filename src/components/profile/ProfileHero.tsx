@@ -1,6 +1,6 @@
+import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
 import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
 import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
-import { useModerationDecision } from "$/components/moderation/useModerationDecision";
 import { Icon } from "$/components/shared/Icon";
 import { getAvatarLabel, getDisplayName } from "$/lib/feeds";
 import { collectModerationLabels } from "$/lib/moderation";

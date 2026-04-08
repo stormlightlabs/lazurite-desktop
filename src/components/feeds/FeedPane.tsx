@@ -5,7 +5,7 @@ import type { FeedGeneratorView, SavedFeedItem } from "$/lib/types";
 import { ComposerLauncher } from "./FeedComposer";
 import { FeedContent } from "./FeedContent";
 import { FeedTabBar } from "./FeedTabs";
-import type { FeedWorkspaceController } from "./useFeedWorkspaceController";
+import type { FeedWorkspaceController } from "./hooks/useFeedWorkspaceController";
 
 function FeedHeaderActions(props: { onCompose: () => void; onRefresh: () => void }) {
   return (

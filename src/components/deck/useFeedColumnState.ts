@@ -1,4 +1,4 @@
-import { usePostInteractions } from "$/components/posts/usePostInteractions";
+import { usePostInteractions } from "$/components/posts/hooks/usePostInteractions";
 import { FeedController } from "$/lib/api/feeds";
 import { patchFeedItems } from "$/lib/feeds";
 import type { FeedViewPost, SavedFeedItem } from "$/lib/types";

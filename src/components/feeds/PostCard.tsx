@@ -1,8 +1,8 @@
+import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
 import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
 import { ModeratedBlurOverlay } from "$/components/moderation/ModeratedBlurOverlay";
 import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { ReportDialog } from "$/components/moderation/ReportDialog";
-import { useModerationDecision } from "$/components/moderation/useModerationDecision";
 import { ContextMenu, type ContextMenuAnchor, type ContextMenuItem } from "$/components/shared/ContextMenu";
 import { Icon } from "$/components/shared/Icon";
 import { PostRichText } from "$/components/shared/PostRichText";

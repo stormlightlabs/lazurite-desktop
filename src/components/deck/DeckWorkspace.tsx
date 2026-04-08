@@ -1,4 +1,4 @@
-import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
+import { useThreadOverlayNavigation } from "$/components/posts/hooks/useThreadOverlayNavigation";
 import { useAppSession } from "$/contexts/app-session";
 import { addColumn, getColumns, removeColumn, reorderColumns, updateColumn } from "$/lib/api/columns";
 import { FeedController } from "$/lib/api/feeds";

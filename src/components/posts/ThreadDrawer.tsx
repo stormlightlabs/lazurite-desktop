@@ -9,9 +9,9 @@ import { createStore } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
 import { PostCard } from "../feeds/PostCard";
 import { HistoryControls } from "../shared/HistoryControls";
-import { usePostInteractions } from "./usePostInteractions";
-import { usePostNavigation } from "./usePostNavigation";
-import { useThreadOverlayNavigation } from "./useThreadOverlayNavigation";
+import { usePostInteractions } from "./hooks/usePostInteractions";
+import { usePostNavigation } from "./hooks/usePostNavigation";
+import { useThreadOverlayNavigation } from "./hooks/useThreadOverlayNavigation";
 
 type ThreadDrawerState = { error: string | null; loading: boolean; thread: ThreadNode | null; uri: string | null };
 

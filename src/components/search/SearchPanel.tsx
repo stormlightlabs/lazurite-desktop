@@ -1,4 +1,4 @@
-import { ActorSuggestionList, getActorSuggestionHeadline } from "$/components/actors/actor-search";
+import { ActorSuggestionList, getActorSuggestionHeadline } from "$/components/actors/ActorSearch";
 import { AvatarBadge } from "$/components/AvatarBadge";
 import { PostCard } from "$/components/feeds/PostCard";
 import { Icon, SearchModeIcon } from "$/components/shared/Icon";
@@ -15,13 +15,13 @@ import { createContext, createEffect, createMemo, createSignal, For, Match, Show
 import { Motion, Presence } from "solid-motionone";
 import { PostCount } from "../shared/PostCount";
 import { EmbeddingsSettings } from "./EmbeddingsSettings";
+import { useSearchController } from "./hooks/useSearchController";
 import { LocalPostResultsList, LocalPostResultsSkeletons } from "./LocalPostResultsList";
 import { PostSearchFiltersRow } from "./PostSearchFilters";
 import { SearchEmptyState } from "./SearchEmptyState";
 import { SearchQueryInput } from "./SearchQueryInput";
 import { SyncStatusPanel } from "./SyncStatusPanel";
 import type { EmptyStateReason } from "./types";
-import { useSearchController } from "./useSearchController";
 
 const MODES: SearchMode[] = ["network", "keyword", "semantic", "hybrid"];
 

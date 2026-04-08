@@ -1,4 +1,4 @@
-import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/actor-search";
+import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/ActorSearch";
 import type { LoginSuggestion } from "$/lib/types";
 import { createEffect, Show } from "solid-js";
 import { Motion } from "solid-motionone";
