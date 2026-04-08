@@ -51,24 +51,27 @@ export function FeedWorkspace() {
         onUnpinFeed={controller.unpinFeed} />
 
       <FeedComposer
-        activeAvatar={session.activeAvatar}
-        activeHandle={session.activeHandle}
-        autosaveStatus={controller.workspace.composer.autosaveStatus}
-        draftCount={controller.workspace.draftCount}
-        open={controller.workspace.composer.open}
-        pending={controller.workspace.composer.pending}
-        quoteTarget={controller.workspace.composer.quoteTarget}
-        replyTarget={controller.workspace.composer.replyTarget}
-        suggestions={controller.composerSuggestions()}
-        text={controller.workspace.composer.text}
-        onApplySuggestion={controller.applySuggestion}
-        onClearQuote={controller.clearQuoteComposer}
-        onClearReply={controller.clearReplyComposer}
-        onClose={() => void controller.resetComposer()}
-        onOpenDrafts={controller.openDraftsList}
-        onSaveDraft={() => void controller.saveAndCloseComposer()}
-        onSubmit={() => void controller.submitPost()}
-        onTextChange={controller.setComposerText} />
+        handlers={{
+          onApplySuggestion: controller.applySuggestion,
+          onClearQuote: controller.clearQuoteComposer,
+          onClearReply: controller.clearReplyComposer,
+          onClose: () => void controller.resetComposer(),
+          onOpenDrafts: controller.openDraftsList,
+          onSaveDraft: () => void controller.saveAndCloseComposer(),
+          onSubmit: () => void controller.submitPost(),
+          onTextChange: controller.setComposerText,
+        }}
+        identity={{ activeAvatar: session.activeAvatar, activeHandle: session.activeHandle }}
+        state={{
+          autosaveStatus: controller.workspace.composer.autosaveStatus,
+          draftCount: controller.workspace.draftCount,
+          open: controller.workspace.composer.open,
+          pending: controller.workspace.composer.pending,
+          quoteTarget: controller.workspace.composer.quoteTarget,
+          replyTarget: controller.workspace.composer.replyTarget,
+          suggestions: controller.composerSuggestions(),
+          text: controller.workspace.composer.text,
+        }} />
 
       <DraftsList
         accountDid={activeSession().did}

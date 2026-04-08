@@ -474,14 +474,14 @@ function SavedPostsHeader(
       </div>
 
       <SearchQueryInput
-        error={null}
-        inputRef={props.queryRef}
-        loading={props.searchLoading}
-        placeholder={props.activeTab === "bookmark" ? "Search saved posts..." : "Search liked posts..."}
-        query={props.query}
-        onClear={props.onSearchClear}
-        onKeyDown={props.onSearchKeyDown}
-        onQueryChange={props.onQueryChange} />
+        actions={{ onClear: props.onSearchClear, onKeyDown: props.onSearchKeyDown, onQueryChange: props.onQueryChange }}
+        refs={{ inputRef: props.queryRef }}
+        state={{
+          error: null,
+          loading: props.searchLoading,
+          placeholder: props.activeTab === "bookmark" ? "Search saved posts..." : "Search liked posts...",
+          query: props.query,
+        }} />
 
       <div class="flex items-center justify-between gap-4">
         <nav class="flex flex-wrap gap-2" aria-label="Saved post tabs">

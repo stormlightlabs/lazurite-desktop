@@ -36,20 +36,17 @@ export function ComposerWindow() {
   return (
     <div class="min-h-screen bg-[radial-gradient(circle_at_top,rgba(125,175,255,0.12),transparent_32%),#000]">
       <ComposerSurface
-        activeAvatar={session.activeAvatar}
-        activeHandle={session.activeHandle}
+        handlers={{
+          onApplySuggestion: () => {},
+          onClearQuote: () => {},
+          onClearReply: () => {},
+          onClose: () => void closeWindow(),
+          onSubmit: () => void submitPost(),
+          onTextChange: setText,
+        }}
+        identity={{ activeAvatar: session.activeAvatar, activeHandle: session.activeHandle }}
         layout="window"
-        pending={pending()}
-        quoteTarget={null}
-        replyTarget={null}
-        suggestions={[]}
-        text={text()}
-        onApplySuggestion={() => {}}
-        onClearQuote={() => {}}
-        onClearReply={() => {}}
-        onClose={() => void closeWindow()}
-        onSubmit={() => void submitPost()}
-        onTextChange={setText} />
+        state={{ pending: pending(), quoteTarget: null, replyTarget: null, suggestions: [], text: text() }} />
     </div>
   );
 }

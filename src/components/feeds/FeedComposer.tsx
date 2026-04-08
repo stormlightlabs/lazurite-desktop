@@ -6,7 +6,28 @@ import { createMemo, For, Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
 import type { AutosaveStatus } from "./types";
 
-type ComposerSuggestion = { label: string; type: "handle" | "hashtag" };
+export type ComposerSuggestion = { label: string; type: "handle" | "hashtag" };
+export type FeedComposerIdentity = { activeAvatar?: string | null; activeHandle: string | null };
+export type FeedComposerState = {
+  autosaveStatus?: AutosaveStatus;
+  draftCount?: number;
+  open: boolean;
+  pending: boolean;
+  quoteTarget: PostView | null;
+  replyTarget: PostView | null;
+  suggestions: ComposerSuggestion[];
+  text: string;
+};
+export type FeedComposerHandlers = {
+  onApplySuggestion: (value: string) => void;
+  onClearQuote: () => void;
+  onClearReply: () => void;
+  onClose: () => void;
+  onOpenDrafts?: () => void;
+  onSaveDraft?: () => void;
+  onSubmit: () => void;
+  onTextChange: (value: string) => void;
+};
 
 export function ComposerLauncher(props: { activeAvatar?: string | null; activeHandle: string; onCompose: () => void }) {
   return (
@@ -30,37 +51,20 @@ export function ComposerLauncher(props: { activeAvatar?: string | null; activeHa
   );
 }
 
-type FeedComposerProps = {
-  activeAvatar?: string | null;
-  activeHandle: string | null;
-  autosaveStatus?: AutosaveStatus;
-  draftCount?: number;
-  open: boolean;
-  pending: boolean;
-  quoteTarget: PostView | null;
-  replyTarget: PostView | null;
-  suggestions: ComposerSuggestion[];
-  text: string;
-  onApplySuggestion: (value: string) => void;
-  onClearQuote: () => void;
-  onClearReply: () => void;
-  onClose: () => void;
-  onOpenDrafts?: () => void;
-  onSaveDraft?: () => void;
-  onSubmit: () => void;
-  onTextChange: (value: string) => void;
-};
+type FeedComposerProps = { handlers: FeedComposerHandlers; identity: FeedComposerIdentity; state: FeedComposerState };
+type ComposerSurfaceState = Omit<FeedComposerState, "open">;
 
-type ComposerSurfaceProps = Omit<FeedComposerProps, "open"> & {
+type ComposerSurfaceProps = {
+  handlers: FeedComposerHandlers;
+  identity: FeedComposerIdentity;
   layout?: "dialog" | "window";
-  onOpenDrafts?: () => void;
-  onSaveDraft?: () => void;
+  state: ComposerSurfaceState;
 };
 
 export function FeedComposer(props: FeedComposerProps) {
   return (
     <Presence>
-      <Show when={props.open}>
+      <Show when={props.state.open}>
         <div class="fixed inset-0 z-50">
           <Motion.button
             class="absolute inset-0 h-full w-full border-0 bg-black/80 backdrop-blur-[20px]"
@@ -69,27 +73,21 @@ export function FeedComposer(props: FeedComposerProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             type="button"
-            onClick={() => props.onClose()} />
+            onClick={() => props.handlers.onClose()} />
 
           <ComposerSurface
-            activeAvatar={props.activeAvatar}
-            activeHandle={props.activeHandle}
-            autosaveStatus={props.autosaveStatus}
-            draftCount={props.draftCount}
+            handlers={props.handlers}
+            identity={props.identity}
             layout="dialog"
-            pending={props.pending}
-            quoteTarget={props.quoteTarget}
-            replyTarget={props.replyTarget}
-            suggestions={props.suggestions}
-            text={props.text}
-            onApplySuggestion={props.onApplySuggestion}
-            onClearQuote={props.onClearQuote}
-            onClearReply={props.onClearReply}
-            onClose={props.onClose}
-            onOpenDrafts={props.onOpenDrafts}
-            onSaveDraft={props.onSaveDraft}
-            onSubmit={props.onSubmit}
-            onTextChange={props.onTextChange} />
+            state={{
+              autosaveStatus: props.state.autosaveStatus,
+              draftCount: props.state.draftCount,
+              pending: props.state.pending,
+              quoteTarget: props.state.quoteTarget,
+              replyTarget: props.state.replyTarget,
+              suggestions: props.state.suggestions,
+              text: props.state.text,
+            }} />
         </div>
       </Show>
     </Presence>
@@ -97,7 +95,7 @@ export function FeedComposer(props: FeedComposerProps) {
 }
 
 export function ComposerSurface(props: ComposerSurfaceProps) {
-  const count = createMemo(() => [...props.text].length);
+  const count = createMemo(() => [...props.state.text].length);
   const progress = createMemo(() => Math.min(100, (count() / 300) * 100));
 
   return (
@@ -109,28 +107,27 @@ export function ComposerSurface(props: ComposerSurfaceProps) {
         exit={{ opacity: 0, y: 30 }}
         transition={{ duration: 0.24, easing: [0.22, 1, 0.36, 1] }}>
         <ComposerHeader
-          activeAvatar={props.activeAvatar}
-          activeHandle={props.activeHandle}
-          draftCount={props.draftCount}
-          pending={props.pending}
-          quoteTarget={props.quoteTarget}
-          text={props.text}
-          onClose={props.onClose}
-          onOpenDrafts={props.onOpenDrafts}
-          onSaveDraft={props.onSaveDraft}
-          onSubmit={props.onSubmit} />
+          activeHandle={props.identity.activeHandle}
+          draftCount={props.state.draftCount}
+          pending={props.state.pending}
+          quoteTarget={props.state.quoteTarget}
+          text={props.state.text}
+          onClose={props.handlers.onClose}
+          onOpenDrafts={props.handlers.onOpenDrafts}
+          onSaveDraft={props.handlers.onSaveDraft}
+          onSubmit={props.handlers.onSubmit} />
         <ComposerBody
-          activeAvatar={props.activeAvatar}
-          activeHandle={props.activeHandle}
-          quoteTarget={props.quoteTarget}
-          replyTarget={props.replyTarget}
-          suggestions={props.suggestions}
-          text={props.text}
-          onApplySuggestion={props.onApplySuggestion}
-          onClearQuote={props.onClearQuote}
-          onClearReply={props.onClearReply}
-          onTextChange={props.onTextChange} />
-        <ComposerFooter autosaveStatus={props.autosaveStatus ?? "idle"} count={count()} progress={progress()} />
+          activeAvatar={props.identity.activeAvatar}
+          activeHandle={props.identity.activeHandle}
+          quoteTarget={props.state.quoteTarget}
+          replyTarget={props.state.replyTarget}
+          suggestions={props.state.suggestions}
+          text={props.state.text}
+          onApplySuggestion={props.handlers.onApplySuggestion}
+          onClearQuote={props.handlers.onClearQuote}
+          onClearReply={props.handlers.onClearReply}
+          onTextChange={props.handlers.onTextChange} />
+        <ComposerFooter autosaveStatus={props.state.autosaveStatus ?? "idle"} count={count()} progress={progress()} />
       </Motion.section>
     </div>
   );
@@ -160,7 +157,6 @@ function getComposerPanelClass(layout: ComposerSurfaceProps["layout"]) {
 
 function ComposerHeader(
   props: {
-    activeAvatar?: string | null;
     activeHandle: string | null;
     draftCount?: number;
     pending: boolean;
