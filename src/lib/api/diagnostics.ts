@@ -2,6 +2,7 @@ import type { ProfileUnavailableReason } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
 
 type TProfile = { did?: string | null; handle?: string | null; displayName?: string | null; avatar?: string | null };
+
 type TAvailability = "available" | "unavailable";
 
 export type DiagnosticList = {
@@ -69,6 +70,7 @@ export type DiagnosticBacklinkItem = {
   rkey?: string | null;
   profile?: (TProfile & { description?: string | null }) | null;
   uri?: string | null;
+  value?: Record<string, unknown> | null;
 };
 
 export type DiagnosticBacklinkGroup = {

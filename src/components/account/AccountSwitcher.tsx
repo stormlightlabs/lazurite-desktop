@@ -73,7 +73,7 @@ export function AccountSwitcher() {
       classList={{
         "z-40": shell.showSwitcher,
         "w-auto": compact(),
-        "max-[1180px]:col-start-3 max-[1180px]:row-start-1 max-[1180px]:justify-self-end": shell.narrowViewport,
+        "max-[1180px]:col-start-4 max-[1180px]:row-start-1 max-[1180px]:justify-self-end": shell.narrowViewport,
         "max-[1180px]:col-span-full max-[1180px]:justify-self-stretch": !shell.narrowViewport,
       }}
       ref={(element) => {
@@ -107,7 +107,7 @@ export function AccountSwitcher() {
 
       <Show when={shell.showSwitcher}>
         <div
-          class="absolute z-50 rounded-2xl bg-(--surface-container-highest) p-4 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px] max-[1180px]:bottom-auto max-[1180px]:top-[calc(100%+0.75rem)]"
+          class="absolute z-50 rounded-2xl bg-surface-container-highest p-4 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px] max-[1180px]:bottom-auto max-[1180px]:top-[calc(100%+0.75rem)]"
           classList={{
             "inset-x-0 bottom-[calc(100%+0.75rem)]": !compact(),
             "bottom-0 left-[calc(100%+0.85rem)] w-[19rem]": compact() && !shell.narrowViewport,

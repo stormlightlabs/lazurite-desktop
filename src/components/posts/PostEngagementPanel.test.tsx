@@ -45,6 +45,7 @@ describe("PostEngagementPanel", () => {
           did: "did:plc:carol",
           profile: { handle: "carol.test", displayName: "Carol" },
           uri: "at://did:plc:carol/app.bsky.feed.post/9",
+          value: { text: "This is a quoted post body." },
         }],
         total: 1,
       },
@@ -72,7 +73,7 @@ describe("PostEngagementPanel", () => {
   it("opens quote posts from the quotes tab", async () => {
     renderPanel(`#/post/${encodeURIComponent(POST_URI)}/engagement?tab=quotes`);
 
-    expect(await screen.findByText("Carol")).toBeInTheDocument();
+    expect(await screen.findByText("This is a quoted post body.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /carol/i }));
 

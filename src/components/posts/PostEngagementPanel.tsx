@@ -1,5 +1,6 @@
 import { usePostNavigation } from "$/components/posts/usePostNavigation";
 import { Icon } from "$/components/shared/Icon";
+import { QuotedPostPreview } from "$/components/shared/QuotedPostPreview";
 import { type DiagnosticBacklinkGroup, type DiagnosticBacklinkItem, getRecordBacklinks } from "$/lib/api/diagnostics";
 import {
   buildPostEngagementTabRoute,
@@ -7,6 +8,8 @@ import {
   type PostEngagementTab,
 } from "$/lib/post-engagement-routes";
 import { buildProfileRoute } from "$/lib/profile";
+import { asRecord } from "$/lib/type-guards";
+import type { ProfileViewBasic } from "$/lib/types";
 import { formatHandle, initials, normalizeError } from "$/lib/utils/text";
 import { useLocation, useNavigate } from "@solidjs/router";
 import * as logger from "@tauri-apps/plugin-log";
@@ -194,9 +197,8 @@ function EngagementList(
   return (
     <div class="grid gap-3">
       <For each={props.items}>
-        {(item, index) => (
+        {(item) => (
           <EngagementRow
-            index={index()}
             item={item}
             kind={props.kind}
             onOpenProfile={props.onOpenProfile}
@@ -209,7 +211,6 @@ function EngagementList(
 
 function EngagementRow(
   props: {
-    index: number;
     item: DiagnosticBacklinkItem;
     kind: PostEngagementTab;
     onOpenProfile: (item: DiagnosticBacklinkItem) => void;
@@ -225,6 +226,8 @@ function EngagementRow(
     props.kind !== "quotes" && !!(props.item.profile?.handle || props.item.did)
   );
   const interactive = createMemo(() => quoteInteractive() || profileInteractive());
+  const quoteText = createMemo(() => getQuoteText(props.item));
+  const quoteAuthor = createMemo(() => getQuoteAuthor(props.item));
 
   return (
     <button
@@ -254,7 +257,20 @@ function EngagementRow(
           </Show>
         </div>
         <p class="m-0 mt-1 text-xs text-on-surface-variant">{handleLabel()}</p>
-        <p class="m-0 mt-2 break-all font-mono text-xs leading-relaxed text-on-surface-variant">{props.item.uri}</p>
+        <Show
+          when={props.kind === "quotes"}
+          fallback={
+            <p class="m-0 mt-2 break-all font-mono text-xs leading-relaxed text-on-surface-variant">{props.item.uri}</p>
+          }>
+          <div class="mt-2">
+            <QuotedPostPreview
+              author={quoteAuthor()}
+              class="rounded-2xl bg-black/28 p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+              text={quoteText() ?? ""}
+              title="Quoted post"
+              truncate />
+          </div>
+        </Show>
       </div>
       <Show when={interactive()}>
         <div class="pt-1 text-on-surface-variant">
@@ -263,6 +279,30 @@ function EngagementRow(
       </Show>
     </button>
   );
+}
+
+function getQuoteRecord(item: DiagnosticBacklinkItem) {
+  return asRecord(item.value);
+}
+
+function getQuoteText(item: DiagnosticBacklinkItem) {
+  const text = getQuoteRecord(item)?.text;
+  return typeof text === "string" && text.trim().length > 0 ? text : null;
+}
+
+function getQuoteAuthor(item: DiagnosticBacklinkItem): ProfileViewBasic | null {
+  const did = item.profile?.did?.trim() || item.did?.trim();
+  const handle = item.profile?.handle?.trim() || did;
+  if (!did || !handle) {
+    return null;
+  }
+
+  return {
+    did,
+    handle,
+    avatar: item.profile?.avatar ?? null,
+    displayName: item.profile?.displayName ?? null,
+  };
 }
 
 function PanelMessage(props: { body: string; title: string }) {

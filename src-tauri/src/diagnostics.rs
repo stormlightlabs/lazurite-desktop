@@ -1,6 +1,5 @@
-use crate::actors::{
-    actor_unavailable_message, classify_actor_unavailability, ActorAvailability, ActorAvailabilityReason,
-};
+use crate::actors::{actor_unavailable_message, classify_actor_unavailability};
+use crate::actors::{ActorAvailability, ActorAvailabilityReason};
 use crate::constellation::{BacklinksResponse, ConstellationClient, ConstellationLinkRecord};
 use crate::error::{AppError, Result};
 use crate::explorer;
@@ -24,15 +23,19 @@ use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use tauri_plugin_log::log;
 
-const LIST_MEMBERSHIP_SOURCE: &str = "app.bsky.graph.listitem:subject";
 const LIST_MEMBERSHIP_PATH_TO_OTHER: &str = "list";
+const BLOCK_COLLECTION: &str = "app.bsky.graph.block";
+
+// TODO: this should be a source enum
+const LIST_MEMBERSHIP_SOURCE: &str = "app.bsky.graph.listitem:subject";
 const BLOCK_SOURCE: &str = "app.bsky.graph.block:subject";
 const STARTER_PACK_SOURCE: &str = "app.bsky.graph.starterpack:listItemsSample[].subject";
-const BLOCK_COLLECTION: &str = "app.bsky.graph.block";
 const LIKES_SOURCE: &str = "app.bsky.feed.like:subject.uri";
 const REPOSTS_SOURCE: &str = "app.bsky.feed.repost:subject.uri";
 const REPLIES_SOURCE: &str = "app.bsky.feed.post:reply.parent.uri";
 const QUOTES_SOURCE: &str = "app.bsky.feed.post:embed.record.uri";
+
+// TODO: this should be a Limit enum
 const PUBLIC_BATCH_LIMIT: usize = 25;
 const ACCOUNT_LIST_PAGE_LIMIT: u32 = 100;
 const ACCOUNT_LIST_MAX_ITEMS: usize = 200;
@@ -132,6 +135,7 @@ pub struct BacklinkRecordItem {
     pub collection: String,
     pub rkey: String,
     pub profile: Option<Value>,
+    pub value: Option<Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -418,10 +422,10 @@ pub async fn get_record_backlinks(uri: String, state: &AppState) -> Result<Recor
     let normalized_uri = normalize_at_uri(&uri)?;
     let client = constellation_client(state)?;
 
-    let likes = fetch_backlink_group(&client, &normalized_uri, LIKES_SOURCE).await?;
-    let reposts = fetch_backlink_group(&client, &normalized_uri, REPOSTS_SOURCE).await?;
-    let replies = fetch_backlink_group(&client, &normalized_uri, REPLIES_SOURCE).await?;
-    let quotes = fetch_backlink_group(&client, &normalized_uri, QUOTES_SOURCE).await?;
+    let likes = fetch_backlink_group(&client, &normalized_uri, LIKES_SOURCE, false).await?;
+    let reposts = fetch_backlink_group(&client, &normalized_uri, REPOSTS_SOURCE, false).await?;
+    let replies = fetch_backlink_group(&client, &normalized_uri, REPLIES_SOURCE, false).await?;
+    let quotes = fetch_backlink_group(&client, &normalized_uri, QUOTES_SOURCE, true).await?;
 
     Ok(RecordBacklinksResult { likes, reposts, replies, quotes })
 }
@@ -730,7 +734,9 @@ async fn fetch_starter_packs(uris: &[String]) -> Result<Vec<Value>> {
     Ok(starter_packs)
 }
 
-async fn fetch_backlink_group(client: &ConstellationClient, subject: &str, source: &str) -> Result<BacklinkGroup> {
+async fn fetch_backlink_group(
+    client: &ConstellationClient, subject: &str, source: &str, include_record_value: bool,
+) -> Result<BacklinkGroup> {
     let response = client
         .get_backlinks(
             subject.to_string(),
@@ -741,30 +747,66 @@ async fn fetch_backlink_group(client: &ConstellationClient, subject: &str, sourc
         .await
         .map_err(|error| AppError::diagnostics("Couldn't load record backlinks right now.", error))?;
 
-    build_backlink_group(response).await
+    build_backlink_group(response, include_record_value).await
 }
 
-async fn build_backlink_group(response: BacklinksResponse) -> Result<BacklinkGroup> {
+async fn build_backlink_group(response: BacklinksResponse, include_record_value: bool) -> Result<BacklinkGroup> {
     let dids = response
         .records
         .iter()
         .map(|record| record.did.clone())
         .collect::<Vec<_>>();
     let profiles = fetch_profiles_lookup(&dids).await?;
+    let values = if include_record_value {
+        fetch_backlink_record_values(&response.records).await
+    } else {
+        HashMap::new()
+    };
 
     let records = response
         .records
         .into_iter()
-        .map(|record| BacklinkRecordItem {
-            uri: link_record_uri(&record),
-            profile: profiles.get(&record.did).cloned(),
-            did: record.did,
-            collection: record.collection,
-            rkey: record.rkey,
+        .map(|record| {
+            let uri = link_record_uri(&record);
+            BacklinkRecordItem {
+                value: values.get(&uri).cloned(),
+                profile: profiles.get(&record.did).cloned(),
+                did: record.did,
+                collection: record.collection,
+                rkey: record.rkey,
+                uri,
+            }
         })
         .collect();
 
     Ok(BacklinkGroup { total: response.total, records, cursor: response.cursor })
+}
+
+async fn fetch_backlink_record_values(records: &[ConstellationLinkRecord]) -> HashMap<String, Value> {
+    let mut values = HashMap::with_capacity(records.len());
+
+    for record in records {
+        let uri = link_record_uri(record);
+        match explorer::get_record(record.did.clone(), record.collection.clone(), record.rkey.clone()).await {
+            Ok(payload) => {
+                if let Some(value) = extract_backlink_record_value(payload) {
+                    values.insert(uri, value);
+                }
+            }
+            Err(error) => {
+                log::warn!("failed to load backlink record payload for {uri}: {error}");
+            }
+        }
+    }
+
+    values
+}
+
+fn extract_backlink_record_value(payload: Value) -> Option<Value> {
+    match payload {
+        Value::Object(mut object) => object.remove("value").or(Some(Value::Object(object))),
+        _ => None,
+    }
 }
 
 async fn fetch_profiles_lookup(dids: &[String]) -> Result<HashMap<String, Value>> {
@@ -844,8 +886,8 @@ fn extract_created_at(value: &Value) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        dedupe_preserve_order, extract_blocker_dids, extract_confirmed_blocked_by_dids, extract_created_at,
-        extract_subject_did, should_skip_missing_resource,
+        dedupe_preserve_order, extract_backlink_record_value, extract_blocker_dids, extract_confirmed_blocked_by_dids,
+        extract_created_at, extract_subject_did, should_skip_missing_resource,
     };
     use crate::constellation::ConstellationLinkRecord;
     use jacquard::api::app_bsky::graph::{get_relationships::GetRelationshipsOutputRelationshipsItem, Relationship};
@@ -927,6 +969,29 @@ mod tests {
         assert_eq!(
             extract_confirmed_blocked_by_dids(&relationships),
             vec!["did:plc:one".to_string()]
+        );
+    }
+
+    #[test]
+    fn extracts_backlink_record_value_field() {
+        let payload = json!({
+            "uri": "at://did:plc:alice/app.bsky.feed.post/1",
+            "value": { "text": "quoted body" }
+        });
+
+        assert_eq!(
+            extract_backlink_record_value(payload),
+            Some(json!({ "text": "quoted body" }))
+        );
+    }
+
+    #[test]
+    fn keeps_object_payload_when_value_field_missing() {
+        let payload = json!({ "text": "direct record body" });
+
+        assert_eq!(
+            extract_backlink_record_value(payload),
+            Some(json!({ "text": "direct record body" }))
         );
     }
 }
