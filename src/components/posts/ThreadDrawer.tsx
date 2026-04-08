@@ -2,11 +2,13 @@ import { Icon } from "$/components/shared/Icon";
 import { useAppSession } from "$/contexts/app-session";
 import { FeedController } from "$/lib/api/feeds";
 import { findRootPost, isBlockedNode, isNotFoundNode, isThreadViewPost, patchThreadNode } from "$/lib/feeds";
+import { useNavigationHistory } from "$/lib/navigation-history";
 import type { PostView, ThreadNode } from "$/lib/types";
-import { createEffect, createMemo, For, Match, onCleanup, Show, Switch } from "solid-js";
+import { createEffect, createMemo, For, Match, onCleanup, Show, splitProps, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
 import { PostCard } from "../feeds/PostCard";
+import { HistoryControls } from "../shared/HistoryControls";
 import { usePostInteractions } from "./usePostInteractions";
 import { usePostNavigation } from "./usePostNavigation";
 import { useThreadOverlayNavigation } from "./useThreadOverlayNavigation";
@@ -72,6 +74,7 @@ export function ThreadDrawer() {
   const session = useAppSession();
   const postNavigation = usePostNavigation();
   const threadOverlay = useThreadOverlayNavigation();
+  const history = useNavigationHistory();
   const [state, setState] = createStore<ThreadDrawerState>(createThreadDrawerState());
   const activeUri = createMemo(() => (threadOverlay.drawerEnabled() ? threadOverlay.threadUri() : null));
   const rootPost = createMemo(() => findRootPost(state.thread));
@@ -157,6 +160,10 @@ export function ThreadDrawer() {
             transition={{ duration: 0.22 }}>
             <ThreadDrawerHeader
               activeUri={activeUri()}
+              canGoBack={history.canGoBack()}
+              canGoForward={history.canGoForward()}
+              onGoBack={history.goBack}
+              onGoForward={history.goForward}
               onMaximize={(uri) => void postNavigation.openPostScreen(uri)}
               parentThreadHref={parentThreadHref()}
               onClose={() => void threadOverlay.closeThread()} />
@@ -235,16 +242,21 @@ function ThreadDrawerBody(
 function ThreadDrawerHeader(
   props: {
     activeUri: string | null;
+    canGoBack: boolean;
+    canGoForward: boolean;
     onClose: () => void;
+    onGoBack: () => void;
+    onGoForward: () => void;
     onMaximize: (uri: string) => void;
     parentThreadHref: string | null;
   },
 ) {
+  const [local, historyControls] = splitProps(props, ["parentThreadHref", "activeUri", "onClose", "onMaximize"]);
   return (
-    <header class="sticky top-0 z-10 mb-4 flex items-center justify-between rounded-3xl bg-surface-container-high px-4 py-3 shadow-[var(--inset-shadow)]">
-      <div>
+    <header class="sticky top-0 z-10 mb-4 flex items-center gap-3 rounded-3xl bg-surface-container-high px-4 py-3 shadow-(--inset-shadow)">
+      <div class="min-w-0 flex-1">
         <p class="m-0 text-base font-semibold text-on-surface">Thread</p>
-        <Show when={props.parentThreadHref}>
+        <Show when={local.parentThreadHref}>
           {(href) => (
             <a
               class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant no-underline transition hover:text-primary hover:underline"
@@ -254,14 +266,17 @@ function ThreadDrawerHeader(
           )}
         </Show>
       </div>
-      <div class="flex items-center gap-2">
-        <Show when={props.activeUri}>
+      <div class="flex items-center gap-1">
+        <HistoryControls {...historyControls} />
+      </div>
+      <div class="flex flex-1 items-center justify-end gap-2">
+        <Show when={local.activeUri}>
           {(uri) => (
             <button
               aria-label="Open full post"
               class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-surface-bright hover:text-on-surface"
               type="button"
-              onClick={() => props.onMaximize(uri())}>
+              onClick={() => local.onMaximize(uri())}>
               <Icon aria-hidden="true" iconClass="i-ri-external-link-line" />
             </button>
           )}
@@ -269,7 +284,7 @@ function ThreadDrawerHeader(
         <button
           class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-surface-bright hover:text-on-surface"
           type="button"
-          onClick={() => props.onClose()}>
+          onClick={() => local.onClose()}>
           <Icon aria-hidden="true" iconClass="i-ri-close-line" />
         </button>
       </div>
@@ -318,7 +333,7 @@ function ThreadNodeView(
           <div class="grid gap-4">
             <Show when={threadNode().parent}>
               {(parent) => (
-                <div class="tone-muted rounded-3xl p-3 shadow-[var(--inset-shadow)]">
+                <div class="tone-muted rounded-3xl p-3 shadow-(--inset-shadow)">
                   <ThreadNodeView
                     activeUri={props.activeUri}
                     bookmarkPendingByUri={props.bookmarkPendingByUri}
@@ -348,7 +363,7 @@ function ThreadNodeView(
               repostPending={!!props.repostPendingByUri[threadNode().post.uri]} />
 
             <Show when={threadNode().replies?.length}>
-              <div class="tone-muted grid gap-4 rounded-3xl p-3 shadow-[var(--inset-shadow)]">
+              <div class="tone-muted grid gap-4 rounded-3xl p-3 shadow-(--inset-shadow)">
                 <For each={threadNode().replies}>
                   {(reply) => (
                     <ThreadNodeView
@@ -376,7 +391,7 @@ function ThreadNodeView(
 
 function StateCard(props: { label: string; meta: string }) {
   return (
-    <div class="tone-muted rounded-3xl p-4 shadow-[var(--inset-shadow)]">
+    <div class="tone-muted rounded-3xl p-4 shadow-(--inset-shadow)">
       <p class="m-0 text-sm font-semibold text-on-surface">{props.label}</p>
       <p class="mt-1 text-xs text-on-surface-variant">{props.meta}</p>
     </div>
@@ -385,7 +400,7 @@ function StateCard(props: { label: string; meta: string }) {
 
 function SkeletonThreadCard() {
   return (
-    <div class="tone-muted rounded-3xl p-5 shadow-[var(--inset-shadow)]">
+    <div class="tone-muted rounded-3xl p-5 shadow-(--inset-shadow)">
       <div class="flex gap-3">
         <div class="skeleton-block h-11 w-11 rounded-full" />
         <div class="min-w-0 flex-1">

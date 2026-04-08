@@ -62,7 +62,7 @@ export function ProfileFeedSkeleton() {
     <div class="grid gap-3">
       <For each={Array.from({ length: 3 })}>
         {() => (
-          <div class="tone-muted rounded-3xl p-5 shadow-[var(--inset-shadow)]">
+          <div class="tone-muted rounded-3xl p-5 shadow-(--inset-shadow)">
             <div class="flex items-start gap-3">
               <span class="skeleton-block h-11 w-11 rounded-full" />
               <div class="grid min-w-0 flex-1 gap-2">
@@ -80,7 +80,7 @@ export function ProfileFeedSkeleton() {
 
 export function ProfileFeedMessage(props: { body: string; title: string }) {
   return (
-    <div class="tone-muted grid place-items-center rounded-3xl px-6 py-12 text-center shadow-[var(--inset-shadow)]">
+    <div class="tone-muted grid place-items-center rounded-3xl px-6 py-12 text-center shadow-(--inset-shadow)">
       <div class="grid max-w-lg gap-2">
         <p class="m-0 text-lg font-semibold tracking-[-0.02em] text-on-surface">{props.title}</p>
         <p class="m-0 text-sm leading-relaxed text-on-surface-variant">{props.body}</p>

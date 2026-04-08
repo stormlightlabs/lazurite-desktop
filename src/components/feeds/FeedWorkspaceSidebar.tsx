@@ -51,7 +51,7 @@ function SidebarFeedButton(
 ) {
   return (
     <button
-      class="tone-muted flex w-full items-center gap-3 rounded-1xl border-0 px-3 py-3 text-left text-on-surface shadow-[var(--inset-shadow)] transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright"
+      class="tone-muted flex w-full items-center gap-3 rounded-1xl border-0 px-3 py-3 text-left text-on-surface shadow-(--inset-shadow) transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright"
       type="button"
       onClick={() => props.onSelect(props.feed.id)}>
       <FeedChipAvatar feed={props.feed} generator={props.generator} />
@@ -132,7 +132,7 @@ function ShortcutsCard() {
 
 function SidebarCard(props: ParentProps & { subtitle: string; title: string }) {
   return (
-    <section class="tone-muted rounded-3xl p-4 shadow-[var(--inset-shadow)]">
+    <section class="tone-muted rounded-3xl p-4 shadow-(--inset-shadow)">
       <p class="m-0 text-base font-semibold text-on-surface">{props.title}</p>
       <p class="mt-1 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.subtitle}</p>
       <div class="mt-4">{props.children}</div>
@@ -142,7 +142,7 @@ function SidebarCard(props: ParentProps & { subtitle: string; title: string }) {
 
 function ToggleRow(props: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
   return (
-    <label class="tone-muted flex items-center justify-between gap-3 rounded-2xl px-3 py-3 text-sm text-on-surface shadow-[var(--inset-shadow)]">
+    <label class="tone-muted flex items-center justify-between gap-3 rounded-2xl px-3 py-3 text-sm text-on-surface shadow-(--inset-shadow)">
       <span>{props.label}</span>
       <input checked={props.checked} type="checkbox" onInput={(event) => props.onChange(event.currentTarget.checked)} />
     </label>
@@ -151,7 +151,7 @@ function ToggleRow(props: { checked: boolean; label: string; onChange: (checked:
 
 function ShortcutLine(props: { keys: string; label: string }) {
   return (
-    <div class="tone-muted flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 shadow-[var(--inset-shadow)]">
+    <div class="tone-muted flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 shadow-(--inset-shadow)">
       <span>{props.label}</span>
       <span class="ui-input-strong rounded-full px-2 py-1 text-[0.68rem] uppercase tracking-[0.08em] text-primary">
         {props.keys}

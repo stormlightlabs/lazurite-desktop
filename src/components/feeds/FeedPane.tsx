@@ -74,7 +74,7 @@ function FeedPaneTitle(
   },
 ) {
   return (
-    <div class="flex min-w-0 items-start justify-between gap-4 max-[960px]:flex-col max-[960px]:items-stretch max-[900px]:gap-3">
+    <div class="flex min-w-0 items-start justify-between gap-4 max-[960px]:flex-col max-[960px]:items-stretch max-md:gap-3">
       <div class="min-w-0">
         <p class="m-0 text-xl font-semibold tracking-tight text-on-surface">Timeline</p>
         <p class="mt-1 wrap-break-word text-xs uppercase tracking-[0.12em] text-on-surface-variant">

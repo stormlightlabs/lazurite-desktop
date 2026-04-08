@@ -87,13 +87,13 @@ function ProfileBadgeRow(props: { badges: string[]; isSelf: boolean }) {
     <div class="flex flex-wrap items-center justify-end gap-2">
       <For each={props.badges}>
         {(badge) => (
-          <span class="tone-muted inline-flex items-center rounded-full px-3 py-2 text-xs font-medium text-on-surface shadow-[var(--inset-shadow)]">
+          <span class="tone-muted inline-flex items-center rounded-full px-3 py-2 text-xs font-medium text-on-surface shadow-(--inset-shadow)">
             {badge}
           </span>
         )}
       </For>
       <Show when={props.badges.length === 0}>
-        <span class="tone-muted inline-flex items-center rounded-full px-3 py-2 text-xs font-medium text-on-surface-variant shadow-[var(--inset-shadow)]">
+        <span class="tone-muted inline-flex items-center rounded-full px-3 py-2 text-xs font-medium text-on-surface-variant shadow-(--inset-shadow)">
           {props.isSelf ? "Signed in" : "Public profile"}
         </span>
       </Show>
@@ -136,7 +136,7 @@ function ProfileMetaRow(
       <Show when={props.pinnedPostHref}>
         {(href) => (
           <a
-            class="tone-muted inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium text-on-surface no-underline shadow-[var(--inset-shadow)] transition hover:-translate-y-px hover:bg-surface-bright"
+            class="tone-muted inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium text-on-surface no-underline shadow-(--inset-shadow) transition hover:-translate-y-px hover:bg-surface-bright"
             href={`#${href()}`}>
             <Icon iconClass="i-ri-pushpin-2-line" class="text-base" />
             <span>Pinned post</span>
@@ -181,7 +181,7 @@ function FollowButton(props: { isFollowing: boolean; loading: boolean; onFollow:
 function MessageButton(props: { onClick: () => void }) {
   return (
     <button
-      class="tone-muted inline-flex min-h-9 items-center gap-2 rounded-full border ui-outline-subtle px-4 text-sm font-medium text-on-surface shadow-[var(--inset-shadow)] transition duration-150 ease-out hover:bg-surface-bright"
+      class="tone-muted inline-flex min-h-9 items-center gap-2 rounded-full border ui-outline-subtle px-4 text-sm font-medium text-on-surface shadow-(--inset-shadow) transition duration-150 ease-out hover:bg-surface-bright"
       type="button"
       onClick={() => props.onClick()}>
       <Icon kind="messages" class="text-base" />
@@ -231,7 +231,7 @@ export function ProfileHero(
       </div>
 
       <div class="relative z-10 -mt-16 px-6 pb-6 max-[760px]:px-4 max-[520px]:px-3">
-        <div class="grid gap-5 rounded-4xl bg-surface-container-highest px-5 pb-6 pt-5 shadow-[var(--inset-shadow)] backdrop-blur-[18px] max-[760px]:px-4 max-[520px]:px-3.5">
+        <div class="grid gap-5 rounded-4xl bg-surface-container-highest px-5 pb-6 pt-5 shadow-(--inset-shadow) backdrop-blur-[18px] max-[760px]:px-4 max-[520px]:px-3.5">
           <div class="flex flex-wrap items-start justify-between gap-5">
             <ProfileAvatar profile={props.profile} />
 
@@ -296,7 +296,7 @@ export function ProfileStickyHeader(props: { profile: ProfileViewDetailed; profi
     <div
       class="sticky top-0 z-30 px-3 pb-3 pt-3 backdrop-blur-[18px] max-[520px]:px-2"
       data-testid="profile-sticky-header">
-      <div class="flex items-center gap-3 rounded-3xl bg-surface-container-high px-4 py-3 shadow-[var(--inset-shadow)]">
+      <div class="flex items-center gap-3 rounded-3xl bg-surface-container-high px-4 py-3 shadow-(--inset-shadow)">
         <ModeratedAvatar
           avatar={props.profile.avatar}
           class="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-surface-container-high shadow-[0_0_0_2px_var(--surface),0_0_0_3px_rgba(125,175,255,0.22)]"
@@ -317,7 +317,7 @@ export function ProfileStickyHeader(props: { profile: ProfileViewDetailed; profi
           <div class="ml-auto hidden flex-wrap justify-end gap-2 min-[720px]:flex">
             <For each={visibleBadges()}>
               {(badge) => (
-                <span class="tone-muted inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium text-on-surface shadow-[var(--inset-shadow)]">
+                <span class="tone-muted inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium text-on-surface shadow-(--inset-shadow)">
                   {badge}
                 </span>
               )}

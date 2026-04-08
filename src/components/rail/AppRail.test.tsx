@@ -76,6 +76,13 @@ describe("AppRail", () => {
     expect(await screen.findByRole("button", { name: "Theme menu" })).toBeInTheDocument();
   });
 
+  it("stretches the theme trigger to match full-width secondary rail actions", async () => {
+    renderRail();
+
+    const trigger = await screen.findByRole("button", { name: "Theme menu" });
+    expect(trigger.className).toContain("w-full");
+  });
+
   it("hides the theme menu trigger when disabled in shell preferences", async () => {
     renderRail({ shell: { showThemeRailControl: false } });
 

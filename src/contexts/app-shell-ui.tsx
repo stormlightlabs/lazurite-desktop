@@ -66,7 +66,7 @@ function createAppShellUiValue(): AppShellUiContextValue {
   }
 
   onMount(() => {
-    const media = globalThis.matchMedia("(max-width: 1180px)");
+    const media = globalThis.matchMedia("(max-width: 64rem)");
     const syncViewport = () => setShell("narrowViewport", media.matches);
 
     const stored = globalThis.localStorage.getItem(RAIL_COLLAPSED_STORAGE_KEY);
@@ -91,10 +91,7 @@ function createAppShellUiValue(): AppShellUiContextValue {
   });
 
   createEffect(() => {
-    globalThis.localStorage.setItem(
-      RAIL_THEME_CONTROL_STORAGE_KEY,
-      shell.showThemeRailControl ? "true" : "false",
-    );
+    globalThis.localStorage.setItem(RAIL_THEME_CONTROL_STORAGE_KEY, shell.showThemeRailControl ? "true" : "false");
   });
 
   return {

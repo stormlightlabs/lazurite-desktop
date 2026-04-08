@@ -18,8 +18,8 @@ import { ProfilePanel } from "./components/profile/ProfilePanel";
 import { AppRail } from "./components/rail/AppRail";
 import { SessionSpotlight } from "./components/Session";
 import { ErrorToast } from "./components/shared/ErrorToast";
-import { AppPreferencesProvider } from "./contexts/app-preferences";
 import { ThemeController } from "./components/theme/ThemeController";
+import { AppPreferencesProvider } from "./contexts/app-preferences";
 import { AppSessionProvider, useAppSession } from "./contexts/app-session";
 import { AppShellUiProvider, useAppShellUi } from "./contexts/app-shell-ui";
 import { AppRouter } from "./router";
@@ -54,16 +54,16 @@ function AppShell(props: AppShellProps) {
   return (
     <>
       <main
-        class="grid h-screen min-h-screen overflow-hidden grid-cols-(--app-rail-cols) transition-[grid-template-columns] duration-300 ease-out max-[1180px]:h-auto max-[1180px]:min-h-screen max-[1180px]:grid-cols-1 max-[1180px]:overflow-visible"
+        class="grid h-screen min-h-screen overflow-hidden grid-cols-(--app-rail-cols) transition-[grid-template-columns] duration-300 ease-out max-lg:h-auto max-lg:min-h-screen max-lg:grid-cols-1 max-lg:overflow-visible"
         style={{ "--app-rail-cols": shell.railColumns }}>
         <AppRail />
 
         <section
-          class="grid min-h-0 overflow-hidden bg-surface max-[1180px]:min-h-[calc(100vh-4.75rem)] max-[1180px]:overflow-visible"
+          class="grid min-h-0 overflow-hidden bg-surface max-lg:min-h-[calc(100vh-4.75rem)] max-lg:overflow-visible"
           classList={{
-            "m-5 gap-6 rounded-2xl p-6 shadow-[0_24px_40px_rgba(125,175,255,0.05)] max-[1360px]:p-6 max-[1180px]:m-0 max-[1180px]:rounded-none max-[1180px]:p-5 max-[900px]:gap-5 max-[900px]:p-4 max-[640px]:gap-4 max-[640px]:p-3":
+            "m-5 gap-6 rounded-2xl p-6 shadow-[0_24px_40px_rgba(125,175,255,0.05)] max-xl:p-6 max-lg:m-0 max-lg:rounded-none max-lg:p-5 max-md:gap-5 max-md:p-4 max-sm:gap-4 max-sm:p-3":
               !props.fullWidth,
-            "max-[1180px]:m-0 max-[1180px]:rounded-none": props.fullWidth,
+            "max-lg:m-0 max-lg:rounded-none": props.fullWidth,
           }}
           aria-busy={session.bootstrapping}>
           {props.children}

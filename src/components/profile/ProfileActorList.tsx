@@ -99,7 +99,7 @@ function ActorCard(props: ActorCardProps) {
   const isFollowing = createMemo(() => !!props.actor.viewer?.following);
 
   return (
-    <article class="tone-muted rounded-3xl p-4 shadow-[var(--inset-shadow)]">
+    <article class="tone-muted rounded-3xl p-4 shadow-(--inset-shadow)">
       <div class="flex items-start gap-3">
         <button
           class="flex min-w-0 flex-1 items-start gap-3 border-0 bg-transparent p-0 text-left transition hover:opacity-90"
@@ -189,7 +189,7 @@ function ActorListSkeleton() {
     <div class="grid gap-2 pt-1">
       <For each={Array.from({ length: 6 })}>
         {() => (
-          <div class="tone-muted rounded-3xl p-4 shadow-[var(--inset-shadow)]">
+          <div class="tone-muted rounded-3xl p-4 shadow-(--inset-shadow)">
             <div class="flex items-start gap-3">
               <span class="skeleton-block h-11 w-11 shrink-0 rounded-full" />
               <div class="grid flex-1 gap-1.5">

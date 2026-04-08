@@ -372,7 +372,7 @@ export function DeckWorkspace() {
   });
 
   return (
-    <div class="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-6 py-5 max-[900px]:px-4 max-[900px]:py-4 max-[640px]:px-3 max-[640px]:py-3">
+    <div class="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-6 py-5 max-md:px-4 max-md:py-4 max-sm:px-3 max-sm:py-3">
       <DeckToolbar columnCount={state.columns.length} onAdd={() => setState("addPanelOpen", true)} />
 
       <div class="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-contain">

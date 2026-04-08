@@ -27,11 +27,11 @@ export function FeedTabBar(
         </For>
       </div>
       <button
-        class="inline-flex h-11 shrink-0 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8 max-[1040px]:px-3 max-[1040px]:text-xs max-[900px]:w-11 max-[900px]:justify-center max-[900px]:px-0"
+        class="inline-flex h-11 shrink-0 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8 max-[1040px]:px-3 max-[1040px]:text-xs max-md:w-11 max-md:justify-center max-md:px-0"
         type="button"
         onClick={() => props.onToggleDrawer()}>
         <Icon aria-hidden="true" iconClass="i-ri-stack-line" />
-        <span class="max-[900px]:hidden">Saved feeds</span>
+        <span class="max-md:hidden">Saved feeds</span>
       </button>
     </div>
   );
@@ -49,7 +49,7 @@ function FeedTab(
       type="button"
       onClick={() => props.onSelect(props.feed.id)}>
       <FeedChipAvatar feed={props.feed} generator={props.generator} />
-      <span class="max-w-44 truncate max-[900px]:max-w-36 max-[720px]:max-w-30">
+      <span class="max-w-44 truncate max-md:max-w-36 max-[720px]:max-w-30">
         {getFeedName(props.feed, props.generator?.displayName)}
       </span>
     </button>

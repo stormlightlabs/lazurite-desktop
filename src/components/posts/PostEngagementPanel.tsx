@@ -121,7 +121,7 @@ export function PostEngagementPanel(props: { uri: string | null }) {
   }
 
   return (
-    <section class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-4xl bg-surface-container shadow-[var(--inset-shadow)]">
+    <section class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-4xl bg-surface-container shadow-(--inset-shadow)">
       <header class="sticky top-0 z-20 flex items-center justify-between gap-3 bg-surface-container-high px-6 pb-4 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_var(--outline-subtle)] max-[760px]:px-4 max-[520px]:px-3">
         <div class="min-w-0">
           <p class="m-0 text-xl font-semibold tracking-tight text-on-surface">Post Engagement</p>
@@ -232,7 +232,7 @@ function EngagementRow(
   return (
     <button
       type="button"
-      class="tone-muted flex w-full items-start gap-3 rounded-3xl border-0 p-4 text-left shadow-[var(--inset-shadow)] transition duration-150 hover:bg-surface-bright disabled:cursor-default disabled:hover:bg-[var(--panel-muted)]"
+      class="tone-muted flex w-full items-start gap-3 rounded-3xl border-0 p-4 text-left shadow-(--inset-shadow) transition duration-150 hover:bg-surface-bright disabled:cursor-default disabled:hover:bg-panel-muted"
       disabled={!interactive()}
       onClick={() => {
         if (quoteInteractive()) {
@@ -252,7 +252,7 @@ function EngagementRow(
           <p class="m-0 text-sm font-medium text-on-surface">{actorLabel()}</p>
           <Show when={props.item.collection}>
             {(collection) => (
-              <span class="tone-muted rounded-full px-2.5 py-1 text-xs text-on-surface-variant shadow-[var(--inset-shadow)]">
+              <span class="tone-muted rounded-full px-2.5 py-1 text-xs text-on-surface-variant shadow-(--inset-shadow)">
                 {collection()}
               </span>
             )}
@@ -267,7 +267,7 @@ function EngagementRow(
           <div class="mt-2">
             <QuotedPostPreview
               author={quoteAuthor()}
-              class="ui-input-strong rounded-2xl p-3 shadow-[var(--inset-shadow)]"
+              class="ui-input-strong rounded-2xl p-3 shadow-(--inset-shadow)"
               text={quoteText() ?? ""}
               title="Quoted post"
               truncate />
@@ -299,12 +299,7 @@ function getQuoteAuthor(item: DiagnosticBacklinkItem): ProfileViewBasic | null {
     return null;
   }
 
-  return {
-    did,
-    handle,
-    avatar: item.profile?.avatar ?? null,
-    displayName: item.profile?.displayName ?? null,
-  };
+  return { did, handle, avatar: item.profile?.avatar ?? null, displayName: item.profile?.displayName ?? null };
 }
 
 function PanelMessage(props: { body: string; title: string }) {
@@ -323,7 +318,7 @@ function EngagementSkeleton() {
     <div class="grid gap-3">
       <For each={Array.from({ length: 4 })}>
         {() => (
-          <div class="tone-muted rounded-3xl p-5 shadow-[var(--inset-shadow)]">
+          <div class="tone-muted rounded-3xl p-5 shadow-(--inset-shadow)">
             <div class="flex gap-3">
               <div class="skeleton-block h-11 w-11 rounded-full" />
               <div class="grid min-w-0 flex-1 gap-2">

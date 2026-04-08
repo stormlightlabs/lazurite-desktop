@@ -69,12 +69,12 @@ export function AccountSwitcher() {
 
   return (
     <div
-      class="relative w-full transition-[width,max-width] duration-300 ease-out max-[1180px]:max-w-none"
+      class="relative w-full transition-[width,max-width] duration-300 ease-out max-lg:max-w-none"
       classList={{
         "z-40": shell.showSwitcher,
         "w-auto": compact(),
-        "max-[1180px]:col-start-5 max-[1180px]:row-start-1 max-[1180px]:justify-self-end": shell.narrowViewport,
-        "max-[1180px]:col-span-full max-[1180px]:justify-self-stretch": !shell.narrowViewport,
+        "max-lg:col-start-5 max-lg:row-start-1 max-lg:justify-self-end": shell.narrowViewport,
+        "max-lg:col-span-full max-lg:justify-self-stretch": !shell.narrowViewport,
       }}
       ref={(element) => {
         container = element;
@@ -108,7 +108,7 @@ export function AccountSwitcher() {
 
       <Show when={shell.showSwitcher}>
         <div
-          class="ui-overlay-card absolute z-50 rounded-2xl border ui-outline-subtle bg-surface-container-highest p-4 backdrop-blur-[20px] max-[1180px]:bottom-auto max-[1180px]:top-[calc(100%+0.75rem)]"
+          class="ui-overlay-card absolute z-50 rounded-2xl border ui-outline-subtle bg-surface-container-highest p-4 backdrop-blur-[20px] max-lg:bottom-auto max-lg:top-[calc(100%+0.75rem)]"
           classList={{
             "inset-x-0 bottom-[calc(100%+0.75rem)]": !compact(),
             "bottom-0 left-[calc(100%+0.85rem)] w-[19rem]": compact() && !shell.narrowViewport,

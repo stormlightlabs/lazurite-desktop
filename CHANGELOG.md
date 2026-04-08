@@ -2,6 +2,11 @@
 
 ## v0.1.0 - Unreleased
 
+### 2026-04-08
+
+- Forward/Back history navigation in the app rail/navigation, and thread drawer
+- Added theme control (light/dark/system) with proper light theme support
+
 ### 2026-04-07
 
 - Image (single or gallery) & video player with blob downloading

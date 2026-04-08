@@ -444,7 +444,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
   return (
     <section
       class="relative grid min-h-0 overflow-hidden bg-surface-container"
-      classList={{ "rounded-4xl shadow-[var(--inset-shadow)]": !props.embedded }}>
+      classList={{ "rounded-4xl shadow-(--inset-shadow)": !props.embedded }}>
       <div
         data-testid="profile-scroll-region"
         class="min-h-0 overflow-y-auto overscroll-contain"
@@ -540,7 +540,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
 function ProfileLoadingView() {
   return (
     <div class="grid gap-4 p-6 max-[760px]:p-4 max-[520px]:p-3">
-      <div class="tone-muted overflow-hidden rounded-4xl p-6 shadow-[var(--inset-shadow)]">
+      <div class="tone-muted overflow-hidden rounded-4xl p-6 shadow-(--inset-shadow)">
         <ProfileSkeleton />
       </div>
       <ProfileFeedSkeleton />
@@ -553,7 +553,7 @@ function ProfileUnavailableView(props: { unavailable: ProfileLookupUnavailable }
 
   return (
     <div class="grid min-h-120 place-items-center p-6">
-      <div class="tone-muted grid max-w-lg gap-4 rounded-4xl p-6 text-left shadow-[var(--inset-shadow)]">
+      <div class="tone-muted grid max-w-lg gap-4 rounded-4xl p-6 text-left shadow-(--inset-shadow)">
         <div class="flex items-center gap-3">
           <span class="ui-input-strong flex h-12 w-12 items-center justify-center rounded-full text-on-surface-variant">
             <Icon kind="danger" aria-hidden="true" />
@@ -594,7 +594,7 @@ function ProfileTabs(
     <div
       class="sticky z-20 px-3 pb-3 pt-1 backdrop-blur-[18px] max-[520px]:px-2"
       classList={{ "top-22": props.compactHeaderVisible, "top-0": !props.compactHeaderVisible }}>
-      <div class="rounded-3xl bg-surface-container-high p-2 shadow-[var(--inset-shadow)]">
+      <div class="rounded-3xl bg-surface-container-high p-2 shadow-(--inset-shadow)">
         <div class="flex flex-wrap gap-2">
           <For each={PROFILE_TABS}>
             {(tab) => (

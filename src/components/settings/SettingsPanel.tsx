@@ -116,12 +116,7 @@ function Actions(
 ) {
   return (
     <div class="flex justify-end gap-2">
-      <button
-        type="button"
-        onClick={() => props.onCancel()}
-        class="ui-button-secondary">
-        Cancel
-      </button>
+      <button type="button" onClick={() => props.onCancel()} class="ui-button-secondary">Cancel</button>
       <button
         type="button"
         disabled={!props.confirmable}
@@ -256,7 +251,7 @@ export function SettingsPanel() {
   });
 
   return (
-    <article class="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden rounded-4xl bg-surface-container shadow-[var(--inset-shadow)]">
+    <article class="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden rounded-4xl bg-surface-container shadow-(--inset-shadow)">
       <header class="grid gap-5 px-6 pb-4 pt-6">
         <div class="flex items-center justify-between gap-4">
           <div class="grid gap-1">

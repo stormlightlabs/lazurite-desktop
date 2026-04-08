@@ -1,13 +1,15 @@
 import { useAppPreferences } from "$/contexts/app-preferences";
 import { useAppSession } from "$/contexts/app-session";
 import { useAppShellUi } from "$/contexts/app-shell-ui";
+import { useNavigationHistory } from "$/lib/navigation-history";
 import { normalizeThemeSetting } from "$/lib/theme";
 import type { Theme } from "$/lib/types";
-import { useLocation, useNavigate } from "@solidjs/router";
+import { useLocation } from "@solidjs/router";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { AccountSwitcher } from "../account/AccountSwitcher";
-import { ArrowIcon, Icon, RailFoldIcon } from "../shared/Icon";
+import { HistoryControls } from "../shared/HistoryControls";
+import { Icon, RailFoldIcon } from "../shared/Icon";
 import { Wordmark } from "../Wordmark";
 import { RailActionButton, RailButton } from "./AppRailButton";
 
@@ -15,11 +17,11 @@ function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void })
   return (
     <>
       <div
-        class="flex shrink-0 items-center justify-between gap-3 max-[1180px]:min-w-0 max-[1180px]:justify-self-start"
+        class="flex shrink-0 items-center justify-between gap-3 max-lg:min-w-0 max-lg:justify-self-start"
         classList={{ "w-full flex-col gap-3": props.collapsed }}>
         <Wordmark compact={props.collapsed} iconClass="text-primary" />
 
-        <div class="max-[1180px]:hidden">
+        <div class="max-lg:hidden">
           <button
             class="ui-control ui-control-hoverable inline-flex h-10 w-10 items-center justify-center rounded-full"
             type="button"
@@ -32,65 +34,6 @@ function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void })
       </div>
     </>
   );
-}
-
-function useShellHistoryTracker() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [entries, setEntries] = createSignal<string[]>([]);
-  const [index, setIndex] = createSignal(-1);
-  const routeKey = createMemo(() => `${location.pathname}${location.search}`);
-
-  createEffect(() => {
-    const key = routeKey();
-    const stack = entries();
-    const currentIndex = index();
-
-    if (stack.length === 0) {
-      setEntries([key]);
-      setIndex(0);
-      return;
-    }
-
-    if (stack[currentIndex] === key) {
-      return;
-    }
-
-    if (currentIndex > 0 && stack[currentIndex - 1] === key) {
-      setIndex(currentIndex - 1);
-      return;
-    }
-
-    if (currentIndex < stack.length - 1 && stack[currentIndex + 1] === key) {
-      setIndex(currentIndex + 1);
-      return;
-    }
-
-    const nextStack = [...stack.slice(0, currentIndex + 1), key];
-    setEntries(nextStack);
-    setIndex(nextStack.length - 1);
-  });
-
-  const canGoBack = createMemo(() => index() > 0);
-  const canGoForward = createMemo(() => index() >= 0 && index() < entries().length - 1);
-
-  function goBack() {
-    if (!canGoBack()) {
-      return;
-    }
-
-    void navigate(-1);
-  }
-
-  function goForward() {
-    if (!canGoForward()) {
-      return;
-    }
-
-    void navigate(1);
-  }
-
-  return { canGoBack, canGoForward, goBack, goForward };
 }
 
 function OverflowMenuButton(props: { hasSession: boolean }) {
@@ -181,7 +124,7 @@ function RailNavigation(
   const useOverflowMenu = () => props.narrow || props.collapsed;
 
   return (
-    <div class="grid gap-1 max-[1180px]:col-start-2 max-[1180px]:row-start-1 max-[1180px]:flex max-[1180px]:min-w-0 max-[1180px]:items-center max-[1180px]:gap-2 max-[1180px]:overflow-x-auto max-[1180px]:overscroll-contain max-[1180px]:[scrollbar-width:none] max-[1180px]:[&::-webkit-scrollbar]:hidden">
+    <div class="grid gap-1 max-lg:flex max-lg:min-w-0 max-lg:flex-1 max-lg:items-center max-lg:gap-2 max-lg:overflow-x-auto max-lg:overscroll-contain max-lg:[scrollbar-width:none] max-lg:[&::-webkit-scrollbar]:hidden">
       <Show
         when={props.hasSession}
         fallback={<RailButton end compact={props.collapsed} href="/auth" label="Accounts" icon="profile" />}>
@@ -277,8 +220,8 @@ function RailThemeMenu(
   return (
     <div
       ref={el => (containerRef = el)}
-      class="flex relative max-[1180px]:col-start-4 max-[1180px]:row-start-1"
-      classList={{ "justify-center": compact() }}>
+      class="relative flex"
+      classList={{ "w-full": !compact(), "justify-center": compact() }}>
       <button
         ref={el => (buttonRef = el)}
         type="button"
@@ -289,7 +232,7 @@ function RailThemeMenu(
         class="relative flex h-11 shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"
         classList={{
           "w-[2.75rem] justify-center": compact(),
-          "px-3": !compact(),
+          "w-full justify-start px-3": !compact(),
           "bg-surface-container text-primary": open(),
         }}>
         <Icon iconClass={iconClassForTheme(props.currentTheme)} class="shrink-0 text-[1.25rem]" />
@@ -329,7 +272,7 @@ function RailThemeMenu(
 
 function RailSecondaryActions(props: { collapsed: boolean }) {
   return (
-    <div class="grid gap-1 max-[1180px]:hidden max-[1180px]:col-span-full max-[1180px]:grid-flow-col max-[1180px]:justify-start">
+    <div class="grid gap-1 max-lg:hidden max-lg:col-span-full max-lg:grid-flow-col max-lg:justify-start">
       <RailActionButton
         compact={props.collapsed}
         icon="heart"
@@ -339,45 +282,11 @@ function RailSecondaryActions(props: { collapsed: boolean }) {
   );
 }
 
-function RailHistoryControls(
-  props: {
-    canGoBack: boolean;
-    canGoForward: boolean;
-    collapsed: boolean;
-    onGoBack: () => void;
-    onGoForward: () => void;
-  },
-) {
-  return (
-    <div
-      class="flex items-center gap-1 max-[1180px]:col-start-3 max-[1180px]:row-start-1"
-      classList={{ "justify-self-center": props.collapsed }}>
-      <button
-        class="ui-control ui-control-hoverable inline-flex h-10 w-10 items-center justify-center rounded-full disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
-        type="button"
-        aria-label="Back"
-        disabled={!props.canGoBack}
-        onClick={() => props.onGoBack()}>
-        <ArrowIcon direction="left" />
-      </button>
-
-      <button
-        class="ui-control ui-control-hoverable inline-flex h-10 w-10 items-center justify-center rounded-full disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
-        type="button"
-        aria-label="Forward"
-        disabled={!props.canGoForward}
-        onClick={() => props.onGoForward()}>
-        <ArrowIcon direction="right" />
-      </button>
-    </div>
-  );
-}
-
 export function AppRail() {
   const preferences = useAppPreferences();
   const session = useAppSession();
   const shell = useAppShellUi();
-  const history = useShellHistoryTracker();
+  const history = useNavigationHistory();
   const currentTheme = createMemo(() => normalizeThemeSetting(preferences.settings?.theme));
 
   async function handleChangeTheme(theme: Theme) {
@@ -386,7 +295,7 @@ export function AppRail() {
 
   return (
     <aside
-      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-[1180px]:grid max-[1180px]:min-h-0 max-[1180px]:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] max-[1180px]:items-center max-[1180px]:gap-x-4 max-[1180px]:gap-y-3 max-[1180px]:p-4"
+      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-lg:grid max-lg:min-h-0 max-lg:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] max-lg:items-center max-lg:gap-x-4 max-lg:gap-y-3 max-lg:p-4"
       classList={{
         "items-center px-4": shell.railCondensed && !shell.narrowViewport,
         "gap-5": shell.railCondensed && !shell.narrowViewport,
@@ -398,7 +307,7 @@ export function AppRail() {
         hasSession={session.hasSession}
         narrow={shell.narrowViewport}
         unreadNotifications={session.unreadNotifications} />
-      <div class="mt-auto grid gap-2 max-[1180px]:contents">
+      <div class="mt-auto grid gap-2 max-lg:contents">
         <Show when={!shell.railCondensed}>
           <RailSecondaryActions collapsed={shell.railCondensed} />
         </Show>
@@ -408,12 +317,13 @@ export function AppRail() {
             currentTheme={currentTheme()}
             onChangeTheme={handleChangeTheme} />
         </Show>
-        <RailHistoryControls
-          canGoBack={history.canGoBack()}
-          canGoForward={history.canGoForward()}
-          collapsed={shell.railCondensed}
-          onGoBack={history.goBack}
-          onGoForward={history.goForward} />
+        <div class="flex items-center gap-1" classList={{ "w-full justify-center": shell.railCondensed }}>
+          <HistoryControls
+            canGoBack={history.canGoBack()}
+            canGoForward={history.canGoForward()}
+            onGoBack={history.goBack}
+            onGoForward={history.goForward} />
+        </div>
         <AccountSwitcher />
       </div>
     </aside>

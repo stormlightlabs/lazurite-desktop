@@ -534,7 +534,7 @@ export function PostCard(props: PostCardProps) {
   return (
     <article
       ref={(element) => view.registerRef?.(element)}
-      class="tone-muted group min-w-0 overflow-hidden rounded-3xl px-4 py-4 shadow-[var(--inset-shadow)] transition duration-150 ease-out hover:bg-surface-bright max-[760px]:px-3.5 max-[760px]:py-3.5 max-[520px]:rounded-3xl max-[520px]:px-3 max-[520px]:py-3"
+      class="tone-muted group min-w-0 overflow-hidden rounded-3xl px-4 py-4 shadow-(--inset-shadow) transition duration-150 ease-out hover:bg-surface-bright max-[760px]:px-3.5 max-[760px]:py-3.5 max-[520px]:rounded-3xl max-[520px]:px-3 max-[520px]:py-3"
       classList={{
         "bg-[linear-gradient(135deg,rgba(125,175,255,0.11),rgba(0,115,222,0.06))] shadow-[inset_0_0_0_1px_rgba(125,175,255,0.22),0_0_0_1px_rgba(125,175,255,0.08)]":
           !!view.focused,

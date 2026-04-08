@@ -126,7 +126,7 @@ export function PostPanel(props: { uri: string | null }) {
   }
 
   return (
-    <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-4xl bg-surface-container shadow-[var(--inset-shadow)]">
+    <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-4xl bg-surface-container shadow-(--inset-shadow)">
       <header class="sticky top-0 z-20 flex items-center justify-between gap-3 bg-surface-container-high px-6 pb-4 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_var(--outline-subtle)] max-[760px]:px-4 max-[520px]:px-3">
         <div class="min-w-0">
           <p class="m-0 text-xl font-semibold tracking-tight text-on-surface">Post</p>
@@ -206,7 +206,7 @@ function ThreadState(
           <div class="grid gap-3">
             <For each={props.parentChain}>
               {(parent) => (
-                <div class="tone-muted rounded-3xl p-3 shadow-[var(--inset-shadow)]">
+                <div class="tone-muted rounded-3xl p-3 shadow-(--inset-shadow)">
                   <PostCard
                     bookmarkPending={!!props.bookmarkPendingByUri[parent.post.uri]}
                     likePending={!!props.likePendingByUri[parent.post.uri]}
@@ -235,7 +235,7 @@ function ThreadState(
               repostPending={!!props.repostPendingByUri[focused().post.uri]} />
 
             <Show when={focused().replies?.length}>
-              <div class="tone-muted grid gap-3 rounded-3xl p-3 shadow-[var(--inset-shadow)]">
+              <div class="tone-muted grid gap-3 rounded-3xl p-3 shadow-(--inset-shadow)">
                 <For each={focused().replies}>
                   {(reply) => (
                     <ThreadReplies
@@ -334,7 +334,7 @@ function PostPanelMessage(props: { body: string; title: string }) {
 
 function SkeletonPostCard() {
   return (
-    <div class="tone-muted rounded-3xl p-5 shadow-[var(--inset-shadow)]">
+    <div class="tone-muted rounded-3xl p-5 shadow-(--inset-shadow)">
       <div class="flex gap-3">
         <div class="skeleton-block h-11 w-11 rounded-full" />
         <div class="min-w-0 flex-1">
@@ -352,7 +352,7 @@ function SkeletonPostCard() {
 
 function StateCard(props: { label: string; meta: string }) {
   return (
-    <div class="tone-muted rounded-3xl p-4 shadow-[var(--inset-shadow)]">
+    <div class="tone-muted rounded-3xl p-4 shadow-(--inset-shadow)">
       <p class="m-0 text-sm font-semibold text-on-surface">{props.label}</p>
       <p class="mt-1 text-xs text-on-surface-variant">{props.meta}</p>
     </div>

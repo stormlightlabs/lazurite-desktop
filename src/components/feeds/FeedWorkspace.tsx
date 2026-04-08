@@ -31,7 +31,7 @@ export function FeedWorkspace() {
 
   return (
     <>
-      <div class="grid h-full min-h-0 min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] max-[1180px]:gap-5 max-[900px]:gap-4">
+      <div class="grid h-full min-h-0 min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] max-lg:gap-5 max-md:gap-4">
         <FeedPane controller={controller} />
 
         <FeedWorkspaceSidebar

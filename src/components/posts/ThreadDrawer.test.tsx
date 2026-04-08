@@ -89,6 +89,8 @@ describe("ThreadDrawer", () => {
     ));
 
     expect(await screen.findByText("Thread root")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Forward" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Close thread" }));
 

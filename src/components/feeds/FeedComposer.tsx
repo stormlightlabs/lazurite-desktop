@@ -32,7 +32,7 @@ export type FeedComposerHandlers = {
 export function ComposerLauncher(props: { activeAvatar?: string | null; activeHandle: string; onCompose: () => void }) {
   return (
     <button
-      class="tone-muted mb-4 flex w-full min-w-0 items-center gap-3 rounded-3xl border-0 px-4 py-4 text-left text-on-surface-variant shadow-[var(--inset-shadow)] transition duration-150 ease-out hover:bg-surface-bright max-[760px]:gap-2 max-[760px]:px-3.5 max-[520px]:py-3.5"
+      class="tone-muted mb-4 flex w-full min-w-0 items-center gap-3 rounded-3xl border-0 px-4 py-4 text-left text-on-surface-variant shadow-(--inset-shadow) transition duration-150 ease-out hover:bg-surface-bright max-[760px]:gap-2 max-[760px]:px-3.5 max-[520px]:py-3.5"
       type="button"
       onClick={() => props.onCompose()}>
       <ComposerIdentityAvatar
@@ -135,7 +135,7 @@ export function ComposerSurface(props: ComposerSurfaceProps) {
 
 function getComposerViewportClass(layout: ComposerSurfaceProps["layout"]) {
   if (layout === "window") {
-    return "mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center p-6 max-[640px]:p-4";
+    return "mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center p-6 max-sm:p-4";
   }
 
   return "relative z-10 flex min-h-screen items-center justify-center p-4 pt-16";
@@ -265,7 +265,7 @@ function ComposerBody(
 ) {
   return (
     <div class="min-h-0 overflow-y-auto overscroll-contain p-6">
-      <div class="flex gap-4 max-[640px]:flex-col">
+      <div class="flex gap-4 max-sm:flex-col">
         <ComposerAvatar activeAvatar={props.activeAvatar} activeHandle={props.activeHandle} />
         <div class="min-w-0 flex-1">
           <ComposerContexts
