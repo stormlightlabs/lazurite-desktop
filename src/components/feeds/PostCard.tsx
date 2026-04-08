@@ -29,7 +29,7 @@ import type {
 } from "$/lib/types";
 import { formatCount, formatHandle, normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
-import { createMemo, createSignal, type ParentProps, Show } from "solid-js";
+import { createMemo, createSignal, type ParentProps, Show, splitProps } from "solid-js";
 import { Motion } from "solid-motionone";
 import { EmbedContent } from "./embeds/ContentEmbed";
 import type { ReportTarget } from "./types";
@@ -117,69 +117,80 @@ function PostActionButton(props: PostActionButtonProps) {
   );
 }
 
-// FIXME: this is an absurdly large number of props
-type PostActionsProps = {
+type PostActionStatus = {
   bookmarkPending: boolean;
   isBookmarked: boolean;
   isLiked: boolean;
   isReposted: boolean;
   likeCount: string;
   likePending: boolean;
-  menuOpen: boolean;
   pulseLike: boolean;
   pulseRepost: boolean;
   replyCount: string;
   repostCount: string;
   repostPending: boolean;
-  triggerRef: (element: HTMLButtonElement) => void;
+};
+
+type PostActionHandlers = {
   onBookmark?: () => void;
   onLike?: () => void;
-  onMenuOpen: (element: HTMLButtonElement) => void;
   onOpenThread?: () => void;
   onQuote?: () => void;
   onReply?: () => void;
   onRepost?: () => void;
 };
 
+type PostActionsProps = {
+  handlers: PostActionHandlers;
+  menu: {
+    open: boolean;
+    onOpen: (element: HTMLButtonElement) => void;
+    triggerRef: (element: HTMLButtonElement) => void;
+  };
+  state: PostActionStatus;
+};
+
 function PostActions(props: PostActionsProps) {
+  const [status, menu, actions] = splitProps(props, ["state"], ["menu"], ["handlers"]);
+
   return (
     <footer class="mt-4 flex min-w-0 flex-wrap items-center gap-2 max-[520px]:gap-1">
       <PostActionButton
-        active={props.isLiked}
-        busy={props.likePending}
+        active={status.state.isLiked}
+        busy={status.state.likePending}
         icon="i-ri-heart-3-line"
         iconActive="i-ri-heart-3-fill"
-        label={props.likeCount}
-        pulse={props.pulseLike}
-        onClick={props.onLike} />
-      <PostActionButton icon="i-ri-chat-1-line" label={props.replyCount} onClick={props.onReply} />
+        label={status.state.likeCount}
+        pulse={status.state.pulseLike}
+        onClick={actions.handlers.onLike} />
+      <PostActionButton icon="i-ri-chat-1-line" label={status.state.replyCount} onClick={actions.handlers.onReply} />
       <PostActionButton
-        active={props.isReposted}
-        busy={props.repostPending}
+        active={status.state.isReposted}
+        busy={status.state.repostPending}
         icon="i-ri-repeat-2-line"
         iconActive="i-ri-repeat-2-fill"
-        label={props.repostCount}
-        pulse={props.pulseRepost}
-        onClick={props.onRepost} />
+        label={status.state.repostCount}
+        pulse={status.state.pulseRepost}
+        onClick={actions.handlers.onRepost} />
       <PostActionButton
-        active={props.isBookmarked}
-        busy={props.bookmarkPending}
+        active={status.state.isBookmarked}
+        busy={status.state.bookmarkPending}
         icon="i-ri-bookmark-line"
         iconActive="i-ri-bookmark-fill"
-        label={props.isBookmarked ? "Saved" : "Save"}
-        onClick={props.onBookmark} />
-      <PostActionButton icon="i-ri-chat-quote-line" label="Quote" onClick={props.onQuote} />
-      <PostActionButton icon="i-ri-node-tree" label="Thread" onClick={props.onOpenThread} />
+        label={status.state.isBookmarked ? "Saved" : "Save"}
+        onClick={actions.handlers.onBookmark} />
+      <PostActionButton icon="i-ri-chat-quote-line" label="Quote" onClick={actions.handlers.onQuote} />
+      <PostActionButton icon="i-ri-node-tree" label="Thread" onClick={actions.handlers.onOpenThread} />
       <button
         aria-label="More actions"
-        ref={(element) => props.triggerRef(element)}
-        aria-expanded={props.menuOpen}
+        ref={(element) => menu.menu.triggerRef(element)}
+        aria-expanded={menu.menu.open}
         aria-haspopup="menu"
         class="inline-flex items-center justify-center rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary max-[520px]:px-2.5"
         type="button"
         onClick={(event) => {
           event.stopPropagation();
-          props.onMenuOpen(event.currentTarget);
+          menu.menu.onOpen(event.currentTarget);
         }}>
         <Icon aria-hidden="true" iconClass="i-ri-more-fill" />
       </button>
@@ -228,25 +239,32 @@ type PostCardProps = {
 };
 
 export function PostCard(props: PostCardProps) {
-  const authorName = createMemo(() => getDisplayName(props.post.author));
-  const createdAt = createMemo(() => formatRelativeTime(getPostCreatedAt(props.post)));
-  const isBookmarked = createMemo(() => !!props.post.viewer?.bookmarked);
-  const isLiked = createMemo(() => !!props.post.viewer?.like);
-  const isReposted = createMemo(() => !!props.post.viewer?.repost);
-  const likeCount = createMemo(() => formatCount(props.post.likeCount));
-  const postText = createMemo(() => getPostText(props.post));
-  const replyCount = createMemo(() => formatCount(props.post.replyCount));
-  const repostCount = createMemo(() => formatCount(props.post.repostCount));
-  const authorHandle = createMemo(() => formatHandle(props.post.author.handle, props.post.author.did));
-  const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.post.author)));
-  const contentLabels = () => collectModerationLabels(props.post);
-  const mediaLabels = () => collectModerationLabels(props.post, props.post.embed);
-  const avatarLabels = () => collectModerationLabels(props.post.author);
-  const contentDecision = useModerationDecision(contentLabels);
-  const mediaDecision = useModerationDecision(mediaLabels);
-  const avatarDecision = useModerationDecision(avatarLabels);
+  const [view, interactions, actionFlags] = splitProps(
+    props,
+    ["focused", "item", "post", "registerRef", "showActions"],
+    ["onBookmark", "onFocus", "onLike", "onOpenThread", "onQuote", "onReply", "onRepost"],
+    ["bookmarkPending", "likePending", "pulseLike", "pulseRepost", "repostPending"],
+  );
+
+  const authorName = createMemo(() => getDisplayName(view.post.author));
+  const createdAt = createMemo(() => formatRelativeTime(getPostCreatedAt(view.post)));
+  const isBookmarked = createMemo(() => !!view.post.viewer?.bookmarked);
+  const isLiked = createMemo(() => !!view.post.viewer?.like);
+  const isReposted = createMemo(() => !!view.post.viewer?.repost);
+  const likeCount = createMemo(() => formatCount(view.post.likeCount));
+  const postText = createMemo(() => getPostText(view.post));
+  const replyCount = createMemo(() => formatCount(view.post.replyCount));
+  const repostCount = createMemo(() => formatCount(view.post.repostCount));
+  const authorHandle = createMemo(() => formatHandle(view.post.author.handle, view.post.author.did));
+  const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(view.post.author)));
+  const contentLabels = () => collectModerationLabels(view.post);
+  const mediaLabels = () => collectModerationLabels(view.post, view.post.embed);
+  const avatarLabels = () => collectModerationLabels(view.post.author);
+  const contentDecision = useModerationDecision(contentLabels, "contentList");
+  const mediaDecision = useModerationDecision(mediaLabels, "contentMedia");
+  const avatarDecision = useModerationDecision(avatarLabels, "avatar");
   const reasonLabel = createMemo(() => {
-    const reason = props.item?.reason;
+    const reason = view.item?.reason;
     if (!reason || reason.$type !== "app.bsky.feed.defs#reasonRepost") {
       return null;
     }
@@ -255,7 +273,7 @@ export function PostCard(props: PostCardProps) {
   });
 
   const replyLabel = createMemo(() => {
-    const item = props.item;
+    const item = view.item;
     if (!item || !isReplyItem(item)) {
       return null;
     }
@@ -277,46 +295,46 @@ export function PostCard(props: PostCardProps) {
   const menuItems = createMemo<ContextMenuItem[]>(() => {
     const items: ContextMenuItem[] = [];
 
-    if (props.onReply) {
-      items.push({ icon: "i-ri-chat-1-line", label: "Reply", onSelect: props.onReply });
+    if (interactions.onReply) {
+      items.push({ icon: "i-ri-chat-1-line", label: "Reply", onSelect: interactions.onReply });
     }
 
-    if (props.onQuote) {
-      items.push({ icon: "i-ri-chat-quote-line", label: "Quote", onSelect: props.onQuote });
+    if (interactions.onQuote) {
+      items.push({ icon: "i-ri-chat-quote-line", label: "Quote", onSelect: interactions.onQuote });
     }
 
-    if (props.onLike) {
+    if (interactions.onLike) {
       items.push({
         icon: isLiked() ? "i-ri-heart-3-fill" : "i-ri-heart-3-line",
         label: isLiked() ? "Unlike" : "Like",
-        onSelect: props.onLike,
+        onSelect: interactions.onLike,
       });
     }
 
-    if (props.onRepost) {
+    if (interactions.onRepost) {
       items.push({
         icon: isReposted() ? "i-ri-repeat-2-fill" : "i-ri-repeat-2-line",
         label: isReposted() ? "Undo repost" : "Repost",
-        onSelect: props.onRepost,
+        onSelect: interactions.onRepost,
       });
     }
 
-    if (props.onBookmark) {
+    if (interactions.onBookmark) {
       items.push({
         icon: isBookmarked() ? "i-ri-bookmark-fill" : "i-ri-bookmark-line",
         label: isBookmarked() ? "Unsave" : "Save",
-        onSelect: props.onBookmark,
+        onSelect: interactions.onBookmark,
       });
     }
 
     items.push({
       icon: "i-ri-link-m",
       label: "Copy post link",
-      onSelect: () => void navigator.clipboard?.writeText(buildPublicPostUrl(props.post)),
+      onSelect: () => void navigator.clipboard?.writeText(buildPublicPostUrl(view.post)),
     });
 
-    if (props.onOpenThread) {
-      items.push({ icon: "i-ri-node-tree", label: "Open thread", onSelect: props.onOpenThread });
+    if (interactions.onOpenThread) {
+      items.push({ icon: "i-ri-node-tree", label: "Open thread", onSelect: interactions.onOpenThread });
     }
 
     items.push({
@@ -324,8 +342,8 @@ export function PostCard(props: PostCardProps) {
       label: "Report post",
       onSelect: () => {
         setReportTarget({
-          subject: { type: "record", uri: props.post.uri, cid: props.post.cid },
-          subjectLabel: `Post by @${props.post.author.handle}`,
+          subject: { type: "record", uri: view.post.uri, cid: view.post.cid },
+          subjectLabel: `Post by @${view.post.author.handle}`,
         });
         setReportOpen(true);
       },
@@ -334,12 +352,12 @@ export function PostCard(props: PostCardProps) {
       label: "Report account",
       onSelect: () => {
         setReportTarget({
-          subject: { type: "repo", did: props.post.author.did },
-          subjectLabel: `Account @${props.post.author.handle}`,
+          subject: { type: "repo", did: view.post.author.did },
+          subjectLabel: `Account @${view.post.author.handle}`,
         });
         setReportOpen(true);
       },
-    }, { icon: "i-ri-forbid-2-line", label: `Block @${props.post.author.handle}`, onSelect: () => void blockAuthor() });
+    }, { icon: "i-ri-forbid-2-line", label: `Block @${view.post.author.handle}`, onSelect: () => void blockAuthor() });
 
     return items;
   });
@@ -375,7 +393,7 @@ export function PostCard(props: PostCardProps) {
 
   async function blockAuthor() {
     const confirmed = globalThis.confirm
-      ? globalThis.confirm(`Block @${props.post.author.handle}? You can unblock from Bluesky settings.`)
+      ? globalThis.confirm(`Block @${view.post.author.handle}? You can unblock from Bluesky settings.`)
       : true;
 
     if (!confirmed) {
@@ -383,7 +401,7 @@ export function PostCard(props: PostCardProps) {
     }
 
     try {
-      await ModerationController.blockActor(props.post.author.did);
+      await ModerationController.blockActor(view.post.author.did);
     } catch (error) {
       logger.error("failed to block account", { keyValues: { error: normalizeError(error) } });
     }
@@ -391,11 +409,11 @@ export function PostCard(props: PostCardProps) {
 
   return (
     <article
-      ref={(element) => props.registerRef?.(element)}
+      ref={(element) => view.registerRef?.(element)}
       class="group min-w-0 overflow-hidden rounded-3xl bg-white/2.5 px-4 py-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/4 max-[760px]:px-3.5 max-[760px]:py-3.5 max-[520px]:rounded-3xl max-[520px]:px-3 max-[520px]:py-3"
       classList={{
         "bg-[linear-gradient(135deg,rgba(125,175,255,0.11),rgba(0,115,222,0.06))] shadow-[inset_0_0_0_1px_rgba(125,175,255,0.22),0_0_0_1px_rgba(125,175,255,0.08)]":
-          !!props.focused,
+          !!view.focused,
       }}
       role="article"
       onContextMenu={(event) => {
@@ -421,15 +439,15 @@ export function PostCard(props: PostCardProps) {
       <div class="flex min-w-0 gap-3">
         <a class="shrink-0 no-underline" href={`#${profileHref()}`} onClick={(event) => event.stopPropagation()}>
           <ModeratedAvatar
-            avatar={props.post.author.avatar}
+            avatar={view.post.author.avatar}
             class="relative mt-0.5 h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] shadow-[0_0_0_2px_rgba(14,14,14,1),0_0_0_3px_rgba(125,175,255,0.28)]"
             hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
-            label={getAvatarLabel(props.post.author)}
+            label={getAvatarLabel(view.post.author)}
             fallbackClass="text-sm font-semibold text-on-primary-fixed" />
         </a>
 
         <div class="min-w-0 flex-1">
-          <PostPrimaryRegion onFocus={props.onFocus} onOpenThread={props.onOpenThread}>
+          <PostPrimaryRegion onFocus={interactions.onFocus} onOpenThread={interactions.onOpenThread}>
             <PostHeader
               authorName={authorName()}
               authorHandle={authorHandle()}
@@ -441,42 +459,48 @@ export function PostCard(props: PostCardProps) {
             <ModeratedPostBody
               decision={contentDecision()}
               labels={contentLabels()}
-              post={props.post}
+              post={view.post}
               text={postText()} />
 
-            <Show when={props.post.embed}>
+            <Show when={view.post.embed}>
               {(current) => (
                 <ModeratedBlurOverlay decision={mediaDecision()} labels={mediaLabels()} class="mt-4">
-                  <EmbedContent embed={current()} post={props.post} />
+                  <EmbedContent embed={current()} post={view.post} />
                 </ModeratedBlurOverlay>
               )}
             </Show>
           </PostPrimaryRegion>
 
-          <Show when={props.showActions !== false}>
+          <Show when={view.showActions !== false}>
             <PostActions
-              bookmarkPending={!!props.bookmarkPending}
-              isBookmarked={isBookmarked()}
-              isLiked={isLiked()}
-              isReposted={isReposted()}
-              likeCount={likeCount()}
-              likePending={!!props.likePending}
-              menuOpen={menuOpen()}
-              pulseLike={!!props.pulseLike}
-              pulseRepost={!!props.pulseRepost}
-              replyCount={replyCount()}
-              repostCount={repostCount()}
-              repostPending={!!props.repostPending}
-              triggerRef={(element) => {
-                menuTriggerRef = element;
+              handlers={{
+                onBookmark: interactions.onBookmark,
+                onLike: interactions.onLike,
+                onOpenThread: interactions.onOpenThread,
+                onQuote: interactions.onQuote,
+                onReply: interactions.onReply,
+                onRepost: interactions.onRepost,
               }}
-              onBookmark={props.onBookmark}
-              onLike={props.onLike}
-              onMenuOpen={openMenuFromTrigger}
-              onOpenThread={props.onOpenThread}
-              onQuote={props.onQuote}
-              onReply={props.onReply}
-              onRepost={props.onRepost} />
+              menu={{
+                open: menuOpen(),
+                onOpen: openMenuFromTrigger,
+                triggerRef: (element) => {
+                  menuTriggerRef = element;
+                },
+              }}
+              state={{
+                bookmarkPending: !!actionFlags.bookmarkPending,
+                isBookmarked: isBookmarked(),
+                isLiked: isLiked(),
+                isReposted: isReposted(),
+                likeCount: likeCount(),
+                likePending: !!actionFlags.likePending,
+                pulseLike: !!actionFlags.pulseLike,
+                pulseRepost: !!actionFlags.pulseRepost,
+                replyCount: replyCount(),
+                repostCount: repostCount(),
+                repostPending: !!actionFlags.repostPending,
+              }} />
           </Show>
         </div>
       </div>

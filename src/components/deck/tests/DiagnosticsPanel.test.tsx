@@ -1,7 +1,7 @@
 import { AppTestProviders } from "$/test/providers";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DiagnosticsPanel } from "./DiagnosticsPanel";
+import { DiagnosticsPanel } from "../DiagnosticsPanel";
 
 const getAccountListsMock = vi.hoisted(() => vi.fn());
 const getAccountLabelsMock = vi.hoisted(() => vi.fn());

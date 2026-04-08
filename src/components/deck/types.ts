@@ -155,3 +155,12 @@ export function columnTitle(kind: string, config: string): string {
     }
   }
 }
+
+export type FeedPickerSelection = { feed: SavedFeedItem; title: string };
+
+export type ProfileSelection = {
+  actor: string;
+  did?: string | null;
+  displayName?: string | null;
+  handle?: string | null;
+};

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AddColumnPanel } from "./AddColumnPanel";
+import { AddColumnPanel } from "../AddColumnPanel";
 
 const getFeedGeneratorsMock = vi.hoisted(() => vi.fn());
 const getPreferencesMock = vi.hoisted(() => vi.fn());

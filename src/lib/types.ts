@@ -12,6 +12,37 @@ export type ModerationUiDecision = {
 
 export type ModerationLabelVisibility = "ignore" | "warn" | "hide";
 
+export type ModerationContext =
+  | "contentList"
+  | "contentView"
+  | "contentMedia"
+  | "avatar"
+  | "profileList"
+  | "profileView";
+
+export type ModerationLabelPolicyLocale = { lang: string; name: string; description: string };
+
+export type ModerationLabelPolicyDefinition = {
+  identifier: string;
+  adultOnly: boolean;
+  defaultSetting?: string | null;
+  severity: string;
+  blurs: string;
+  displayName?: string | null;
+  description?: string | null;
+  locales: ModerationLabelPolicyLocale[];
+};
+
+export type ModerationLabelerPolicyDefinition = {
+  labelerDid: string;
+  labelerHandle?: string | null;
+  labelerDisplayName?: string | null;
+  reasonTypes?: string[] | null;
+  subjectTypes?: string[] | null;
+  subjectCollections?: string[] | null;
+  definitions: ModerationLabelPolicyDefinition[];
+};
+
 export type StoredModerationPrefs = {
   adultContentEnabled: boolean;
   subscribedLabelers: string[];

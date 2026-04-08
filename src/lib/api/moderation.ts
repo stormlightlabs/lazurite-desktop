@@ -1,7 +1,9 @@
 import { DEFAULT_MODERATION_DECISION } from "$/lib/moderation";
 import type {
   DistributionChannel,
+  ModerationContext,
   ModerationLabel,
+  ModerationLabelerPolicyDefinition,
   ModerationLabelVisibility,
   ModerationReasonType,
   ModerationUiDecision,
@@ -31,15 +33,21 @@ async function unsubscribeLabeler(did: string) {
   return invoke<void>("unsubscribe_labeler", { did });
 }
 
-async function moderateContent(labels: ModerationLabel[]): Promise<ModerationUiDecision> {
+async function getLabelerPolicyDefinitions() {
+  return invoke<ModerationLabelerPolicyDefinition[]>("get_labeler_policy_definitions");
+}
+
+async function moderateContent(labels: ModerationLabel[], context: ModerationContext): Promise<ModerationUiDecision> {
   if (labels.length === 0) {
     return DEFAULT_MODERATION_DECISION;
   }
 
   try {
-    return await invoke<ModerationUiDecision>("moderate_content", { labelsJson: JSON.stringify(labels) });
+    return await invoke<ModerationUiDecision>("moderate_content", { labelsJson: JSON.stringify(labels), context });
   } catch (error) {
-    logger.warn("moderation decision failed", { keyValues: { error: String(error), labels: String(labels.length) } });
+    logger.warn("moderation decision failed", {
+      keyValues: { context, error: String(error), labels: String(labels.length) },
+    });
     return DEFAULT_MODERATION_DECISION;
   }
 }
@@ -67,6 +75,7 @@ export const ModerationController = {
   setLabelPreference,
   subscribeLabeler,
   unsubscribeLabeler,
+  getLabelerPolicyDefinitions,
   moderateContent,
   createReport,
   getDistributionChannel,

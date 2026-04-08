@@ -18,6 +18,7 @@ const setAdultContentEnabledMock = vi.hoisted(() => vi.fn());
 const setLabelPreferenceMock = vi.hoisted(() => vi.fn());
 const subscribeLabelerMock = vi.hoisted(() => vi.fn());
 const unsubscribeLabelerMock = vi.hoisted(() => vi.fn());
+const getLabelerPolicyDefinitionsMock = vi.hoisted(() => vi.fn());
 const getDistributionChannelMock = vi.hoisted(() => vi.fn());
 const dialogOpenMock = vi.hoisted(() => vi.fn());
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -58,6 +59,7 @@ vi.mock(
       setLabelPreference: setLabelPreferenceMock,
       subscribeLabeler: subscribeLabelerMock,
       unsubscribeLabeler: unsubscribeLabelerMock,
+      getLabelerPolicyDefinitions: getLabelerPolicyDefinitionsMock,
       getDistributionChannel: getDistributionChannelMock,
     },
   }),
@@ -147,6 +149,7 @@ describe("SettingsPanel", () => {
     setLabelPreferenceMock.mockResolvedValue(void 0);
     subscribeLabelerMock.mockResolvedValue(void 0);
     unsubscribeLabelerMock.mockResolvedValue(void 0);
+    getLabelerPolicyDefinitionsMock.mockResolvedValue([]);
     getDistributionChannelMock.mockResolvedValue("github");
     dialogOpenMock.mockResolvedValue(null);
   });

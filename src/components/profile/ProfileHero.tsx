@@ -212,7 +212,7 @@ export function ProfileHero(
   const isFollowing = createMemo(() => !!props.profile.viewer?.following);
   const bannerStyle = createMemo(() => ({ transform: `translate3d(0, ${props.coverOffset}px, 0)` }));
   const profileLabels = () => collectModerationLabels(props.profile);
-  const profileDecision = useModerationDecision(profileLabels);
+  const profileDecision = useModerationDecision(profileLabels, "profileView");
 
   return (
     <header class="relative" ref={(element) => props.rootRef?.(element)}>
@@ -273,7 +273,7 @@ function ProfileAvatar(props: { profile: ProfileViewDetailed }) {
   const profile = () => props.profile;
   const label = createMemo(() => getAvatarLabel(props.profile));
   const labels = () => collectModerationLabels(props.profile);
-  const decision = useModerationDecision(labels);
+  const decision = useModerationDecision(labels, "avatar");
 
   return (
     <ModeratedAvatar
@@ -290,7 +290,7 @@ export function ProfileStickyHeader(props: { profile: ProfileViewDetailed; profi
   const displayName = createMemo(() => getDisplayName(props.profile));
   const visibleBadges = createMemo(() => props.profileBadges.slice(0, 2));
   const labels = () => collectModerationLabels(props.profile);
-  const decision = useModerationDecision(labels);
+  const decision = useModerationDecision(labels, "avatar");
 
   return (
     <div

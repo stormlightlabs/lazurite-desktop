@@ -1,5 +1,11 @@
 use super::super::error::Result;
-use super::super::moderation::{self, ModerationUI, ReportSubjectInput, StoredModerationPrefs};
+use super::super::moderation::{
+    self,
+    ModerationLabelerPolicyDefinition,
+    ModerationUI,
+    ReportSubjectInput,
+    StoredModerationPrefs,
+};
 use super::super::state::AppState;
 use tauri_plugin_log::log;
 
@@ -46,7 +52,10 @@ pub async fn unsubscribe_labeler(did: String, state: State<'_>) -> Result<()> {
 ///
 /// Returns a `ModerationUI` describing what the frontend should do with the content.
 #[tauri::command]
-pub async fn moderate_content(labels_json: String, state: State<'_>) -> Result<ModerationUI> {
+pub async fn moderate_content(labels_json: String, context: String, state: State<'_>) -> Result<ModerationUI> {
+    let parsed_context = moderation::parse_moderation_context(&context)?;
+    log::debug!("moderate_content requested for context={}", parsed_context.as_str());
+
     let prefs = moderation::get_prefs(&state)?;
     let accepted_dids = moderation::accepted_labeler_dids(&prefs);
 
@@ -71,6 +80,12 @@ pub async fn moderate_content(labels_json: String, state: State<'_>) -> Result<M
     let defs = moderation::build_labeler_defs(&session, state.inner(), &accepted_dids).await;
 
     moderation::evaluate_labels(&labels_json, &prefs, &defs, &accepted_dids)
+}
+
+/// Return structured policy definitions for all accepted labelers.
+#[tauri::command]
+pub async fn get_labeler_policy_definitions(state: State<'_>) -> Result<Vec<ModerationLabelerPolicyDefinition>> {
+    moderation::get_labeler_policy_definitions(&state).await
 }
 
 /// Submit a content or account report to the Bluesky moderation service.

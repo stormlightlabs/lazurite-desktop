@@ -430,7 +430,7 @@ function GroupedAuthorAvatar(props: { actor: ProfileViewBasic; onClick: () => vo
   const label = createMemo(() => getAvatarLabel(props.actor));
   const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.actor)));
   const labels = () => collectModerationLabels(props.actor);
-  const decision = useModerationDecision(labels);
+  const decision = useModerationDecision(labels, "avatar");
 
   return (
     <a

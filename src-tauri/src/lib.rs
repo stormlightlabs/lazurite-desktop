@@ -178,6 +178,7 @@ pub fn run() {
             cmd::moderation::subscribe_labeler,
             cmd::moderation::unsubscribe_labeler,
             cmd::moderation::moderate_content,
+            cmd::moderation::get_labeler_policy_definitions,
             cmd::moderation::create_report,
             cmd::moderation::get_distribution_channel
         ])

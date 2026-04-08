@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseFeedConfig, resolveFeedColumn } from "./types";
+import { parseFeedConfig, resolveFeedColumn } from "../types";
 
 describe("deck feed column helpers", () => {
   it("rejects malformed feed configs", () => {

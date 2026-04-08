@@ -79,6 +79,79 @@ impl From<ModerationDecision> for ModerationUI {
     }
 }
 
+/// The moderation context requested by the frontend.
+///
+/// Context is currently validated and logged, but does not yet change moderation behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModerationContext {
+    ContentList,
+    ContentView,
+    ContentMedia,
+    Avatar,
+    ProfileList,
+    ProfileView,
+}
+
+impl ModerationContext {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ContentList => "contentList",
+            Self::ContentView => "contentView",
+            Self::ContentMedia => "contentMedia",
+            Self::Avatar => "avatar",
+            Self::ProfileList => "profileList",
+            Self::ProfileView => "profileView",
+        }
+    }
+}
+
+pub fn parse_moderation_context(value: &str) -> Result<ModerationContext> {
+    match value.trim() {
+        "contentList" => Ok(ModerationContext::ContentList),
+        "contentView" => Ok(ModerationContext::ContentView),
+        "contentMedia" => Ok(ModerationContext::ContentMedia),
+        "avatar" => Ok(ModerationContext::Avatar),
+        "profileList" => Ok(ModerationContext::ProfileList),
+        "profileView" => Ok(ModerationContext::ProfileView),
+        _ => Err(AppError::validation(
+            "invalid moderation context; expected one of: contentList, contentView, contentMedia, avatar, profileList, profileView",
+        )),
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModerationLabelPolicyLocale {
+    pub lang: String,
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModerationLabelPolicyDefinition {
+    pub identifier: String,
+    pub adult_only: bool,
+    pub default_setting: Option<String>,
+    pub severity: String,
+    pub blurs: String,
+    pub display_name: Option<String>,
+    pub description: Option<String>,
+    pub locales: Vec<ModerationLabelPolicyLocale>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModerationLabelerPolicyDefinition {
+    pub labeler_did: String,
+    pub labeler_handle: Option<String>,
+    pub labeler_display_name: Option<String>,
+    pub reason_types: Option<Vec<String>>,
+    pub subject_types: Option<Vec<String>>,
+    pub subject_collections: Option<Vec<String>>,
+    pub definitions: Vec<ModerationLabelPolicyDefinition>,
+}
+
 /// Input description of what to report.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "type")]
@@ -287,6 +360,181 @@ pub async fn fetch_labeler_policies_from_api(
             Some((did, label_defs))
         })
         .collect()
+}
+
+/// Fetch detailed labeler views from the API for the given DIDs.
+///
+/// Returns only detailed views and skips malformed DIDs.
+pub async fn fetch_labeler_views_from_api(
+    session: &LazuriteOAuthSession, dids: &[String],
+) -> Vec<jacquard::api::app_bsky::labeler::LabelerViewDetailed<'static>> {
+    if dids.is_empty() {
+        return Vec::new();
+    }
+
+    let parsed_dids: Vec<Did<'_>> = dids
+        .iter()
+        .filter_map(|s| {
+            Did::new(s)
+                .map_err(|error| {
+                    log::warn!("skipping invalid labeler DID '{s}': {error}");
+                    error
+                })
+                .ok()
+        })
+        .collect();
+
+    if parsed_dids.is_empty() {
+        return Vec::new();
+    }
+
+    let request = GetServices::new().dids(parsed_dids).detailed(true).build();
+    let response = match session.send(request).await {
+        Ok(r) => r,
+        Err(error) => {
+            log::warn!("failed to fetch detailed labeler views: {error}");
+            return Vec::new();
+        }
+    };
+
+    let output = match response.into_output() {
+        Ok(o) => o,
+        Err(error) => {
+            log::warn!("failed to decode detailed labeler views response: {error}");
+            return Vec::new();
+        }
+    };
+
+    output
+        .views
+        .into_iter()
+        .filter_map(|view| match view {
+            GetServicesOutputViewsItem::LabelerViewDetailed(detailed) => Some((*detailed).into_static()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn preferred_locale_strings(locales: &[ModerationLabelPolicyLocale]) -> (Option<String>, Option<String>) {
+    if locales.is_empty() {
+        return (None, None);
+    }
+
+    if let Some(en) = locales.iter().find(|locale| locale.lang.eq_ignore_ascii_case("en")) {
+        return (Some(en.name.clone()), Some(en.description.clone()));
+    }
+
+    if let Some(en_region) = locales
+        .iter()
+        .find(|locale| locale.lang.to_ascii_lowercase().starts_with("en-"))
+    {
+        return (Some(en_region.name.clone()), Some(en_region.description.clone()));
+    }
+
+    let fallback = &locales[0];
+    (Some(fallback.name.clone()), Some(fallback.description.clone()))
+}
+
+fn normalize_label_definition(def: &LabelValueDefinition<'_>) -> ModerationLabelPolicyDefinition {
+    let mut locales = def
+        .locales
+        .iter()
+        .map(|locale| ModerationLabelPolicyLocale {
+            lang: locale.lang.as_ref().to_string(),
+            name: locale.name.as_ref().to_string(),
+            description: locale.description.as_ref().to_string(),
+        })
+        .collect::<Vec<_>>();
+    locales.sort_by(|left, right| left.lang.cmp(&right.lang).then(left.name.cmp(&right.name)));
+
+    let (display_name, description) = preferred_locale_strings(&locales);
+
+    ModerationLabelPolicyDefinition {
+        identifier: def.identifier.as_ref().to_string(),
+        adult_only: def.adult_only.unwrap_or(false),
+        default_setting: def.default_setting.as_ref().map(|setting| setting.as_ref().to_string()),
+        severity: def.severity.as_ref().to_string(),
+        blurs: def.blurs.as_ref().to_string(),
+        display_name,
+        description,
+        locales,
+    }
+}
+
+fn normalize_label_definitions(defs: &[LabelValueDefinition<'_>]) -> Vec<ModerationLabelPolicyDefinition> {
+    let mut normalized = defs.iter().map(normalize_label_definition).collect::<Vec<_>>();
+    normalized.sort_by(|left, right| left.identifier.cmp(&right.identifier));
+    normalized.dedup_by(|left, right| left.identifier == right.identifier);
+    normalized
+}
+
+/// Return structured policy definitions for all accepted labelers (built-in + subscribed).
+pub async fn get_labeler_policy_definitions(state: &AppState) -> Result<Vec<ModerationLabelerPolicyDefinition>> {
+    let prefs = get_prefs(state)?;
+    let accepted_dids = accepted_labeler_dids(&prefs);
+    let session = get_session(state).await?;
+
+    let defs = build_labeler_defs(&session, state, &accepted_dids).await;
+    let fetched_views = fetch_labeler_views_from_api(&session, &accepted_dids).await;
+    let mut views_by_did: HashMap<String, jacquard::api::app_bsky::labeler::LabelerViewDetailed<'static>> =
+        HashMap::new();
+    for view in fetched_views {
+        views_by_did.insert(view.creator.did.as_ref().to_string(), view);
+    }
+
+    let mut policies = Vec::with_capacity(accepted_dids.len());
+
+    for did in accepted_dids {
+        let view = views_by_did.get(&did);
+        let definitions_from_view = view
+            .and_then(|value| value.policies.label_value_definitions.as_ref())
+            .map(|definitions| normalize_label_definitions(definitions))
+            .unwrap_or_default();
+
+        let definitions = if !definitions_from_view.is_empty() {
+            definitions_from_view
+        } else if let Ok(parsed) = Did::new(&did) {
+            defs.get(&parsed)
+                .map(normalize_label_definitions)
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        let reason_types = view.map(|value| {
+            value
+                .reason_types
+                .as_ref()
+                .map(|types| types.iter().map(|item| item.as_ref().to_string()).collect::<Vec<String>>())
+        });
+        let subject_types = view.map(|value| {
+            value
+                .subject_types
+                .as_ref()
+                .map(|types| types.iter().map(|item| item.as_ref().to_string()).collect::<Vec<String>>())
+        });
+        let subject_collections = view.map(|value| {
+            value.subject_collections.as_ref().map(|collections| {
+                collections
+                    .iter()
+                    .map(|item| item.as_ref().to_string())
+                    .collect::<Vec<String>>()
+            })
+        });
+
+        policies.push(ModerationLabelerPolicyDefinition {
+            labeler_did: did,
+            labeler_handle: view.map(|value| value.creator.handle.as_ref().to_string()),
+            labeler_display_name: view
+                .and_then(|value| value.creator.display_name.as_ref().map(|name| name.as_ref().to_string())),
+            reason_types: reason_types.flatten(),
+            subject_types: subject_types.flatten(),
+            subject_collections: subject_collections.flatten(),
+            definitions,
+        });
+    }
+
+    Ok(policies)
 }
 
 /// Build `LabelerDefs` for the given DIDs, using the local cache where available
@@ -676,6 +924,83 @@ mod tests {
     fn distribution_channel_defaults_to_github() {
         let channel = distribution_channel();
         assert!(!channel.is_empty());
+    }
+
+    #[test]
+    fn moderation_context_validation() {
+        let contexts = [
+            "contentList",
+            "contentView",
+            "contentMedia",
+            "avatar",
+            "profileList",
+            "profileView",
+        ];
+
+        for context in contexts {
+            let parsed = parse_moderation_context(context).expect("context should parse");
+            assert_eq!(parsed.as_str(), context);
+        }
+
+        let invalid = parse_moderation_context("not-a-context").expect_err("invalid context should fail");
+        assert!(invalid.to_string().contains("invalid moderation context"));
+    }
+
+    #[test]
+    fn label_policy_definition_normalization_prefers_english_locale() {
+        let definition: LabelValueDefinition<'static> = serde_json::from_str(
+            r#"{
+                "identifier":"graphic-media",
+                "adultOnly":true,
+                "blurs":"media",
+                "defaultSetting":"warn",
+                "severity":"alert",
+                "locales":[
+                    {"lang":"fr","name":"Média graphique","description":"Contenu potentiellement choquant"},
+                    {"lang":"en-US","name":"Graphic media","description":"Potentially disturbing media"}
+                ]
+            }"#,
+        )
+        .expect("definition should deserialize");
+
+        let normalized = normalize_label_definition(&definition);
+        assert_eq!(normalized.identifier, "graphic-media");
+        assert!(normalized.adult_only);
+        assert_eq!(normalized.default_setting.as_deref(), Some("warn"));
+        assert_eq!(normalized.severity, "alert");
+        assert_eq!(normalized.blurs, "media");
+        assert_eq!(normalized.display_name.as_deref(), Some("Graphic media"));
+        assert_eq!(normalized.description.as_deref(), Some("Potentially disturbing media"));
+        assert_eq!(normalized.locales.len(), 2);
+    }
+
+    #[test]
+    fn label_policy_definition_normalization_deduplicates_identifiers() {
+        let definitions: Vec<LabelValueDefinition<'static>> = serde_json::from_str(
+            r#"[
+                {
+                    "identifier":"spam",
+                    "adultOnly":false,
+                    "blurs":"none",
+                    "defaultSetting":"ignore",
+                    "severity":"inform",
+                    "locales":[{"lang":"en","name":"Spam","description":"Spam content"}]
+                },
+                {
+                    "identifier":"spam",
+                    "adultOnly":false,
+                    "blurs":"content",
+                    "defaultSetting":"warn",
+                    "severity":"alert",
+                    "locales":[{"lang":"en","name":"Spam duplicate","description":"Duplicate"}]
+                }
+            ]"#,
+        )
+        .expect("definitions should deserialize");
+
+        let normalized = normalize_label_definitions(&definitions);
+        assert_eq!(normalized.len(), 1);
+        assert_eq!(normalized[0].identifier, "spam");
     }
 
     #[test]

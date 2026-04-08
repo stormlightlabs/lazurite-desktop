@@ -1,6 +1,11 @@
 import { ModerationController } from "$/lib/api/moderation";
 import { BUILTIN_LABELER_DID } from "$/lib/moderation";
-import type { ModerationLabelVisibility, StoredModerationPrefs } from "$/lib/types";
+import type {
+  ModerationLabelerPolicyDefinition,
+  ModerationLabelPolicyDefinition,
+  ModerationLabelVisibility,
+  StoredModerationPrefs,
+} from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -19,8 +24,8 @@ type DraftState = {
 
 const VISIBILITY_OPTIONS: ModerationLabelVisibility[] = ["ignore", "warn", "hide"];
 
-function isAdultOnlyLikeLabel(label: string) {
-  return /adult|nsfw|porn|sexual|nudity/iu.test(label);
+function normalizeLabelIdentifier(label: string) {
+  return label.trim().toLowerCase();
 }
 
 function VisibilityOptions() {
@@ -59,6 +64,7 @@ export function SettingsModeration() {
   const [savingAdult, setSavingAdult] = createSignal(false);
   const [busyLabelerDid, setBusyLabelerDid] = createSignal<string | null>(null);
   const [prefs, setPrefs] = createSignal<StoredModerationPrefs | null>(null);
+  const [policyDefinitions, setPolicyDefinitions] = createSignal<ModerationLabelerPolicyDefinition[]>([]);
   const [distributionChannel, setDistributionChannel] = createSignal("github");
   const [draft, setDraft] = createStore<DraftState>({
     addLabelerDid: "",
@@ -73,6 +79,28 @@ export function SettingsModeration() {
     return [BUILTIN_LABELER_DID, ...custom.filter((did) => did !== BUILTIN_LABELER_DID)];
   });
 
+  const policyDefinitionsByDid = createMemo(() => {
+    const map = new Map<string, Map<string, ModerationLabelPolicyDefinition>>();
+
+    for (const policy of policyDefinitions()) {
+      const byLabel = new Map<string, ModerationLabelPolicyDefinition>();
+      for (const definition of policy.definitions) {
+        byLabel.set(normalizeLabelIdentifier(definition.identifier), definition);
+      }
+      map.set(policy.labelerDid, byLabel);
+    }
+
+    return map;
+  });
+
+  const policyByDid = createMemo(() => {
+    const map = new Map<string, ModerationLabelerPolicyDefinition>();
+    for (const policy of policyDefinitions()) {
+      map.set(policy.labelerDid, policy);
+    }
+    return map;
+  });
+
   onMount(() => {
     void loadState();
   });
@@ -80,11 +108,13 @@ export function SettingsModeration() {
   async function loadState() {
     setLoading(true);
     try {
-      const [loadedPrefs, channel] = await Promise.all([
+      const [loadedPrefs, loadedPolicies, channel] = await Promise.all([
         ModerationController.getModerationPrefs(),
+        ModerationController.getLabelerPolicyDefinitions(),
         ModerationController.getDistributionChannel(),
       ]);
       setPrefs(loadedPrefs);
+      setPolicyDefinitions(loadedPolicies);
       setDistributionChannel(channel);
     } catch (error) {
       const message = normalizeError(error);
@@ -129,7 +159,7 @@ export function SettingsModeration() {
     setBusyLabelerDid(did);
     try {
       await ModerationController.subscribeLabeler(did);
-      await refreshPrefs();
+      await refreshModerationState();
       setDraft("addLabelerDid", "");
       feedback.queueFeedback({ kind: "success", message: "Labeler added." });
     } catch (error) {
@@ -149,7 +179,7 @@ export function SettingsModeration() {
     setBusyLabelerDid(did);
     try {
       await ModerationController.unsubscribeLabeler(did);
-      await refreshPrefs();
+      await refreshModerationState();
       feedback.queueFeedback({ kind: "success", message: "Labeler removed." });
     } catch (error) {
       const message = normalizeError(error);
@@ -202,13 +232,48 @@ export function SettingsModeration() {
     return entries.toSorted(([left], [right]) => left.localeCompare(right));
   }
 
+  function getPolicyDefinition(labelerDid: string, label: string) {
+    return policyDefinitionsByDid().get(labelerDid)?.get(normalizeLabelIdentifier(label));
+  }
+
+  function isAdultOnlyLabel(labelerDid: string, label: string) {
+    return !!getPolicyDefinition(labelerDid, label)?.adultOnly;
+  }
+
+  function getLabelDisplayName(labelerDid: string, label: string) {
+    const definition = getPolicyDefinition(labelerDid, label);
+    return definition?.displayName?.trim() || label;
+  }
+
+  function getLabelerTitle(did: string) {
+    const policy = policyByDid().get(did);
+    return policy?.labelerDisplayName?.trim() || policy?.labelerHandle?.trim() || did;
+  }
+
+  function getLabelerSubtitle(did: string) {
+    const policy = policyByDid().get(did);
+    if (!policy) {
+      return did === BUILTIN_LABELER_DID ? "Built-in Bluesky safety labeler" : null;
+    }
+
+    if (policy.labelerDisplayName?.trim() && policy.labelerHandle?.trim()) {
+      return `@${policy.labelerHandle.trim()}`;
+    }
+
+    return null;
+  }
+
   function isMasBuild() {
     return distributionChannel() === "mac_app_store";
   }
 
-  async function refreshPrefs() {
-    const next = await ModerationController.getModerationPrefs();
-    setPrefs(next);
+  async function refreshModerationState() {
+    const [nextPrefs, nextPolicies] = await Promise.all([
+      ModerationController.getModerationPrefs(),
+      ModerationController.getLabelerPolicyDefinitions(),
+    ]);
+    setPrefs(nextPrefs);
+    setPolicyDefinitions(nextPolicies);
   }
 
   return (
@@ -260,9 +325,9 @@ export function SettingsModeration() {
                   {(did) => (
                     <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-black/25 px-3 py-2">
                       <div class="grid gap-0.5">
-                        <span class="text-xs font-medium text-on-surface">{did}</span>
-                        <Show when={did === BUILTIN_LABELER_DID}>
-                          <span class="text-[0.7rem] text-on-surface-variant">Built-in Bluesky safety labeler</span>
+                        <span class="text-xs font-medium text-on-surface">{getLabelerTitle(did)}</span>
+                        <Show when={getLabelerSubtitle(did)}>
+                          {(subtitle) => <span class="text-[0.7rem] text-on-surface-variant">{subtitle()}</span>}
                         </Show>
                       </div>
                       <Show when={did !== BUILTIN_LABELER_DID}>
@@ -319,10 +384,25 @@ export function SettingsModeration() {
                             fallback={<p class="m-0 text-xs text-on-surface-variant">No overrides yet.</p>}>
                             <For each={entries()}>
                               {([label, visibility]) => {
-                                const gated = !current().adultContentEnabled && isAdultOnlyLikeLabel(label);
+                                const definition = getPolicyDefinition(did, label);
+                                const gated = !current().adultContentEnabled && isAdultOnlyLabel(did, label);
+                                const displayName = getLabelDisplayName(did, label);
                                 return (
                                   <div class="grid gap-1 rounded-lg bg-black/30 px-3 py-2">
-                                    <span class="text-xs text-on-surface">{label}</span>
+                                    <span class="text-xs text-on-surface">{displayName}</span>
+                                    <Show when={displayName !== label}>
+                                      <span class="text-[0.7rem] text-on-surface-variant">Identifier: {label}</span>
+                                    </Show>
+                                    <Show when={definition}>
+                                      {(currentDefinition) => (
+                                        <span class="text-[0.7rem] text-on-surface-variant">
+                                          {currentDefinition().severity} • {currentDefinition().blurs}
+                                          <Show when={currentDefinition().defaultSetting}>
+                                            {(defaultSetting) => ` • default ${defaultSetting()}`}
+                                          </Show>
+                                        </span>
+                                      )}
+                                    </Show>
                                     <div class="flex flex-wrap items-center gap-2">
                                       <select
                                         value={visibility}

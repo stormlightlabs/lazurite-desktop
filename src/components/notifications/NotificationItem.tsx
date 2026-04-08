@@ -50,8 +50,8 @@ export function NotificationItem(props: NotificationItemProps & NotificationInte
   const detail = createMemo(() => postText() ?? followDetail(props.notification));
   const avatarLabels = () => collectModerationLabels(props.notification.author);
   const contentLabels = () => collectModerationLabels(props.notification);
-  const avatarDecision = useModerationDecision(avatarLabels);
-  const contentDecision = useModerationDecision(contentLabels);
+  const avatarDecision = useModerationDecision(avatarLabels, "avatar");
+  const contentDecision = useModerationDecision(contentLabels, "contentList");
 
   function openBodyTarget() {
     const uri = bodyTargetUri();

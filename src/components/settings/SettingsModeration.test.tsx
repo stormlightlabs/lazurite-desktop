@@ -7,6 +7,7 @@ const setAdultContentEnabledMock = vi.hoisted(() => vi.fn());
 const setLabelPreferenceMock = vi.hoisted(() => vi.fn());
 const subscribeLabelerMock = vi.hoisted(() => vi.fn());
 const unsubscribeLabelerMock = vi.hoisted(() => vi.fn());
+const getLabelerPolicyDefinitionsMock = vi.hoisted(() => vi.fn());
 const getDistributionChannelMock = vi.hoisted(() => vi.fn());
 const openUrlMock = vi.hoisted(() => vi.fn());
 
@@ -19,6 +20,7 @@ vi.mock(
       setLabelPreference: setLabelPreferenceMock,
       subscribeLabeler: subscribeLabelerMock,
       unsubscribeLabeler: unsubscribeLabelerMock,
+      getLabelerPolicyDefinitions: getLabelerPolicyDefinitionsMock,
       getDistributionChannel: getDistributionChannelMock,
     },
   }),
@@ -38,6 +40,13 @@ describe("SettingsModeration", () => {
     setLabelPreferenceMock.mockResolvedValue(void 0);
     subscribeLabelerMock.mockResolvedValue(void 0);
     unsubscribeLabelerMock.mockResolvedValue(void 0);
+    getLabelerPolicyDefinitionsMock.mockResolvedValue([{
+      labelerDid: "did:plc:ar7c4by46qjdydhdevvrndac",
+      definitions: [{ identifier: "graphic-media", adultOnly: false, severity: "alert", blurs: "media", locales: [] }],
+    }, {
+      labelerDid: "did:plc:custom-labeler",
+      definitions: [{ identifier: "porn", adultOnly: true, severity: "alert", blurs: "media", locales: [] }],
+    }]);
     getDistributionChannelMock.mockResolvedValue("github");
     openUrlMock.mockResolvedValue(void 0);
   });
@@ -87,5 +96,15 @@ describe("SettingsModeration", () => {
     await waitFor(() =>
       expect(setLabelPreferenceMock).toHaveBeenCalledWith("did:plc:ar7c4by46qjdydhdevvrndac", "graphic-media", "warn")
     );
+  });
+
+  it("disables adult-only overrides when adult content is off", async () => {
+    render(() => <SettingsModeration />);
+
+    const helperText = await screen.findByText("Enable adult content to edit this label.");
+    const controls = helperText.closest("div");
+    const select = controls?.querySelector("select");
+    expect(select).toBeTruthy();
+    expect(select).toBeDisabled();
   });
 });

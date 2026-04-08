@@ -1,436 +1,53 @@
-// TODO: there is a lot of prop drilling in this module, and could benefit from the splitProps pattern.
-import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/actor-search";
-import { FeedController } from "$/lib/api/feeds";
 import type { ColumnKind } from "$/lib/api/types/columns";
 import type { SearchMode } from "$/lib/api/types/search";
-import { getFeedName } from "$/lib/feeds";
-import type { FeedGeneratorView, LoginSuggestion, SavedFeedItem } from "$/lib/types";
-import * as logger from "@tauri-apps/plugin-log";
-import { createEffect, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { createEffect, createSignal, For, Match, onCleanup, Show, splitProps, Switch } from "solid-js";
 import { Portal } from "solid-js/web";
 import { Motion, Presence } from "solid-motionone";
-import { FeedChipAvatar } from "../feeds/FeedChipAvatar";
-import { Icon, SearchModeIcon } from "../shared/Icon";
+import { Icon } from "../shared/Icon";
+import { DiagnosticsPicker, ExplorerPicker, FeedPicker, MessagesPicker } from "./ColumnPicker";
+import { ProfilePicker } from "./ColumnPicker/ProfileColumnPicker";
+import { SearchPicker } from "./ColumnPicker/SearchPicker";
+import type { FeedPickerSelection, ProfileSelection } from "./types";
 
 type AddColumnPanelProps = { onAdd: (kind: ColumnKind, config: string) => void; onClose: () => void; open: boolean };
 
 type PanelTab = ColumnKind;
 
-type FeedPickerSelection = { feed: SavedFeedItem; title: string };
-
-function feedKindLabel(feed: SavedFeedItem) {
-  switch (feed.type) {
-    case "timeline": {
-      return "Timeline";
-    }
-    case "list": {
-      return "List";
-    }
-    default: {
-      return "Feed";
-    }
-  }
-}
-
-function FeedPicker(props: { onSelect: (selection: FeedPickerSelection) => void }) {
-  const [feeds, setFeeds] = createSignal<SavedFeedItem[]>([]);
-  const [generators, setGenerators] = createSignal<Record<string, FeedGeneratorView>>({});
-  const [loading, setLoading] = createSignal(true);
-
-  onMount(async () => {
-    try {
-      const prefs = await FeedController.getPreferences();
-      setFeeds(prefs.savedFeeds);
-
-      const uris = [...new Set(prefs.savedFeeds.filter((feed) => feed.type === "feed").map((feed) => feed.value))];
-      if (uris.length > 0) {
-        const hydrated = await FeedController.getFeedGenerators(uris);
-        setGenerators(Object.fromEntries(hydrated.feeds.map((generator) => [generator.uri, generator])));
-      }
-    } catch (err) {
-      logger.error(`Failed to load feeds for column picker: ${String(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  });
-
-  return (
-    <div class="grid gap-2">
-      <Show when={loading()}>
-        <div class="flex items-center justify-center py-6">
-          <span class="flex items-center text-on-surface-variant">
-            <i class="i-ri-loader-4-line animate-spin" />
-          </span>
-        </div>
-      </Show>
-
-      <Show when={!loading() && feeds().length === 0}>
-        <p class="py-4 text-center text-sm text-on-surface-variant">No saved feeds found.</p>
-      </Show>
-
-      <For
-        each={feeds()}
-        fallback={
-          <Show when={!loading()}>
-            <p class="py-4 text-center text-sm text-on-surface-variant">No saved feeds found.</p>
-          </Show>
-        }>
-        {(feed) => (
-          <button
-            type="button"
-            class="flex w-full items-center gap-3 rounded-xl border-0 bg-white/4 px-4 py-3 text-left transition duration-150 hover:-translate-y-px hover:bg-white/8"
-            onClick={() => props.onSelect({ feed, title: getFeedName(feed, generators()[feed.value]?.displayName) })}>
-            <FeedChipAvatar feed={feed} generator={generators()[feed.value]} />
-            <span class="min-w-0 flex-1">
-              <span class="block truncate text-sm font-medium text-on-surface">
-                {getFeedName(feed, generators()[feed.value]?.displayName)}
-              </span>
-              <span class="block truncate text-xs text-on-surface-variant">{feedKindLabel(feed)}</span>
-            </span>
-          </button>
-        )}
-      </For>
-    </div>
-  );
-}
-
-function ExplorerPicker(props: { onSubmit: (uri: string) => void }) {
-  const [value, setValue] = createSignal("");
-
-  function handleSubmit(e: Event) {
-    e.preventDefault();
-    const uri = value().trim();
-    if (uri) {
-      props.onSubmit(uri);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} class="grid gap-3">
-      <label class="grid gap-1.5">
-        <span class="text-xs font-medium uppercase tracking-wide text-on-surface-variant">
-          Target URI / handle / DID / PDS URL
-        </span>
-        <input
-          type="text"
-          class="rounded-xl border-0 bg-white/6 px-4 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.4)]"
-          placeholder="at://did:plc:… or handle.bsky.social"
-          value={value()}
-          onInput={(e) => setValue(e.currentTarget.value)} />
-      </label>
-
-      <button
-        type="submit"
-        disabled={!value().trim()}
-        class="flex items-center justify-center gap-2 rounded-xl border-0 bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40">
-        <span class="flex items-center">
-          <i class="i-ri-compass-discover-line" />
-        </span>
-        Open in column
-      </button>
-    </form>
-  );
-}
-
-function DiagnosticsPicker(props: { onSubmit: (did: string) => void }) {
-  const [value, setValue] = createSignal("");
-
-  function handleSubmit(e: Event) {
-    e.preventDefault();
-    const did = value().trim();
-    if (did) {
-      props.onSubmit(did);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} class="grid gap-3">
-      <label class="grid gap-1.5">
-        <span class="text-xs font-medium uppercase tracking-wide text-on-surface-variant">Handle or DID</span>
-        <input
-          type="text"
-          class="rounded-xl border-0 bg-white/6 px-4 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.4)]"
-          placeholder="handle.bsky.social or did:plc:…"
-          value={value()}
-          onInput={(e) => setValue(e.currentTarget.value)} />
-      </label>
-
-      <button
-        type="submit"
-        disabled={!value().trim()}
-        class="flex items-center justify-center gap-2 rounded-xl border-0 bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40">
-        <span class="flex items-center">
-          <i class="i-ri-stethoscope-line" />
-        </span>
-        Open diagnostics
-      </button>
-    </form>
-  );
-}
-
-function MessagesPicker(props: { onSubmit: () => void }) {
-  return (
-    <div class="grid gap-4">
-      <div class="rounded-2xl bg-white/4 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
-        <div class="flex items-start gap-3">
-          <span class="mt-0.5 flex items-center text-primary">
-            <i class="i-ri-message-3-line" />
-          </span>
-          <div class="grid gap-1.5">
-            <p class="m-0 text-sm font-medium text-on-surface">Direct messages</p>
-            <p class="m-0 text-xs leading-relaxed text-on-surface-variant">
-              Opens your DM inbox inside the deck. Message content is blurred until you hover or focus the column.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        class="flex items-center justify-center gap-2 rounded-xl border-0 bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25"
-        onClick={() => props.onSubmit()}>
-        <span class="flex items-center">
-          <i class="i-ri-layout-column-line" />
-        </span>
-        Add DM column
-      </button>
-    </div>
-  );
-}
-
-function SearchModeButton(props: { active: boolean; disabled?: boolean; mode: SearchMode; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      disabled={props.disabled}
-      class="inline-flex items-center justify-center gap-2 rounded-xl border-0 px-3 py-2 text-xs font-medium transition duration-150 disabled:cursor-not-allowed disabled:opacity-40"
-      classList={{
-        "bg-primary/15 text-primary": props.active,
-        "bg-white/4 text-on-surface-variant hover:bg-white/8 hover:text-on-surface": !props.active && !props.disabled,
-      }}
-      onClick={() => props.onClick()}>
-      <SearchModeIcon mode={props.mode} class="text-sm" />
-      <span class="capitalize">{props.mode}</span>
-    </button>
-  );
-}
-
-function SearchPicker(props: { onSubmit: (query: string, mode: SearchMode) => void }) {
-  const [mode, setMode] = createSignal<SearchMode>("network");
-  const [query, setQuery] = createSignal("");
-
-  function handleSubmit(event: Event) {
-    event.preventDefault();
-    const trimmed = query().trim();
-    if (!trimmed) {
-      return;
-    }
-
-    props.onSubmit(trimmed, mode());
-  }
-
-  return (
-    <form onSubmit={handleSubmit} class="grid gap-3">
-      <label class="grid gap-1.5">
-        <span class="text-xs font-medium uppercase tracking-wide text-on-surface-variant">Search query</span>
-        <input
-          type="text"
-          class="rounded-xl border-0 bg-white/6 px-4 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.4)]"
-          placeholder="from:alice at protocol"
-          value={query()}
-          onInput={(event) => setQuery(event.currentTarget.value)} />
-      </label>
-
-      <div class="grid gap-1.5">
-        <span class="text-xs font-medium uppercase tracking-wide text-on-surface-variant">Search mode</span>
-        <div class="grid grid-cols-2 gap-2">
-          <SearchModeButton active={mode() === "network"} mode="network" onClick={() => setMode("network")} />
-          <SearchModeButton active={mode() === "keyword"} mode="keyword" onClick={() => setMode("keyword")} />
-          <SearchModeButton active={mode() === "semantic"} mode="semantic" onClick={() => setMode("semantic")} />
-          <SearchModeButton active={mode() === "hybrid"} mode="hybrid" onClick={() => setMode("hybrid")} />
-        </div>
-      </div>
-
-      <button
-        type="submit"
-        disabled={!query().trim()}
-        class="flex items-center justify-center gap-2 rounded-xl border-0 bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40">
-        <span class="flex items-center">
-          <i class="i-ri-search-line" />
-        </span>
-        Open search column
-      </button>
-    </form>
-  );
-}
-
-function ProfilePicker(
-  props: {
-    onSubmit: (
-      selection: { actor: string; did?: string | null; displayName?: string | null; handle?: string | null },
-    ) => void;
-  },
-) {
-  let container: HTMLDivElement | undefined;
-  let input: HTMLInputElement | undefined;
-  const [value, setValue] = createSignal("");
-  const typeahead = useActorSuggestions({
-    container: () => container,
-    input: () => input,
-    onError: (error) => logger.warn(`Failed to load profile suggestions: ${String(error)}`),
-    value,
-  });
-
-  function submitManualActor() {
-    const actor = value().trim();
-    if (!actor) {
-      return;
-    }
-
-    typeahead.close();
-    props.onSubmit({ actor });
-  }
-
-  function submitSuggestion(suggestion: LoginSuggestion) {
-    typeahead.close();
-    props.onSubmit({
-      actor: suggestion.handle,
-      did: suggestion.did,
-      displayName: suggestion.displayName ?? null,
-      handle: suggestion.handle,
-    });
-  }
-
-  function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      typeahead.moveActiveIndex(1);
-      return;
-    }
-
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      typeahead.moveActiveIndex(-1);
-      return;
-    }
-
-    if (event.key === "Escape") {
-      typeahead.close();
-      return;
-    }
-
-    if (event.key === "Enter" && typeahead.open() && typeahead.activeSuggestion()) {
-      event.preventDefault();
-      submitSuggestion(typeahead.activeSuggestion() as LoginSuggestion);
-    }
-  }
-
-  return (
-    <form
-      class="grid gap-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        submitManualActor();
-      }}>
-      <label class="grid gap-1.5">
-        <span class="text-xs font-medium uppercase tracking-wide text-on-surface-variant">Handle or DID</span>
-        <div
-          class="relative"
-          ref={(element) => {
-            container = element as HTMLDivElement;
-          }}>
-          <input
-            ref={(element) => {
-              input = element;
-            }}
-            type="text"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-controls="profile-suggestions"
-            aria-activedescendant={typeahead.activeIndex() >= 0
-              ? `profile-suggestions-option-${typeahead.activeIndex()}`
-              : undefined}
-            aria-expanded={typeahead.open()}
-            class="w-full rounded-xl border-0 bg-white/6 px-4 py-2.5 pr-10 text-sm text-on-surface placeholder:text-on-surface-variant/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.4)]"
-            placeholder="alice.bsky.social"
-            spellcheck={false}
-            value={value()}
-            onFocus={() => typeahead.focus()}
-            onInput={(event) => setValue(event.currentTarget.value)}
-            onKeyDown={(event) => handleKeyDown(event)} />
-
-          <TypeaheadLoading visible={typeahead.loading()} />
-          <ActorSuggestionList
-            activeIndex={typeahead.activeIndex()}
-            id="profile-suggestions"
-            open={typeahead.open()}
-            suggestions={typeahead.suggestions()}
-            title="Suggested profiles"
-            onSelect={submitSuggestion} />
-        </div>
-      </label>
-
-      <button
-        type="submit"
-        disabled={!value().trim()}
-        class="flex items-center justify-center gap-2 rounded-xl border-0 bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40">
-        <span class="flex items-center">
-          <i class="i-ri-user-3-line" />
-        </span>
-        Open profile
-      </button>
-    </form>
-  );
-}
-
-function TypeaheadLoading(props: { visible: boolean }) {
-  return (
-    <Show when={props.visible}>
-      <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
-        <Icon kind="loader" class="animate-spin text-sm" />
-      </span>
-    </Show>
-  );
-}
-
-type PanelContentProps = {
-  tab: PanelTab;
-  onFeedSelect: (selection: FeedPickerSelection) => void;
-  onExplorerSubmit: (uri: string) => void;
+type PanelSubmissionHandlers = {
   onDiagnosticsSubmit: (did: string) => void;
+  onExplorerSubmit: (uri: string) => void;
+  onFeedSelect: (selection: FeedPickerSelection) => void;
   onMessagesSubmit: () => void;
-  onProfileSubmit: (
-    selection: { actor: string; did?: string | null; displayName?: string | null; handle?: string | null },
-  ) => void;
+  onProfileSubmit: (selection: ProfileSelection) => void;
   onSearchSubmit: (query: string, mode: SearchMode) => void;
 };
 
-function PanelContent(props: PanelContentProps) {
+function PanelContent(props: { handlers: PanelSubmissionHandlers; tab: PanelTab }) {
   return (
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
       <Switch>
         <Match when={props.tab === "feed"}>
-          <FeedPicker onSelect={props.onFeedSelect} />
+          <FeedPicker onSelect={props.handlers.onFeedSelect} />
         </Match>
 
         <Match when={props.tab === "explorer"}>
-          <ExplorerPicker onSubmit={props.onExplorerSubmit} />
+          <ExplorerPicker onSubmit={props.handlers.onExplorerSubmit} />
         </Match>
 
         <Match when={props.tab === "diagnostics"}>
-          <DiagnosticsPicker onSubmit={props.onDiagnosticsSubmit} />
+          <DiagnosticsPicker onSubmit={props.handlers.onDiagnosticsSubmit} />
         </Match>
 
         <Match when={props.tab === "messages"}>
-          <MessagesPicker onSubmit={props.onMessagesSubmit} />
+          <MessagesPicker onSubmit={props.handlers.onMessagesSubmit} />
         </Match>
 
         <Match when={props.tab === "search"}>
-          <SearchPicker onSubmit={props.onSearchSubmit} />
+          <SearchPicker onSubmit={props.handlers.onSearchSubmit} />
         </Match>
 
         <Match when={props.tab === "profile"}>
-          <ProfilePicker onSubmit={props.onProfileSubmit} />
+          <ProfilePicker onSubmit={props.handlers.onProfileSubmit} />
         </Match>
       </Switch>
     </div>
@@ -486,22 +103,18 @@ function AddColumnPanelTabs(props: AddColumnPanelTabsProps) {
   );
 }
 
-function AddColumnPanelBody(
-  props: {
-    activeTab: PanelTab;
-    onClose: () => void;
-    onDiagnosticsSubmit: (did: string) => void;
-    onExplorerSubmit: (uri: string) => void;
-    onFeedSelect: (selection: FeedPickerSelection) => void;
-    onMessagesSubmit: () => void;
-    onProfileSubmit: (
-      selection: { actor: string; did?: string | null; displayName?: string | null; handle?: string | null },
-    ) => void;
-    onSearchSubmit: (query: string, mode: SearchMode) => void;
-    onTabChange: (tab: PanelTab) => void;
-    tabs: Array<{ icon: string; id: PanelTab; label: string }>;
-  },
-) {
+type AddColumnPanelFrame = {
+  activeTab: PanelTab;
+  onClose: () => void;
+  onTabChange: (tab: PanelTab) => void;
+  tabs: Array<{ icon: string; id: PanelTab; label: string }>;
+};
+
+type AddColumnPanelBodyProps = { frame: AddColumnPanelFrame; handlers: PanelSubmissionHandlers };
+
+function AddColumnPanelBody(props: AddColumnPanelBodyProps) {
+  const [frameProps, contentProps] = splitProps(props, ["frame"], ["handlers"]);
+
   return (
     <Motion.aside
       role="dialog"
@@ -512,21 +125,18 @@ function AddColumnPanelBody(
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 40 }}
       transition={{ duration: 0.22, easing: [0.32, 0.72, 0, 1] }}>
-      <AddColumnPanelHeader onClose={props.onClose} />
-      <AddColumnPanelTabs activeTab={props.activeTab} tabs={props.tabs} onTabChange={props.onTabChange} />
-      <PanelContent
-        tab={props.activeTab}
-        onFeedSelect={props.onFeedSelect}
-        onExplorerSubmit={props.onExplorerSubmit}
-        onDiagnosticsSubmit={props.onDiagnosticsSubmit}
-        onMessagesSubmit={props.onMessagesSubmit}
-        onProfileSubmit={props.onProfileSubmit}
-        onSearchSubmit={props.onSearchSubmit} />
+      <AddColumnPanelHeader onClose={frameProps.frame.onClose} />
+      <AddColumnPanelTabs
+        activeTab={frameProps.frame.activeTab}
+        tabs={frameProps.frame.tabs}
+        onTabChange={frameProps.frame.onTabChange} />
+      <PanelContent tab={frameProps.frame.activeTab} handlers={contentProps.handlers} />
     </Motion.aside>
   );
 }
 
 export function AddColumnPanel(props: AddColumnPanelProps) {
+  const [panelState, panelActions] = splitProps(props, ["open"], ["onAdd", "onClose"]);
   const [activeTab, setActiveTab] = createSignal<PanelTab>("feed");
 
   function handleFeedSelect(selection: FeedPickerSelection) {
@@ -535,31 +145,29 @@ export function AddColumnPanel(props: AddColumnPanelProps) {
       feedUri: selection.feed.value,
       title: selection.title,
     });
-    props.onAdd("feed", config);
+    panelActions.onAdd("feed", config);
   }
 
   function handleExplorerSubmit(uri: string) {
     const config = JSON.stringify({ targetUri: uri });
-    props.onAdd("explorer", config);
+    panelActions.onAdd("explorer", config);
   }
 
   function handleDiagnosticsSubmit(did: string) {
     const config = JSON.stringify({ did });
-    props.onAdd("diagnostics", config);
+    panelActions.onAdd("diagnostics", config);
   }
 
   function handleMessagesSubmit() {
-    props.onAdd("messages", JSON.stringify({}));
+    panelActions.onAdd("messages", JSON.stringify({}));
   }
 
   function handleSearchSubmit(query: string, mode: SearchMode) {
-    props.onAdd("search", JSON.stringify({ mode, query }));
+    panelActions.onAdd("search", JSON.stringify({ mode, query }));
   }
 
-  function handleProfileSubmit(
-    selection: { actor: string; did?: string | null; displayName?: string | null; handle?: string | null },
-  ) {
-    props.onAdd("profile", JSON.stringify(selection));
+  function handleProfileSubmit(selection: ProfileSelection) {
+    panelActions.onAdd("profile", JSON.stringify(selection));
   }
 
   // TODO: use IconKind for Icon
@@ -572,17 +180,17 @@ export function AddColumnPanel(props: AddColumnPanelProps) {
     { icon: "i-ri-user-3-line", id: "profile", label: "Profile" },
   ];
 
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      panelActions.onClose();
+    }
+  }
+
   createEffect(() => {
-    if (!props.open) {
+    if (!panelState.open) {
       setActiveTab("feed");
       return;
     }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        props.onClose();
-      }
-    };
 
     globalThis.addEventListener("keydown", handleKeyDown);
     onCleanup(() => globalThis.removeEventListener("keydown", handleKeyDown));
@@ -590,7 +198,7 @@ export function AddColumnPanel(props: AddColumnPanelProps) {
 
   return (
     <Presence exitBeforeEnter>
-      <Show when={props.open}>
+      <Show when={panelState.open}>
         <Portal>
           <div class="fixed inset-0 z-50 flex justify-end">
             <Motion.div
@@ -599,19 +207,18 @@ export function AddColumnPanel(props: AddColumnPanelProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              onClick={() => props.onClose()} />
+              onClick={() => panelActions.onClose()} />
 
             <AddColumnPanelBody
-              activeTab={activeTab()}
-              tabs={tabs}
-              onClose={props.onClose}
-              onTabChange={setActiveTab}
-              onFeedSelect={handleFeedSelect}
-              onExplorerSubmit={handleExplorerSubmit}
-              onDiagnosticsSubmit={handleDiagnosticsSubmit}
-              onMessagesSubmit={handleMessagesSubmit}
-              onProfileSubmit={handleProfileSubmit}
-              onSearchSubmit={handleSearchSubmit} />
+              frame={{ activeTab: activeTab(), tabs, onClose: panelActions.onClose, onTabChange: setActiveTab }}
+              handlers={{
+                onDiagnosticsSubmit: handleDiagnosticsSubmit,
+                onExplorerSubmit: handleExplorerSubmit,
+                onFeedSelect: handleFeedSelect,
+                onMessagesSubmit: handleMessagesSubmit,
+                onProfileSubmit: handleProfileSubmit,
+                onSearchSubmit: handleSearchSubmit,
+              }} />
           </div>
         </Portal>
       </Show>
