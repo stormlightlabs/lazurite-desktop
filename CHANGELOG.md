@@ -6,6 +6,7 @@
 
 - Image (single or gallery) & video player with blob downloading
 - Group notifications by reason & post, with clickable links to subjects and posts
+- Added dedicated post/thread view.
 
 ### 2026-04-06
 

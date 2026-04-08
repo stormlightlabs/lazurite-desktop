@@ -91,9 +91,7 @@ function SearchInputField(
 function LoadingIndicator(props: { loading: boolean }) {
   return (
     <Show when={props.loading}>
-      <span class="flex items-center text-on-surface-variant">
-        <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
-      </span>
+      <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base  text-on-surface-variant" />
     </Show>
   );
 }

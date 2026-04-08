@@ -228,6 +228,22 @@ export function SettingsIcon(props: IconProps & { kind: SettingsIconKind }) {
   );
 }
 
+export function RailFoldIcon(props: JSX.HTMLAttributes<HTMLSpanElement> & { class?: string; kind: "open" | "close" }) {
+  const [local, rest] = splitProps(props, ["class", "kind"]);
+  return (
+    <span class="flex items-center justify-center" classList={{ [local.class ?? ""]: !!local.class }} {...rest}>
+      <Switch>
+        <Match when={local.kind === "open"}>
+          <i class="i-ri-menu-fold-2-fill" />
+        </Match>
+        <Match when={local.kind === "close"}>
+          <i class="i-ri-menu-unfold-2-fill" />
+        </Match>
+      </Switch>
+    </span>
+  );
+}
+
 export function ArrowIcon(
   props: JSX.HTMLAttributes<HTMLSpanElement> & { class?: string; direction: "up" | "down" | "left" | "right" },
 ) {

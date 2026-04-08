@@ -3,7 +3,7 @@ import { useAppShellUi } from "$/contexts/app-shell-ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Show } from "solid-js";
 import { AccountSwitcher } from "../account/AccountSwitcher";
-import { ArrowIcon } from "../shared/Icon";
+import { RailFoldIcon } from "../shared/Icon";
 import { Wordmark } from "../Wordmark";
 import { RailActionButton, RailButton } from "./AppRailButton";
 
@@ -19,8 +19,8 @@ function RailHeader(props: { collapsed: boolean; onToggleCollapse: () => void })
         aria-label={props.collapsed ? "Expand app rail" : "Collapse app rail"}
         aria-pressed={props.collapsed}
         onClick={() => props.onToggleCollapse()}>
-        <Show when={props.collapsed} fallback={<ArrowIcon direction="left" />}>
-          <ArrowIcon direction="right" />
+        <Show when={props.collapsed} fallback={<RailFoldIcon kind="close" />}>
+          <RailFoldIcon kind="open" />
         </Show>
       </button>
     </div>
