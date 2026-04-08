@@ -23,6 +23,7 @@ import { SettingsDangerZone } from "./SettingsDangerZone";
 import { SettingsData } from "./SettingsData";
 import { SettingsDownloads } from "./SettingsDownloads";
 import { SettingsLogs } from "./SettingsLogs";
+import { SettingsModeration } from "./SettingsModeration";
 import { NotificationsControl } from "./SettingsNotification";
 import { SettingsService } from "./SettingsService";
 import { AppearanceControl } from "./SettingsTheme";
@@ -283,6 +284,7 @@ export function SettingsPanel() {
                   <AppearanceControl currentTheme={currentTheme()} handleUpdateSetting={handleUpdateSetting} />
                   <TimelineControl currentRefresh={currentRefresh()} handleUpdateSetting={handleUpdateSetting} />
                   <NotificationsControl settings={settings()} handleUpdateSetting={handleUpdateSetting} />
+                  <SettingsModeration />
                   <EmbeddingsSettings />
                   <AccountControl openConfirmation={openConfirmation} />
                   <SettingsService settings={settings()} handleUpdateSetting={handleUpdateSetting} />

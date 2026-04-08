@@ -140,28 +140,6 @@ function KnownRecordPreview(props: { record: Record<string, unknown> }) {
     return null;
   };
 
-  // return (
-  //   <>
-  //     <Show when={kind() === "app.bsky.feed.post" && content()}>
-  //       <CollapsibleSection title="Post Preview">
-  //         <div class="p-4 rounded-xl bg-black/30">
-  //           <PostRichText class="text-sm" facets={postRecord().facets} text={content() ?? ""} />
-  //         </div>
-  //       </CollapsibleSection>
-  //     </Show>
-
-  //     <Show when={kind() !== "app.bsky.feed.post" && subject()}>
-  //       {(value) => (
-  //         <CollapsibleSection title="Subject">
-  //           <div class="p-4 rounded-xl bg-black/30">
-  //             <SubjectPreview subject={value()} />
-  //           </div>
-  //         </CollapsibleSection>
-  //       )}
-  //     </Show>
-  //   </>
-  // );
-
   return (
     <Show
       when={kind() === "app.bsky.feed.post"}

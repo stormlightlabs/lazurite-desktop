@@ -1,11 +1,17 @@
 import { ImageGallery } from "$/components/feeds/ImageGallery";
 import { type MediaNotice, MediaNoticeToast } from "$/components/feeds/MediaNoticeToast";
 import { VideoEmbed } from "$/components/feeds/VideoEmbed";
+import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { ModeratedBlurOverlay } from "$/components/moderation/ModeratedBlurOverlay";
+import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
+import { ReportDialog } from "$/components/moderation/ReportDialog";
+import { useModerationDecision } from "$/components/moderation/useModerationDecision";
 import { ContextMenu, type ContextMenuAnchor, type ContextMenuItem } from "$/components/shared/ContextMenu";
 import { Icon } from "$/components/shared/Icon";
 import { PostRichText } from "$/components/shared/PostRichText";
 import { QuotedPostPreview } from "$/components/shared/QuotedPostPreview";
 import { MediaController } from "$/lib/api/media";
+import { ModerationController } from "$/lib/api/moderation";
 import {
   buildPublicPostUrl,
   formatRelativeTime,
@@ -19,9 +25,22 @@ import {
   getQuotedText,
   isReplyItem,
 } from "$/lib/feeds";
+import { collectModerationLabels } from "$/lib/moderation";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
-import type { EmbedView, FeedViewPost, ImagesEmbedView, PostView, ProfileViewBasic, RichTextFacet } from "$/lib/types";
+import type {
+  EmbedView,
+  FeedViewPost,
+  ImagesEmbedView,
+  ModerationLabel,
+  ModerationReasonType,
+  ModerationUiDecision,
+  PostView,
+  ProfileViewBasic,
+  ReportSubjectInput,
+  RichTextFacet,
+} from "$/lib/types";
 import { formatCount, formatHandle, normalizeError } from "$/lib/utils/text";
+import * as logger from "@tauri-apps/plugin-log";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { createMemo, createSignal, For, Match, onCleanup, type ParentProps, Show, Switch } from "solid-js";
 import { Motion } from "solid-motionone";
@@ -46,6 +65,8 @@ type PostCardProps = {
   showActions?: boolean;
 };
 
+type ReportTarget = { subject: ReportSubjectInput; subjectLabel: string };
+
 export function PostCard(props: PostCardProps) {
   const authorName = createMemo(() => getDisplayName(props.post.author));
   const createdAt = createMemo(() => formatRelativeTime(getPostCreatedAt(props.post)));
@@ -58,6 +79,12 @@ export function PostCard(props: PostCardProps) {
   const repostCount = createMemo(() => formatCount(props.post.repostCount));
   const authorHandle = createMemo(() => formatHandle(props.post.author.handle, props.post.author.did));
   const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.post.author)));
+  const contentLabels = () => collectModerationLabels(props.post);
+  const mediaLabels = () => collectModerationLabels(props.post, props.post.embed);
+  const avatarLabels = () => collectModerationLabels(props.post.author);
+  const contentDecision = useModerationDecision(contentLabels);
+  const mediaDecision = useModerationDecision(mediaLabels);
+  const avatarDecision = useModerationDecision(avatarLabels);
   const reasonLabel = createMemo(() => {
     const reason = props.item?.reason;
     if (!reason || reason.$type !== "app.bsky.feed.defs#reasonRepost") {
@@ -83,6 +110,8 @@ export function PostCard(props: PostCardProps) {
 
   const [menuAnchor, setMenuAnchor] = createSignal<ContextMenuAnchor | null>(null);
   const [menuOpen, setMenuOpen] = createSignal(false);
+  const [reportOpen, setReportOpen] = createSignal(false);
+  const [reportTarget, setReportTarget] = createSignal<ReportTarget | null>(null);
   let menuTriggerRef: HTMLButtonElement | undefined;
 
   const menuItems = createMemo<ContextMenuItem[]>(() => {
@@ -130,6 +159,28 @@ export function PostCard(props: PostCardProps) {
       items.push({ icon: "i-ri-node-tree", label: "Open thread", onSelect: props.onOpenThread });
     }
 
+    items.push({
+      icon: "i-ri-flag-line",
+      label: "Report post",
+      onSelect: () => {
+        setReportTarget({
+          subject: { type: "record", uri: props.post.uri, cid: props.post.cid },
+          subjectLabel: `Post by @${props.post.author.handle}`,
+        });
+        setReportOpen(true);
+      },
+    }, {
+      icon: "i-ri-flag-2-line",
+      label: "Report account",
+      onSelect: () => {
+        setReportTarget({
+          subject: { type: "repo", did: props.post.author.did },
+          subjectLabel: `Account @${props.post.author.handle}`,
+        });
+        setReportOpen(true);
+      },
+    }, { icon: "i-ri-forbid-2-line", label: `Block @${props.post.author.handle}`, onSelect: () => void blockAuthor() });
+
     return items;
   });
 
@@ -147,6 +198,35 @@ export function PostCard(props: PostCardProps) {
     event.preventDefault();
     setMenuAnchor({ kind: "point", x: event.clientX, y: event.clientY });
     setMenuOpen(true);
+  }
+
+  async function submitReport(input: { reasonType: ModerationReasonType; reason: string }) {
+    const target = reportTarget();
+    if (!target) {
+      return;
+    }
+
+    try {
+      await ModerationController.createReport(target.subject, input.reasonType, input.reason);
+    } catch (error) {
+      logger.error("failed to submit report", { keyValues: { error: normalizeError(error) } });
+    }
+  }
+
+  async function blockAuthor() {
+    const confirmed = globalThis.confirm
+      ? globalThis.confirm(`Block @${props.post.author.handle}? You can unblock from Bluesky settings.`)
+      : true;
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await ModerationController.blockActor(props.post.author.did);
+    } catch (error) {
+      logger.error("failed to block account", { keyValues: { error: normalizeError(error) } });
+    }
   }
 
   return (
@@ -180,7 +260,12 @@ export function PostCard(props: PostCardProps) {
 
       <div class="flex min-w-0 gap-3">
         <a class="shrink-0 no-underline" href={`#${profileHref()}`} onClick={(event) => event.stopPropagation()}>
-          <AuthorAvatar avatar={props.post.author.avatar} label={getAvatarLabel(props.post.author)} />
+          <ModeratedAvatar
+            avatar={props.post.author.avatar}
+            class="relative mt-0.5 h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] shadow-[0_0_0_2px_rgba(14,14,14,1),0_0_0_3px_rgba(125,175,255,0.28)]"
+            hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
+            label={getAvatarLabel(props.post.author)}
+            fallbackClass="text-sm font-semibold text-on-primary-fixed" />
         </a>
 
         <div class="min-w-0 flex-1">
@@ -191,9 +276,15 @@ export function PostCard(props: PostCardProps) {
               createdAt={createdAt()}
               profileHref={profileHref()} />
 
-            <PostBodyText facets={getPostFacets(props.post)} text={postText()} />
+            <ModerationBadgeRow decision={contentDecision()} labels={contentLabels()} />
 
-            <PostEmbeds post={props.post} />
+            <ModeratedPostBody
+              decision={contentDecision()}
+              labels={contentLabels()}
+              post={props.post}
+              text={postText()} />
+
+            <PostEmbeds decision={mediaDecision()} labels={mediaLabels()} post={props.post} />
           </PostPrimaryRegion>
 
           <Show when={props.showActions !== false}>
@@ -231,6 +322,12 @@ export function PostCard(props: PostCardProps) {
         open={menuOpen()}
         returnFocusTo={menuTriggerRef}
         onClose={closeMenu} />
+
+      <ReportDialog
+        open={reportOpen()}
+        subjectLabel={reportTarget()?.subjectLabel ?? "Report content"}
+        onClose={() => setReportOpen(false)}
+        onSubmit={submitReport} />
     </article>
   );
 }
@@ -350,26 +447,22 @@ function PostActions(
   );
 }
 
-function AuthorAvatar(props: { avatar?: string | null; label: string }) {
-  return (
-    <div class="relative mt-0.5 h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] shadow-[0_0_0_2px_rgba(14,14,14,1),0_0_0_3px_rgba(125,175,255,0.28)]">
-      <Show
-        when={props.avatar}
-        fallback={
-          <div class="flex h-full w-full items-center justify-center text-sm font-semibold text-on-primary-fixed">
-            {props.label}
-          </div>
-        }>
-        {(avatar) => <img class="h-full w-full object-cover" src={avatar()} alt="" />}
-      </Show>
-    </div>
-  );
-}
-
 function PostBodyText(props: { facets: RichTextFacet[]; text: string }) {
   return (
     <Show when={props.text.trim().length > 0}>
       <PostRichText class="m-0" facets={props.facets} text={props.text} />
+    </Show>
+  );
+}
+
+function ModeratedPostBody(
+  props: { decision: ModerationUiDecision; labels: ModerationLabel[]; post: PostView; text: string },
+) {
+  return (
+    <Show when={props.text.trim().length > 0}>
+      <ModeratedBlurOverlay decision={props.decision} labels={props.labels} class="mt-3">
+        <PostBodyText facets={getPostFacets(props.post)} text={props.text} />
+      </ModeratedBlurOverlay>
     </Show>
   );
 }
@@ -407,13 +500,13 @@ function ActionButton(
   );
 }
 
-function PostEmbeds(props: { post: PostView }) {
+function PostEmbeds(props: { decision: ModerationUiDecision; labels: ModerationLabel[]; post: PostView }) {
   return (
     <Show when={props.post.embed}>
       {(current) => (
-        <div class="mt-4">
+        <ModeratedBlurOverlay decision={props.decision} labels={props.labels} class="mt-4">
           <EmbedContent embed={current()} post={props.post} />
-        </div>
+        </ModeratedBlurOverlay>
       )}
     </Show>
   );

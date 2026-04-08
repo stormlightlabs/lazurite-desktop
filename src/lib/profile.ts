@@ -1,4 +1,5 @@
 import { isReplyItem, parseFeedResponse } from "$/lib/feeds";
+import { asModerationLabels } from "$/lib/moderation";
 import type {
   ActorListResponse,
   FeedResponse,
@@ -56,6 +57,7 @@ function parseProfile(value: unknown): ProfileViewDetailed {
     followsCount: optionalNumber(record.followsCount),
     handle: record.handle,
     indexedAt: optionalString(record.indexedAt),
+    labels: asModerationLabels(record),
     pinnedPost: pinnedPost && typeof pinnedPost.uri === "string"
       ? { cid: optionalString(pinnedPost.cid), uri: pinnedPost.uri }
       : null,
@@ -123,6 +125,7 @@ function parseProfileBasic(value: unknown): ProfileViewBasic | null {
     displayName: optionalString(record.displayName),
     avatar: optionalString(record.avatar),
     description: optionalString(record.description),
+    labels: asModerationLabels(record),
     viewer: asRecord(record.viewer) ? { following: optionalString(asRecord(record.viewer)?.following) } : null,
   };
 }

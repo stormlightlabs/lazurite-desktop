@@ -235,7 +235,6 @@ describe("useFeedWorkspaceController", () => {
     render(() => <ControllerHarness />);
     await screen.findByText("following");
 
-    // Load a draft to set draftId
     fireEvent.click(screen.getByRole("button", { name: "Load draft" }));
     expect(screen.getByTestId("draft-id")).toHaveTextContent(SAMPLE_DRAFT.id);
 

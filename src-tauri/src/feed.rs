@@ -23,6 +23,7 @@ use jacquard::api::app_bsky::feed::get_timeline::GetTimeline;
 use jacquard::api::app_bsky::feed::like::Like;
 use jacquard::api::app_bsky::feed::post::{Post, PostEmbed, ReplyRef};
 use jacquard::api::app_bsky::feed::repost::Repost;
+use jacquard::api::app_bsky::graph::block::Block;
 use jacquard::api::app_bsky::graph::follow::Follow;
 use jacquard::api::app_bsky::graph::get_followers::GetFollowers;
 use jacquard::api::app_bsky::graph::get_follows::GetFollows;
@@ -830,6 +831,43 @@ pub async fn follow_actor(did: String, state: &AppState) -> Result<CreateRecordR
         .map_err(|error| {
             log::error!("createRecord (follow) output error: {error}");
             AppError::validation("Could not follow this account.")
+        })?;
+
+    Ok(CreateRecordResult { uri: output.uri.to_string(), cid: output.cid.to_string() })
+}
+
+pub async fn block_actor(did: String, state: &AppState) -> Result<CreateRecordResult> {
+    let session = get_session(state).await?;
+    let active_did = active_did(state)?;
+
+    let block = Block::new()
+        .created_at(Datetime::now())
+        .subject(Did::new(&did).map_err(|_| AppError::validation("invalid account DID"))?)
+        .build();
+
+    let record_json = serde_json::to_value(&block)?;
+    let record_data = Data::from_json_owned(record_json).map_err(|_| AppError::validation("serialize block"))?;
+
+    let repo = AtIdentifier::Did(Did::new(&active_did)?);
+    let collection = Nsid::new("app.bsky.graph.block").map_err(|_| AppError::validation("nsid"))?;
+
+    let output = session
+        .send(
+            CreateRecord::new()
+                .repo(repo)
+                .collection(collection)
+                .record(record_data)
+                .build(),
+        )
+        .await
+        .map_err(|error| {
+            log::error!("createRecord (block) error: {error}");
+            AppError::validation("Could not block this account.")
+        })?
+        .into_output()
+        .map_err(|error| {
+            log::error!("createRecord (block) output error: {error}");
+            AppError::validation("Could not block this account.")
         })?;
 
     Ok(CreateRecordResult { uri: output.uri.to_string(), cid: output.cid.to_string() })

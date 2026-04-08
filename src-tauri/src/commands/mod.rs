@@ -146,6 +146,11 @@ pub async fn follow_actor(did: String, state: State<'_>) -> Result<CreateRecordR
 }
 
 #[tauri::command]
+pub async fn block_actor(did: String, state: State<'_>) -> Result<CreateRecordResult> {
+    feed::block_actor(did, &state).await
+}
+
+#[tauri::command]
 pub async fn unfollow_actor(follow_uri: String, state: State<'_>) -> Result<()> {
     feed::unfollow_actor(follow_uri, &state).await
 }

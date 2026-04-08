@@ -104,6 +104,7 @@ pub fn run() {
             cmd::bookmark_post,
             cmd::remove_bookmark,
             cmd::follow_actor,
+            cmd::block_actor,
             cmd::unfollow_actor,
             cmd::get_followers,
             cmd::get_follows,

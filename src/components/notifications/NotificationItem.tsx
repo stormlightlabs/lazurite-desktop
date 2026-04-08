@@ -1,5 +1,10 @@
+import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { ModeratedBlurOverlay } from "$/components/moderation/ModeratedBlurOverlay";
+import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
+import { useModerationDecision } from "$/components/moderation/useModerationDecision";
 import { Icon } from "$/components/shared/Icon";
 import { formatRelativeTime, getAvatarLabel, getDisplayName } from "$/lib/feeds";
+import { collectModerationLabels } from "$/lib/moderation";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { NotificationReason, NotificationView } from "$/lib/types";
 import { createMemo, Show } from "solid-js";
@@ -17,16 +22,6 @@ function ReasonIcon(props: { reason: NotificationReason }) {
     <div class="flex w-8 shrink-0 justify-center pt-0.5">
       <Icon kind={icon().kind} class={icon().className} aria-hidden="true" />
     </div>
-  );
-}
-
-function AuthorAvatar(props: { avatar?: string | null; label: string }) {
-  return (
-    <span
-      class="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-container-high text-xs font-semibold text-on-surface-variant"
-      aria-hidden="true">
-      {props.avatar ? <img src={props.avatar} alt="" class="h-full w-full object-cover" /> : props.label}
-    </span>
   );
 }
 
@@ -53,6 +48,10 @@ export function NotificationItem(props: NotificationItemProps & NotificationInte
     return typeof text === "string" && text.trim() ? text.trim() : null;
   });
   const detail = createMemo(() => postText() ?? followDetail(props.notification));
+  const avatarLabels = () => collectModerationLabels(props.notification.author);
+  const contentLabels = () => collectModerationLabels(props.notification);
+  const avatarDecision = useModerationDecision(avatarLabels);
+  const contentDecision = useModerationDecision(contentLabels);
 
   function openBodyTarget() {
     const uri = bodyTargetUri();
@@ -79,7 +78,12 @@ export function NotificationItem(props: NotificationItemProps & NotificationInte
         href={`#${profileHref()}`}
         aria-label={`View @${props.notification.author.handle}`}
         onClick={() => markRead()}>
-        <AuthorAvatar avatar={props.notification.author.avatar} label={avatarLabel()} />
+        <ModeratedAvatar
+          avatar={props.notification.author.avatar}
+          class="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-container-high text-xs font-semibold text-on-surface-variant"
+          hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
+          label={avatarLabel()}
+          fallbackClass="text-xs font-semibold text-on-surface-variant" />
       </a>
 
       <div
@@ -114,8 +118,14 @@ export function NotificationItem(props: NotificationItemProps & NotificationInte
             reason={props.notification.reason} />
         </p>
 
+        <ModerationBadgeRow decision={contentDecision()} labels={contentLabels()} class="mt-1" />
+
         <Show when={detail()}>
-          {(value) => <p class="mt-1 line-clamp-2 text-sm text-on-secondary-container">{value()}</p>}
+          {(value) => (
+            <ModeratedBlurOverlay decision={contentDecision()} labels={contentLabels()} class="mt-1">
+              <p class="m-0 line-clamp-2 text-sm text-on-secondary-container">{value()}</p>
+            </ModeratedBlurOverlay>
+          )}
         </Show>
 
         <p class="mt-2 text-xs text-on-surface-variant">{time()}</p>

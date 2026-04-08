@@ -1,5 +1,35 @@
 export type Maybe<T> = T | null | undefined;
 
+export type ModerationLabel = { src?: string; uri?: string; val?: string; [key: string]: unknown };
+
+export type ModerationUiDecision = {
+  filter: boolean;
+  blur: "none" | "content" | "media" | string;
+  alert: boolean;
+  inform: boolean;
+  noOverride: boolean;
+};
+
+export type ModerationLabelVisibility = "ignore" | "warn" | "hide";
+
+export type StoredModerationPrefs = {
+  adultContentEnabled: boolean;
+  subscribedLabelers: string[];
+  labelPreferences: Record<string, Record<string, ModerationLabelVisibility | string>>;
+};
+
+export type DistributionChannel = "github" | "mac_app_store" | "microsoft_store";
+
+export type ReportSubjectInput = { type: "repo"; did: string } | { type: "record"; uri: string; cid: string };
+
+export type ModerationReasonType =
+  | "com.atproto.moderation.defs#reasonSpam"
+  | "com.atproto.moderation.defs#reasonViolation"
+  | "com.atproto.moderation.defs#reasonMisleading"
+  | "com.atproto.moderation.defs#reasonSexual"
+  | "com.atproto.moderation.defs#reasonRude"
+  | "com.atproto.moderation.defs#reasonOther";
+
 export type AccountSummary = { did: string; handle: string; pdsUrl: string; active: boolean; avatar?: string | null };
 
 export type ActiveSession = { did: string; handle: string };
@@ -35,6 +65,7 @@ export type ProfileViewBasic = {
   displayName?: string | null;
   avatar?: string | null;
   description?: string | null;
+  labels?: ModerationLabel[] | null;
   viewer?: AuthorViewerState | null;
 };
 
@@ -132,6 +163,7 @@ type EmbeddedQuoteRecord = {
   author?: ProfileViewBasic;
   cid?: string;
   embeds?: EmbedView[];
+  labels?: ModerationLabel[] | null;
   uri?: string;
   value?: Record<string, unknown>;
 };
@@ -164,6 +196,7 @@ export type PostView = {
   cid: string;
   embed?: EmbedView | null;
   indexedAt: string;
+  labels?: ModerationLabel[] | null;
   likeCount?: number | null;
   quoteCount?: number | null;
   record: PostRecord | Record<string, unknown>;
@@ -233,6 +266,7 @@ export type NotificationView = {
   uri: string;
   cid: string;
   author: ProfileViewBasic;
+  labels?: ModerationLabel[] | null;
   reason: NotificationReason;
   reasonSubject?: string | null;
   record: Record<string, unknown>;

@@ -134,8 +134,6 @@ export function DeckWorkspace() {
   const session = useAppSession();
   const threadOverlay = useThreadOverlayNavigation();
   let feedColumnRequest = 0;
-  // Module-level variable: WebKit dataTransfer.getData() returns empty string on drop,
-  // so we track the dragging column ID here instead.
   let draggingColumnId: string | null = null;
 
   const [state, setState] = createStore<DeckState>({

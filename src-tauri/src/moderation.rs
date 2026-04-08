@@ -212,10 +212,7 @@ pub fn accepted_labeler_dids(prefs: &StoredModerationPrefs) -> Vec<String> {
 /// This must be called after changing labeler subscriptions so that all subsequent API calls
 /// carry the correct header.
 pub async fn apply_labeler_headers(session: &LazuriteOAuthSession, prefs: &StoredModerationPrefs) {
-    let dids: Vec<CowStr<'static>> = accepted_labeler_dids(prefs)
-        .into_iter()
-        .map(|did| CowStr::from(did))
-        .collect();
+    let dids: Vec<CowStr<'static>> = accepted_labeler_dids(prefs).into_iter().map(CowStr::from).collect();
     let opts = CallOptions { atproto_accept_labelers: Some(dids), ..Default::default() };
     session.set_options(opts).await;
     log::debug!(

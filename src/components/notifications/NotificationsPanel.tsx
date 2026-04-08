@@ -1,7 +1,10 @@
+import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { useModerationDecision } from "$/components/moderation/useModerationDecision";
 import { useAppSession } from "$/contexts/app-session";
 import { listNotifications, updateSeen } from "$/lib/api/notifications";
 import { NOTIFICATIONS_UNREAD_COUNT_EVENT } from "$/lib/constants/events";
 import { buildThreadOverlayRoute, formatRelativeTime, getAvatarLabel, getDisplayName } from "$/lib/feeds";
+import { collectModerationLabels } from "$/lib/moderation";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { ListNotificationsResponse, NotificationReason, NotificationView, ProfileViewBasic } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
@@ -426,6 +429,8 @@ function GroupedReasonIcon(props: { reason: NotificationReason }) {
 function GroupedAuthorAvatar(props: { actor: ProfileViewBasic; onClick: () => void }) {
   const label = createMemo(() => getAvatarLabel(props.actor));
   const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(props.actor)));
+  const labels = () => collectModerationLabels(props.actor);
+  const decision = useModerationDecision(labels);
 
   return (
     <a
@@ -436,13 +441,12 @@ function GroupedAuthorAvatar(props: { actor: ProfileViewBasic; onClick: () => vo
         event.stopPropagation();
         props.onClick();
       }}>
-      <span
+      <ModeratedAvatar
+        avatar={props.actor.avatar}
         class="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-container-high text-xs font-semibold text-on-surface-variant shadow-[0_0_0_2px_var(--surface-container)]"
-        aria-hidden="true">
-        <Show when={props.actor.avatar} fallback={label()}>
-          {(avatar) => <img src={avatar()} alt="" class="h-full w-full object-cover" />}
-        </Show>
-      </span>
+        hidden={decision().filter || decision().blur !== "none"}
+        label={label()}
+        fallbackClass="text-xs font-semibold text-on-surface-variant" />
     </a>
   );
 }

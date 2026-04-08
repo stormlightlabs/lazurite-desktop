@@ -75,10 +75,8 @@ describe("FeedComposer", () => {
   it("does not show draft count badge when draftCount is zero", () => {
     render(() => <FeedComposer {...BASE_PROPS} draftCount={0} onOpenDrafts={() => {}} />);
 
-    // The drafts button should exist but no badge (the badge span is conditionally rendered)
     const draftsButton = screen.getByTitle("Drafts (Ctrl+D)");
     expect(draftsButton).toBeInTheDocument();
-    // Badge is only rendered when count > 0; with count=0 the badge span should be absent
     expect(draftsButton.textContent?.trim()).toBe("");
   });
 });

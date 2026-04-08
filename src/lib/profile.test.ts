@@ -37,6 +37,7 @@ describe("profile helpers", () => {
         did: "did:plc:bob",
         displayName: "Bob",
         handle: "bob.test",
+        labels: [],
         viewer: { following: "at://did:plc:alice/app.bsky.graph.follow/1" },
       }],
     });
@@ -84,6 +85,7 @@ describe("profile helpers", () => {
         followsCount: null,
         handle: "bob.test",
         indexedAt: null,
+        labels: [],
         pinnedPost: null,
         postsCount: null,
         pronouns: null,

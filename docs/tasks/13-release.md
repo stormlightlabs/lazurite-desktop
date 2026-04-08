@@ -10,21 +10,21 @@ Cross-platform build, signing, packaging, and distribution targeting GitHub Rele
 
 #### Backend
 
-- [x] `ModerationService` in Rust - fetch labeler policies, evaluate labels into `ModerationDecision`, cache in `labeler_cache` table
-- [x] Send `atproto-accept-labelers` header with all API requests (built-in Bluesky labeler + user-subscribed labelers)
-- [x] Moderation preferences storage - per-account JSON in `app_settings` keyed by `moderation_preferences::{did}`
-- [x] `create_report` command - calls `com.atproto.moderation.createReport`
-- [x] `get_distribution_channel` command - returns compile-time `DISTRIBUTION_CHANNEL` env var
+- [ ] `ModerationService` in Rust - fetch labeler policies, evaluate labels into `ModerationDecision`, cache in `labeler_cache` table
+- [ ] Send `atproto-accept-labelers` header with all API requests (built-in Bluesky labeler + user-subscribed labelers)
+- [ ] Moderation preferences storage - per-account JSON in `app_settings` keyed by `moderation_preferences::{did}`
+- [ ] `create_report` command - calls `com.atproto.moderation.createReport`
+- [ ] `get_distribution_channel` command - returns compile-time `DISTRIBUTION_CHANNEL` env var
 
 #### Frontend
 
-- [ ] `ModeratedBlurOverlay` component - 14px blur, overlay icon, "Show content" button, label display
-- [ ] `ModeratedAvatar` component - shield icon fallback for hidden avatars
-- [ ] `ModerationBadgeRow` component - alert (red) and inform (blue) badges with label source
-- [ ] `ReportDialog` modal - reason type selector, free-text, submit
-- [ ] Wire moderation into `PostCard`, image/video embeds, profile views, notifications
-- [ ] Moderation Settings section - adult content toggle (hidden on MAS, link to web settings instead), labeler management, per-label preferences
-- [ ] Block user flow via `app.bsky.graph.block`
+- [x] `ModeratedBlurOverlay` component - 14px blur, overlay icon, "Show content" button, label display
+- [x] `ModeratedAvatar` component - shield icon fallback for hidden avatars
+- [x] `ModerationBadgeRow` component - alert (red) and inform (blue) badges with label source
+- [x] `ReportDialog` modal - reason type selector, free-text, submit
+- [x] Wire moderation into `PostCard`, image/video embeds, profile views, notifications
+- [x] Moderation Settings section - adult content toggle (hidden on MAS, link to web settings instead), labeler management, per-label preferences
+- [x] Block user flow via `app.bsky.graph.block`
 
 ### App Identity & Branding
 

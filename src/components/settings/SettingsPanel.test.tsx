@@ -13,6 +13,12 @@ const resetAndRestartAppMock = vi.hoisted(() => vi.fn());
 const getLogEntriesMock = vi.hoisted(() => vi.fn());
 const getDownloadDirectoryMock = vi.hoisted(() => vi.fn());
 const setDownloadDirectoryMock = vi.hoisted(() => vi.fn());
+const getModerationPrefsMock = vi.hoisted(() => vi.fn());
+const setAdultContentEnabledMock = vi.hoisted(() => vi.fn());
+const setLabelPreferenceMock = vi.hoisted(() => vi.fn());
+const subscribeLabelerMock = vi.hoisted(() => vi.fn());
+const unsubscribeLabelerMock = vi.hoisted(() => vi.fn());
+const getDistributionChannelMock = vi.hoisted(() => vi.fn());
 const dialogOpenMock = vi.hoisted(() => vi.fn());
 const navigateMock = vi.hoisted(() => vi.fn());
 const infoMock = vi.hoisted(() => vi.fn());
@@ -39,6 +45,20 @@ vi.mock(
       resetApp: resetAppMock,
       resetAndRestartApp: resetAndRestartAppMock,
       getLogEntries: getLogEntriesMock,
+    },
+  }),
+);
+
+vi.mock(
+  "$/lib/api/moderation",
+  () => ({
+    ModerationController: {
+      getModerationPrefs: getModerationPrefsMock,
+      setAdultContentEnabled: setAdultContentEnabledMock,
+      setLabelPreference: setLabelPreferenceMock,
+      subscribeLabeler: subscribeLabelerMock,
+      unsubscribeLabeler: unsubscribeLabelerMock,
+      getDistributionChannel: getDistributionChannelMock,
     },
   }),
 );
@@ -118,6 +138,16 @@ describe("SettingsPanel", () => {
     resetAndRestartAppMock.mockResolvedValue(void 0);
     getDownloadDirectoryMock.mockResolvedValue("/Users/test/Downloads");
     setDownloadDirectoryMock.mockResolvedValue(void 0);
+    getModerationPrefsMock.mockResolvedValue({
+      adultContentEnabled: false,
+      subscribedLabelers: [],
+      labelPreferences: {},
+    });
+    setAdultContentEnabledMock.mockResolvedValue(void 0);
+    setLabelPreferenceMock.mockResolvedValue(void 0);
+    subscribeLabelerMock.mockResolvedValue(void 0);
+    unsubscribeLabelerMock.mockResolvedValue(void 0);
+    getDistributionChannelMock.mockResolvedValue("github");
     dialogOpenMock.mockResolvedValue(null);
   });
 
@@ -128,6 +158,7 @@ describe("SettingsPanel", () => {
     expect(await screen.findByText("Appearance")).toBeInTheDocument();
     expect(await screen.findByText("Timeline")).toBeInTheDocument();
     expect(await screen.findByText("Notifications")).toBeInTheDocument();
+    expect(await screen.findByText("Moderation")).toBeInTheDocument();
     expect(await screen.findByText("Accounts")).toBeInTheDocument();
     expect(await screen.findByText("Services")).toBeInTheDocument();
     expect(await screen.findByText("Data")).toBeInTheDocument();

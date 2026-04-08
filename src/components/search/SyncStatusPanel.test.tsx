@@ -96,7 +96,6 @@ describe("SyncStatusPanel", () => {
     const syncButton = await screen.findByRole("button", { name: /sync now/i });
     fireEvent.click(syncButton);
 
-    // Check that the button shows syncing state and is disabled
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /syncing/i })).toBeDisabled();
     });
@@ -219,7 +218,6 @@ describe("SyncStatusPanel", () => {
       expect(syncPostsMock).toHaveBeenCalled();
     });
 
-    // Should return to normal state after error
     expect(await screen.findByRole("button", { name: /sync now/i })).toBeEnabled();
   });
 

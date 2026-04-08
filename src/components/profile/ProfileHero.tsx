@@ -1,5 +1,9 @@
+import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
+import { useModerationDecision } from "$/components/moderation/useModerationDecision";
 import { Icon } from "$/components/shared/Icon";
 import { getAvatarLabel, getDisplayName } from "$/lib/feeds";
+import { collectModerationLabels } from "$/lib/moderation";
 import type { ProfileViewDetailed } from "$/lib/types";
 import { formatCount } from "$/lib/utils/text";
 import { createMemo, For, Show } from "solid-js";
@@ -207,6 +211,8 @@ export function ProfileHero(
   const displayName = createMemo(() => getDisplayName(props.profile));
   const isFollowing = createMemo(() => !!props.profile.viewer?.following);
   const bannerStyle = createMemo(() => ({ transform: `translate3d(0, ${props.coverOffset}px, 0)` }));
+  const profileLabels = () => collectModerationLabels(props.profile);
+  const profileDecision = useModerationDecision(profileLabels);
 
   return (
     <header class="relative" ref={(element) => props.rootRef?.(element)}>
@@ -244,6 +250,8 @@ export function ProfileHero(
               onUnfollow={props.onUnfollow} />
           </div>
 
+          <ModerationBadgeRow decision={profileDecision()} labels={profileLabels()} />
+
           <ProfileMetaRow
             did={props.profile.did}
             joinedLabel={props.joinedLabel}
@@ -263,21 +271,17 @@ export function ProfileHero(
 
 function ProfileAvatar(props: { profile: ProfileViewDetailed }) {
   const profile = () => props.profile;
-  const avatar = createMemo(() => profile().avatar);
   const label = createMemo(() => getAvatarLabel(props.profile));
+  const labels = () => collectModerationLabels(props.profile);
+  const decision = useModerationDecision(labels);
 
   return (
-    <div class="relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_4px_rgba(8,8,8,0.96),0_0_0_6px_rgba(125,175,255,0.22),0_24px_40px_rgba(0,0,0,0.36)] backdrop-blur-sm">
-      <Show
-        when={avatar()}
-        fallback={
-          <div class="flex h-full w-full items-center justify-center text-[2rem] font-semibold text-on-surface">
-            {label()}
-          </div>
-        }>
-        {(a) => <img alt="" class="h-full w-full object-cover" src={a()} />}
-      </Show>
-    </div>
+    <ModeratedAvatar
+      avatar={profile().avatar}
+      class="relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_4px_rgba(8,8,8,0.96),0_0_0_6px_rgba(125,175,255,0.22),0_24px_40px_rgba(0,0,0,0.36)] backdrop-blur-sm"
+      hidden={decision().filter || decision().blur !== "none"}
+      label={label()}
+      fallbackClass="text-[2rem] font-semibold text-on-surface" />
   );
 }
 
@@ -285,23 +289,20 @@ export function ProfileStickyHeader(props: { profile: ProfileViewDetailed; profi
   const avatarLabel = createMemo(() => getAvatarLabel(props.profile));
   const displayName = createMemo(() => getDisplayName(props.profile));
   const visibleBadges = createMemo(() => props.profileBadges.slice(0, 2));
+  const labels = () => collectModerationLabels(props.profile);
+  const decision = useModerationDecision(labels);
 
   return (
     <div
       class="sticky top-0 z-30 px-3 pb-3 pt-3 backdrop-blur-[18px] max-[520px]:px-2"
       data-testid="profile-sticky-header">
       <div class="flex items-center gap-3 rounded-3xl bg-[rgba(14,14,14,0.92)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
-        <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_2px_rgba(8,8,8,0.96),0_0_0_3px_rgba(125,175,255,0.2)]">
-          <Show
-            when={props.profile.avatar}
-            fallback={
-              <div class="flex h-full w-full items-center justify-center text-sm font-semibold text-on-surface">
-                {avatarLabel()}
-              </div>
-            }>
-            {(avatar) => <img alt="" class="h-full w-full object-cover" src={avatar()} />}
-          </Show>
-        </div>
+        <ModeratedAvatar
+          avatar={props.profile.avatar}
+          class="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_2px_rgba(8,8,8,0.96),0_0_0_3px_rgba(125,175,255,0.2)]"
+          hidden={decision().filter || decision().blur !== "none"}
+          label={avatarLabel()}
+          fallbackClass="text-sm font-semibold text-on-surface" />
 
         <div class="min-w-0">
           <p class="m-0 truncate text-base font-semibold leading-tight tracking-[-0.02em] text-on-surface">

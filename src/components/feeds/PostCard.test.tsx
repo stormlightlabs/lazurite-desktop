@@ -6,10 +6,27 @@ import { PostCard } from "./PostCard";
 const downloadImageMock = vi.hoisted(() => vi.fn());
 const downloadVideoMock = vi.hoisted(() => vi.fn());
 const listenMock = vi.hoisted(() => vi.fn());
+const moderateContentMock = vi.hoisted(() => vi.fn());
+const createReportMock = vi.hoisted(() => vi.fn());
+const blockActorMock = vi.hoisted(() => vi.fn());
 
 vi.mock(
   "$/lib/api/media",
   () => ({ MediaController: { downloadImage: downloadImageMock, downloadVideo: downloadVideoMock } }),
+);
+vi.mock(
+  "$/lib/api/moderation",
+  () => ({
+    MODERATION_REASON_OPTIONS: [{ label: "Spam", value: "com.atproto.moderation.defs#reasonSpam" }, {
+      label: "Violation",
+      value: "com.atproto.moderation.defs#reasonViolation",
+    }],
+    ModerationController: {
+      moderateContent: moderateContentMock,
+      createReport: createReportMock,
+      blockActor: blockActorMock,
+    },
+  }),
 );
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 
@@ -42,7 +59,19 @@ describe("PostCard", () => {
     downloadImageMock.mockReset();
     downloadVideoMock.mockReset();
     listenMock.mockReset();
+    moderateContentMock.mockReset();
+    createReportMock.mockReset();
+    blockActorMock.mockReset();
     listenMock.mockResolvedValue(() => {});
+    moderateContentMock.mockResolvedValue({
+      filter: false,
+      blur: "none",
+      alert: false,
+      inform: false,
+      noOverride: false,
+    });
+    createReportMock.mockResolvedValue(1);
+    blockActorMock.mockResolvedValue({ uri: "at://did:plc:test/app.bsky.graph.block/1", cid: "cid-block" });
   });
 
   it("renders links, mentions, and hashtags from facets", () => {
@@ -246,5 +275,37 @@ describe("PostCard", () => {
     await waitFor(() =>
       expect(downloadImageMock).toHaveBeenCalledWith("https://cdn.example.com/post-image-two.jpg", "123_2")
     );
+  });
+
+  it("submits a report for the current post", async () => {
+    render(() => <PostCard post={createPost()} onOpenThread={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Report post" }));
+
+    expect(await screen.findByText("Report content")).toBeInTheDocument();
+    fireEvent.input(screen.getByPlaceholderText("Add context for moderators"), {
+      target: { value: "misleading link" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit report" }));
+
+    await waitFor(() =>
+      expect(createReportMock).toHaveBeenCalledWith(
+        { type: "record", uri: "at://did:plc:alice/app.bsky.feed.post/123", cid: "cid-post" },
+        "com.atproto.moderation.defs#reasonSpam",
+        "misleading link",
+      )
+    );
+  });
+
+  it("blocks the post author from the context menu", async () => {
+    const confirmSpy = vi.spyOn(globalThis, "confirm").mockReturnValue(true);
+    render(() => <PostCard post={createPost()} onOpenThread={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Block @alice.test" }));
+
+    await waitFor(() => expect(blockActorMock).toHaveBeenCalledWith("did:plc:alice"));
+    confirmSpy.mockRestore();
   });
 });

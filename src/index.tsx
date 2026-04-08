@@ -1,5 +1,6 @@
 /* @refresh reload */
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import * as logger from "@tauri-apps/plugin-log";
 import { render } from "solid-js/web";
 import App from "./App";
 
@@ -13,6 +14,6 @@ function applyInitialRoute() {
       globalThis.history.replaceState(null, "", "#/composer");
     }
   } catch {
-    // Non-Tauri environments do not expose a window label.
+    logger.debug("Failed to get window label");
   }
 }
