@@ -15,11 +15,13 @@ import {
   getPostCreatedAt,
   getPostFacets,
   getPostText,
+  hasKnownThreadContext,
   isReplyItem,
 } from "$/lib/feeds";
 import { collectModerationLabels } from "$/lib/moderation";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type {
+  EmbedView,
   FeedViewPost,
   ModerationLabel,
   ModerationReasonType,
@@ -38,21 +40,28 @@ function isInteractiveTarget(target: EventTarget | null) {
   return target instanceof Element && !!target.closest("a, button, input, textarea, select, [role='menuitem']");
 }
 
-function PostHeader(props: { authorHandle: string; authorName: string; createdAt: string; profileHref: string }) {
+function isDecisionHidden(decision: ModerationUiDecision) {
+  return decision.filter || decision.blur !== "none";
+}
+
+function mergeModerationDecisions(
+  contentDecision: ModerationUiDecision,
+  mediaDecision: ModerationUiDecision,
+): ModerationUiDecision {
+  return {
+    alert: contentDecision.alert || mediaDecision.alert,
+    blur: contentDecision.blur !== "none" ? contentDecision.blur : mediaDecision.blur,
+    filter: contentDecision.filter || mediaDecision.filter,
+    inform: contentDecision.inform || mediaDecision.inform,
+    noOverride: contentDecision.noOverride || mediaDecision.noOverride,
+  };
+}
+
+function PostHeader(props: { authorHandle: string; authorName: string; createdAt: string }) {
   return (
     <header class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-      <a
-        class="wrap-break-word text-base font-semibold tracking-[-0.01em] text-on-surface no-underline transition hover:text-primary"
-        href={`#${props.profileHref}`}
-        onClick={(event) => event.stopPropagation()}>
-        {props.authorName}
-      </a>
-      <a
-        class="break-all text-xs text-on-surface-variant no-underline transition hover:text-primary"
-        href={`#${props.profileHref}`}
-        onClick={(event) => event.stopPropagation()}>
-        {props.authorHandle}
-      </a>
+      <span class="wrap-break-word text-base font-semibold tracking-[-0.01em] text-on-surface">{props.authorName}</span>
+      <span class="break-all text-xs text-on-surface-variant">{props.authorHandle}</span>
       <span class="text-xs text-on-surface-variant">{props.createdAt}</span>
     </header>
   );
@@ -147,11 +156,14 @@ type PostActionsProps = {
     onOpen: (element: HTMLButtonElement) => void;
     triggerRef: (element: HTMLButtonElement) => void;
   };
+  showThreadAction: boolean;
   state: PostActionStatus;
 };
 
 function PostActions(props: PostActionsProps) {
-  const [status, menu, actions] = splitProps(props, ["state"], ["menu"], ["handlers"]);
+  const [status, menu, actions, visibility] = splitProps(props, ["state"], ["menu"], ["handlers"], [
+    "showThreadAction",
+  ]);
 
   return (
     <footer class="mt-4 flex min-w-0 flex-wrap items-center gap-2 max-[520px]:gap-1">
@@ -180,7 +192,9 @@ function PostActions(props: PostActionsProps) {
         label={status.state.isBookmarked ? "Saved" : "Save"}
         onClick={actions.handlers.onBookmark} />
       <PostActionButton icon="i-ri-chat-quote-line" label="Quote" onClick={actions.handlers.onQuote} />
-      <PostActionButton icon="i-ri-node-tree" label="Thread" onClick={actions.handlers.onOpenThread} />
+      <Show when={visibility.showThreadAction}>
+        <PostActionButton icon="i-ri-node-tree" label="Thread" onClick={actions.handlers.onOpenThread} />
+      </Show>
       <button
         aria-label="More actions"
         ref={(element) => menu.menu.triggerRef(element)}
@@ -213,6 +227,66 @@ function ModeratedPostBody(
     <Show when={props.text.trim().length > 0}>
       <ModeratedBlurOverlay decision={props.decision} labels={props.labels} class="mt-3">
         <PostBodyText facets={getPostFacets(props.post)} text={props.text} />
+      </ModeratedBlurOverlay>
+    </Show>
+  );
+}
+
+function PostEmbedContent(
+  props: { embed: EmbedView; onOpenPost?: (uri: string) => void; post: PostView; withTopMargin?: boolean },
+) {
+  return (
+    <div classList={{ "mt-4": !!props.withTopMargin }}>
+      <EmbedContent embed={props.embed} onOpenPost={props.onOpenPost} post={props.post} />
+    </div>
+  );
+}
+
+function PostModeratedContent(
+  props: {
+    contentDecision: ModerationUiDecision;
+    contentLabels: ModerationLabel[];
+    hasPostText: boolean;
+    mediaDecision: ModerationUiDecision;
+    mediaLabels: ModerationLabel[];
+    mergeBodyAndEmbedModeration: boolean;
+    mergedPostDecision: ModerationUiDecision;
+    onOpenPost?: (uri: string) => void;
+    post: PostView;
+    text: string;
+  },
+) {
+  return (
+    <Show
+      when={props.mergeBodyAndEmbedModeration}
+      fallback={
+        <>
+          <ModeratedPostBody
+            decision={props.contentDecision}
+            labels={props.contentLabels}
+            post={props.post}
+            text={props.text} />
+
+          <Show when={props.post.embed}>
+            {(current) => (
+              <ModeratedBlurOverlay decision={props.mediaDecision} labels={props.mediaLabels} class="mt-4">
+                <PostEmbedContent embed={current()} onOpenPost={props.onOpenPost} post={props.post} />
+              </ModeratedBlurOverlay>
+            )}
+          </Show>
+        </>
+      }>
+      <ModeratedBlurOverlay decision={props.mergedPostDecision} labels={props.mediaLabels} class="mt-3">
+        <PostBodyText facets={getPostFacets(props.post)} text={props.text} />
+        <Show when={props.post.embed}>
+          {(current) => (
+            <PostEmbedContent
+              embed={current()}
+              onOpenPost={props.onOpenPost}
+              post={props.post}
+              withTopMargin={props.hasPostText} />
+          )}
+        </Show>
       </ModeratedBlurOverlay>
     </Show>
   );
@@ -263,6 +337,12 @@ export function PostCard(props: PostCardProps) {
   const contentDecision = useModerationDecision(contentLabels, "contentList");
   const mediaDecision = useModerationDecision(mediaLabels, "contentMedia");
   const avatarDecision = useModerationDecision(avatarLabels, "avatar");
+  const contentHidden = createMemo(() => isDecisionHidden(contentDecision()));
+  const mediaHidden = createMemo(() => isDecisionHidden(mediaDecision()));
+  const mergeBodyAndEmbedModeration = createMemo(() => contentHidden() && mediaHidden());
+  const mergedPostDecision = createMemo(() => mergeModerationDecisions(contentDecision(), mediaDecision()));
+  const hasPostText = createMemo(() => postText().trim().length > 0);
+  const showThreadAction = createMemo(() => hasKnownThreadContext(view.post, view.item));
   const reasonLabel = createMemo(() => {
     const reason = view.item?.reason;
     if (!reason || reason.$type !== "app.bsky.feed.defs#reasonRepost") {
@@ -333,7 +413,7 @@ export function PostCard(props: PostCardProps) {
       onSelect: () => void navigator.clipboard?.writeText(buildPublicPostUrl(view.post)),
     });
 
-    if (interactions.onOpenThread) {
+    if (interactions.onOpenThread && showThreadAction()) {
       items.push({ icon: "i-ri-node-tree", label: "Open thread", onSelect: interactions.onOpenThread });
     }
 
@@ -437,7 +517,11 @@ export function PostCard(props: PostCardProps) {
       </Show>
 
       <div class="flex min-w-0 gap-3">
-        <a class="shrink-0 no-underline" href={`#${profileHref()}`} onClick={(event) => event.stopPropagation()}>
+        <a
+          aria-label={`View @${view.post.author.handle}`}
+          class="shrink-0 no-underline"
+          href={`#${profileHref()}`}
+          onClick={(event) => event.stopPropagation()}>
           <ModeratedAvatar
             avatar={view.post.author.avatar}
             class="relative mt-0.5 h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] shadow-[0_0_0_2px_rgba(14,14,14,1),0_0_0_3px_rgba(125,175,255,0.28)]"
@@ -448,27 +532,21 @@ export function PostCard(props: PostCardProps) {
 
         <div class="min-w-0 flex-1">
           <PostPrimaryRegion onFocus={interactions.onFocus} onOpenThread={interactions.onOpenThread}>
-            <PostHeader
-              authorName={authorName()}
-              authorHandle={authorHandle()}
-              createdAt={createdAt()}
-              profileHref={profileHref()} />
+            <PostHeader authorName={authorName()} authorHandle={authorHandle()} createdAt={createdAt()} />
 
             <ModerationBadgeRow decision={contentDecision()} labels={contentLabels()} />
 
-            <ModeratedPostBody
-              decision={contentDecision()}
-              labels={contentLabels()}
+            <PostModeratedContent
+              contentDecision={contentDecision()}
+              contentLabels={contentLabels()}
+              hasPostText={hasPostText()}
+              mediaDecision={mediaDecision()}
+              mediaLabels={mediaLabels()}
+              mergeBodyAndEmbedModeration={mergeBodyAndEmbedModeration()}
+              mergedPostDecision={mergedPostDecision()}
+              onOpenPost={interactions.onOpenThread}
               post={view.post}
               text={postText()} />
-
-            <Show when={view.post.embed}>
-              {(current) => (
-                <ModeratedBlurOverlay decision={mediaDecision()} labels={mediaLabels()} class="mt-4">
-                  <EmbedContent embed={current()} post={view.post} />
-                </ModeratedBlurOverlay>
-              )}
-            </Show>
           </PostPrimaryRegion>
 
           <Show when={view.showActions !== false}>
@@ -488,6 +566,7 @@ export function PostCard(props: PostCardProps) {
                   menuTriggerRef = element;
                 },
               }}
+              showThreadAction={showThreadAction()}
               state={{
                 bookmarkPending: !!actionFlags.bookmarkPending,
                 isBookmarked: isBookmarked(),

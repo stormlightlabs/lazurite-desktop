@@ -361,6 +361,7 @@ function QuotePreview(props: { post: PostView | null }) {
           class="mt-4 rounded-2xl bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"
           href={buildPublicPostUrl(post())}
           text={getPostText(post()) || "Quoted post"}
+          truncate
           title="Quote preview" />
       )}
     </Show>

@@ -1,5 +1,5 @@
 import { PostCard } from "$/components/feeds/PostCard";
-import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
+import { usePostNavigation } from "$/components/posts/usePostNavigation";
 import { Icon } from "$/components/shared/Icon";
 import { SearchController } from "$/lib/api/search";
 import type { NetworkSearchResult } from "$/lib/api/types/search";
@@ -34,7 +34,7 @@ export function HashtagPanel() {
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams<{ hashtag: string }>();
-  const threadOverlay = useThreadOverlayNavigation();
+  const postNavigation = usePostNavigation();
   const [state, setState] = createStore<HashtagPanelState>({
     error: null,
     hasSearched: false,
@@ -105,7 +105,7 @@ export function HashtagPanel() {
       </header>
 
       <div class="min-h-0 overflow-y-auto px-3 pb-3">
-        <Show when={state.loading} fallback={<HashtagState {...state} onOpenThread={threadOverlay.openThread} />}>
+        <Show when={state.loading} fallback={<HashtagState {...state} onOpenThread={postNavigation.openPost} />}>
           <div class="grid gap-2 py-1">
             <For each={Array.from({ length: 5 })}>
               {() => <div class="h-40 animate-pulse rounded-3xl bg-white/4" aria-hidden="true" />}

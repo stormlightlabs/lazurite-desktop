@@ -198,6 +198,18 @@ export function isReplyItem(item: FeedViewPost) {
   return !!asRecord(record?.reply);
 }
 
+export function hasKnownThreadContext(post: PostView, item?: FeedViewPost) {
+  if (item && isReplyItem(item)) {
+    return true;
+  }
+
+  if (asRecord(asRecord(post.record)?.reply)) {
+    return true;
+  }
+
+  return typeof post.replyCount === "number" && post.replyCount > 0;
+}
+
 function isReplyByUnfollowed(item: FeedViewPost) {
   return isReplyItem(item) && !item.post.author.viewer?.following;
 }
@@ -307,6 +319,11 @@ export function getQuotedText(embed: Maybe<EmbedView>) {
 
 export function getQuotedAuthor(embed: Maybe<EmbedView>) {
   return getQuotedRecord(embed)?.author ?? null;
+}
+
+export function getQuotedUri(embed: Maybe<EmbedView>) {
+  const uri = getQuotedRecord(embed)?.uri;
+  return typeof uri === "string" && uri.trim() ? uri : null;
 }
 
 export function getQuotedHref(embed: Maybe<EmbedView>) {

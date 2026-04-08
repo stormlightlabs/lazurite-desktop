@@ -93,16 +93,29 @@ describe("PostCard", () => {
     expect(onOpenThread).toHaveBeenCalledTimes(2);
   });
 
-  it("does not open the thread when clicking the author link or an action button", () => {
+  it("keeps profile navigation avatar-only and does not open thread on avatar/action clicks", () => {
     const onOpenThread = vi.fn();
     const onLike = vi.fn();
     render(() => <PostCard post={createPost()} onLike={onLike} onOpenThread={onOpenThread} />);
 
-    fireEvent.click(screen.getByRole("link", { name: "Alice" }));
+    expect(screen.getByRole("link", { name: "View @alice.test" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Alice" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "@alice.test" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("link", { name: "View @alice.test" }));
     fireEvent.click(screen.getByRole("button", { name: "4" }));
 
     expect(onOpenThread).not.toHaveBeenCalled();
     expect(onLike).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the thread when clicking the author text region", () => {
+    const onOpenThread = vi.fn();
+    render(() => <PostCard post={createPost()} onOpenThread={onOpenThread} />);
+
+    fireEvent.click(screen.getByText("Alice"));
+
+    expect(onOpenThread).toHaveBeenCalledOnce();
   });
 
   it("opens the shared menu from the overflow trigger and from right click", async () => {
@@ -119,6 +132,26 @@ describe("PostCard", () => {
     fireEvent.contextMenu(screen.getByRole("article"));
     expect(screen.getByRole("menu", { name: "Post actions" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Copy post link" })).toBeInTheDocument();
+  });
+
+  it("hides Thread action when no known thread context exists", () => {
+    render(() => (
+      <PostCard
+        post={{ ...createPost(), record: { ...createPost().record, reply: undefined }, replyCount: undefined }}
+        onOpenThread={vi.fn()} />
+    ));
+
+    expect(screen.queryByRole("button", { name: "Thread" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    expect(screen.queryByRole("menuitem", { name: "Open thread" })).not.toBeInTheDocument();
+  });
+
+  it("shows Thread action when reply count indicates known thread context", () => {
+    render(() => <PostCard post={{ ...createPost(), replyCount: 1 }} onOpenThread={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Thread" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    expect(screen.getByRole("menuitem", { name: "Open thread" })).toBeInTheDocument();
   });
 
   it("shows reply context when the feed item is a reply", () => {
@@ -161,7 +194,8 @@ describe("PostCard", () => {
     expect(screen.getByText("Replying to did:plc:bob")).toBeInTheDocument();
   });
 
-  it("renders recordWithMedia embeds as media plus quoted record", () => {
+  it("renders recordWithMedia embeds and opens quoted posts internally without bubbling", () => {
+    const onOpenThread = vi.fn();
     render(() => (
       <PostCard
         post={{
@@ -181,16 +215,18 @@ describe("PostCard", () => {
               },
             },
           },
-        }} />
+        }}
+        onOpenThread={onOpenThread} />
     ));
 
     expect(screen.getByAltText("Preview image")).toHaveAttribute("src", "https://cdn.example.com/image.png");
     expect(screen.getByText("Quoted post")).toBeInTheDocument();
     expect(screen.getByText("Quoted body")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /quoted body/i })).toHaveAttribute(
-      "href",
-      "https://bsky.app/profile/bob.test/post/quoted",
-    );
+
+    fireEvent.click(screen.getByRole("button", { name: /quoted body/i }));
+
+    expect(onOpenThread).toHaveBeenCalledTimes(1);
+    expect(onOpenThread).toHaveBeenCalledWith("at://did:plc:bob/app.bsky.feed.post/quoted");
   });
 
   it("renders inline video embed player for video attachments", () => {
@@ -209,6 +245,35 @@ describe("PostCard", () => {
 
     expect(screen.getByRole("button", { name: "Play video" })).toBeInTheDocument();
     expect(screen.getByText("Attached clip")).toBeInTheDocument();
+  });
+
+  it("shows one moderation overlay when post and embed are both hidden", async () => {
+    moderateContentMock.mockImplementation(async (_labels, context) => {
+      if (context === "contentList") {
+        return { filter: false, blur: "content", alert: false, inform: false, noOverride: false };
+      }
+
+      if (context === "contentMedia") {
+        return { filter: false, blur: "media", alert: false, inform: false, noOverride: false };
+      }
+
+      return { filter: false, blur: "none", alert: false, inform: false, noOverride: false };
+    });
+
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          labels: [{ src: "did:plc:labeler", val: "sexual" }],
+          embed: {
+            $type: "app.bsky.embed.images#view",
+            images: [{ alt: "Inline image", fullsize: "https://cdn.example.com/post-image.jpg" }],
+          },
+        }} />
+    ));
+
+    await waitFor(() => expect(screen.getAllByText("Content blurred")).toHaveLength(1));
+    expect(screen.getAllByRole("button", { name: "Show content" })).toHaveLength(1);
   });
 
   it("opens gallery on image click and supports right-click save", async () => {

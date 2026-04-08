@@ -14,10 +14,12 @@ import { SearchPreflightPanel } from "./components/search/SearchPreflightPanel";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { decodeMessagesRouteMemberDid } from "./lib/conversations";
 import { TIMELINE_ROUTE } from "./lib/feeds";
+import { decodePostRouteUri } from "./lib/post-routes";
 import { decodeProfileRouteActor } from "./lib/profile";
 import { buildSearchPreflightRoute, decodeHashtagRouteTag, parseSearchRouteState } from "./lib/search-routes";
 
 type TMessagesRouteProps = { memberDid: string | null };
+type TPostRouteProps = { uri: string | null };
 type TProfileRouteProps = { actor: string | null };
 
 type AppShellProps = ParentProps<{ fullWidth?: boolean }>;
@@ -27,6 +29,7 @@ type AppRouterProps = {
   renderComposer: () => JSX.Element;
   renderMessages: Component<TMessagesRouteProps>;
   renderNotifications: () => JSX.Element;
+  renderPost: Component<TPostRouteProps>;
   renderProfile: Component<TProfileRouteProps>;
   renderShell: Component<AppShellProps>;
   renderTimeline: () => JSX.Element;
@@ -99,6 +102,16 @@ export function AppRouter(props: AppRouterProps) {
   };
 
   const NotificationsRoute = () => <ProtectedRouteView>{props.renderNotifications()}</ProtectedRouteView>;
+
+  const PostRoute = () => {
+    const params = useParams<{ encodedUri: string }>();
+
+    return (
+      <ProtectedRouteView>
+        <Dynamic component={props.renderPost} uri={decodePostRouteUri(params.encodedUri)} />
+      </ProtectedRouteView>
+    );
+  };
 
   const HashtagRoute = () => {
     const params = useParams<{ hashtag: string }>();
@@ -174,6 +187,7 @@ export function AppRouter(props: AppRouterProps) {
       <Route path="/hashtag/:hashtag" component={HashtagRoute} />
       <Route path="/saved" component={SavedPostsRoute} />
       <Route path="/notifications" component={NotificationsRoute} />
+      <Route path="/post/:encodedUri" component={PostRoute} />
       <Route path="/messages" component={MessagesRoute} />
       <Route path="/messages/:memberDid" component={MemberMessagesRoute} />
       <Route path="/deck" component={DeckRoute} />

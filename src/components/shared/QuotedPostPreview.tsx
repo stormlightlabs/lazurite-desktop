@@ -3,31 +3,71 @@ import type { ProfileViewBasic } from "$/lib/types";
 import { formatHandle } from "$/lib/utils/text";
 import { createMemo, Show } from "solid-js";
 
-export function QuotedPostPreview(
-  props: { author: ProfileViewBasic | null; class?: string; href?: string | null; text?: unknown; title: string },
-) {
+function QuotedText(props: { text: string; truncated: boolean }) {
+  return (
+    <Show
+      when={props.truncated}
+      fallback={
+        <p class="mt-2 whitespace-pre-wrap wrap-break-word text-sm leading-[1.55] text-on-secondary-container">
+          {props.text}
+        </p>
+      }>
+      <p class="mt-2 line-clamp-4 text-sm leading-[1.55] text-on-secondary-container">{props.text}</p>
+    </Show>
+  );
+}
+
+type QuotedPostPreviewProps = {
+  author: ProfileViewBasic | null;
+  class?: string;
+  href?: string | null;
+  onOpenPost?: () => void;
+  text?: unknown;
+  title: string;
+  truncate?: boolean;
+};
+
+export function QuotedPostPreview(props: QuotedPostPreviewProps) {
   const preview = createMemo(() => (typeof props.text === "string" ? props.text : ""));
+  const openInNewTab = createMemo(() => !!props.href && /^https?:\/\//i.test(props.href));
+  const truncated = createMemo(() => props.truncate ?? false);
 
   return (
     <div class={props.class ?? "rounded-2xl bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"}>
       <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.title}</p>
-      <Show when={props.href} fallback={<QuotedPreviewContent author={props.author} preview={preview()} />}>
-        {(href) => (
-          <a
-            class="mt-2 block rounded-xl px-1 py-1 text-inherit no-underline transition duration-150 ease-out hover:bg-white/4"
-            href={href()}
-            rel="noreferrer"
-            target="_blank"
-            onClick={(event) => event.stopPropagation()}>
-            <QuotedPreviewContent author={props.author} preview={preview()} />
-          </a>
-        )}
+      <Show
+        when={props.onOpenPost}
+        fallback={
+          <Show
+            when={props.href}
+            fallback={<QuotedPreviewContent author={props.author} preview={preview()} truncated={truncated()} />}>
+            {(href) => (
+              <a
+                class="mt-2 block rounded-xl px-1 py-1 text-inherit no-underline transition duration-150 ease-out hover:bg-white/4"
+                href={href()}
+                rel={openInNewTab() ? "noreferrer" : undefined}
+                target={openInNewTab() ? "_blank" : undefined}
+                onClick={(event) => event.stopPropagation()}>
+                <QuotedPreviewContent author={props.author} preview={preview()} truncated={truncated()} />
+              </a>
+            )}
+          </Show>
+        }>
+        <button
+          class="mt-2 block w-full rounded-xl border-0 bg-transparent px-1 py-1 text-left text-inherit transition duration-150 ease-out hover:bg-white/4"
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            props.onOpenPost?.();
+          }}>
+          <QuotedPreviewContent author={props.author} preview={preview()} truncated={truncated()} />
+        </button>
       </Show>
     </div>
   );
 }
 
-function QuotedPreviewContent(props: { author: ProfileViewBasic | null; preview: string }) {
+function QuotedPreviewContent(props: { author: ProfileViewBasic | null; preview: string; truncated: boolean }) {
   return (
     <>
       <Show when={props.author}>
@@ -43,7 +83,7 @@ function QuotedPreviewContent(props: { author: ProfileViewBasic | null; preview:
       <Show
         when={props.preview}
         fallback={<p class="mt-2 text-sm leading-[1.55] text-on-surface-variant">Quoted post</p>}>
-        {(text) => <p class="mt-2 line-clamp-4 text-sm leading-[1.55] text-on-secondary-container">{text()}</p>}
+        {(text) => <QuotedText text={text()} truncated={props.truncated} />}
       </Show>
     </>
   );

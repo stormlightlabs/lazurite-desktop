@@ -11,7 +11,8 @@ import { LoginPanel } from "./components/LoginPanel";
 import { MessagesPanel } from "./components/messages/MessagesPanel";
 import { NotificationsPanel } from "./components/notifications/NotificationsPanel";
 import { HeaderPanel } from "./components/panels/Header";
-import { ThreadModal } from "./components/posts/ThreadModal";
+import { PostPanel } from "./components/posts/PostPanel";
+import { ThreadDrawer } from "./components/posts/ThreadDrawer";
 import { ProfilePanel } from "./components/profile/ProfilePanel";
 import { AppRail } from "./components/rail/AppRail";
 import { SessionSpotlight } from "./components/Session";
@@ -66,8 +67,7 @@ function AppShell(props: AppShellProps) {
           {props.children}
         </section>
       </main>
-
-      <ThreadModal />
+      <ThreadDrawer />
       <ErrorToast message={session.errorMessage} onDismiss={session.clearError} />
     </>
   );
@@ -86,6 +86,7 @@ function AppContent() {
           renderComposer={() => <ComposerWindow />}
           renderMessages={(props) => <MessagesPanel memberDid={props.memberDid} />}
           renderNotifications={() => <NotificationsPanel />}
+          renderPost={(props) => <PostPanel uri={props.uri} />}
           renderProfile={(props) => <ProfilePanel actor={props.actor} />}
           renderShell={AppShell}
           renderTimeline={() => <FeedWorkspace />} />

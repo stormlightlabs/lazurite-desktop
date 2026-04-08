@@ -1,10 +1,12 @@
 import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
 import { useModerationDecision } from "$/components/moderation/useModerationDecision";
+import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
 import { useAppSession } from "$/contexts/app-session";
 import { listNotifications, updateSeen } from "$/lib/api/notifications";
 import { NOTIFICATIONS_UNREAD_COUNT_EVENT } from "$/lib/constants/events";
-import { buildThreadOverlayRoute, formatRelativeTime, getAvatarLabel, getDisplayName } from "$/lib/feeds";
+import { formatRelativeTime, getAvatarLabel, getDisplayName } from "$/lib/feeds";
 import { collectModerationLabels } from "$/lib/moderation";
+import { buildPostRoute } from "$/lib/post-routes";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { ListNotificationsResponse, NotificationReason, NotificationView, ProfileViewBasic } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
@@ -27,20 +29,6 @@ import {
 import { NotificationItem } from "./NotificationItem";
 
 type Tab = "all" | "mentions" | "activity";
-
-function getCurrentRouteFromHash() {
-  const rawHash = globalThis.location.hash.replace(/^#/, "");
-  const hashRoute = rawHash.length > 0 ? rawHash : "/notifications";
-  const [pathname, ...searchTokens] = hashRoute.split("?");
-  const search = searchTokens.length > 0 ? `?${searchTokens.join("?")}` : "";
-
-  return { pathname: pathname || "/notifications", search };
-}
-
-function buildThreadHrefFromHash(uri: string | null) {
-  const { pathname, search } = getCurrentRouteFromHash();
-  return buildThreadOverlayRoute(pathname, search, uri);
-}
 
 function hasUnreadNotifications(items: NotificationView[]) {
   return items.some((notification) => !notification.isRead);
@@ -71,6 +59,32 @@ function groupedSummary(item: GroupedNotificationFeedItem) {
 
 export function NotificationsPanel() {
   const session = useAppSession();
+  let threadOverlay: ReturnType<typeof useThreadOverlayNavigation> | null = null;
+  try {
+    threadOverlay = useThreadOverlayNavigation();
+  } catch {
+    threadOverlay = null;
+  }
+
+  const buildPostHref = (uri: string | null) => {
+    if (!uri) {
+      return "/notifications";
+    }
+
+    if (threadOverlay) {
+      return threadOverlay.buildThreadHref(uri);
+    }
+
+    return buildPostRoute(uri);
+  };
+  const openPost = (uri: string) => {
+    if (threadOverlay) {
+      void threadOverlay.openThread(uri);
+      return;
+    }
+
+    globalThis.location.hash = `#${buildPostRoute(uri)}`;
+  };
   const [tab, setTab] = createSignal<Tab>("all");
   const [notifications, setNotifications] = createSignal<NotificationView[]>([]);
   const [loading, setLoading] = createSignal(true);
@@ -160,10 +174,6 @@ export function NotificationsPanel() {
     }
   }
 
-  function openThread(uri: string) {
-    globalThis.location.hash = buildThreadHrefFromHash(uri);
-  }
-
   onMount(() => {
     reloadNotifications();
 
@@ -187,12 +197,12 @@ export function NotificationsPanel() {
       <NotificationsViewport
         activity={activityGrouped()}
         all={allMixed()}
-        buildThreadHref={buildThreadHrefFromHash}
+        buildThreadHref={buildPostHref}
         error={error()}
         loading={loading()}
         mentions={mentionsFeed()}
         onMarkRead={markReadByUris}
-        onOpenThread={openThread}
+        onOpenThread={openPost}
         tab={tab()} />
     </article>
   );

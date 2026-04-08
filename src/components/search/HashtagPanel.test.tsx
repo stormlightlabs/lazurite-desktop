@@ -6,13 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HashtagPanel } from "./HashtagPanel";
 
 const searchPostsNetworkMock = vi.hoisted(() => vi.fn());
-const threadOverlayMock = vi.hoisted(() => ({ openThread: vi.fn() }));
+const postNavigationMock = vi.hoisted(() => ({ backFromPost: vi.fn(), buildPostHref: vi.fn(), openPost: vi.fn() }));
 
 vi.mock("$/lib/api/search", () => ({ SearchController: { searchPostsNetwork: searchPostsNetworkMock } }));
-vi.mock(
-  "$/components/posts/useThreadOverlayNavigation",
-  () => ({ useThreadOverlayNavigation: () => threadOverlayMock }),
-);
+vi.mock("$/components/posts/usePostNavigation", () => ({ usePostNavigation: () => postNavigationMock }));
 vi.mock("@tauri-apps/plugin-log", () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }));
 
 async function flushRouter() {
@@ -36,7 +33,7 @@ describe("HashtagPanel", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     searchPostsNetworkMock.mockReset();
-    threadOverlayMock.openThread.mockReset();
+    postNavigationMock.openPost.mockReset();
     searchPostsNetworkMock.mockResolvedValue({ posts: [] });
   });
 

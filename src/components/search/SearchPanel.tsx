@@ -1,7 +1,7 @@
 import { ActorSuggestionList, getActorSuggestionHeadline, useActorSuggestions } from "$/components/actors/actor-search";
 import { AvatarBadge } from "$/components/AvatarBadge";
 import { PostCard } from "$/components/feeds/PostCard";
-import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
+import { usePostNavigation } from "$/components/posts/usePostNavigation";
 import { Icon, SearchModeIcon } from "$/components/shared/Icon";
 import { useAppPreferences } from "$/contexts/app-preferences";
 import { useAppSession } from "$/contexts/app-session";
@@ -36,6 +36,7 @@ import { SyncStatusPanel } from "./SyncStatusPanel";
 import type { EmptyStateReason } from "./types";
 
 const MODES: SearchMode[] = ["network", "keyword", "semantic", "hybrid"];
+
 const SEARCH_TABS: SearchTab[] = ["posts", "profiles"];
 
 type SearchPanelState = {
@@ -52,15 +53,27 @@ type SearchPanelState = {
 type SearchPanelProps = { embedded?: boolean; initialMode?: SearchMode; initialQuery?: string };
 
 function ModeLabel(props: { mode: SearchMode }) {
+  const text = createMemo(() => {
+    switch (props.mode) {
+      case "network": {
+        return "Network";
+      }
+      case "keyword": {
+        return "Keyword";
+      }
+      case "semantic": {
+        return "Semantic";
+      }
+      case "hybrid": {
+        return "Hybrid";
+      }
+    }
+  });
+
   return (
     <span class="flex items-center gap-1.5">
       <SearchModeIcon mode={props.mode} class="text-base" />
-      <Switch>
-        <Match when={props.mode === "network"}>Network</Match>
-        <Match when={props.mode === "keyword"}>Keyword</Match>
-        <Match when={props.mode === "semantic"}>Semantic</Match>
-        <Match when={props.mode === "hybrid"}>Hybrid</Match>
-      </Switch>
+      {text()}
     </span>
   );
 }
@@ -70,7 +83,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
   const navigate = useNavigate();
   const preferences = useAppPreferences();
   const session = useAppSession();
-  const threadOverlay = useThreadOverlayNavigation();
+  const postNavigation = usePostNavigation();
   const [search, setSearch] = createStore<SearchPanelState>({
     actorResults: null,
     error: null,
@@ -99,6 +112,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
 
     return parsed;
   });
+
   const actorSuggestions = useActorSuggestions({
     container: () => actorSearchContainerRef,
     disabled: () => routeState().tab !== "profiles",
@@ -107,15 +121,18 @@ export function SearchPanel(props: SearchPanelProps = {}) {
       logger.warn("failed to load actor search suggestions", { keyValues: { error: normalizeError(error) } }),
     value: () => routeState().q,
   });
+
   const isActorTab = createMemo(() => routeState().tab === "profiles");
   const isLocalMode = createMemo(() => routeState().tab === "posts" && routeState().mode !== "network");
   const networkFiltersEnabled = createMemo(() => routeState().tab === "posts" && routeState().mode === "network");
   const semanticEnabled = createMemo(() =>
     !!preferences.embeddingsConfig?.enabled && !!preferences.embeddingsConfig?.downloaded
   );
+
   const totalIndexedPosts = createMemo(() =>
     search.syncStatus.reduce((sum, status) => sum + (status.postCount ?? 0), 0)
   );
+
   const hasLocalPosts = createMemo(() => totalIndexedPosts() > 0);
   const lastSync = createMemo(() => {
     const timestamps = search.syncStatus.map((status) => status.lastSyncedAt).filter(Boolean) as string[];
@@ -125,6 +142,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
 
     return formatRelativeTime(timestamps.toSorted((left, right) => right.localeCompare(left))[0]);
   });
+
   const cycleModes = createMemo(() =>
     MODES.filter((candidate) => semanticEnabled() || (candidate !== "semantic" && candidate !== "hybrid"))
   );
@@ -416,7 +434,7 @@ export function SearchPanel(props: SearchPanelProps = {}) {
           localResults={search.results}
           networkResults={search.networkResults}
           onOpenActor={openActor}
-          onOpenThread={(uri) => void threadOverlay.openThread(uri)}
+          onOpenThread={(uri) => void postNavigation.openPost(uri)}
           query={routeState().q} />
       </section>
 
@@ -599,16 +617,16 @@ function SearchTabSelector(props: { activeTab: SearchTab; onTabChange: (tab: Sea
   );
 }
 
-function ResultMeta(
-  props: {
-    hasSearched: boolean;
-    isActorTab: boolean;
-    lastSync: string | null;
-    mode: SearchMode;
-    resultCount: number;
-    totalIndexedPosts: number;
-  },
-) {
+type ResultMetaProps = {
+  hasSearched: boolean;
+  isActorTab: boolean;
+  lastSync: string | null;
+  mode: SearchMode;
+  resultCount: number;
+  totalIndexedPosts: number;
+};
+
+function ResultMeta(props: ResultMetaProps) {
   return (
     <div class="flex items-center justify-between gap-4 border-t border-white/5 pt-3">
       <span class="text-sm text-on-surface-variant">

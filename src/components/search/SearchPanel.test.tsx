@@ -11,7 +11,7 @@ const searchPostsMock = vi.hoisted(() => vi.fn());
 const searchPostsNetworkMock = vi.hoisted(() => vi.fn());
 const getSyncStatusMock = vi.hoisted(() => vi.fn());
 const syncPostsMock = vi.hoisted(() => vi.fn());
-const threadOverlayMock = vi.hoisted(() => ({ openThread: vi.fn() }));
+const postNavigationMock = vi.hoisted(() => ({ backFromPost: vi.fn(), buildPostHref: vi.fn(), openPost: vi.fn() }));
 
 vi.mock(
   "$/lib/api/search",
@@ -26,10 +26,7 @@ vi.mock(
   }),
 );
 vi.mock("$/lib/api/actors", () => ({ searchActorSuggestions: searchActorSuggestionsMock }));
-vi.mock(
-  "$/components/posts/useThreadOverlayNavigation",
-  () => ({ useThreadOverlayNavigation: () => threadOverlayMock }),
-);
+vi.mock("$/components/posts/usePostNavigation", () => ({ usePostNavigation: () => postNavigationMock }));
 
 vi.mock("@tauri-apps/plugin-log", () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }));
 
@@ -60,7 +57,7 @@ describe("SearchPanel", () => {
     searchPostsNetworkMock.mockReset();
     getSyncStatusMock.mockReset();
     syncPostsMock.mockReset();
-    threadOverlayMock.openThread.mockReset();
+    postNavigationMock.openPost.mockReset();
 
     getSyncStatusMock.mockResolvedValue([]);
     searchActorSuggestionsMock.mockResolvedValue([]);

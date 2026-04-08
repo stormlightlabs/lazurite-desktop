@@ -1,4 +1,5 @@
 import { AppTestProviders } from "$/test/providers";
+import { HashRouter, Route } from "@solidjs/router";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotificationsPanel } from "./NotificationsPanel";
@@ -23,6 +24,22 @@ function createNotification(reason: string, overrides: Record<string, unknown> =
     uri: `at://did:plc:${reason}/app.bsky.notification/${reason}`,
     ...overrides,
   };
+}
+
+function renderNotificationsPanelWithRouter() {
+  render(() => (
+    <AppTestProviders>
+      <HashRouter>
+        <Route path="/notifications" component={() => <NotificationsPanel />} />
+      </HashRouter>
+    </AppTestProviders>
+  ));
+}
+
+async function flushRouterNavigation() {
+  await vi.runAllTimersAsync();
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 describe("NotificationsPanel", () => {
@@ -174,17 +191,51 @@ describe("NotificationsPanel", () => {
       seenAt: null,
     });
 
-    render(() => (
-      <AppTestProviders>
-        <NotificationsPanel />
-      </AppTestProviders>
-    ));
+    renderNotificationsPanelWithRouter();
 
     const body = await screen.findByRole("button", { name: /like author liked your post/i });
     fireEvent.click(body);
 
-    expect(globalThis.location.hash).toContain("thread=at%3A%2F%2Fdid%3Aplc%3Apost%2Fapp.bsky.feed.post%2F1");
+    await flushRouterNavigation();
+    expect(globalThis.location.hash).toBe(
+      "#/notifications?thread=at%3A%2F%2Fdid%3Aplc%3Apost%2Fapp.bsky.feed.post%2F1",
+    );
     expect(screen.queryByLabelText("Unread")).not.toBeInTheDocument();
+  });
+
+  it("opens the selected thread when clicking different notification rows", async () => {
+    listNotificationsMock.mockResolvedValue({
+      cursor: null,
+      notifications: [
+        createNotification("like", {
+          author: { did: "did:plc:alice", displayName: "Alice", handle: "alice.test" },
+          reasonSubject: "at://did:plc:post/app.bsky.feed.post/1",
+          uri: "at://did:plc:like/app.bsky.notification/1",
+        }),
+        createNotification("like", {
+          author: { did: "did:plc:bob", displayName: "Bob", handle: "bob.test" },
+          reasonSubject: "at://did:plc:post/app.bsky.feed.post/2",
+          uri: "at://did:plc:like/app.bsky.notification/2",
+        }),
+      ],
+      seenAt: null,
+    });
+
+    renderNotificationsPanelWithRouter();
+
+    const firstBody = await screen.findByRole("button", { name: /alice liked your post/i });
+    fireEvent.click(firstBody);
+    await flushRouterNavigation();
+    expect(globalThis.location.hash).toBe(
+      "#/notifications?thread=at%3A%2F%2Fdid%3Aplc%3Apost%2Fapp.bsky.feed.post%2F1",
+    );
+
+    const secondBody = screen.getByRole("button", { name: /bob liked your post/i });
+    fireEvent.click(secondBody);
+    await flushRouterNavigation();
+    expect(globalThis.location.hash).toBe(
+      "#/notifications?thread=at%3A%2F%2Fdid%3Aplc%3Apost%2Fapp.bsky.feed.post%2F2",
+    );
   });
 
   it("opens reply/quote target on body click and links original as 'your post'", async () => {
@@ -200,11 +251,7 @@ describe("NotificationsPanel", () => {
       seenAt: null,
     });
 
-    render(() => (
-      <AppTestProviders>
-        <NotificationsPanel />
-      </AppTestProviders>
-    ));
+    renderNotificationsPanelWithRouter();
 
     const yourPost = await screen.findByRole("link", { name: "your post" });
     expect(yourPost).toHaveAttribute(
@@ -214,7 +261,10 @@ describe("NotificationsPanel", () => {
 
     const body = screen.getByRole("button", { name: /alice replied to.*your post/i });
     fireEvent.click(body);
-    expect(globalThis.location.hash).toContain("thread=at%3A%2F%2Fdid%3Aplc%3Aalice%2Fapp.bsky.feed.post%2Freply");
+    await flushRouterNavigation();
+    expect(globalThis.location.hash).toBe(
+      "#/notifications?thread=at%3A%2F%2Fdid%3Aplc%3Aalice%2Fapp.bsky.feed.post%2Freply",
+    );
     expect(screen.queryByLabelText("Unread")).not.toBeInTheDocument();
   });
 

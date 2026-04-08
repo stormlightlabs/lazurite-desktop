@@ -1,4 +1,4 @@
-import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
+import { usePostNavigation } from "$/components/posts/usePostNavigation";
 import { LocalPostResultsList, LocalPostResultsSkeletons } from "$/components/search/LocalPostResultsList";
 import { SearchEmptyState } from "$/components/search/SearchEmptyState";
 import { SearchQueryInput } from "$/components/search/SearchQueryInput";
@@ -16,9 +16,11 @@ import { createStore } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
 
 const PAGE_SIZE = 50;
+
 const SEARCH_DEBOUNCE_MS = 300;
 
 type TabKey = SavedPostSource;
+
 type TabState = {
   error: string | null;
   items: LocalPostResult[];
@@ -116,7 +118,7 @@ function SavedPostsMessage(props: { body: string; title: string }) {
 
 export function SavedPostsPanel() {
   const session = useAppSession();
-  const threadOverlay = useThreadOverlayNavigation();
+  const postNavigation = usePostNavigation();
   const [activeTab, setActiveTab] = createSignal<TabKey>("bookmark");
   const [state, setState] = createStore<SavedPanelState>(createPanelState());
   const browseRequestIds: Record<TabKey, number> = { bookmark: 0, like: 0 };
@@ -403,7 +405,7 @@ export function SavedPostsPanel() {
       <SavedPostsViewport
         activeTab={activeTab()}
         browsingState={activeTabState()}
-        onOpenThread={(uri) => void threadOverlay.openThread(uri)}
+        onOpenThread={(uri) => void postNavigation.openPost(uri)}
         query={trimmedQuery()}
         searching={isSearching()}
         searchingState={activeSearchState()}

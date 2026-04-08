@@ -1,6 +1,6 @@
 import { DiagnosticsPanel } from "$/components/deck/DiagnosticsPanel";
 import { usePostInteractions } from "$/components/posts/usePostInteractions";
-import { useThreadOverlayNavigation } from "$/components/posts/useThreadOverlayNavigation";
+import { usePostNavigation } from "$/components/posts/usePostNavigation";
 import { ProfileSkeleton } from "$/components/ProfileSkeleton";
 import { useAppSession } from "$/contexts/app-session";
 import {
@@ -43,7 +43,7 @@ const PROFILE_TABS: ProfileTab[] = ["posts", "replies", "media", "likes", "conte
 export function ProfilePanel(props: { actor: string | null; embedded?: boolean }) {
   const navigate = useNavigate();
   const session = useAppSession();
-  const threadOverlay = useThreadOverlayNavigation();
+  const postNavigation = usePostNavigation();
   const [state, setState] = createStore<ProfilePanelState>(createProfilePanelState());
   const [heroHeight, setHeroHeight] = createSignal<number | null>(null);
   let requestSequence = 0;
@@ -72,7 +72,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
   const showCompactHeader = createMemo(() => state.scrollTop >= compactHeaderThreshold());
   const pinnedPostHref = createMemo(() => {
     const uri = activeProfile()?.pinnedPost?.uri;
-    return uri ? threadOverlay.buildThreadHref(uri) : null;
+    return uri ? postNavigation.buildPostHref(uri) : null;
   });
   const profileBadges = createMemo(() => {
     const profile = activeProfile();
@@ -271,7 +271,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
   }
 
   function openThread(uri: string) {
-    void threadOverlay.openThread(uri);
+    void postNavigation.openPost(uri);
   }
 
   function openExplorerTarget(target: string) {

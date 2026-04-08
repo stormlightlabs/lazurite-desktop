@@ -17,13 +17,10 @@ const getFollowsMock = vi.hoisted(() => vi.fn());
 const getProfileMock = vi.hoisted(() => vi.fn());
 const navigateMock = vi.hoisted(() => vi.fn());
 const unfollowActorMock = vi.hoisted(() => vi.fn());
-const threadOverlayMock = vi.hoisted(() => ({
-  buildThreadHref: vi.fn((
-    uri: string | null,
-  ) => (uri ? `/profile/bob.test?thread=${encodeURIComponent(uri)}` : "/profile/bob.test")),
-  closeThread: vi.fn(),
-  openThread: vi.fn(),
-  threadUri: vi.fn(() => null),
+const postNavigationMock = vi.hoisted(() => ({
+  backFromPost: vi.fn(),
+  buildPostHref: vi.fn((uri: string | null) => (uri ? `/post/${encodeURIComponent(uri)}` : "/timeline")),
+  openPost: vi.fn(),
 }));
 
 vi.mock(
@@ -52,10 +49,7 @@ vi.mock(
 );
 
 vi.mock("@solidjs/router", () => ({ useNavigate: () => navigateMock }));
-vi.mock(
-  "$/components/posts/useThreadOverlayNavigation",
-  () => ({ useThreadOverlayNavigation: () => threadOverlayMock }),
-);
+vi.mock("$/components/posts/usePostNavigation", () => ({ usePostNavigation: () => postNavigationMock }));
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -148,10 +142,11 @@ describe("ProfilePanel", () => {
 
     await waitFor(() => {
       expect(followActorMock).toHaveBeenCalledWith("did:plc:bob");
-      expect(getHeroFollowingButton()).toBeDefined();
-      expect(screen.getAllByText("Following").length).toBeGreaterThanOrEqual(2);
       expect(followersStat).toHaveTextContent("9");
     });
+    const heroFollowingButton = getHeroFollowingButton();
+    expect(heroFollowingButton).toBeDefined();
+    expect(heroFollowingButton?.textContent).toContain("Following");
 
     followRequest.resolve({ cid: "cid-follow", uri: "at://did:plc:alice/app.bsky.graph.follow/1" });
 

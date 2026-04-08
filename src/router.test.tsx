@@ -31,6 +31,7 @@ function renderRouter(hash: string, options: { preferences?: Record<string, unkn
   globalThis.location.hash = hash;
   const renderComposer = vi.fn(() => <div data-testid="composer-view">composer</div>);
   const renderNotifications = vi.fn(() => <div data-testid="notifications-view">notifications</div>);
+  const renderPost = vi.fn((props: { uri: string | null }) => <div data-testid="post-view">{props.uri ?? "none"}</div>);
   const renderProfile = vi.fn((props: { actor: string | null }) => (
     <div data-testid="profile-view">
       <span>{props.actor ?? "self-profile"}</span>
@@ -55,13 +56,14 @@ function renderRouter(hash: string, options: { preferences?: Record<string, unkn
         renderComposer={renderComposer}
         renderMessages={renderMessages}
         renderNotifications={renderNotifications}
+        renderPost={renderPost}
         renderProfile={renderProfile}
         renderShell={Shell}
         renderTimeline={renderTimeline} />
     </AppTestProviders>
   ));
 
-  return { renderComposer, renderMessages, renderNotifications, renderProfile, renderTimeline };
+  return { renderComposer, renderMessages, renderNotifications, renderPost, renderProfile, renderTimeline };
 }
 
 describe("AppRouter", () => {
@@ -105,6 +107,16 @@ describe("AppRouter", () => {
 
     expect(renderNotifications).toHaveBeenCalledOnce();
     expect(screen.getByText("notifications")).toBeInTheDocument();
+    expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "false");
+  });
+
+  it("renders decoded post routes inside the protected shell", async () => {
+    const uri = "at://did:plc:alice/app.bsky.feed.post/123";
+    const { renderPost } = renderRouter(`#/post/${encodeURIComponent(uri)}`);
+
+    await screen.findByTestId("post-view");
+
+    expect(renderPost.mock.lastCall?.[0].uri).toBe(uri);
     expect(screen.getByTestId("shell")).toHaveAttribute("data-full-width", "false");
   });
 

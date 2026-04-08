@@ -8,7 +8,7 @@ const getSyncStatusMock = vi.hoisted(() => vi.fn());
 const listSavedPostsMock = vi.hoisted(() => vi.fn());
 const syncPostsMock = vi.hoisted(() => vi.fn());
 const loggerErrorMock = vi.hoisted(() => vi.fn());
-const threadOverlayMock = vi.hoisted(() => ({ openThread: vi.fn() }));
+const postNavigationMock = vi.hoisted(() => ({ backFromPost: vi.fn(), buildPostHref: vi.fn(), openPost: vi.fn() }));
 
 vi.mock(
   "$/lib/api/search",
@@ -20,10 +20,7 @@ vi.mock(
     },
   }),
 );
-vi.mock(
-  "$/components/posts/useThreadOverlayNavigation",
-  () => ({ useThreadOverlayNavigation: () => threadOverlayMock }),
-);
+vi.mock("$/components/posts/usePostNavigation", () => ({ usePostNavigation: () => postNavigationMock }));
 vi.mock("@tauri-apps/plugin-log", () => ({ error: loggerErrorMock }));
 
 function createStatus(source: "bookmark" | "like", count: number) {

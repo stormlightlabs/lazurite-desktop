@@ -8,19 +8,77 @@ import { createStore } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
 import { PostCard } from "../feeds/PostCard";
 import { usePostInteractions } from "./usePostInteractions";
+import { usePostNavigation } from "./usePostNavigation";
 import { useThreadOverlayNavigation } from "./useThreadOverlayNavigation";
 
-type ThreadModalState = { error: string | null; loading: boolean; thread: ThreadNode | null; uri: string | null };
+type ThreadDrawerState = { error: string | null; loading: boolean; thread: ThreadNode | null; uri: string | null };
 
-function createThreadModalState(): ThreadModalState {
+function createThreadDrawerState(): ThreadDrawerState {
   return { error: null, loading: false, thread: null, uri: null };
 }
 
-export function ThreadModal() {
+function findParentUri(node: ThreadNode | null, targetUri: string | null): string | null {
+  if (!node || !targetUri) {
+    return null;
+  }
+
+  const visited = new Set<ThreadNode>();
+
+  function walk(current: ThreadNode): string | null {
+    if (visited.has(current)) {
+      return null;
+    }
+
+    visited.add(current);
+
+    if (isThreadViewPost(current)) {
+      if (current.post.uri === targetUri && current.parent && isThreadViewPost(current.parent)) {
+        return current.parent.post.uri;
+      }
+
+      if (current.parent) {
+        const parentMatch = walk(current.parent);
+        if (parentMatch) {
+          return parentMatch;
+        }
+      }
+
+      for (const reply of current.replies ?? []) {
+        const replyMatch = walk(reply);
+        if (replyMatch) {
+          return replyMatch;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  return walk(node);
+}
+
+function createEscapeKeyHandler(onClose: () => void) {
+  return (event: KeyboardEvent) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    event.preventDefault();
+    onClose();
+  };
+}
+
+export function ThreadDrawer() {
   const session = useAppSession();
+  const postNavigation = usePostNavigation();
   const threadOverlay = useThreadOverlayNavigation();
-  const [state, setState] = createStore<ThreadModalState>(createThreadModalState());
+  const [state, setState] = createStore<ThreadDrawerState>(createThreadDrawerState());
+  const activeUri = createMemo(() => (threadOverlay.drawerEnabled() ? threadOverlay.threadUri() : null));
   const rootPost = createMemo(() => findRootPost(state.thread));
+  const parentThreadUri = createMemo(() => findParentUri(state.thread, activeUri()));
+  const parentThreadHref = createMemo(() =>
+    parentThreadUri() ? threadOverlay.buildThreadHref(parentThreadUri()) : null
+  );
   const interactions = usePostInteractions({
     onError: session.reportError,
     patchPost(uri, updater) {
@@ -34,10 +92,10 @@ export function ThreadModal() {
   });
 
   createEffect(() => {
-    const uri = threadOverlay.threadUri();
+    const uri = activeUri();
     if (!uri) {
       if (state.uri || state.thread || state.error || state.loading) {
-        setState(createThreadModalState());
+        setState(createThreadDrawerState());
       }
       return;
     }
@@ -50,16 +108,13 @@ export function ThreadModal() {
   });
 
   createEffect(() => {
-    if (!threadOverlay.threadUri()) {
+    if (!activeUri()) {
       return;
     }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        void threadOverlay.closeThread();
-      }
-    };
+    const handleKeyDown = createEscapeKeyHandler(() => {
+      void threadOverlay.closeThread();
+    });
 
     globalThis.addEventListener("keydown", handleKeyDown);
     onCleanup(() => globalThis.removeEventListener("keydown", handleKeyDown));
@@ -70,11 +125,11 @@ export function ThreadModal() {
 
     try {
       const payload = await FeedController.getPostThread(uri);
-      if (threadOverlay.threadUri() === uri) {
+      if (activeUri() === uri) {
         setState({ error: null, loading: false, thread: payload.thread, uri });
       }
     } catch (error) {
-      if (threadOverlay.threadUri() === uri) {
+      if (activeUri() === uri) {
         setState({ error: String(error), loading: false, thread: null, uri });
       }
       session.reportError(`Failed to open thread: ${String(error)}`);
@@ -83,7 +138,7 @@ export function ThreadModal() {
 
   return (
     <Presence>
-      <Show when={threadOverlay.threadUri()}>
+      <Show when={activeUri()}>
         <div class="fixed inset-0 z-50">
           <Motion.button
             class="absolute inset-0 border-0 bg-surface-container-highest/70 backdrop-blur-xl"
@@ -100,9 +155,13 @@ export function ThreadModal() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 36 }}
             transition={{ duration: 0.22 }}>
-            <ThreadModalHeader onClose={() => void threadOverlay.closeThread()} />
-            <ThreadModalBody
-              activeUri={threadOverlay.threadUri()}
+            <ThreadDrawerHeader
+              activeUri={activeUri()}
+              onMaximize={(uri) => void postNavigation.openPost(uri)}
+              parentThreadHref={parentThreadHref()}
+              onClose={() => void threadOverlay.closeThread()} />
+            <ThreadDrawerBody
+              activeUri={activeUri()}
               bookmarkPendingByUri={interactions.bookmarkPendingByUri()}
               error={state.error}
               likePendingByUri={interactions.likePendingByUri()}
@@ -121,7 +180,7 @@ export function ThreadModal() {
   );
 }
 
-function ThreadModalBody(
+function ThreadDrawerBody(
   props: {
     activeUri: string | null;
     bookmarkPendingByUri: Record<string, boolean>;
@@ -139,7 +198,7 @@ function ThreadModalBody(
 ) {
   return (
     <div class="min-h-0 overflow-y-auto overscroll-contain pb-1">
-      <ThreadModalLoading loading={props.loading} />
+      <ThreadDrawerLoading loading={props.loading} />
 
       <Show when={!props.loading && props.error}>
         {(message) => (
@@ -170,24 +229,52 @@ function ThreadModalBody(
   );
 }
 
-function ThreadModalHeader(props: { onClose: () => void }) {
+function ThreadDrawerHeader(
+  props: {
+    activeUri: string | null;
+    onClose: () => void;
+    onMaximize: (uri: string) => void;
+    parentThreadHref: string | null;
+  },
+) {
   return (
     <header class="sticky top-0 z-10 mb-4 flex items-center justify-between rounded-3xl bg-[rgba(14,14,14,0.9)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
       <div>
         <p class="m-0 text-base font-semibold text-on-surface">Thread</p>
-        <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Nested replies</p>
+        <Show when={props.parentThreadHref}>
+          {(href) => (
+            <a
+              class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant no-underline transition hover:text-primary hover:underline"
+              href={`#${href()}`}>
+              Parent post
+            </a>
+          )}
+        </Show>
       </div>
-      <button
-        class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
-        type="button"
-        onClick={() => props.onClose()}>
-        <Icon aria-hidden="true" iconClass="i-ri-close-line" />
-      </button>
+      <div class="flex items-center gap-2">
+        <Show when={props.activeUri}>
+          {(uri) => (
+            <button
+              aria-label="Open full post"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
+              type="button"
+              onClick={() => props.onMaximize(uri())}>
+              <Icon aria-hidden="true" iconClass="i-ri-external-link-line" />
+            </button>
+          )}
+        </Show>
+        <button
+          class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
+          type="button"
+          onClick={() => props.onClose()}>
+          <Icon aria-hidden="true" iconClass="i-ri-close-line" />
+        </button>
+      </div>
     </header>
   );
 }
 
-function ThreadModalLoading(props: { loading: boolean }) {
+function ThreadDrawerLoading(props: { loading: boolean }) {
   return (
     <Show when={props.loading}>
       <div class="grid gap-3">
