@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { VideoEmbed } from "./VideoEmbed";
+import { VideoEmbed } from "../VideoEmbed";
 
 const downloadVideoMock = vi.hoisted(() => vi.fn());
 const listenMock = vi.hoisted(() => vi.fn());

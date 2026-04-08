@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { describe, expect, it, vi } from "vitest";
-import { useFeedWorkspaceController } from "./useFeedWorkspaceController";
+import { useFeedWorkspaceController } from "../useFeedWorkspaceController";
 
 const invokeMock = vi.hoisted(() => vi.fn());
 const listenMock = vi.hoisted(() => vi.fn());

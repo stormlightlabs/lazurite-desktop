@@ -10,7 +10,7 @@ import {
   getNextFocusedScrollTop,
   updateFeedScrollTop,
   upsertFeedViewPrefs,
-} from "./workspace-state";
+} from "../workspace-state";
 
 const createFeedViewPref = (overrides: Partial<FeedViewPrefItem> = {}) => ({
   feed: "following",

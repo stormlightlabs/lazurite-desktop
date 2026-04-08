@@ -1,7 +1,7 @@
 import { buildHashtagRoute } from "$/lib/search-routes";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PostCard } from "./PostCard";
+import { PostCard } from "../PostCard";
 
 const downloadImageMock = vi.hoisted(() => vi.fn());
 const downloadVideoMock = vi.hoisted(() => vi.fn());

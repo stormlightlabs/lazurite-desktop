@@ -1,6 +1,6 @@
 import { render, screen } from "@solidjs/testing-library";
 import { describe, expect, it, vi } from "vitest";
-import { FeedTabBar } from "./FeedTabs";
+import { FeedTabBar } from "../FeedTabs";
 
 describe("FeedTabBar", () => {
   it("renders feed labels without numeric badges", () => {

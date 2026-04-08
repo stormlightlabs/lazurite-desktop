@@ -1,6 +1,6 @@
 import { render, screen } from "@solidjs/testing-library";
 import { describe, expect, it } from "vitest";
-import { FeedComposer } from "./FeedComposer";
+import { FeedComposer } from "../FeedComposer";
 
 const suggestions = Array.from(
   { length: 13 },
