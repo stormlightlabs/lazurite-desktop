@@ -54,7 +54,6 @@ pub fn add_column(
 
     let insert_position = match position {
         Some(pos) => {
-            // Shift existing columns at or after this position down by one
             conn.execute(
                 "UPDATE columns SET position = position + 1
                  WHERE account_did = ?1 AND position >= ?2",
@@ -63,7 +62,6 @@ pub fn add_column(
             pos as i64
         }
         None => {
-            // Append: find the current max position
             let max: Option<i64> = conn
                 .query_row(
                     "SELECT MAX(position) FROM columns WHERE account_did = ?1",
@@ -146,7 +144,6 @@ pub fn update_column(id: &str, config: Option<&str>, width: Option<&str>, state:
 
     let conn = state.auth_store.lock_connection()?;
 
-    // Verify the column exists first
     let exists: bool = conn
         .query_row("SELECT 1 FROM columns WHERE id = ?1", params![id], |_| Ok(true))
         .unwrap_or(false);

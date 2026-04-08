@@ -11,6 +11,7 @@ mod error;
 mod explorer;
 mod feed;
 mod media;
+mod moderation;
 mod notifications;
 mod search;
 mod settings;
@@ -169,7 +170,15 @@ pub fn run() {
             cmd::drafts::get_draft,
             cmd::drafts::save_draft,
             cmd::drafts::delete_draft,
-            cmd::drafts::submit_draft
+            cmd::drafts::submit_draft,
+            cmd::moderation::get_moderation_prefs,
+            cmd::moderation::set_adult_content_enabled,
+            cmd::moderation::set_label_preference,
+            cmd::moderation::subscribe_labeler,
+            cmd::moderation::unsubscribe_labeler,
+            cmd::moderation::moderate_content,
+            cmd::moderation::create_report,
+            cmd::moderation::get_distribution_channel
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

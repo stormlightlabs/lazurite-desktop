@@ -13,6 +13,7 @@ pub mod diagnostics;
 pub mod drafts;
 pub mod explorer;
 pub mod media;
+pub mod moderation;
 pub mod search;
 pub mod settings;
 

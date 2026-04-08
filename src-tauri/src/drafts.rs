@@ -425,7 +425,6 @@ mod tests {
             title: None,
         };
 
-        // Bob submits with alice's draft id — should insert a new draft, not update alice's
         let saved = db_save_draft(&conn, "did:plc:bob", &input).expect("save should succeed");
         assert_ne!(saved.id, alice_draft.id, "cross-account update must not occur");
 
@@ -462,7 +461,6 @@ mod tests {
     fn list_drafts_ordered_by_updated_at_desc() {
         let conn = draft_db();
 
-        // Insert with explicit timestamps to ensure ordering
         conn.execute(
             "INSERT INTO drafts (id, account_did, text, created_at, updated_at)
              VALUES ('draft-old', 'did:plc:alice', 'old', '2024-01-01T00:00:00.000Z', '2024-01-01T00:00:00.000Z')",
@@ -523,7 +521,6 @@ mod tests {
     #[test]
     fn delete_draft_is_idempotent_for_missing_id() {
         let conn = draft_db();
-        // Deleting a non-existent draft should not error
         db_delete_draft(&conn, "ghost-id").expect("delete of missing draft should not error");
     }
 
@@ -649,7 +646,7 @@ mod tests {
             account_did: "did:plc:alice".to_string(),
             text: "broken reply".to_string(),
             reply_parent_uri: Some("at://did:plc:p/app.bsky.feed.post/1".to_string()),
-            reply_parent_cid: None, // missing
+            reply_parent_cid: None,
             reply_root_uri: None,
             reply_root_cid: None,
             quote_uri: None,
@@ -721,7 +718,7 @@ mod tests {
             reply_root_uri: None,
             reply_root_cid: None,
             quote_uri: Some("at://did:plc:q/app.bsky.feed.post/abc".to_string()),
-            quote_cid: None, // missing
+            quote_cid: None,
             title: None,
             created_at: "2024-01-01T00:00:00.000Z".to_string(),
             updated_at: "2024-01-01T00:00:00.000Z".to_string(),

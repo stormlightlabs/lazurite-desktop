@@ -5,6 +5,7 @@ use super::auth::{
 use super::auth::{LazuriteOAuthClient, LazuriteOAuthSession, PersistentAuthStore, StoredAccount};
 use super::db::DbPool;
 use super::error::AppError;
+use super::moderation::{self, StoredModerationPrefs};
 use jacquard::oauth::authstore::ClientAuthStore;
 use jacquard::oauth::error::OAuthError;
 use jacquard::types::did::Did;
@@ -130,6 +131,7 @@ impl AppState {
         let (did, session_id) = session.session_info().await;
         let did = did.to_string();
         let session_id = session_id.to_string();
+        self.apply_moderation_headers_for_did(&did, session.as_ref()).await;
         let account_summary_result = async {
             let account_summary = fetch_account_summary(&session, true).await?;
             self.auth_store.upsert_account(&account_summary, &session_id, true)?;
@@ -209,16 +211,38 @@ impl AppState {
             .clone())
     }
 
+    async fn apply_moderation_headers_for_did(&self, did: &str, session: &LazuriteOAuthSession) {
+        let prefs = match self.auth_store.lock_connection() {
+            Ok(conn) => match moderation::load_prefs(&conn, did) {
+                Ok(prefs) => prefs,
+                Err(error) => {
+                    log::warn!("failed to load moderation prefs for {did}: {error}");
+                    StoredModerationPrefs::default()
+                }
+            },
+            Err(error) => {
+                log::warn!("failed to lock DB while loading moderation prefs for {did}: {error}");
+                StoredModerationPrefs::default()
+            }
+        };
+
+        moderation::apply_labeler_headers(session, &prefs).await;
+    }
+
     async fn ensure_session(
         &self, account: &StoredAccount, refresh: bool,
     ) -> Result<Arc<LazuriteOAuthSession>, AppError> {
-        if let Some(existing) = self
-            .sessions
-            .read()
-            .map_err(|_| AppError::StatePoisoned("sessions"))?
-            .get(&account.did)
-            .cloned()
-        {
+        let existing = {
+            self.sessions
+                .read()
+                .map_err(|_| AppError::StatePoisoned("sessions"))?
+                .get(&account.did)
+                .cloned()
+        };
+
+        if let Some(existing) = existing {
+            self.apply_moderation_headers_for_did(&account.did, existing.as_ref())
+                .await;
             log::debug!("using cached session for {}", account.handle);
             return Ok(existing);
         }
@@ -243,6 +267,8 @@ impl AppState {
             log::debug!("restoring session from persisted data for {}", account.handle);
             self.restore_persisted_session(account, &did, &session_id).await?
         };
+        self.apply_moderation_headers_for_did(&account.did, session.as_ref())
+            .await;
 
         self.sessions
             .write()
@@ -387,10 +413,13 @@ impl AppState {
 
         match self.oauth_client.restore(&did, &session_id).await {
             Ok(session) => {
+                let session = Arc::new(session);
+                self.apply_moderation_headers_for_did(&account.did, session.as_ref())
+                    .await;
                 self.sessions
                     .write()
                     .map_err(|_| AppError::StatePoisoned("sessions"))?
-                    .insert(account.did.clone(), Arc::new(session));
+                    .insert(account.did.clone(), session);
 
                 self.auth_store.set_active_account(&account.did)?;
                 self.refresh_account_cache()?;

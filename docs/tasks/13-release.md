@@ -10,11 +10,11 @@ Cross-platform build, signing, packaging, and distribution targeting GitHub Rele
 
 #### Backend
 
-- [ ] `ModerationService` in Rust - fetch labeler policies, evaluate labels into `ModerationDecision`, cache in `labeler_cache` table
-- [ ] Send `atproto-accept-labelers` header with all API requests (built-in Bluesky labeler + user-subscribed labelers)
-- [ ] Moderation preferences storage - per-account JSON in `app_settings` keyed by `moderation_preferences::{did}`
-- [ ] `create_report` command - calls `com.atproto.moderation.createReport`
-- [ ] `get_distribution_channel` command - returns compile-time `DISTRIBUTION_CHANNEL` env var
+- [x] `ModerationService` in Rust - fetch labeler policies, evaluate labels into `ModerationDecision`, cache in `labeler_cache` table
+- [x] Send `atproto-accept-labelers` header with all API requests (built-in Bluesky labeler + user-subscribed labelers)
+- [x] Moderation preferences storage - per-account JSON in `app_settings` keyed by `moderation_preferences::{did}`
+- [x] `create_report` command - calls `com.atproto.moderation.createReport`
+- [x] `get_distribution_channel` command - returns compile-time `DISTRIBUTION_CHANNEL` env var
 
 #### Frontend
 

@@ -225,8 +225,6 @@ async fn store_preference_items(session: &Arc<LazuriteOAuthSession>, items: Stor
             AppError::validation("putPreferences error")
         })?;
 
-    // Bluesky may return a 200 with no body for putPreferences. jacquard's default
-    // unit decoder still tries to parse JSON, which raises an EOF on successful writes.
     if accepts_empty_put_preferences_response(response.status(), response.buffer()) {
         return Ok(());
     }
@@ -764,8 +762,6 @@ pub async fn bookmark_post(uri: String, cid: String, state: &AppState) -> Result
             AppError::validation("Could not save this post.")
         })?;
 
-    // Bluesky may return a 200 with no body for bookmark writes. jacquard's default
-    // unit decoder still attempts to parse JSON, which raises an EOF on success.
     if accepts_empty_bookmark_response(response.status(), response.buffer()) {
         return Ok(());
     }

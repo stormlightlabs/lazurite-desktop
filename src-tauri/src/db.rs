@@ -59,6 +59,7 @@ const MIGRATIONS: &[Migration] = &[
         include_str!("migrations/010_embeddings_opt_in.sql"),
     ),
     Migration::new(11, "drafts", include_str!("migrations/011_drafts.sql")),
+    Migration::new(12, "labeler_cache", include_str!("migrations/012_labeler_cache.sql")),
 ];
 
 pub fn initialize_database(app: &AppHandle) -> Result<DbPool, AppError> {
