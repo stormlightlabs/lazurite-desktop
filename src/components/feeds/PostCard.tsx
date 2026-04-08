@@ -80,7 +80,7 @@ function PostPrimaryRegion(props: ParentProps<{ onFocus?: () => void; onOpenThre
     <div
       class="min-w-0 rounded-2xl p-2 outline-none transition duration-150 ease-out"
       classList={{
-        "cursor-pointer hover:bg-white/2 focus-visible:bg-white/3 focus-visible:ring-1 focus-visible:ring-primary/30":
+        "cursor-pointer hover:bg-surface-bright focus-visible:bg-surface-bright focus-visible:ring-1 focus-visible:ring-primary/30":
           interactive(),
       }}
       aria-label={interactive() ? "Open thread" : undefined}
@@ -120,7 +120,7 @@ function PostActionButton(props: PostActionButtonProps) {
   return (
     <button
       aria-label={props.ariaLabel ?? props.label}
-      class="inline-flex min-w-0 items-center gap-1.5 rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary disabled:cursor-wait disabled:opacity-70 max-[520px]:px-2.5"
+      class="inline-flex min-w-0 items-center gap-1.5 rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-primary disabled:cursor-wait disabled:opacity-70 max-[520px]:px-2.5"
       classList={{ "text-primary": !!props.active }}
       type="button"
       disabled={props.busy}
@@ -226,7 +226,7 @@ function PostActions(props: PostActionsProps) {
         ref={(element) => menu.menu.triggerRef(element)}
         aria-expanded={menu.menu.open}
         aria-haspopup="menu"
-        class="inline-flex items-center justify-center rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-white/5 hover:text-primary max-[520px]:px-2.5"
+        class="inline-flex items-center justify-center rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-primary max-[520px]:px-2.5"
         type="button"
         onClick={(event) => {
           event.stopPropagation();
@@ -534,7 +534,7 @@ export function PostCard(props: PostCardProps) {
   return (
     <article
       ref={(element) => view.registerRef?.(element)}
-      class="group min-w-0 overflow-hidden rounded-3xl bg-white/2.5 px-4 py-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/4 max-[760px]:px-3.5 max-[760px]:py-3.5 max-[520px]:rounded-3xl max-[520px]:px-3 max-[520px]:py-3"
+      class="tone-muted group min-w-0 overflow-hidden rounded-3xl px-4 py-4 shadow-[var(--inset-shadow)] transition duration-150 ease-out hover:bg-surface-bright max-[760px]:px-3.5 max-[760px]:py-3.5 max-[520px]:rounded-3xl max-[520px]:px-3 max-[520px]:py-3"
       classList={{
         "bg-[linear-gradient(135deg,rgba(125,175,255,0.11),rgba(0,115,222,0.06))] shadow-[inset_0_0_0_1px_rgba(125,175,255,0.22),0_0_0_1px_rgba(125,175,255,0.08)]":
           !!view.focused,
@@ -569,7 +569,7 @@ export function PostCard(props: PostCardProps) {
             onClick={(event) => event.stopPropagation()}>
             <ModeratedAvatar
               avatar={view.post.author.avatar}
-              class="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] shadow-[0_0_0_2px_rgba(14,14,14,1),0_0_0_3px_rgba(125,175,255,0.28)]"
+              class="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[linear-gradient(135deg,rgba(125,175,255,0.9),rgba(0,115,222,0.72))] shadow-[0_0_0_2px_var(--surface-container),0_0_0_3px_rgba(125,175,255,0.28)]"
               hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
               label={getAvatarLabel(view.post.author)}
               fallbackClass="text-sm font-semibold text-on-primary-fixed" />

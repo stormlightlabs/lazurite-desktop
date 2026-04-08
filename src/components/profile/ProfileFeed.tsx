@@ -44,7 +44,7 @@ function ProfileLoadMoreButton(props: { activeTab: ProfileTab; loadingMore: bool
   return (
     <div class="flex justify-center py-2">
       <button
-        class="inline-flex min-h-12 items-center gap-2 rounded-full border-0 bg-white/6 px-5 text-sm font-medium text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/10 disabled:translate-y-0 disabled:opacity-70"
+        class="ui-control ui-control-hoverable inline-flex min-h-12 items-center gap-2 rounded-full px-5 text-sm font-medium text-on-surface disabled:translate-y-0 disabled:opacity-70"
         type="button"
         disabled={props.loadingMore}
         onClick={() => props.onLoadMore()}>
@@ -62,7 +62,7 @@ export function ProfileFeedSkeleton() {
     <div class="grid gap-3">
       <For each={Array.from({ length: 3 })}>
         {() => (
-          <div class="rounded-3xl bg-white/3 p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+          <div class="tone-muted rounded-3xl p-5 shadow-[var(--inset-shadow)]">
             <div class="flex items-start gap-3">
               <span class="skeleton-block h-11 w-11 rounded-full" />
               <div class="grid min-w-0 flex-1 gap-2">
@@ -80,7 +80,7 @@ export function ProfileFeedSkeleton() {
 
 export function ProfileFeedMessage(props: { body: string; title: string }) {
   return (
-    <div class="grid place-items-center rounded-3xl bg-white/3 px-6 py-12 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+    <div class="tone-muted grid place-items-center rounded-3xl px-6 py-12 text-center shadow-[var(--inset-shadow)]">
       <div class="grid max-w-lg gap-2">
         <p class="m-0 text-lg font-semibold tracking-[-0.02em] text-on-surface">{props.title}</p>
         <p class="m-0 text-sm leading-relaxed text-on-surface-variant">{props.body}</p>

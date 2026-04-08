@@ -116,7 +116,7 @@ function RestoreDraftToast(props: { onRestore: () => void; onDiscard: () => void
             Restore
           </button>
           <button
-            class="rounded-full border-0 bg-transparent px-3 py-1.5 text-xs text-on-surface-variant transition hover:bg-white/5"
+            class="rounded-full border-0 bg-transparent px-3 py-1.5 text-xs text-on-surface-variant transition hover:bg-surface-bright"
             type="button"
             onClick={() => props.onDiscard()}>
             Discard

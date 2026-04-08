@@ -87,13 +87,13 @@ function ProfileBadgeRow(props: { badges: string[]; isSelf: boolean }) {
     <div class="flex flex-wrap items-center justify-end gap-2">
       <For each={props.badges}>
         {(badge) => (
-          <span class="inline-flex items-center rounded-full bg-white/6 px-3 py-2 text-xs font-medium text-on-surface">
+          <span class="tone-muted inline-flex items-center rounded-full px-3 py-2 text-xs font-medium text-on-surface shadow-[var(--inset-shadow)]">
             {badge}
           </span>
         )}
       </For>
       <Show when={props.badges.length === 0}>
-        <span class="inline-flex items-center rounded-full bg-white/5 px-3 py-2 text-xs font-medium text-on-surface-variant">
+        <span class="tone-muted inline-flex items-center rounded-full px-3 py-2 text-xs font-medium text-on-surface-variant shadow-[var(--inset-shadow)]">
           {props.isSelf ? "Signed in" : "Public profile"}
         </span>
       </Show>
@@ -136,7 +136,7 @@ function ProfileMetaRow(
       <Show when={props.pinnedPostHref}>
         {(href) => (
           <a
-            class="inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-2 text-xs font-medium text-on-surface no-underline transition hover:-translate-y-px hover:bg-white/10"
+            class="tone-muted inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium text-on-surface no-underline shadow-[var(--inset-shadow)] transition hover:-translate-y-px hover:bg-surface-bright"
             href={`#${href()}`}>
             <Icon iconClass="i-ri-pushpin-2-line" class="text-base" />
             <span>Pinned post</span>
@@ -153,7 +153,7 @@ function FollowButton(props: { isFollowing: boolean; loading: boolean; onFollow:
       when={props.isFollowing}
       fallback={
         <button
-          class="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/20 bg-transparent px-5 text-sm font-medium text-on-surface transition duration-150 ease-out hover:bg-white/5 disabled:opacity-50"
+          class="inline-flex min-h-9 items-center gap-2 rounded-full border ui-outline-strong bg-transparent px-5 text-sm font-medium text-on-surface transition duration-150 ease-out hover:bg-surface-bright disabled:opacity-50"
           disabled={props.loading}
           type="button"
           onClick={props.onFollow}>
@@ -181,7 +181,7 @@ function FollowButton(props: { isFollowing: boolean; loading: boolean; onFollow:
 function MessageButton(props: { onClick: () => void }) {
   return (
     <button
-      class="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/12 bg-white/6 px-4 text-sm font-medium text-on-surface transition duration-150 ease-out hover:bg-white/10"
+      class="tone-muted inline-flex min-h-9 items-center gap-2 rounded-full border ui-outline-subtle px-4 text-sm font-medium text-on-surface shadow-[var(--inset-shadow)] transition duration-150 ease-out hover:bg-surface-bright"
       type="button"
       onClick={() => props.onClick()}>
       <Icon kind="messages" class="text-base" />
@@ -216,7 +216,7 @@ export function ProfileHero(
 
   return (
     <header class="relative" ref={(element) => props.rootRef?.(element)}>
-      <div class="relative h-64 overflow-hidden bg-surface-container-high shadow-[inset_0_-64px_80px_rgba(0,0,0,0.55)] max-[760px]:h-56">
+      <div class="relative h-64 overflow-hidden bg-surface-container-high shadow-[inset_0_-64px_80px_rgba(0,0,0,0.22)] max-[760px]:h-56">
         <Show
           when={props.profile.banner}
           fallback={
@@ -231,7 +231,7 @@ export function ProfileHero(
       </div>
 
       <div class="relative z-10 -mt-16 px-6 pb-6 max-[760px]:px-4 max-[520px]:px-3">
-        <div class="grid gap-5 rounded-4xl bg-[rgba(8,8,8,0.82)] px-5 pb-6 pt-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)] backdrop-blur-[18px] max-[760px]:px-4 max-[520px]:px-3.5">
+        <div class="grid gap-5 rounded-4xl bg-surface-container-highest px-5 pb-6 pt-5 shadow-[var(--inset-shadow)] backdrop-blur-[18px] max-[760px]:px-4 max-[520px]:px-3.5">
           <div class="flex flex-wrap items-start justify-between gap-5">
             <ProfileAvatar profile={props.profile} />
 
@@ -278,7 +278,7 @@ function ProfileAvatar(props: { profile: ProfileViewDetailed }) {
   return (
     <ModeratedAvatar
       avatar={profile().avatar}
-      class="relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_4px_rgba(8,8,8,0.96),0_0_0_6px_rgba(125,175,255,0.22),0_24px_40px_rgba(0,0,0,0.36)] backdrop-blur-sm"
+      class="relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-surface-container-high shadow-[0_0_0_4px_var(--surface),0_0_0_6px_rgba(125,175,255,0.24),0_24px_40px_rgba(0,0,0,0.22)]"
       hidden={decision().filter || decision().blur !== "none"}
       label={label()}
       fallbackClass="text-[2rem] font-semibold text-on-surface" />
@@ -296,10 +296,10 @@ export function ProfileStickyHeader(props: { profile: ProfileViewDetailed; profi
     <div
       class="sticky top-0 z-30 px-3 pb-3 pt-3 backdrop-blur-[18px] max-[520px]:px-2"
       data-testid="profile-sticky-header">
-      <div class="flex items-center gap-3 rounded-3xl bg-[rgba(14,14,14,0.92)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+      <div class="flex items-center gap-3 rounded-3xl bg-surface-container-high px-4 py-3 shadow-[var(--inset-shadow)]">
         <ModeratedAvatar
           avatar={props.profile.avatar}
-          class="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-black/60 shadow-[0_0_0_2px_rgba(8,8,8,0.96),0_0_0_3px_rgba(125,175,255,0.2)]"
+          class="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-surface-container-high shadow-[0_0_0_2px_var(--surface),0_0_0_3px_rgba(125,175,255,0.22)]"
           hidden={decision().filter || decision().blur !== "none"}
           label={avatarLabel()}
           fallbackClass="text-sm font-semibold text-on-surface" />
@@ -317,7 +317,7 @@ export function ProfileStickyHeader(props: { profile: ProfileViewDetailed; profi
           <div class="ml-auto hidden flex-wrap justify-end gap-2 min-[720px]:flex">
             <For each={visibleBadges()}>
               {(badge) => (
-                <span class="inline-flex items-center rounded-full bg-white/6 px-3 py-1.5 text-xs font-medium text-on-surface">
+                <span class="tone-muted inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium text-on-surface shadow-[var(--inset-shadow)]">
                   {badge}
                 </span>
               )}

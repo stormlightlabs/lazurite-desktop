@@ -121,15 +121,15 @@ export function PostEngagementPanel(props: { uri: string | null }) {
   }
 
   return (
-    <section class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
-      <header class="sticky top-0 z-20 flex items-center justify-between gap-3 bg-[rgba(14,14,14,0.94)] px-6 pb-4 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)] max-[760px]:px-4 max-[520px]:px-3">
+    <section class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-4xl bg-surface-container shadow-[var(--inset-shadow)]">
+      <header class="sticky top-0 z-20 flex items-center justify-between gap-3 bg-surface-container-high px-6 pb-4 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_var(--outline-subtle)] max-[760px]:px-4 max-[520px]:px-3">
         <div class="min-w-0">
           <p class="m-0 text-xl font-semibold tracking-tight text-on-surface">Post Engagement</p>
           <p class="m-0 mt-1 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{activeTabLabel()}</p>
         </div>
         <button
           type="button"
-          class="inline-flex h-10 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+          class="ui-control ui-control-hoverable inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm text-on-surface"
           onClick={() => void postNavigation.backFromPost()}>
           <Icon aria-hidden="true" iconClass="i-ri-arrow-left-line" />
           Back
@@ -143,8 +143,8 @@ export function PostEngagementPanel(props: { uri: string | null }) {
               type="button"
               class="rounded-full border-0 px-4 py-2.5 text-sm font-medium transition duration-150 ease-out"
               classList={{
-                "bg-white/8 text-primary shadow-[inset_0_0_0_1px_rgba(125,175,255,0.2)]": activeTab() === tab.key,
-                "text-on-surface-variant hover:bg-white/5 hover:text-on-surface": activeTab() !== tab.key,
+                "tone-muted text-primary shadow-[inset_0_0_0_1px_rgba(125,175,255,0.2)]": activeTab() === tab.key,
+                "text-on-surface-variant hover:bg-surface-bright hover:text-on-surface": activeTab() !== tab.key,
               }}
               onClick={() => selectTab(tab.key)}>
               {tab.label} ({activeCount(state.groups[tab.key])})
@@ -232,7 +232,7 @@ function EngagementRow(
   return (
     <button
       type="button"
-      class="flex w-full items-start gap-3 rounded-3xl border-0 bg-white/4 p-4 text-left shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 hover:bg-white/6 disabled:cursor-default disabled:hover:bg-white/4"
+      class="tone-muted flex w-full items-start gap-3 rounded-3xl border-0 p-4 text-left shadow-[var(--inset-shadow)] transition duration-150 hover:bg-surface-bright disabled:cursor-default disabled:hover:bg-[var(--panel-muted)]"
       disabled={!interactive()}
       onClick={() => {
         if (quoteInteractive()) {
@@ -242,7 +242,7 @@ function EngagementRow(
 
         props.onOpenProfile(props.item);
       }}>
-      <div class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 text-xs font-semibold text-on-surface-variant">
+      <div class="ui-input-strong flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-semibold text-on-surface-variant">
         <Show when={props.item.profile?.avatar} fallback={<span>{initials(actorLabel())}</span>}>
           {(src) => <img alt={actorLabel()} class="h-full w-full object-cover" src={src()} />}
         </Show>
@@ -252,7 +252,9 @@ function EngagementRow(
           <p class="m-0 text-sm font-medium text-on-surface">{actorLabel()}</p>
           <Show when={props.item.collection}>
             {(collection) => (
-              <span class="rounded-full bg-white/7 px-2.5 py-1 text-xs text-on-surface-variant">{collection()}</span>
+              <span class="tone-muted rounded-full px-2.5 py-1 text-xs text-on-surface-variant shadow-[var(--inset-shadow)]">
+                {collection()}
+              </span>
             )}
           </Show>
         </div>
@@ -265,7 +267,7 @@ function EngagementRow(
           <div class="mt-2">
             <QuotedPostPreview
               author={quoteAuthor()}
-              class="rounded-2xl bg-black/28 p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+              class="ui-input-strong rounded-2xl p-3 shadow-[var(--inset-shadow)]"
               text={quoteText() ?? ""}
               title="Quoted post"
               truncate />
@@ -321,7 +323,7 @@ function EngagementSkeleton() {
     <div class="grid gap-3">
       <For each={Array.from({ length: 4 })}>
         {() => (
-          <div class="rounded-3xl bg-white/4 p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+          <div class="tone-muted rounded-3xl p-5 shadow-[var(--inset-shadow)]">
             <div class="flex gap-3">
               <div class="skeleton-block h-11 w-11 rounded-full" />
               <div class="grid min-w-0 flex-1 gap-2">

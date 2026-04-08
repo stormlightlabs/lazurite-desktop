@@ -51,7 +51,7 @@ function SidebarFeedButton(
 ) {
   return (
     <button
-      class="flex w-full items-center gap-3 rounded-1xl border-0 bg-white/4 px-3 py-3 text-left text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/[0.07]"
+      class="tone-muted flex w-full items-center gap-3 rounded-1xl border-0 px-3 py-3 text-left text-on-surface shadow-[var(--inset-shadow)] transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright"
       type="button"
       onClick={() => props.onSelect(props.feed.id)}>
       <FeedChipAvatar feed={props.feed} generator={props.generator} />
@@ -98,7 +98,7 @@ function ReplyLikeThreshold(props: { value: number | null; onChange: (value: num
       <span>Minimum likes for replies</span>
       <p class="m-0 text-[0.72rem] leading-normal text-on-surface-variant/80">Only reply posts are affected.</p>
       <input
-        class="rounded-full border-0 bg-white/6 px-4 py-2 text-on-surface shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] focus:outline focus:outline-primary/50"
+        class="ui-input ui-input-strong rounded-full px-4 py-2 text-on-surface focus:outline focus:outline-primary/50"
         min="0"
         type="number"
         placeholder='e.g. "10"'
@@ -132,7 +132,7 @@ function ShortcutsCard() {
 
 function SidebarCard(props: ParentProps & { subtitle: string; title: string }) {
   return (
-    <section class="rounded-3xl bg-white/3 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <section class="tone-muted rounded-3xl p-4 shadow-[var(--inset-shadow)]">
       <p class="m-0 text-base font-semibold text-on-surface">{props.title}</p>
       <p class="mt-1 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.subtitle}</p>
       <div class="mt-4">{props.children}</div>
@@ -142,7 +142,7 @@ function SidebarCard(props: ParentProps & { subtitle: string; title: string }) {
 
 function ToggleRow(props: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
   return (
-    <label class="flex items-center justify-between gap-3 rounded-2xl bg-white/4 px-3 py-3 text-sm text-on-surface">
+    <label class="tone-muted flex items-center justify-between gap-3 rounded-2xl px-3 py-3 text-sm text-on-surface shadow-[var(--inset-shadow)]">
       <span>{props.label}</span>
       <input checked={props.checked} type="checkbox" onInput={(event) => props.onChange(event.currentTarget.checked)} />
     </label>
@@ -151,9 +151,9 @@ function ToggleRow(props: { checked: boolean; label: string; onChange: (checked:
 
 function ShortcutLine(props: { keys: string; label: string }) {
   return (
-    <div class="flex items-center justify-between gap-3 rounded-2xl bg-white/4 px-3 py-2.5">
+    <div class="tone-muted flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 shadow-[var(--inset-shadow)]">
       <span>{props.label}</span>
-      <span class="rounded-full bg-black/30 px-2 py-1 text-[0.68rem] uppercase tracking-[0.08em] text-primary">
+      <span class="ui-input-strong rounded-full px-2 py-1 text-[0.68rem] uppercase tracking-[0.08em] text-primary">
         {props.keys}
       </span>
     </div>

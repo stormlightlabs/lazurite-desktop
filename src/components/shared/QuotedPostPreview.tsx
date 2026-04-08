@@ -33,7 +33,7 @@ export function QuotedPostPreview(props: QuotedPostPreviewProps) {
   const truncated = createMemo(() => props.truncate ?? false);
 
   return (
-    <div class={props.class ?? "rounded-2xl bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"}>
+    <div class={props.class ?? "ui-input-strong rounded-2xl p-4 shadow-(--inset-shadow)"}>
       <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.title}</p>
       <Show
         when={props.onOpenPost}
@@ -43,7 +43,7 @@ export function QuotedPostPreview(props: QuotedPostPreviewProps) {
             fallback={<QuotedPreviewContent author={props.author} preview={preview()} truncated={truncated()} />}>
             {(href) => (
               <a
-                class="mt-2 block rounded-xl px-1 py-1 text-inherit no-underline transition duration-150 ease-out hover:bg-white/4"
+                class="mt-2 block rounded-xl px-1 py-1 text-inherit no-underline transition duration-150 ease-out hover:bg-surface-bright"
                 href={href()}
                 rel={openInNewTab() ? "noreferrer" : undefined}
                 target={openInNewTab() ? "_blank" : undefined}
@@ -54,7 +54,7 @@ export function QuotedPostPreview(props: QuotedPostPreviewProps) {
           </Show>
         }>
         <button
-          class="mt-2 block w-full rounded-xl border-0 bg-transparent px-1 py-1 text-left text-inherit transition duration-150 ease-out hover:bg-white/4"
+          class="mt-2 block w-full rounded-xl border-0 bg-transparent px-1 py-1 text-left text-inherit transition duration-150 ease-out hover:bg-surface-bright"
           type="button"
           onClick={(event) => {
             event.stopPropagation();

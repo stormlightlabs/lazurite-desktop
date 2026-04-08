@@ -32,7 +32,7 @@ export type FeedComposerHandlers = {
 export function ComposerLauncher(props: { activeAvatar?: string | null; activeHandle: string; onCompose: () => void }) {
   return (
     <button
-      class="mb-4 flex w-full min-w-0 items-center gap-3 rounded-3xl border-0 bg-white/3 px-4 py-4 text-left text-on-surface-variant shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition duration-150 ease-out hover:bg-white/5 max-[760px]:gap-2 max-[760px]:px-3.5 max-[520px]:py-3.5"
+      class="tone-muted mb-4 flex w-full min-w-0 items-center gap-3 rounded-3xl border-0 px-4 py-4 text-left text-on-surface-variant shadow-[var(--inset-shadow)] transition duration-150 ease-out hover:bg-surface-bright max-[760px]:gap-2 max-[760px]:px-3.5 max-[520px]:py-3.5"
       type="button"
       onClick={() => props.onCompose()}>
       <ComposerIdentityAvatar

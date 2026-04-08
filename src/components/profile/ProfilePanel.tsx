@@ -443,8 +443,8 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
 
   return (
     <section
-      class="relative grid min-h-0 overflow-hidden bg-[rgba(8,8,8,0.32)]"
-      classList={{ "rounded-4xl shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]": !props.embedded }}>
+      class="relative grid min-h-0 overflow-hidden bg-surface-container"
+      classList={{ "rounded-4xl shadow-[var(--inset-shadow)]": !props.embedded }}>
       <div
         data-testid="profile-scroll-region"
         class="min-h-0 overflow-y-auto overscroll-contain"
@@ -540,7 +540,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
 function ProfileLoadingView() {
   return (
     <div class="grid gap-4 p-6 max-[760px]:p-4 max-[520px]:p-3">
-      <div class="overflow-hidden rounded-4xl bg-white/3 p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+      <div class="tone-muted overflow-hidden rounded-4xl p-6 shadow-[var(--inset-shadow)]">
         <ProfileSkeleton />
       </div>
       <ProfileFeedSkeleton />
@@ -553,9 +553,9 @@ function ProfileUnavailableView(props: { unavailable: ProfileLookupUnavailable }
 
   return (
     <div class="grid min-h-120 place-items-center p-6">
-      <div class="grid max-w-lg gap-4 rounded-4xl bg-white/3 p-6 text-left shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+      <div class="tone-muted grid max-w-lg gap-4 rounded-4xl p-6 text-left shadow-[var(--inset-shadow)]">
         <div class="flex items-center gap-3">
-          <span class="flex h-12 w-12 items-center justify-center rounded-full bg-white/6 text-on-surface-variant">
+          <span class="ui-input-strong flex h-12 w-12 items-center justify-center rounded-full text-on-surface-variant">
             <Icon kind="danger" aria-hidden="true" />
           </span>
           <div class="min-w-0">
@@ -577,7 +577,7 @@ function ProfileErrorView(props: { error: string | null; onRetry: () => void }) 
         <ProfileFeedMessage body={error()} title="Profile couldn't be loaded" />
         <button
           type="button"
-          class="inline-flex items-center justify-center gap-2 rounded-full border-0 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface transition duration-150 hover:-translate-y-px"
+          class="ui-control ui-control-hoverable inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-on-surface"
           onClick={() => props.onRetry()}>
           <Icon kind="refresh" aria-hidden="true" />
           Retry
@@ -594,15 +594,15 @@ function ProfileTabs(
     <div
       class="sticky z-20 px-3 pb-3 pt-1 backdrop-blur-[18px] max-[520px]:px-2"
       classList={{ "top-22": props.compactHeaderVisible, "top-0": !props.compactHeaderVisible }}>
-      <div class="rounded-3xl bg-[rgba(14,14,14,0.92)] p-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+      <div class="rounded-3xl bg-surface-container-high p-2 shadow-[var(--inset-shadow)]">
         <div class="flex flex-wrap gap-2">
           <For each={PROFILE_TABS}>
             {(tab) => (
               <button
                 class="rounded-full border-0 px-4 py-2.5 text-sm font-medium transition duration-150 ease-out"
                 classList={{
-                  "bg-white/8 text-primary shadow-[inset_0_0_0_1px_rgba(125,175,255,0.2)]": props.activeTab === tab,
-                  "text-on-surface-variant hover:bg-white/5 hover:text-on-surface": props.activeTab !== tab,
+                  "tone-muted text-primary shadow-[inset_0_0_0_1px_rgba(125,175,255,0.2)]": props.activeTab === tab,
+                  "text-on-surface-variant hover:bg-surface-bright hover:text-on-surface": props.activeTab !== tab,
                 }}
                 type="button"
                 onClick={() => props.onSelect(tab)}>

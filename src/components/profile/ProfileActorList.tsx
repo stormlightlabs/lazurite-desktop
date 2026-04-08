@@ -13,7 +13,7 @@ function ActorListHeader(props: { onClose: () => void; title: string }) {
         <p class="m-0 text-base font-semibold text-on-surface">{props.title}</p>
       </div>
       <button
-        class="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/6 text-on-surface-variant transition hover:bg-white/10 hover:text-on-surface"
+        class="ui-control ui-control-hoverable flex h-8 w-8 items-center justify-center rounded-full"
         type="button"
         onClick={() => props.onClose()}>
         <Icon iconClass="i-ri-close-line" class="text-base" />
@@ -26,7 +26,7 @@ function ActorListLoadMoreButton(props: { loadingMore: boolean; onLoadMore: () =
   return (
     <div class="flex justify-center py-4">
       <button
-        class="inline-flex min-h-10 items-center gap-2 rounded-full border-0 bg-white/6 px-5 text-sm font-medium text-on-surface transition hover:-translate-y-px hover:bg-white/10 disabled:translate-y-0 disabled:opacity-70"
+        class="ui-control ui-control-hoverable inline-flex min-h-10 items-center gap-2 rounded-full px-5 text-sm font-medium text-on-surface disabled:translate-y-0 disabled:opacity-70"
         disabled={props.loadingMore}
         type="button"
         onClick={() => props.onLoadMore()}>
@@ -99,7 +99,7 @@ function ActorCard(props: ActorCardProps) {
   const isFollowing = createMemo(() => !!props.actor.viewer?.following);
 
   return (
-    <article class="rounded-3xl bg-white/4 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+    <article class="tone-muted rounded-3xl p-4 shadow-[var(--inset-shadow)]">
       <div class="flex items-start gap-3">
         <button
           class="flex min-w-0 flex-1 items-start gap-3 border-0 bg-transparent p-0 text-left transition hover:opacity-90"
@@ -159,7 +159,7 @@ function ActorCardFollowButton(
       when={props.isFollowing}
       fallback={
         <button
-          class="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border border-white/16 bg-transparent px-4 text-sm font-medium text-on-surface transition hover:bg-white/6 disabled:opacity-50"
+          class="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border ui-outline-subtle bg-transparent px-4 text-sm font-medium text-on-surface transition hover:bg-surface-bright disabled:opacity-50"
           disabled={props.loading}
           type="button"
           onClick={() => props.onFollow()}>
@@ -189,7 +189,7 @@ function ActorListSkeleton() {
     <div class="grid gap-2 pt-1">
       <For each={Array.from({ length: 6 })}>
         {() => (
-          <div class="rounded-3xl bg-white/4 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+          <div class="tone-muted rounded-3xl p-4 shadow-[var(--inset-shadow)]">
             <div class="flex items-start gap-3">
               <span class="skeleton-block h-11 w-11 shrink-0 rounded-full" />
               <div class="grid flex-1 gap-1.5">
@@ -229,7 +229,7 @@ export function ActorListOverlay(props: ActorListOverlayProps) {
         overlayRef = element;
       }}
       aria-modal="true"
-      class="absolute inset-0 z-50 flex items-end bg-[rgba(5,5,5,0.58)] p-3 backdrop-blur-xl"
+      class="ui-scrim absolute inset-0 z-50 flex items-end p-3 backdrop-blur-xl"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -244,7 +244,7 @@ export function ActorListOverlay(props: ActorListOverlayProps) {
         }
       }}>
       <Motion.div
-        class="flex max-h-[min(42rem,calc(100%-0.75rem))] w-full flex-col overflow-hidden rounded-4xl bg-[rgba(20,20,20,0.94)] shadow-[0_30px_80px_rgba(0,0,0,0.5),inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+        class="flex max-h-[min(42rem,calc(100%-0.75rem))] w-full flex-col overflow-hidden rounded-4xl bg-surface-container-highest shadow-[0_30px_80px_rgba(0,0,0,0.24),var(--inset-shadow)]"
         initial={{ opacity: 0.96, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0.96, y: 40 }}

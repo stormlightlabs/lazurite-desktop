@@ -11,14 +11,14 @@ function FeedHeaderActions(props: { onCompose: () => void; onRefresh: () => void
   return (
     <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[960px]:w-full max-[960px]:justify-between">
       <button
-        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8 max-[960px]:flex-1 max-[960px]:justify-center max-[520px]:px-3"
+        class="ui-control ui-control-hoverable inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm text-on-surface max-[960px]:flex-1 max-[960px]:justify-center max-[520px]:px-3"
         type="button"
         onClick={() => props.onCompose()}>
         <Icon aria-hidden="true" kind="quill" />
         <span>New post</span>
       </button>
       <button
-        class="inline-flex h-11 w-11 items-center justify-center rounded-full border-0 bg-white/5 text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+        class="ui-control ui-control-hoverable inline-flex h-11 w-11 items-center justify-center rounded-full text-on-surface"
         type="button"
         aria-label="Refresh active feed"
         title="Refresh active feed"
@@ -88,7 +88,7 @@ function FeedPaneTitle(
 
 function FeedPaneHeader(props: { controller: FeedWorkspaceController }) {
   return (
-    <header class="sticky top-0 z-20 overflow-hidden rounded-t-4xl bg-[rgba(14,14,14,0.94)] px-6 pb-3 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)] max-[960px]:px-5 max-[960px]:pb-4 max-[960px]:pt-4 max-[760px]:px-4 max-[520px]:px-3">
+    <header class="sticky top-0 z-20 overflow-hidden rounded-t-4xl bg-surface-container-high px-6 pb-3 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_var(--outline-subtle)] max-[960px]:px-5 max-[960px]:pb-4 max-[960px]:pt-4 max-[760px]:px-4 max-[520px]:px-3">
       <FeedPaneTitle
         activeFeed={props.controller.activeFeed()}
         generators={props.controller.workspace.generators}
@@ -108,7 +108,7 @@ export function FeedPane(props: { controller: FeedWorkspaceController }) {
   const session = useAppSession();
 
   return (
-    <section class="grid min-h-0 min-w-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)] rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+    <section class="grid min-h-0 min-w-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)] rounded-4xl bg-surface-container shadow-(--inset-shadow)">
       <FeedPaneHeader controller={props.controller} />
       <FeedScroller
         controller={props.controller}

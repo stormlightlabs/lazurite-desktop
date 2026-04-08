@@ -126,8 +126,8 @@ export function PostPanel(props: { uri: string | null }) {
   }
 
   return (
-    <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-4xl bg-[rgba(8,8,8,0.32)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
-      <header class="sticky top-0 z-20 flex items-center justify-between gap-3 bg-[rgba(14,14,14,0.94)] px-6 pb-4 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)] max-[760px]:px-4 max-[520px]:px-3">
+    <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-4xl bg-surface-container shadow-[var(--inset-shadow)]">
+      <header class="sticky top-0 z-20 flex items-center justify-between gap-3 bg-surface-container-high px-6 pb-4 pt-5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_var(--outline-subtle)] max-[760px]:px-4 max-[520px]:px-3">
         <div class="min-w-0">
           <p class="m-0 text-xl font-semibold tracking-tight text-on-surface">Post</p>
           <Show when={parentPostUri()}>
@@ -142,7 +142,7 @@ export function PostPanel(props: { uri: string | null }) {
         </div>
         <button
           type="button"
-          class="inline-flex h-10 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+          class="ui-control ui-control-hoverable inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm text-on-surface"
           onClick={() => void postNavigation.backFromPost()}>
           <Icon aria-hidden="true" iconClass="i-ri-arrow-left-line" />
           Back
@@ -206,7 +206,7 @@ function ThreadState(
           <div class="grid gap-3">
             <For each={props.parentChain}>
               {(parent) => (
-                <div class="rounded-3xl bg-white/3 p-3">
+                <div class="tone-muted rounded-3xl p-3 shadow-[var(--inset-shadow)]">
                   <PostCard
                     bookmarkPending={!!props.bookmarkPendingByUri[parent.post.uri]}
                     likePending={!!props.likePendingByUri[parent.post.uri]}
@@ -235,7 +235,7 @@ function ThreadState(
               repostPending={!!props.repostPendingByUri[focused().post.uri]} />
 
             <Show when={focused().replies?.length}>
-              <div class="grid gap-3 rounded-3xl bg-white/3 p-3">
+              <div class="tone-muted grid gap-3 rounded-3xl p-3 shadow-[var(--inset-shadow)]">
                 <For each={focused().replies}>
                   {(reply) => (
                     <ThreadReplies
@@ -297,7 +297,7 @@ function ThreadReplies(
               repostPending={!!props.repostPendingByUri[current().post.uri]} />
 
             <Show when={current().replies?.length}>
-              <div class="ml-3 grid gap-3 border-l border-white/8 pl-3">
+              <div class="ml-3 grid gap-3 border-l pl-3 ui-outline-subtle">
                 <For each={current().replies}>
                   {(reply) => (
                     <ThreadReplies
@@ -334,7 +334,7 @@ function PostPanelMessage(props: { body: string; title: string }) {
 
 function SkeletonPostCard() {
   return (
-    <div class="rounded-3xl bg-white/3 p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <div class="tone-muted rounded-3xl p-5 shadow-[var(--inset-shadow)]">
       <div class="flex gap-3">
         <div class="skeleton-block h-11 w-11 rounded-full" />
         <div class="min-w-0 flex-1">
@@ -352,7 +352,7 @@ function SkeletonPostCard() {
 
 function StateCard(props: { label: string; meta: string }) {
   return (
-    <div class="rounded-3xl bg-white/3 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <div class="tone-muted rounded-3xl p-4 shadow-[var(--inset-shadow)]">
       <p class="m-0 text-sm font-semibold text-on-surface">{props.label}</p>
       <p class="mt-1 text-xs text-on-surface-variant">{props.meta}</p>
     </div>

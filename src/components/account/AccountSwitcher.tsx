@@ -83,7 +83,8 @@ export function AccountSwitcher() {
         class="ui-control ui-control-hoverable relative w-full min-w-0 cursor-pointer text-on-surface"
         classList={{
           "rounded-xl py-[0.95rem] pr-10 pl-4": !compact(),
-          "grid h-14 w-14 place-items-center overflow-visible rounded-full p-0": compact(),
+          "grid h-13 w-13 place-items-center overflow-visible rounded-full p-0 [background:transparent] [box-shadow:none]":
+            compact(),
         }}
         type="button"
         aria-haspopup="menu"
@@ -95,7 +96,7 @@ export function AccountSwitcher() {
           class="absolute flex items-center justify-center text-on-surface-variant"
           classList={{
             "right-[0.95rem] top-1/2 -translate-y-1/2": !compact(),
-            "bottom-0 right-0 h-5 w-5 translate-x-[8%] translate-y-[8%] rounded-full bg-surface-container text-[0.7rem] leading-none shadow-[0_0_0_2px_var(--surface-container-lowest),inset_0_0_0_1px_var(--outline-subtle)]":
+            "bottom-0 right-0 h-[1.35rem] w-[1.35rem] translate-x-[20%] translate-y-[20%] rounded-full bg-surface-container-high text-[0.78rem] leading-none shadow-[0_0_0_2px_var(--surface-container-lowest),inset_0_0_0_1px_var(--outline-subtle)]":
               compact(),
           }}
           aria-hidden="true">

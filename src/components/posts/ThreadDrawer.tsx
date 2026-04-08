@@ -141,7 +141,7 @@ export function ThreadDrawer() {
       <Show when={activeUri()}>
         <div class="fixed inset-0 z-50">
           <Motion.button
-            class="absolute inset-0 border-0 bg-surface-container-highest/70 backdrop-blur-xl"
+            class="ui-scrim absolute inset-0 border-0 backdrop-blur-xl"
             type="button"
             aria-label="Close thread"
             initial={{ opacity: 0 }}
@@ -150,7 +150,7 @@ export function ThreadDrawer() {
             transition={{ duration: 0.2 }}
             onClick={() => void threadOverlay.closeThread()} />
           <Motion.aside
-            class="absolute inset-y-0 right-0 grid w-full max-w-136 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[rgba(12,12,12,0.92)] px-5 pb-6 pt-5 shadow-[-28px_0_50px_rgba(0,0,0,0.35)] backdrop-blur-[22px]"
+            class="absolute inset-y-0 right-0 grid w-full max-w-136 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-surface-container-highest px-5 pb-6 pt-5 shadow-[-28px_0_50px_rgba(0,0,0,0.24)] backdrop-blur-[22px]"
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 36 }}
@@ -204,7 +204,7 @@ function ThreadDrawerBody(
 
       <Show when={!props.loading && props.error}>
         {(message) => (
-          <div class="rounded-3xl bg-[rgba(138,31,31,0.2)] p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(255,128,128,0.2)]">
+          <div class="rounded-3xl bg-error-surface p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(180,35,24,0.2)]">
             {message()}
           </div>
         )}
@@ -241,7 +241,7 @@ function ThreadDrawerHeader(
   },
 ) {
   return (
-    <header class="sticky top-0 z-10 mb-4 flex items-center justify-between rounded-3xl bg-[rgba(14,14,14,0.9)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <header class="sticky top-0 z-10 mb-4 flex items-center justify-between rounded-3xl bg-surface-container-high px-4 py-3 shadow-[var(--inset-shadow)]">
       <div>
         <p class="m-0 text-base font-semibold text-on-surface">Thread</p>
         <Show when={props.parentThreadHref}>
@@ -259,7 +259,7 @@ function ThreadDrawerHeader(
           {(uri) => (
             <button
               aria-label="Open full post"
-              class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-surface-bright hover:text-on-surface"
               type="button"
               onClick={() => props.onMaximize(uri())}>
               <Icon aria-hidden="true" iconClass="i-ri-external-link-line" />
@@ -267,7 +267,7 @@ function ThreadDrawerHeader(
           )}
         </Show>
         <button
-          class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
+          class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-surface-bright hover:text-on-surface"
           type="button"
           onClick={() => props.onClose()}>
           <Icon aria-hidden="true" iconClass="i-ri-close-line" />
@@ -318,7 +318,7 @@ function ThreadNodeView(
           <div class="grid gap-4">
             <Show when={threadNode().parent}>
               {(parent) => (
-                <div class="rounded-3xl bg-white/3 p-3">
+                <div class="tone-muted rounded-3xl p-3 shadow-[var(--inset-shadow)]">
                   <ThreadNodeView
                     activeUri={props.activeUri}
                     bookmarkPendingByUri={props.bookmarkPendingByUri}
@@ -348,7 +348,7 @@ function ThreadNodeView(
               repostPending={!!props.repostPendingByUri[threadNode().post.uri]} />
 
             <Show when={threadNode().replies?.length}>
-              <div class="grid gap-4 rounded-3xl bg-white/3 p-3">
+              <div class="tone-muted grid gap-4 rounded-3xl p-3 shadow-[var(--inset-shadow)]">
                 <For each={threadNode().replies}>
                   {(reply) => (
                     <ThreadNodeView
@@ -376,7 +376,7 @@ function ThreadNodeView(
 
 function StateCard(props: { label: string; meta: string }) {
   return (
-    <div class="rounded-3xl bg-white/3 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <div class="tone-muted rounded-3xl p-4 shadow-[var(--inset-shadow)]">
       <p class="m-0 text-sm font-semibold text-on-surface">{props.label}</p>
       <p class="mt-1 text-xs text-on-surface-variant">{props.meta}</p>
     </div>
@@ -385,7 +385,7 @@ function StateCard(props: { label: string; meta: string }) {
 
 function SkeletonThreadCard() {
   return (
-    <div class="rounded-3xl bg-white/3 p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <div class="tone-muted rounded-3xl p-5 shadow-[var(--inset-shadow)]">
       <div class="flex gap-3">
         <div class="skeleton-block h-11 w-11 rounded-full" />
         <div class="min-w-0 flex-1">
