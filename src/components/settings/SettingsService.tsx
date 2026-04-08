@@ -22,7 +22,7 @@ export function SettingsService(
               type="text"
               value={constellationUrl()}
               onChange={(e) => void props.handleUpdateSetting("constellationUrl", e.currentTarget.value)}
-              class="flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-on-surface outline-none transition focus:border-primary/50" />
+              class="ui-input flex-1" />
           </div>
         </div>
         <div>
@@ -32,7 +32,7 @@ export function SettingsService(
               type="text"
               value={spacedustUrl()}
               onChange={(e) => void props.handleUpdateSetting("spacedustUrl", e.currentTarget.value)}
-              class="flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-on-surface outline-none transition focus:border-primary/50" />
+              class="ui-input flex-1" />
           </div>
         </div>
         <ToggleRow

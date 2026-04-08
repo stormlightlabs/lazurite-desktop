@@ -7,7 +7,7 @@ import { SettingsCard } from "./SettingsCard";
 
 function AccountItem(props: { account: AccountSummary; active: boolean; onRemove: () => void; onSwitch: () => void }) {
   return (
-    <div class="flex items-center justify-between rounded-xl bg-white/3 p-3 transition-colors hover:bg-white/5">
+    <div class="tone-muted flex items-center justify-between rounded-xl p-3 transition-colors hover:bg-[var(--panel-muted-hover)]">
       <div class="flex items-center gap-3">
         <div class="relative">
           <div class="h-10 w-10 overflow-hidden rounded-full">
@@ -37,7 +37,7 @@ function AccountItem(props: { account: AccountSummary; active: boolean; onRemove
             <button
               type="button"
               onClick={() => props.onSwitch()}
-              class="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-medium text-on-surface transition hover:bg-white/5">
+              class="ui-button-secondary px-3 py-1.5 text-xs">
               Switch
             </button>
           }>
@@ -46,7 +46,7 @@ function AccountItem(props: { account: AccountSummary; active: boolean; onRemove
         <button
           type="button"
           onClick={() => props.onRemove()}
-          class="rounded-lg p-2 text-on-surface-variant transition hover:bg-white/5 hover:text-on-surface"
+          class="rounded-lg p-2 text-on-surface-variant transition hover:bg-surface-bright hover:text-on-surface"
           title="Remove account">
           <span class="flex items-center">
             <Icon kind="close" class="text-sm" />

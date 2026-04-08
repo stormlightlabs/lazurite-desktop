@@ -93,7 +93,7 @@ function CacheSizeGrid(props: { cacheSize: SettingsDataProps["cacheSize"] }) {
 
 function CacheTile(props: { label: string; value: string }) {
   return (
-    <div class="rounded-xl bg-black/30 p-4 text-center">
+    <div class="ui-input-strong rounded-xl border p-4 text-center ui-outline-subtle">
       <p class="text-lg font-medium text-on-surface">{props.value}</p>
       <p class="text-xs text-on-surface-variant">{props.label}</p>
     </div>
@@ -114,21 +114,21 @@ function CacheActions(
         type="button"
         disabled={props.busy}
         onClick={() => void props.onClear("feeds")}
-        class="flex-1 rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-white/5 disabled:cursor-wait disabled:opacity-60">
+        class="ui-button-secondary flex-1 disabled:cursor-wait disabled:opacity-60">
         {props.pending("feeds") ? "Clearing..." : "Clear feeds"}
       </button>
       <button
         type="button"
         disabled={props.busy}
         onClick={() => void props.onClear("embeddings")}
-        class="flex-1 rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-white/5 disabled:cursor-wait disabled:opacity-60">
+        class="ui-button-secondary flex-1 disabled:cursor-wait disabled:opacity-60">
         {props.pending("embeddings") ? "Clearing..." : "Clear embeddings"}
       </button>
       <button
         type="button"
         disabled={props.busy}
         onClick={() => void props.onClear("fts")}
-        class="flex-1 rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-white/5 disabled:cursor-wait disabled:opacity-60">
+        class="ui-button-secondary flex-1 disabled:cursor-wait disabled:opacity-60">
         {props.pending("fts") ? "Clearing..." : "Clear search index"}
       </button>
       <button
@@ -153,7 +153,7 @@ function ExportActions(
   props: { busy: boolean; pending: PendingCheck; onExport: (format: "json" | "csv") => Promise<void> },
 ) {
   return (
-    <div class="border-t border-white/10 pt-4">
+    <div class="border-t pt-4 ui-outline-subtle">
       <div class="flex items-center justify-between">
         <ExportDescription />
         <div class="flex gap-2">
@@ -161,14 +161,14 @@ function ExportActions(
             type="button"
             disabled={props.busy}
             onClick={() => void props.onExport("json")}
-            class="rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-white/5 disabled:cursor-wait disabled:opacity-60">
+            class="ui-button-secondary disabled:cursor-wait disabled:opacity-60">
             {props.pending("json") ? "Exporting..." : "JSON"}
           </button>
           <button
             type="button"
             disabled={props.busy}
             onClick={() => void props.onExport("csv")}
-            class="rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-white/5 disabled:cursor-wait disabled:opacity-60">
+            class="ui-button-secondary disabled:cursor-wait disabled:opacity-60">
             {props.pending("csv") ? "Exporting..." : "CSV"}
           </button>
         </div>

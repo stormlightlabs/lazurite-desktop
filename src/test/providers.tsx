@@ -86,8 +86,10 @@ function createAppShellUiTestValue(overrides: Partial<AppShellUiContextValue> = 
     railCollapsed: overrides.railCollapsed ?? false,
     railColumns: overrides.railColumns ?? "16rem minmax(0,1fr)",
     railCondensed: overrides.railCondensed ?? false,
+    showThemeRailControl: overrides.showThemeRailControl ?? true,
     showSwitcher: overrides.showSwitcher ?? false,
     closeSwitcher: overrides.closeSwitcher ?? noop,
+    setShowThemeRailControl: overrides.setShowThemeRailControl ?? noop,
     toggleRailCollapsed: overrides.toggleRailCollapsed ?? noop,
     toggleSwitcher: overrides.toggleSwitcher ?? noop,
   };

@@ -111,7 +111,7 @@ function createMockLogEntry(level = "INFO", message = "Test log message") {
 }
 
 function renderSettingsPanel(
-  options: { preferences?: Record<string, unknown>; session?: Record<string, unknown> } = {},
+  options: { preferences?: Record<string, unknown>; session?: Record<string, unknown>; shell?: Record<string, unknown> } = {},
 ) {
   render(() => (
     <AppTestProviders
@@ -121,7 +121,8 @@ function renderSettingsPanel(
         updateSetting: updateSettingMock,
         ...options.preferences,
       }}
-      session={options.session}>
+      session={options.session}
+      shell={options.shell}>
       <SettingsPanel />
     </AppTestProviders>
   ));
@@ -225,6 +226,18 @@ describe("SettingsPanel", () => {
 
     fireEvent.click(darkButton);
     await waitFor(() => expect(updateSettingMock).toHaveBeenCalledWith("theme", "dark"));
+  });
+
+  it("allows toggling rail theme control visibility", async () => {
+    const setShowThemeRailControl = vi.fn();
+
+    renderSettingsPanel({ shell: { showThemeRailControl: true, setShowThemeRailControl } });
+
+    await screen.findByText("Settings");
+    const toggle = await screen.findByRole("switch", { name: /show theme control in app rail/i });
+
+    fireEvent.click(toggle);
+    expect(setShowThemeRailControl).toHaveBeenCalledWith(false);
   });
 
   it("allows changing refresh interval", async () => {

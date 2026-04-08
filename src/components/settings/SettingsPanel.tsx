@@ -1,5 +1,6 @@
 import { EmbeddingsSettings } from "$/components/search/EmbeddingsSettings";
 import { useAppPreferences } from "$/contexts/app-preferences";
+import { useAppShellUi } from "$/contexts/app-shell-ui";
 import { SettingsController } from "$/lib/api/settings";
 import type {
   AppSettings,
@@ -69,7 +70,8 @@ function ConfirmationModal(
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}>
           <Motion.div
-            class="w-full max-w-md rounded-2xl bg-surface-container p-6 shadow-2xl"
+            class="w-full max-w-md rounded-2xl bg-surface-container p-6"
+            style={{ "box-shadow": "var(--overlay-shadow)" }}
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
@@ -104,7 +106,7 @@ function ConfirmTextInput(
         value={props.value}
         onInput={(e) => props.handleInput(e.currentTarget.value)}
         placeholder={`Type "${props.confirmText}" to confirm`}
-        class="mb-4 w-full rounded-lg border border-white/10 bg-black/40 px-4 py-2 text-sm text-on-surface outline-none transition focus:border-primary/50" />
+        class="ui-input mb-4 w-full px-4 py-2" />
     </Show>
   );
 }
@@ -117,7 +119,7 @@ function Actions(
       <button
         type="button"
         onClick={() => props.onCancel()}
-        class="rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-white/5">
+        class="ui-button-secondary">
         Cancel
       </button>
       <button
@@ -142,12 +144,12 @@ function SettingsSkeleton() {
         {() => (
           <div class="panel-surface animate-pulse p-5">
             <div class="mb-4 flex items-center gap-3">
-              <div class="h-6 w-6 rounded-full bg-white/5" />
-              <div class="h-5 w-24 rounded-full bg-white/5" />
+              <div class="h-6 w-6 rounded-full tone-muted" />
+              <div class="h-5 w-24 rounded-full tone-muted" />
             </div>
             <div class="grid gap-3">
-              <div class="h-10 rounded-lg bg-white/5" />
-              <div class="h-10 rounded-lg bg-white/5" />
+              <div class="h-10 rounded-lg tone-muted" />
+              <div class="h-10 rounded-lg tone-muted" />
             </div>
           </div>
         )}
@@ -166,6 +168,7 @@ async function handleResetAndRestartApp() {
 
 export function SettingsPanel() {
   const preferences = useAppPreferences();
+  const shell = useAppShellUi();
   const navigate = useNavigate();
   const [panel, setPanel] = createStore<SettingsPanelState>({
     cacheSize: null,
@@ -253,7 +256,7 @@ export function SettingsPanel() {
   });
 
   return (
-    <article class="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden rounded-4xl bg-surface-container shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
+    <article class="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden rounded-4xl bg-surface-container shadow-[var(--inset-shadow)]">
       <header class="grid gap-5 px-6 pb-4 pt-6">
         <div class="flex items-center justify-between gap-4">
           <div class="grid gap-1">
@@ -263,7 +266,7 @@ export function SettingsPanel() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            class="inline-flex h-10 w-10 items-center justify-center rounded-full border-0 bg-surface-container-high text-on-surface-variant transition duration-150 hover:-translate-y-px hover:text-on-surface"
+            class="ui-control ui-control-hoverable inline-flex h-10 w-10 items-center justify-center rounded-full"
             title="Close settings">
             <Icon kind="close" aria-hidden="true" class="text-lg" />
           </button>
@@ -281,7 +284,11 @@ export function SettingsPanel() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}>
-                  <AppearanceControl currentTheme={currentTheme()} handleUpdateSetting={handleUpdateSetting} />
+                  <AppearanceControl
+                    currentTheme={currentTheme()}
+                    handleUpdateSetting={handleUpdateSetting}
+                    showThemeRailControl={shell.showThemeRailControl}
+                    setShowThemeRailControl={shell.setShowThemeRailControl} />
                   <TimelineControl currentRefresh={currentRefresh()} handleUpdateSetting={handleUpdateSetting} />
                   <NotificationsControl settings={settings()} handleUpdateSetting={handleUpdateSetting} />
                   <SettingsModeration />

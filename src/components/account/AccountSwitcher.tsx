@@ -73,14 +73,14 @@ export function AccountSwitcher() {
       classList={{
         "z-40": shell.showSwitcher,
         "w-auto": compact(),
-        "max-[1180px]:col-start-4 max-[1180px]:row-start-1 max-[1180px]:justify-self-end": shell.narrowViewport,
+        "max-[1180px]:col-start-5 max-[1180px]:row-start-1 max-[1180px]:justify-self-end": shell.narrowViewport,
         "max-[1180px]:col-span-full max-[1180px]:justify-self-stretch": !shell.narrowViewport,
       }}
       ref={(element) => {
         container = element;
       }}>
       <button
-        class="relative w-full min-w-0 cursor-pointer border-0 bg-white/4 text-on-surface shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+        class="ui-control ui-control-hoverable relative w-full min-w-0 cursor-pointer text-on-surface"
         classList={{
           "rounded-xl py-[0.95rem] pr-10 pl-4": !compact(),
           "grid h-14 w-14 place-items-center overflow-visible rounded-full p-0": compact(),
@@ -95,7 +95,7 @@ export function AccountSwitcher() {
           class="absolute flex items-center justify-center text-on-surface-variant"
           classList={{
             "right-[0.95rem] top-1/2 -translate-y-1/2": !compact(),
-            "bottom-0 right-0 h-5 w-5 translate-x-[8%] translate-y-[8%] rounded-full bg-surface-container text-[0.7rem] leading-none shadow-[0_0_0_2px_rgba(8,8,8,0.9),inset_0_0_0_1px_rgba(255,255,255,0.05)]":
+            "bottom-0 right-0 h-5 w-5 translate-x-[8%] translate-y-[8%] rounded-full bg-surface-container text-[0.7rem] leading-none shadow-[0_0_0_2px_var(--surface-container-lowest),inset_0_0_0_1px_var(--outline-subtle)]":
               compact(),
           }}
           aria-hidden="true">
@@ -107,7 +107,7 @@ export function AccountSwitcher() {
 
       <Show when={shell.showSwitcher}>
         <div
-          class="absolute z-50 rounded-2xl bg-surface-container-highest p-4 shadow-[0_24px_40px_rgba(0,0,0,0.28)] backdrop-blur-[20px] max-[1180px]:bottom-auto max-[1180px]:top-[calc(100%+0.75rem)]"
+          class="ui-overlay-card absolute z-50 rounded-2xl border ui-outline-subtle bg-surface-container-highest p-4 backdrop-blur-[20px] max-[1180px]:bottom-auto max-[1180px]:top-[calc(100%+0.75rem)]"
           classList={{
             "inset-x-0 bottom-[calc(100%+0.75rem)]": !compact(),
             "bottom-0 left-[calc(100%+0.85rem)] w-[19rem]": compact() && !shell.narrowViewport,

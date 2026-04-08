@@ -27,7 +27,7 @@ function ExpandButton(props: { expanded: boolean; onClick: () => void }) {
     <button
       type="button"
       onClick={() => props.onClick()}
-      class="flex items-center justify-between rounded-lg bg-black/40 px-4 py-2 text-sm text-on-surface transition hover:bg-black/50">
+      class="ui-input-strong flex items-center justify-between rounded-lg border px-4 py-2 text-sm text-on-surface transition hover:bg-surface-bright ui-outline-subtle">
       <Show
         when={props.expanded}
         fallback={
@@ -53,10 +53,10 @@ function LogDisplay(props: { logs: LogEntry[] }) {
       animate={{ height: "auto" }}
       exit={{ height: 0 }}
       transition={{ duration: 0.2 }}>
-      <div class="max-h-64 overflow-y-auto rounded-xl bg-black/50 p-4 font-mono text-xs">
+      <div class="ui-input-strong max-h-64 overflow-y-auto rounded-xl border p-4 font-mono text-xs ui-outline-subtle">
         <For each={props.logs} fallback={<p class="text-on-surface-variant">No log entries found</p>}>
           {(log) => (
-            <div class="mb-2 grid gap-2 rounded-xl bg-white/3 px-3 py-2 md:grid-cols-[auto_auto_auto_minmax(0,1fr)] md:items-start">
+            <div class="tone-muted mb-2 grid gap-2 rounded-xl px-3 py-2 md:grid-cols-[auto_auto_auto_minmax(0,1fr)] md:items-start">
               <span class="text-on-surface-variant">{formatLogTimestamp(log.timestamp)}</span>
               <span
                 class="font-semibold"
@@ -94,13 +94,13 @@ export function SettingsLogs(props: SettingsLogsProps) {
               onClick={() => {
                 void navigator.clipboard.writeText(output());
               }}
-              class="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-medium text-on-surface transition hover:bg-white/5">
+              class="ui-button-secondary px-3 py-1.5 text-xs">
               Copy all
             </button>
             <button
               type="button"
               onClick={() => void props.loadLogs()}
-              class="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-medium text-on-surface transition hover:bg-white/5">
+              class="ui-button-secondary px-3 py-1.5 text-xs">
               Refresh
             </button>
           </div>

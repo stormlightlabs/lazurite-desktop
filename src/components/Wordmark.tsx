@@ -14,7 +14,8 @@ export function Wordmark(props: { class?: string; compact?: boolean; iconClass?:
       class="flex items-center gap-3"
       classList={{ "flex-col gap-2 text-center": !!props.compact, [props.class ?? ""]: !!props.class }}>
       <span
-        class="grid shrink-0 place-items-center rounded-xl bg-white/4 p-3 text-primary shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+        class="grid shrink-0 place-items-center rounded-xl p-3 text-primary"
+        style={{ background: "var(--control-bg)", "box-shadow": "var(--inset-shadow)" }}
         classList={{ [props.iconClass ?? ""]: !!props.iconClass }}
         aria-hidden="true">
         <LazuriteLogo class="h-9 w-9" />

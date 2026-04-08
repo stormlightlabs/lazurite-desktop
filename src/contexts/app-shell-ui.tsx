@@ -12,16 +12,24 @@ import {
 import { createStore } from "solid-js/store";
 
 const RAIL_COLLAPSED_STORAGE_KEY = "lazurite:rail-collapsed";
+const RAIL_THEME_CONTROL_STORAGE_KEY = "lazurite:rail-theme-control";
 
-type AppShellUiState = { narrowViewport: boolean; railCollapsed: boolean; showSwitcher: boolean };
+type AppShellUiState = {
+  narrowViewport: boolean;
+  railCollapsed: boolean;
+  showSwitcher: boolean;
+  showThemeRailControl: boolean;
+};
 
 export type AppShellUiContextValue = {
   readonly narrowViewport: boolean;
   readonly railCollapsed: boolean;
   readonly railColumns: string;
   readonly railCondensed: boolean;
+  readonly showThemeRailControl: boolean;
   readonly showSwitcher: boolean;
   closeSwitcher: () => void;
+  setShowThemeRailControl: (enabled: boolean) => void;
   toggleRailCollapsed: () => void;
   toggleSwitcher: () => void;
 };
@@ -29,7 +37,7 @@ export type AppShellUiContextValue = {
 const AppShellUiContext = createContext<AppShellUiContextValue>();
 
 function createInitialAppShellUiState(): AppShellUiState {
-  return { narrowViewport: false, railCollapsed: false, showSwitcher: false };
+  return { narrowViewport: false, railCollapsed: false, showSwitcher: false, showThemeRailControl: true };
 }
 
 function createAppShellUiValue(): AppShellUiContextValue {
@@ -53,6 +61,10 @@ function createAppShellUiValue(): AppShellUiContextValue {
     setShell("showSwitcher", (open) => !open);
   }
 
+  function setShowThemeRailControl(enabled: boolean) {
+    setShell("showThemeRailControl", enabled);
+  }
+
   onMount(() => {
     const media = globalThis.matchMedia("(max-width: 1180px)");
     const syncViewport = () => setShell("narrowViewport", media.matches);
@@ -60,6 +72,10 @@ function createAppShellUiValue(): AppShellUiContextValue {
     const stored = globalThis.localStorage.getItem(RAIL_COLLAPSED_STORAGE_KEY);
     if (stored === "true") {
       setShell("railCollapsed", true);
+    }
+    const storedThemeControl = globalThis.localStorage.getItem(RAIL_THEME_CONTROL_STORAGE_KEY);
+    if (storedThemeControl === "false") {
+      setShell("showThemeRailControl", false);
     }
 
     syncViewport();
@@ -72,6 +88,13 @@ function createAppShellUiValue(): AppShellUiContextValue {
 
   createEffect(() => {
     globalThis.localStorage.setItem(RAIL_COLLAPSED_STORAGE_KEY, shell.railCollapsed ? "true" : "false");
+  });
+
+  createEffect(() => {
+    globalThis.localStorage.setItem(
+      RAIL_THEME_CONTROL_STORAGE_KEY,
+      shell.showThemeRailControl ? "true" : "false",
+    );
   });
 
   return {
@@ -87,10 +110,14 @@ function createAppShellUiValue(): AppShellUiContextValue {
     get railCondensed() {
       return railCondensed();
     },
+    get showThemeRailControl() {
+      return shell.showThemeRailControl;
+    },
     get showSwitcher() {
       return shell.showSwitcher;
     },
     closeSwitcher,
+    setShowThemeRailControl,
     toggleRailCollapsed,
     toggleSwitcher,
   };

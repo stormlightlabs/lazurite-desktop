@@ -44,7 +44,7 @@ function LabelOverrideDraftEditor(
     <div class="flex flex-wrap items-center gap-2">
       <select
         value={props.visibility}
-        class="rounded-lg border border-white/10 bg-black/35 px-2 py-1 text-xs text-on-surface outline-none transition focus:border-primary/50"
+        class="rounded-lg border ui-outline-subtle ui-input-strong px-2 py-1 text-xs text-on-surface outline-none transition focus:border-primary/50"
         onInput={(event) => props.onVisibilityChange(event.currentTarget.value as ModerationLabelVisibility)}>
         <VisibilityOptions />
       </select>
@@ -323,7 +323,7 @@ export function SettingsModeration() {
 
                 <For each={effectiveLabelers()}>
                   {(did) => (
-                    <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-black/25 px-3 py-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl ui-input-strong px-3 py-2">
                       <div class="grid gap-0.5">
                         <span class="text-xs font-medium text-on-surface">{getLabelerTitle(did)}</span>
                         <Show when={getLabelerSubtitle(did)}>
@@ -334,7 +334,7 @@ export function SettingsModeration() {
                         <button
                           type="button"
                           disabled={busyLabelerDid() === did}
-                          class="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-medium text-on-surface transition hover:bg-white/5 disabled:opacity-70"
+                          class="rounded-lg border ui-outline-strong px-3 py-1.5 text-xs font-medium text-on-surface transition hover:bg-surface-bright disabled:opacity-70"
                           onClick={() => void removeLabeler(did)}>
                           {busyLabelerDid() === did ? "Removing..." : "Remove"}
                         </button>
@@ -343,14 +343,14 @@ export function SettingsModeration() {
                   )}
                 </For>
 
-                <div class="grid gap-2 rounded-xl bg-black/20 p-3">
+                <div class="grid gap-2 rounded-xl tone-muted p-3">
                   <label class="grid gap-1">
                     <span class="text-xs text-on-surface-variant">Add labeler DID</span>
                     <input
                       type="text"
                       value={draft.addLabelerDid}
                       placeholder="did:plc:..."
-                      class="rounded-lg border border-white/10 bg-black/35 px-3 py-2 text-sm text-on-surface outline-none transition focus:border-primary/50"
+                      class="rounded-lg border ui-outline-subtle ui-input-strong px-3 py-2 text-sm text-on-surface outline-none transition focus:border-primary/50"
                       onInput={(event) => setDraft("addLabelerDid", event.currentTarget.value)} />
                   </label>
                   <button
@@ -376,7 +376,7 @@ export function SettingsModeration() {
                     const entries = () => labelEntries(did);
 
                     return (
-                      <details class="rounded-xl bg-black/25 px-3 py-2" open>
+                      <details class="rounded-xl ui-input-strong px-3 py-2" open>
                         <summary class="cursor-pointer select-none text-xs font-medium text-on-surface">{did}</summary>
                         <div class="mt-3 grid gap-2">
                           <Show
@@ -388,7 +388,7 @@ export function SettingsModeration() {
                                 const gated = !current().adultContentEnabled && isAdultOnlyLabel(did, label);
                                 const displayName = getLabelDisplayName(did, label);
                                 return (
-                                  <div class="grid gap-1 rounded-lg bg-black/30 px-3 py-2">
+                                  <div class="grid gap-1 rounded-lg ui-input-strong px-3 py-2">
                                     <span class="text-xs text-on-surface">{displayName}</span>
                                     <Show when={displayName !== label}>
                                       <span class="text-[0.7rem] text-on-surface-variant">Identifier: {label}</span>
@@ -407,7 +407,7 @@ export function SettingsModeration() {
                                       <select
                                         value={visibility}
                                         disabled={gated}
-                                        class="rounded-lg border border-white/10 bg-black/35 px-2 py-1 text-xs text-on-surface outline-none transition focus:border-primary/50 disabled:opacity-60"
+                                        class="rounded-lg border ui-outline-subtle ui-input-strong px-2 py-1 text-xs text-on-surface outline-none transition focus:border-primary/50 disabled:opacity-60"
                                         onInput={(event) =>
                                           void updateLabelPreference(
                                             did,
@@ -428,12 +428,12 @@ export function SettingsModeration() {
                             </For>
                           </Show>
 
-                          <div class="grid gap-2 rounded-lg bg-black/30 p-2">
+                          <div class="grid gap-2 rounded-lg ui-input-strong p-2">
                             <input
                               type="text"
                               value={draft.addLabelNameByDid[did] ?? ""}
                               placeholder="label identifier (for example: sexual)"
-                              class="rounded-lg border border-white/10 bg-black/35 px-3 py-1.5 text-xs text-on-surface outline-none transition focus:border-primary/50"
+                              class="rounded-lg border ui-outline-subtle ui-input-strong px-3 py-1.5 text-xs text-on-surface outline-none transition focus:border-primary/50"
                               onInput={(event) => setDraft("addLabelNameByDid", did, event.currentTarget.value)} />
                             <LabelOverrideDraftEditor
                               canAdd={!!(draft.addLabelNameByDid[did] ?? "").trim()}

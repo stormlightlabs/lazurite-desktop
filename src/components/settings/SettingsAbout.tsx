@@ -26,7 +26,7 @@ export function SettingsAbout() {
           <button
             type="button"
             onClick={() => void openUrl("https://github.com/stormlightlabs/lazurite/blob/main/LICENSE")}
-            class="rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-white/5">
+            class="ui-button-secondary">
             View license
           </button>
         </div>
@@ -38,7 +38,7 @@ export function SettingsAbout() {
           <button
             type="button"
             onClick={() => void openUrl("https://github.com/stormlightlabs/lazurite")}
-            class="rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-white/5">
+            class="ui-button-secondary">
             Open
           </button>
         </div>

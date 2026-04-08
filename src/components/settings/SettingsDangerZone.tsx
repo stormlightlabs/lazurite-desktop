@@ -23,7 +23,7 @@ export function SettingsDangerZone(props: SettingsDangerZoneProps) {
             This removes every local account, cache entry, saved setting, and synced record, then restarts Lazurite.
           </p>
         </div>
-        <div class="flex items-center justify-between gap-4 rounded-2xl bg-black/30 p-4">
+        <div class="ui-input-strong flex items-center justify-between gap-4 rounded-2xl border p-4 ui-outline-subtle">
           <div>
             <p class="text-sm font-medium text-red-300">Reset application</p>
             <p class="text-xs text-on-surface-variant">Return Lazurite to a clean install state.</p>

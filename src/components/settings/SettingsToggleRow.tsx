@@ -17,7 +17,7 @@ export function ToggleRow(
         disabled={props.disabled}
         onClick={() => props.onChange()}
         class="relative inline-flex h-6 w-10 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
-        classList={{ "bg-primary": props.checked, "bg-white/20": !props.checked }}>
+        classList={{ "bg-primary": props.checked, "bg-[var(--control-bg)]": !props.checked }}>
         <Motion.span
           class="inline-block h-4 w-4 rounded-full bg-on-primary-fixed shadow-lg"
           animate={{ x: props.checked ? 20 : 2 }}

@@ -94,12 +94,12 @@ export function SettingsDownloads(props: SettingsDownloadsProps) {
               readOnly
               value={directory()}
               placeholder="Loading download folder..."
-              class="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-on-surface outline-none" />
+              class="ui-input min-w-0 flex-1" />
             <button
               type="button"
               disabled={pending()}
               onClick={() => void browseForDirectory()}
-              class="rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-white/5 disabled:cursor-wait disabled:opacity-60">
+              class="ui-button-secondary disabled:cursor-wait disabled:opacity-60">
               {pending() ? "Saving..." : "Browse"}
             </button>
           </div>

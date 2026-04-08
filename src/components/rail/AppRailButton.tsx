@@ -34,15 +34,12 @@ function RailButtonContent(props: RailButtonVisualProps) {
   );
 }
 
-const railButtonClass =
-  "relative flex h-11 shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface";
-
 export function RailButton(props: RailButtonProps) {
   return (
     <A
       href={props.href}
       end={props.end}
-      class={railButtonClass}
+      class={"relative flex h-11 shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"}
       activeClass="bg-surface-container text-primary"
       inactiveClass=""
       classList={{ "w-[2.75rem] justify-center": !!props.compact, "px-3": !props.compact }}
@@ -57,7 +54,7 @@ export function RailActionButton(props: RailActionButtonProps) {
   return (
     <button
       type="button"
-      class={railButtonClass}
+      class={"relative flex h-11 shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"}
       classList={{ "w-[2.75rem] justify-center": !!props.compact, "px-3": !props.compact }}
       aria-label={props.label}
       title={props.label}

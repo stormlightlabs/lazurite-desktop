@@ -19,6 +19,7 @@ import { AppRail } from "./components/rail/AppRail";
 import { SessionSpotlight } from "./components/Session";
 import { ErrorToast } from "./components/shared/ErrorToast";
 import { AppPreferencesProvider } from "./contexts/app-preferences";
+import { ThemeController } from "./components/theme/ThemeController";
 import { AppSessionProvider, useAppSession } from "./contexts/app-session";
 import { AppShellUiProvider, useAppShellUi } from "./contexts/app-shell-ui";
 import { AppRouter } from "./router";
@@ -128,6 +129,7 @@ function App() {
   return (
     <AppSessionProvider>
       <AppPreferencesProvider>
+        <ThemeController />
         <AppShellUiProvider>
           <AppContent />
         </AppShellUiProvider>

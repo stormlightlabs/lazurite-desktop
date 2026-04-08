@@ -21,13 +21,13 @@
   --color-error-surface: var(--error-surface);
 }
 
-:root {
-  color-scheme: dark light;
+[data-theme="dark"] {
+  color-scheme: dark;
   --surface-container-lowest: #000000;
   --surface: #0e0e0e;
   --surface-container: #191919;
   --surface-container-high: #1f1f1f;
-  --surface-container-highest: rgb(36, 36, 36);
+  --surface-container-highest: rgb(36 36 36 / 96%);
   --surface-bright: rgba(255, 255, 255, 0.05);
   --primary: #7dafff;
   --primary-dim: #0073de;
@@ -37,23 +37,81 @@
   --on-secondary-container: #c9d1dd;
   --error: #ff8080;
   --error-surface: rgba(138, 31, 31, 0.72);
+  --outline-subtle: rgba(255, 255, 255, 0.1);
+  --outline-strong: rgba(255, 255, 255, 0.2);
+  --control-bg: rgba(255, 255, 255, 0.04);
+  --control-bg-hover: rgba(255, 255, 255, 0.08);
+  --panel-muted: rgba(255, 255, 255, 0.03);
+  --panel-muted-hover: rgba(255, 255, 255, 0.05);
+  --input-bg: rgba(0, 0, 0, 0.4);
+  --input-bg-strong: rgba(0, 0, 0, 0.5);
+  --inset-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --overlay-shadow: 0 24px 40px rgba(0, 0, 0, 0.28);
+  --focus-ring: rgba(125, 175, 255, 0.45);
   --font-stack: "Google Sans Variable", "Segoe UI", "Avenir Next", sans-serif;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --surface-container-lowest: #f2f5ff;
-    --surface: #ffffff;
-    --surface-container: #ebeffb;
-    --surface-container-high: #e1e8fa;
-    --surface-container-highest: rgb(234, 241, 255);
-    --surface-bright: rgba(24, 37, 66, 0.07);
-    --on-surface: #0f1523;
-    --on-surface-variant: #4e5e7e;
-    --on-secondary-container: #334368;
-    --error: #8f1f1f;
-    --error-surface: rgba(255, 179, 179, 0.75);
-  }
+[data-theme="light"] {
+  color-scheme: light;
+  --surface-container-lowest: #eef1f5;
+  --surface: #ffffff;
+  --surface-container: #f4f6f9;
+  --surface-container-high: #eceff4;
+  --surface-container-highest: rgb(246 248 252 / 96%);
+  --surface-bright: rgba(17, 24, 39, 0.06);
+  --primary: #0b63d1;
+  --primary-dim: #0953af;
+  --on-primary-fixed: #ffffff;
+  --on-surface: #101418;
+  --on-surface-variant: #45505e;
+  --on-secondary-container: #263140;
+  --error: #b42318;
+  --error-surface: rgba(254, 226, 226, 0.95);
+  --outline-subtle: rgba(17, 24, 39, 0.14);
+  --outline-strong: rgba(17, 24, 39, 0.24);
+  --control-bg: rgba(17, 24, 39, 0.06);
+  --control-bg-hover: rgba(17, 24, 39, 0.11);
+  --panel-muted: rgba(17, 24, 39, 0.04);
+  --panel-muted-hover: rgba(17, 24, 39, 0.07);
+  --input-bg: rgba(255, 255, 255, 0.95);
+  --input-bg-strong: rgba(244, 246, 250, 0.96);
+  --inset-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.1);
+  --overlay-shadow: 0 24px 40px rgba(15, 23, 42, 0.18);
+  --focus-ring: rgba(11, 99, 209, 0.45);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html:not([data-theme]) {
+  color-scheme: dark;
+  --surface-container-lowest: #000000;
+  --surface: #0e0e0e;
+  --surface-container: #191919;
+  --surface-container-high: #1f1f1f;
+  --surface-container-highest: rgb(36 36 36 / 96%);
+  --surface-bright: rgba(255, 255, 255, 0.05);
+  --primary: #7dafff;
+  --primary-dim: #0073de;
+  --on-primary-fixed: #05080f;
+  --on-surface: #f4f6fb;
+  --on-surface-variant: #ababab;
+  --on-secondary-container: #c9d1dd;
+  --error: #ff8080;
+  --error-surface: rgba(138, 31, 31, 0.72);
+  --outline-subtle: rgba(255, 255, 255, 0.1);
+  --outline-strong: rgba(255, 255, 255, 0.2);
+  --control-bg: rgba(255, 255, 255, 0.04);
+  --control-bg-hover: rgba(255, 255, 255, 0.08);
+  --panel-muted: rgba(255, 255, 255, 0.03);
+  --panel-muted-hover: rgba(255, 255, 255, 0.05);
+  --input-bg: rgba(0, 0, 0, 0.4);
+  --input-bg-strong: rgba(0, 0, 0, 0.5);
+  --inset-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --overlay-shadow: 0 24px 40px rgba(0, 0, 0, 0.28);
+  --focus-ring: rgba(125, 175, 255, 0.45);
+  --font-stack: "Google Sans Variable", "Segoe UI", "Avenir Next", sans-serif;
 }
 
 * {
@@ -74,17 +132,76 @@ body {
 }
 
 @utility panel-surface {
-  @apply rounded-2xl bg-white/3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)];
+  @apply rounded-2xl bg-surface-container;
+  box-shadow: var(--inset-shadow);
 }
 
 @utility pill-action {
   @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-4 transition-transform duration-150 ease-out hover:-translate-y-px disabled:translate-y-0 disabled:cursor-wait disabled:opacity-70;
 }
 
+@utility tone-muted {
+  background: var(--panel-muted);
+}
+
+@utility tone-muted-hover {
+  background: var(--panel-muted-hover);
+}
+
+@utility ui-control {
+  @apply border-0 text-on-surface-variant transition duration-150 ease-out;
+  background: var(--control-bg);
+  box-shadow: var(--inset-shadow);
+}
+
+@utility ui-control-hoverable {
+  @apply hover:-translate-y-px hover:text-on-surface;
+}
+
+.ui-control-hoverable:hover {
+  background: var(--control-bg-hover);
+}
+
+@utility ui-outline-subtle {
+  border-color: var(--outline-subtle);
+}
+
+@utility ui-outline-strong {
+  border-color: var(--outline-strong);
+}
+
+@utility ui-input {
+  @apply rounded-lg border px-3 py-2 text-sm text-on-surface outline-none transition;
+  background: var(--input-bg);
+  border-color: var(--outline-subtle);
+}
+
+.ui-input:focus {
+  border-color: var(--focus-ring);
+}
+
+@utility ui-input-strong {
+  background: var(--input-bg-strong);
+}
+
+@utility ui-button-secondary {
+  @apply rounded-lg border px-4 py-2 text-sm font-medium text-on-surface transition;
+  border-color: var(--outline-strong);
+}
+
+.ui-button-secondary:hover {
+  background: var(--control-bg-hover);
+}
+
+@utility ui-overlay-card {
+  background: var(--surface-container-highest);
+  box-shadow: var(--overlay-shadow);
+}
+
 .skeleton-block {
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-bright);
 }
 
 .skeleton-block::after {
@@ -92,7 +209,7 @@ body {
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  background: linear-gradient(90deg, transparent, var(--control-bg-hover), transparent);
   animation: shimmer 1.5s linear infinite;
 }
 

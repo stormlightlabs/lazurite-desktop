@@ -5,14 +5,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppRail } from "./AppRail";
 
 const openUrlMock = vi.hoisted(() => vi.fn());
+const updateSettingMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: openUrlMock }));
 
-function renderRail() {
+function renderRail(options: { preferences?: Record<string, unknown>; shell?: Record<string, unknown> } = {}) {
   globalThis.location.hash = "#/timeline";
 
   return render(() => (
     <AppTestProviders
+      preferences={{ updateSetting: updateSettingMock, ...options.preferences }}
+      shell={options.shell}
       session={{
         activeDid: "did:plc:alice",
         activeHandle: "alice.test",
@@ -29,6 +32,7 @@ function renderRail() {
 describe("AppRail", () => {
   beforeEach(() => {
     openUrlMock.mockReset();
+    updateSettingMock.mockReset();
   });
 
   it("renders the saved navigation link", async () => {
@@ -64,5 +68,44 @@ describe("AppRail", () => {
 
     await waitFor(() => expect(openUrlMock).toHaveBeenCalledWith("https://github.com/sponsors/desertthunder"));
     expect(screen.queryByRole("link", { name: "Support" })).not.toBeInTheDocument();
+  });
+
+  it("shows the theme menu trigger when enabled", async () => {
+    renderRail();
+
+    expect(await screen.findByRole("button", { name: "Theme menu" })).toBeInTheDocument();
+  });
+
+  it("hides the theme menu trigger when disabled in shell preferences", async () => {
+    renderRail({ shell: { showThemeRailControl: false } });
+
+    await screen.findByRole("link", { name: "Timeline" });
+    expect(screen.queryByRole("button", { name: "Theme menu" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the theme menu trigger visible on narrow viewports", async () => {
+    renderRail({ shell: { narrowViewport: true, railCondensed: true } });
+
+    expect(await screen.findByRole("button", { name: "Theme menu" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "More navigation" })).toBeInTheDocument();
+  });
+
+  it("uses overflow navigation when desktop rail is collapsed", async () => {
+    renderRail({ shell: { railCollapsed: true, railCondensed: true } });
+
+    expect(await screen.findByRole("button", { name: "More navigation" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Saved" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Support" })).not.toBeInTheDocument();
+  });
+
+  it("updates the persisted theme from the rail theme menu", async () => {
+    renderRail({ preferences: { settings: { theme: "auto" } } });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Theme menu" }));
+    const darkThemeOption = await screen.findByRole("menuitemradio", { name: "Dark" });
+    fireEvent.mouseDown(darkThemeOption);
+    fireEvent.click(darkThemeOption);
+
+    await waitFor(() => expect(updateSettingMock).toHaveBeenCalledWith("theme", "dark"));
   });
 });
