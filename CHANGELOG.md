@@ -6,6 +6,7 @@
 
 - Forward/Back history navigation in the app rail/navigation, and thread drawer
 - Added theme control (light/dark/system) with proper light theme support
+- Help section with keyboard shortcuts and usage help
 
 ### 2026-04-07
 

@@ -1,6 +1,11 @@
 import { ExplorerController } from "$/lib/api/explorer";
 import { ProfileController } from "$/lib/api/profile";
-import type { ExplorerNavigation, ExplorerTargetKind } from "$/lib/api/types/explorer";
+import type {
+  ExplorerNavigation,
+  ExplorerTargetKind,
+  ExplorerViewLevel,
+  ExplorerViewState,
+} from "$/lib/api/types/explorer";
 import { NAVIGATION_EVENT } from "$/lib/constants/events";
 import { consumeQueuedExplorerTarget } from "$/lib/explorer-navigation";
 import { listen } from "@tauri-apps/api/event";
@@ -11,15 +16,10 @@ import { Motion, Presence } from "solid-motionone";
 import { createExplorerState } from "./explorer-state";
 import { ExplorerBreadcrumb } from "./ExplorerBreadcrumb";
 import { ExplorerUrlBar } from "./ExplorerUrlBar";
-import type { ExplorerViewLevel, ExplorerViewState } from "./types";
 import { CollectionView } from "./views/CollectionView";
 import { PdsView } from "./views/PdsView";
 import { RecordView } from "./views/RecordView";
 import { RepoView } from "./views/RepoView";
-
-function resolveTargetLevel(kind: ExplorerTargetKind): ExplorerViewLevel {
-  return kind as ExplorerViewLevel;
-}
 
 function resolveParentInput(view: ExplorerViewState): string | null {
   switch (view.level) {
@@ -145,7 +145,7 @@ export function ExplorerPanel() {
       const resolved = await ExplorerController.resolveInput(submittedInput);
       if (requestId !== resolveRequestId) return;
 
-      const level = resolveTargetLevel(resolved.targetKind);
+      const level = resolved.targetKind as ExplorerViewLevel;
 
       const viewState = { level, input: submittedInput, resolved, loading: true, error: null, data: null };
 

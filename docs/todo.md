@@ -1,18 +1,9 @@
 ---
 title: "To-Do List/Parking Lot"
-updated: 2026-03-31
+updated: 2026-04-08
 ---
 
 ## Bugs
-
-## Refactor
-
-Typeahead code is largely repeated in the following places:
-
-1. `src/components/LoginPanel.tsx`
-2. `src/components/deck/ColumnPicker/ProfileColumnPicker.tsx`
-3. `src/components/explorer/ExplorerUrlBar.tsx`
-4. `src/components/search/hooks/useSearchController.ts`
 
 ## High Priority Updates
 

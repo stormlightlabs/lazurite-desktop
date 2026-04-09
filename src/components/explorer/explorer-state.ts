@@ -1,6 +1,5 @@
-import type { ExplorerTargetKind } from "$/lib/api/types/explorer";
+import type { ExplorerState, ExplorerTargetKind, ExplorerViewState } from "$/lib/api/types/explorer";
 import { createStore, produce } from "solid-js/store";
-import type { ExplorerState, ExplorerViewState } from "./types";
 
 export function createExplorerState() {
   const [state, setState] = createStore<ExplorerState>({

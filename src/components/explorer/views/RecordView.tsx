@@ -1,7 +1,7 @@
 import { RecordBacklinksPanel } from "$/components/diagnostics/RecordBacklinksPanel";
-import { type JsonValue, JsonValueAs } from "$/components/explorer/types";
 import { ArrowIcon, Icon } from "$/components/shared/Icon";
 import { PostRichText } from "$/components/shared/PostRichText";
+import { type JsonValue, JsonValueAs } from "$/lib/api/types/explorer";
 import { getStringProperty, isRecordLike, isString } from "$/lib/type-guards";
 import type { PostRecord } from "$/lib/types";
 import { createMemo, createSignal, For, type ParentProps, Show } from "solid-js";
