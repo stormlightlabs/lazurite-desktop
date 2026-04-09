@@ -173,7 +173,10 @@ describe("SettingsPanel", () => {
     expect(await screen.findByText("Downloads")).toBeInTheDocument();
     expect(await screen.findByText("Danger Zone")).toBeInTheDocument();
     expect(await screen.findByText("Logs")).toBeInTheDocument();
+    expect(await screen.findByText("Help")).toBeInTheDocument();
     expect(await screen.findByText("About")).toBeInTheDocument();
+    expect(await screen.findByText("Open repost menu (choose repost or quote)")).toBeInTheDocument();
+    expect(await screen.findByText("Shift+Click Repost")).toBeInTheDocument();
     expect(await screen.findAllByText(/384 MB download/i)).toHaveLength(1);
   });
 

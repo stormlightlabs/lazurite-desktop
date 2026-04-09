@@ -107,6 +107,8 @@ function PostPrimaryRegion(props: ParentProps<{ onFocus?: () => void; onOpenThre
 
 type PostActionButtonProps = {
   active?: boolean;
+  ariaExpanded?: boolean;
+  ariaHasPopup?: "menu";
   ariaLabel?: string;
   busy?: boolean;
   icon: string;
@@ -119,6 +121,8 @@ type PostActionButtonProps = {
 function PostActionButton(props: PostActionButtonProps) {
   return (
     <button
+      aria-expanded={props.ariaExpanded}
+      aria-haspopup={props.ariaHasPopup}
       aria-label={props.ariaLabel ?? props.label}
       class="inline-flex min-w-0 items-center gap-1.5 rounded-full border-0 bg-transparent px-3 py-2 text-xs text-on-surface-variant transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-primary disabled:cursor-wait disabled:opacity-70 max-[520px]:px-2.5"
       classList={{ "text-primary": !!props.active }}
@@ -171,12 +175,14 @@ type PostActionsProps = {
     onOpen: (element: HTMLButtonElement) => void;
     triggerRef: (element: HTMLButtonElement) => void;
   };
+  repostMenuOpen: boolean;
   showThreadAction: boolean;
   state: PostActionStatus;
 };
 
 function PostActions(props: PostActionsProps) {
   const [status, menu, actions, visibility] = splitProps(props, ["state"], ["menu"], ["handlers"], [
+    "repostMenuOpen",
     "showThreadAction",
   ]);
 
@@ -198,6 +204,8 @@ function PostActions(props: PostActionsProps) {
         onClick={actions.handlers.onReply} />
       <PostActionButton
         active={status.state.isReposted}
+        ariaExpanded={visibility.repostMenuOpen}
+        ariaHasPopup="menu"
         ariaLabel="Repost"
         busy={status.state.repostPending}
         icon="i-ri-repeat-2-line"
@@ -396,9 +404,12 @@ export function PostCard(props: PostCardProps) {
 
   const [menuAnchor, setMenuAnchor] = createSignal<ContextMenuAnchor | null>(null);
   const [menuOpen, setMenuOpen] = createSignal(false);
+  const [repostMenuAnchor, setRepostMenuAnchor] = createSignal<ContextMenuAnchor | null>(null);
+  const [repostMenuOpen, setRepostMenuOpen] = createSignal(false);
   const [reportOpen, setReportOpen] = createSignal(false);
   const [reportTarget, setReportTarget] = createSignal<ReportTarget | null>(null);
   let menuTriggerRef: HTMLButtonElement | undefined;
+  let repostMenuTriggerRef: HTMLButtonElement | undefined;
 
   const menuItems = createMemo<ContextMenuItem[]>(() => {
     const items: ContextMenuItem[] = [];
@@ -486,20 +497,56 @@ export function PostCard(props: PostCardProps) {
     return items;
   });
 
-  function closeMenu() {
+  const repostMenuItems = createMemo<ContextMenuItem[]>(() => {
+    const items: ContextMenuItem[] = [];
+
+    if (interactions.onRepost) {
+      items.push({
+        icon: isReposted() ? "i-ri-repeat-2-fill" : "i-ri-repeat-2-line",
+        label: isReposted() ? "Undo repost" : "Repost",
+        onSelect: interactions.onRepost,
+      });
+    }
+
+    if (interactions.onQuote) {
+      items.push({ icon: "i-ri-chat-quote-line", label: "Quote post", onSelect: interactions.onQuote });
+    }
+
+    return items;
+  });
+
+  function closeContextMenu() {
     setMenuOpen(false);
     setMenuAnchor(null);
   }
 
-  function openMenuFromTrigger(element: HTMLButtonElement) {
+  function closeRepostMenu() {
+    setRepostMenuOpen(false);
+    setRepostMenuAnchor(null);
+  }
+
+  function openContextMenuFromTrigger(element: HTMLButtonElement) {
+    closeRepostMenu();
     setMenuAnchor({ kind: "element", rect: element.getBoundingClientRect() });
     setMenuOpen(true);
   }
 
-  function openMenuFromPointer(event: MouseEvent) {
+  function openContextMenuFromPointer(event: MouseEvent) {
     event.preventDefault();
+    closeRepostMenu();
     setMenuAnchor({ kind: "point", x: event.clientX, y: event.clientY });
     setMenuOpen(true);
+  }
+
+  function openRepostMenuFromTrigger(element: HTMLButtonElement) {
+    if (repostMenuItems().length === 0) {
+      return;
+    }
+
+    closeContextMenu();
+    repostMenuTriggerRef = element;
+    setRepostMenuAnchor({ kind: "element", rect: element.getBoundingClientRect() });
+    setRepostMenuOpen(true);
   }
 
   async function submitReport(input: { reasonType: ModerationReasonType; reason: string }) {
@@ -545,7 +592,7 @@ export function PostCard(props: PostCardProps) {
           return;
         }
 
-        openMenuFromPointer(event);
+        openContextMenuFromPointer(event);
       }}>
       <Show when={reasonLabel()}>
         <div class="mb-3 flex items-center gap-2 text-xs font-medium tracking-[0.04em] text-primary">
@@ -622,21 +669,22 @@ export function PostCard(props: PostCardProps) {
                 },
                 onReply: () => interactions.onReply?.(),
                 onRepost: (event) => {
-                  if (event.shiftKey && interactions.onOpenEngagement) {
-                    interactions.onOpenEngagement("reposts");
+                  if (event.shiftKey) {
+                    interactions.onRepost?.();
                     return;
                   }
 
-                  interactions.onRepost?.();
+                  openRepostMenuFromTrigger(event.currentTarget as HTMLButtonElement);
                 },
               }}
               menu={{
                 open: menuOpen(),
-                onOpen: openMenuFromTrigger,
+                onOpen: openContextMenuFromTrigger,
                 triggerRef: (element) => {
                   menuTriggerRef = element;
                 },
               }}
+              repostMenuOpen={repostMenuOpen()}
               showThreadAction={showThreadAction()}
               state={{
                 bookmarkPending: !!actionFlags.bookmarkPending,
@@ -662,7 +710,15 @@ export function PostCard(props: PostCardProps) {
         label="Post actions"
         open={menuOpen()}
         returnFocusTo={menuTriggerRef}
-        onClose={closeMenu} />
+        onClose={closeContextMenu} />
+
+      <ContextMenu
+        anchor={repostMenuAnchor()}
+        items={repostMenuItems()}
+        label="Repost actions"
+        open={repostMenuOpen()}
+        returnFocusTo={repostMenuTriggerRef}
+        onClose={closeRepostMenu} />
 
       <ReportDialog
         open={reportOpen()}

@@ -23,6 +23,7 @@ import { AccountControl } from "./SettingsAccount";
 import { SettingsDangerZone } from "./SettingsDangerZone";
 import { SettingsData } from "./SettingsData";
 import { SettingsDownloads } from "./SettingsDownloads";
+import { SettingsHelp } from "./SettingsHelp";
 import { SettingsLogs } from "./SettingsLogs";
 import { SettingsModeration } from "./SettingsModeration";
 import { NotificationsControl } from "./SettingsNotification";
@@ -305,6 +306,7 @@ export function SettingsPanel() {
                     logs={panel.logs}
                     loadLogs={loadLogs}
                     expand={(expanded) => setPanel("logsExpanded", expanded)} />
+                  <SettingsHelp />
                   <SettingsAbout />
                 </Motion.div>
               </Presence>

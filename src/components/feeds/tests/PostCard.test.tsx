@@ -142,7 +142,7 @@ describe("PostCard", () => {
     expect(screen.getByRole("menuitem", { name: "Copy post link" })).toBeInTheDocument();
   });
 
-  it("uses shift-click on like/repost/quote to open engagement lists without toggling actions", () => {
+  it("uses shift-click on like and quote to open engagement lists, but shift-click repost toggles repost", () => {
     const onLike = vi.fn();
     const onQuote = vi.fn();
     const onRepost = vi.fn();
@@ -161,11 +161,30 @@ describe("PostCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Quote" }), { shiftKey: true });
 
     expect(onOpenEngagement).toHaveBeenNthCalledWith(1, "likes");
-    expect(onOpenEngagement).toHaveBeenNthCalledWith(2, "reposts");
-    expect(onOpenEngagement).toHaveBeenNthCalledWith(3, "quotes");
+    expect(onOpenEngagement).toHaveBeenNthCalledWith(2, "quotes");
     expect(onLike).not.toHaveBeenCalled();
-    expect(onRepost).not.toHaveBeenCalled();
     expect(onQuote).not.toHaveBeenCalled();
+    expect(onRepost).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens a repost action menu from the repost button and supports repost/quote actions", () => {
+    const onRepost = vi.fn();
+    const onQuote = vi.fn();
+
+    render(() => <PostCard post={createPost()} onQuote={onQuote} onRepost={onRepost} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Repost" }));
+
+    expect(screen.getByRole("menu", { name: "Repost actions" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Repost" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Quote post" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Quote post" }));
+    expect(onQuote).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Repost" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Repost" }));
+    expect(onRepost).toHaveBeenCalledTimes(1);
   });
 
   it("hides Thread action when no known thread context exists", () => {

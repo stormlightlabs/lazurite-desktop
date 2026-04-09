@@ -1,18 +1,32 @@
+import { PostRichText } from "$/components/shared/PostRichText";
 import { getDisplayName } from "$/lib/feeds";
-import type { ProfileViewBasic } from "$/lib/types";
+import type { ProfileViewBasic, RichTextFacet } from "$/lib/types";
 import { formatHandle } from "$/lib/utils/text";
 import { createMemo, Show } from "solid-js";
 
-function QuotedText(props: { text: string; truncated: boolean }) {
+function QuotedText(props: { facets?: RichTextFacet[] | null; text: string; truncated: boolean }) {
+  const hasFacets = createMemo(() => Array.isArray(props.facets) && props.facets.length > 0);
+
   return (
     <Show
-      when={props.truncated}
+      when={hasFacets()}
       fallback={
-        <p class="mt-2 whitespace-pre-wrap wrap-break-word text-sm leading-[1.55] text-on-secondary-container">
-          {props.text}
-        </p>
+        <Show
+          when={props.truncated}
+          fallback={
+            <p class="mt-2 whitespace-pre-wrap wrap-break-word text-sm leading-[1.55] text-on-secondary-container">
+              {props.text}
+            </p>
+          }>
+          <p class="mt-2 line-clamp-4 text-sm leading-[1.55] text-on-secondary-container">{props.text}</p>
+        </Show>
       }>
-      <p class="mt-2 line-clamp-4 text-sm leading-[1.55] text-on-secondary-container">{props.text}</p>
+      <div class="mt-2" classList={{ "line-clamp-4": props.truncated }}>
+        <PostRichText
+          class="m-0 text-sm leading-[1.55] text-on-secondary-container [&_p]:text-sm [&_p]:leading-[1.55] [&_p]:text-on-secondary-container"
+          facets={props.facets}
+          text={props.text} />
+      </div>
     </Show>
   );
 }
@@ -20,6 +34,7 @@ function QuotedText(props: { text: string; truncated: boolean }) {
 type QuotedPostPreviewProps = {
   author: ProfileViewBasic | null;
   class?: string;
+  facets?: RichTextFacet[] | null;
   href?: string | null;
   onOpenPost?: () => void;
   text?: unknown;
@@ -48,7 +63,11 @@ export function QuotedPostPreview(props: QuotedPostPreviewProps) {
                 rel={openInNewTab() ? "noreferrer" : undefined}
                 target={openInNewTab() ? "_blank" : undefined}
                 onClick={(event) => event.stopPropagation()}>
-                <QuotedPreviewContent author={props.author} preview={preview()} truncated={truncated()} />
+                <QuotedPreviewContent
+                  author={props.author}
+                  facets={props.facets}
+                  preview={preview()}
+                  truncated={truncated()} />
               </a>
             )}
           </Show>
@@ -60,14 +79,20 @@ export function QuotedPostPreview(props: QuotedPostPreviewProps) {
             event.stopPropagation();
             props.onOpenPost?.();
           }}>
-          <QuotedPreviewContent author={props.author} preview={preview()} truncated={truncated()} />
+          <QuotedPreviewContent
+            author={props.author}
+            facets={props.facets}
+            preview={preview()}
+            truncated={truncated()} />
         </button>
       </Show>
     </div>
   );
 }
 
-function QuotedPreviewContent(props: { author: ProfileViewBasic | null; preview: string; truncated: boolean }) {
+function QuotedPreviewContent(
+  props: { author: ProfileViewBasic | null; facets?: RichTextFacet[] | null; preview: string; truncated: boolean },
+) {
   return (
     <>
       <Show when={props.author}>
@@ -83,7 +108,7 @@ function QuotedPreviewContent(props: { author: ProfileViewBasic | null; preview:
       <Show
         when={props.preview}
         fallback={<p class="mt-2 text-sm leading-[1.55] text-on-surface-variant">Quoted post</p>}>
-        {(text) => <QuotedText text={text()} truncated={props.truncated} />}
+        {(text) => <QuotedText facets={props.facets} text={text()} truncated={props.truncated} />}
       </Show>
     </>
   );

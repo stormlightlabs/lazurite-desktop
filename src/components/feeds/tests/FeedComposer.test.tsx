@@ -21,6 +21,32 @@ const BASE_PROPS = {
 };
 
 describe("FeedComposer", () => {
+  it("renders quote preview with rich-text facets when quote target has facets", () => {
+    render(() => (
+      <FeedComposer
+        {...BASE_PROPS}
+        state={{
+          ...BASE_PROPS.state,
+          quoteTarget: {
+            author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+            cid: "cid-quote",
+            indexedAt: "2026-04-03T12:00:00.000Z",
+            record: {
+              createdAt: "2026-04-03T12:00:00.000Z",
+              facets: [{
+                features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://example.com" }],
+                index: { byteEnd: 25, byteStart: 6 },
+              }],
+              text: "Visit https://example.com",
+            },
+            uri: "at://did:plc:bob/app.bsky.feed.post/abc123",
+          },
+        }} />
+    ));
+
+    expect(screen.getByRole("link", { name: "https://example.com" })).toHaveAttribute("href", "https://example.com");
+  });
+
   it("renders a contained scroll region for typeahead suggestions", () => {
     render(() => <FeedComposer {...BASE_PROPS} state={{ ...BASE_PROPS.state, suggestions, text: "@ha" }} />);
 

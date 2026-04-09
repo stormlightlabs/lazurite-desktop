@@ -1,5 +1,6 @@
+import { PostCard } from "$/components/feeds/PostCard";
 import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
-import { LocalPostResultsList, LocalPostResultsSkeletons } from "$/components/search/LocalPostResultsList";
+import { LocalPostResultsSkeletons } from "$/components/search/LocalPostResultsList";
 import { SearchEmptyState } from "$/components/search/SearchEmptyState";
 import { SearchQueryInput } from "$/components/search/SearchQueryInput";
 import { Icon } from "$/components/shared/Icon";
@@ -9,6 +10,7 @@ import { SearchController } from "$/lib/api/search";
 import type { LocalPostResult, SavedPostSource, SyncStatus } from "$/lib/api/types/search";
 import { formatRelativeTime } from "$/lib/feeds";
 import { subscribeBookmarkChanged } from "$/lib/post-events";
+import type { PostView } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js";
@@ -406,7 +408,6 @@ export function SavedPostsPanel() {
         activeTab={activeTab()}
         browsingState={activeTabState()}
         onOpenThread={(uri) => void postNavigation.openPost(uri)}
-        query={trimmedQuery()}
         searching={isSearching()}
         searchingState={activeSearchState()}
         onLoadMore={() => void (isSearching()
@@ -525,7 +526,6 @@ function SavedPostsViewport(
     browsingState: TabState;
     onOpenThread: (uri: string) => void;
     onLoadMore: () => void;
-    query: string;
     searching: boolean;
     searchingState: SearchTabState;
   },
@@ -538,7 +538,6 @@ function SavedPostsViewport(
             browsingState={props.browsingState}
             onOpenThread={props.onOpenThread}
             onLoadMore={props.onLoadMore}
-            query={props.query}
             searching={props.searching}
             searchingState={props.searchingState}
             source={props.activeTab} />
@@ -548,7 +547,6 @@ function SavedPostsViewport(
             browsingState={props.browsingState}
             onOpenThread={props.onOpenThread}
             onLoadMore={props.onLoadMore}
-            query={props.query}
             searching={props.searching}
             searchingState={props.searchingState}
             source={props.activeTab} />
@@ -563,7 +561,6 @@ function SavedPostsBody(
     browsingState: TabState;
     onOpenThread: (uri: string) => void;
     onLoadMore: () => void;
-    query: string;
     searching: boolean;
     searchingState: SearchTabState;
     source: TabKey;
@@ -609,7 +606,7 @@ function SavedPostsBody(
         </Match>
         <Match when={activeState().items.length > 0}>
           <div class="grid gap-3">
-            <LocalPostResultsList onOpenThread={props.onOpenThread} query={props.query} results={activeState().items} />
+            <SavedPostsResultsList onOpenThread={props.onOpenThread} results={activeState().items} />
             <LoadMoreButton
               next={activeState().nextOffset}
               onLoadMore={props.onLoadMore}
@@ -619,4 +616,42 @@ function SavedPostsBody(
       </Switch>
     </Motion.div>
   );
+}
+
+function SavedPostsResultsList(props: { onOpenThread: (uri: string) => void; results: LocalPostResult[] }) {
+  return (
+    <Motion.div
+      class="grid gap-2"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}>
+      <For each={props.results}>
+        {(result, index) => (
+          <Motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, delay: Math.min(index() * 0.03, 0.18) }}>
+            <PostCard
+              post={toSavedPost(result)}
+              showActions={false}
+              onOpenThread={() => props.onOpenThread(result.uri)} />
+          </Motion.div>
+        )}
+      </For>
+    </Motion.div>
+  );
+}
+
+function toSavedPost(result: LocalPostResult): PostView {
+  const handle = result.authorHandle?.trim() || result.authorDid;
+  const createdAt = result.createdAt ?? "";
+
+  return {
+    author: { did: result.authorDid, handle, displayName: handle },
+    cid: result.cid,
+    indexedAt: createdAt,
+    record: { createdAt, text: result.text ?? "" },
+    uri: result.uri,
+  };
 }

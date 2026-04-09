@@ -160,14 +160,14 @@ describe("SavedPostsPanel", () => {
     await Promise.resolve();
 
     expect(listSavedPostsMock).toHaveBeenNthCalledWith(2, "bookmark", 50, 0, "rust");
-    expect(screen.getByText((_, element) => element?.textContent === "rust archive")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText("rust archive").length).toBeGreaterThan(0));
 
     fireEvent.click(screen.getByRole("button", { name: /liked/i }));
     await Promise.resolve();
     await Promise.resolve();
 
     expect(listSavedPostsMock).toHaveBeenNthCalledWith(3, "like", 50, 0, "rust");
-    expect(screen.getByText((_, element) => element?.textContent === "rust like")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText("rust like").length).toBeGreaterThan(0));
   }, 5000);
 
   it("patches mounted bookmark results when a bookmark is removed elsewhere", async () => {

@@ -1,6 +1,6 @@
 import { Icon } from "$/components/shared/Icon";
 import { QuotedPostPreview } from "$/components/shared/QuotedPostPreview";
-import { buildPublicPostUrl, getDisplayName, getPostText } from "$/lib/feeds";
+import { buildPublicPostUrl, getDisplayName, getPostFacets, getPostText } from "$/lib/feeds";
 import type { PostView } from "$/lib/types";
 import { createMemo, For, Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
@@ -355,6 +355,7 @@ function QuotePreview(props: { post: PostView | null }) {
         <QuotedPostPreview
           author={post().author}
           class="mt-4 rounded-2xl bg-black/30 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"
+          facets={getPostFacets(post())}
           href={buildPublicPostUrl(post())}
           text={getPostText(post()) || "Quoted post"}
           truncate

@@ -45,10 +45,7 @@ export function RailButton(props: RailButtonProps) {
       class={"relative flex h-11 shrink-0 items-center rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition-[width,padding,transform,background-color,color] duration-200 ease-out motion-reduce:transition-none hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"}
       activeClass="bg-surface-container text-primary"
       inactiveClass=""
-      classList={{
-        "w-[2.75rem] justify-center gap-0": !!props.compact,
-        "gap-2.5 px-3": !props.compact,
-      }}
+      classList={{ "w-[2.75rem] justify-center gap-0": !!props.compact, "gap-2.5 px-3": !props.compact }}
       aria-label={props.label}
       title={props.label}>
       <RailButtonContent {...props} />
@@ -61,10 +58,7 @@ export function RailActionButton(props: RailActionButtonProps) {
     <button
       type="button"
       class={"relative flex h-11 shrink-0 items-center rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition-[width,padding,transform,background-color,color] duration-200 ease-out motion-reduce:transition-none hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"}
-      classList={{
-        "w-[2.75rem] justify-center gap-0": !!props.compact,
-        "gap-2.5 px-3": !props.compact,
-      }}
+      classList={{ "w-[2.75rem] justify-center gap-0": !!props.compact, "gap-2.5 px-3": !props.compact }}
       aria-label={props.label}
       title={props.label}
       onClick={() => props.onClick()}>
