@@ -1,5 +1,5 @@
 import { AvatarBadge } from "$/components/AvatarBadge";
-import { searchActorSuggestions } from "$/lib/api/actors";
+import { TypeaheadController } from "$/lib/api/typeahead";
 import type { ActorSuggestion } from "$/lib/types";
 import { type Accessor, createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 
@@ -12,15 +12,6 @@ type UseActorSuggestionsOptions = {
   onError?: (error: unknown) => void;
   value: Accessor<string>;
 };
-
-function normalizeActorSuggestionQuery(value: string) {
-  const trimmed = value.trim();
-  if (trimmed.length < 2 || trimmed.startsWith("did:") || /^https?:\/\//i.test(trimmed)) {
-    return "";
-  }
-
-  return trimmed.replace(/^@/, "");
-}
 
 export function getActorSuggestionHeadline(suggestion: ActorSuggestion) {
   const displayName = suggestion.displayName?.trim();
@@ -36,7 +27,7 @@ export function useActorSuggestions(options: UseActorSuggestionsOptions) {
   const [suggestions, setSuggestions] = createSignal<ActorSuggestion[]>([]);
 
   createEffect(() => {
-    const query = normalizeActorSuggestionQuery(options.value());
+    const query = TypeaheadController.normalizeQuery(options.value());
     const disabled = options.disabled?.() ?? false;
     const nextRequestId = requestId + 1;
     requestId = nextRequestId;
@@ -52,7 +43,7 @@ export function useActorSuggestions(options: UseActorSuggestionsOptions) {
     setLoading(true);
 
     const timeout = globalThis.setTimeout(() => {
-      void searchActorSuggestions(query).then((results) => {
+      void TypeaheadController.searchActor(query).then((results) => {
         if (requestId !== nextRequestId) {
           return;
         }

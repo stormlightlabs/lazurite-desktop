@@ -1,7 +1,9 @@
 import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/ActorSearch";
+import { ActorTypeaheadLoading } from "$/components/actors/ActorTypeaheadLoading";
+import { useActorTypeaheadCombobox } from "$/components/actors/hooks/useActorTypeaheadCombobox";
 import { ArrowIcon, Icon } from "$/components/shared/Icon";
-import type { LoginSuggestion } from "$/lib/types";
-import { createEffect, createSignal, Show } from "solid-js";
+import type { ActorSuggestion } from "$/lib/types";
+import { createEffect, createSignal } from "solid-js";
 
 type ExplorerUrlBarProps = {
   value: string;
@@ -40,6 +42,11 @@ function UrlInputForm(props: { value: string; onInput: (value: string) => void; 
     input: () => input,
     value: () => props.value,
   });
+  const combobox = useActorTypeaheadCombobox({
+    ariaControls: "explorer-suggestions",
+    onSelect: applySuggestion,
+    typeahead,
+  });
 
   createEffect(() => {
     if (focused() && typeahead.suggestions().length > 0 && props.value.trim().startsWith("@")) {
@@ -52,36 +59,12 @@ function UrlInputForm(props: { value: string; onInput: (value: string) => void; 
     props.onSubmit(props.value);
   }
 
-  function applySuggestion(suggestion: LoginSuggestion) {
+  function applySuggestion(suggestion: ActorSuggestion) {
     const nextValue = suggestion.handle.startsWith("@") ? suggestion.handle : `@${suggestion.handle}`;
     props.onInput(nextValue);
     typeahead.close();
     props.onSubmit(nextValue);
     input?.focus();
-  }
-
-  function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      typeahead.moveActiveIndex(1);
-      return;
-    }
-
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      typeahead.moveActiveIndex(-1);
-      return;
-    }
-
-    if (event.key === "Escape") {
-      typeahead.close();
-      return;
-    }
-
-    if (event.key === "Enter" && typeahead.open() && typeahead.activeSuggestion()) {
-      event.preventDefault();
-      applySuggestion(typeahead.activeSuggestion() as LoginSuggestion);
-    }
   }
 
   return (
@@ -106,11 +89,9 @@ function UrlInputForm(props: { value: string; onInput: (value: string) => void; 
           type="text"
           role="combobox"
           aria-autocomplete="list"
-          aria-controls="explorer-suggestions"
-          aria-activedescendant={typeahead.activeIndex() >= 0
-            ? `explorer-suggestions-option-${typeahead.activeIndex()}`
-            : undefined}
-          aria-expanded={typeahead.open()}
+          aria-controls={combobox.a11y.controls}
+          aria-activedescendant={combobox.a11y.activeDescendant()}
+          aria-expanded={combobox.a11y.expanded()}
           value={props.value}
           spellcheck={false}
           onInput={(event) => props.onInput(event.currentTarget.value)}
@@ -122,14 +103,10 @@ function UrlInputForm(props: { value: string; onInput: (value: string) => void; 
             setFocused(false);
             typeahead.close();
           }}
-          onKeyDown={(event) => handleKeyDown(event)}
+          onKeyDown={(event) => combobox.handleKeyDown(event)}
           class="flex-1 bg-transparent text-sm font-mono outline-none text-on-surface placeholder:text-on-surface-variant/50"
           placeholder="at://did:... or @handle or https://pds..." />
-        <Show when={typeahead.loading()}>
-          <span class="flex items-center text-on-surface-variant">
-            <Icon kind="loader" aria-hidden="true" />
-          </span>
-        </Show>
+        <ActorTypeaheadLoading visible={typeahead.loading()} inline />
         <button
           type="submit"
           class="rounded-lg p-1.5 text-on-surface-variant transition-all hover:bg-surface-bright hover:text-on-surface">

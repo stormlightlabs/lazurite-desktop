@@ -1,15 +1,5 @@
-import {
-  clearLexiconFaviconCache,
-  describeRepo,
-  describeServer,
-  exportRepoCar,
-  getLexiconFavicons,
-  getRecord,
-  listRecords,
-  queryLabels,
-  resolveInput,
-} from "$/lib/api/explorer";
-import { getProfile } from "$/lib/api/profile";
+import { ExplorerController } from "$/lib/api/explorer";
+import { ProfileController } from "$/lib/api/profile";
 import type { ExplorerNavigation, ExplorerTargetKind } from "$/lib/api/types/explorer";
 import { NAVIGATION_EVENT } from "$/lib/constants/events";
 import { consumeQueuedExplorerTarget } from "$/lib/explorer-navigation";
@@ -112,7 +102,7 @@ export function ExplorerPanel() {
     }
 
     try {
-      const icons = await getLexiconFavicons(pendingCollections);
+      const icons = await ExplorerController.getLexiconFavicons(pendingCollections);
       explorer.mergeLexiconIcons(icons);
     } catch (error) {
       logger.warn("Failed to load lexicon favicons for explorer", {
@@ -152,7 +142,7 @@ export function ExplorerPanel() {
     setCurrentView({ level: "repo", input: submittedInput, resolved: null, loading: true, error: null, data: null });
 
     try {
-      const resolved = await resolveInput(submittedInput);
+      const resolved = await ExplorerController.resolveInput(submittedInput);
       if (requestId !== resolveRequestId) return;
 
       const level = resolveTargetLevel(resolved.targetKind);
@@ -166,7 +156,7 @@ export function ExplorerPanel() {
       switch (resolved.targetKind) {
         case "pds": {
           if (resolved.pdsUrl) {
-            const serverView = await describeServer(resolved.pdsUrl);
+            const serverView = await ExplorerController.describeServer(resolved.pdsUrl);
             finalViewState = {
               ...viewState,
               loading: false,
@@ -178,8 +168,8 @@ export function ExplorerPanel() {
         case "repo": {
           if (resolved.did) {
             const [repoData, profile] = await Promise.all([
-              describeRepo(resolved.did),
-              getProfile(resolved.did).catch(() => null),
+              ExplorerController.describeRepo(resolved.did),
+              ProfileController.getProfile(resolved.did).catch(() => null),
             ]);
             const profileData = profile?.status === "available" ? profile.profile : null;
             const collections = extractCollections(repoData);
@@ -204,7 +194,7 @@ export function ExplorerPanel() {
         }
         case "collection": {
           if (resolved.did && resolved.collection) {
-            const listData = await listRecords(resolved.did, resolved.collection);
+            const listData = await ExplorerController.listRecords(resolved.did, resolved.collection);
             finalViewState = {
               ...viewState,
               loading: false,
@@ -222,8 +212,10 @@ export function ExplorerPanel() {
         case "record": {
           if (resolved.did && resolved.collection && resolved.rkey) {
             const [recordData, labels] = await Promise.all([
-              getRecord(resolved.did, resolved.collection, resolved.rkey),
-              resolved.uri ? queryLabels(resolved.uri).catch(() => ({ labels: [] })) : Promise.resolve({ labels: [] }),
+              ExplorerController.getRecord(resolved.did, resolved.collection, resolved.rkey),
+              resolved.uri
+                ? ExplorerController.queryLabels(resolved.uri).catch(() => ({ labels: [] }))
+                : Promise.resolve({ labels: [] }),
             ]);
             finalViewState = {
               ...viewState,
@@ -335,7 +327,11 @@ export function ExplorerPanel() {
     });
 
     try {
-      const nextPage = await listRecords(collectionData.did, collectionData.collection, collectionData.cursor);
+      const nextPage = await ExplorerController.listRecords(
+        collectionData.did,
+        collectionData.collection,
+        collectionData.cursor,
+      );
       const nextRecords = (nextPage.records as Array<Record<string, unknown>>) || [];
       const nextCursor = (nextPage.cursor as string) || null;
 
@@ -360,7 +356,7 @@ export function ExplorerPanel() {
     if (!did) return;
 
     try {
-      const result = await exportRepoCar(did);
+      const result = await ExplorerController.exportRepoCar(did);
       setStatusMessage({ kind: "success", text: `Saved CAR export to ${result.path}` });
     } catch (error) {
       setStatusMessage({ kind: "error", text: String(error) });
@@ -376,7 +372,7 @@ export function ExplorerPanel() {
     setStatusMessage(null);
 
     try {
-      await clearLexiconFaviconCache();
+      await ExplorerController.clearLexiconFaviconCache();
       explorer.resetLexiconIcons();
       setStatusMessage({ kind: "success", text: "Cleared explorer icon cache." });
 

@@ -18,19 +18,21 @@ const listenMock = vi.hoisted(() => vi.fn());
 vi.mock(
   "$/lib/api/explorer",
   () => ({
-    describeRepo: describeRepoMock,
-    describeServer: describeServerMock,
-    exportRepoCar: exportRepoCarMock,
-    clearLexiconFaviconCache: clearLexiconFaviconCacheMock,
-    getLexiconFavicons: getLexiconFaviconsMock,
-    getRecord: getRecordMock,
-    listRecords: listRecordsMock,
-    queryLabels: queryLabelsMock,
-    resolveInput: resolveInputMock,
+    ExplorerController: {
+      describeRepo: describeRepoMock,
+      describeServer: describeServerMock,
+      exportRepoCar: exportRepoCarMock,
+      clearLexiconFaviconCache: clearLexiconFaviconCacheMock,
+      getLexiconFavicons: getLexiconFaviconsMock,
+      getRecord: getRecordMock,
+      listRecords: listRecordsMock,
+      queryLabels: queryLabelsMock,
+      resolveInput: resolveInputMock,
+    },
   }),
 );
 
-vi.mock("$/lib/api/profile", () => ({ getProfile: getProfileMock }));
+vi.mock("$/lib/api/profile", () => ({ ProfileController: { getProfile: getProfileMock } }));
 vi.mock("$/lib/api/diagnostics", () => ({ getRecordBacklinks: getRecordBacklinksMock }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 

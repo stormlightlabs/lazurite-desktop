@@ -26,13 +26,15 @@ const postNavigationMock = vi.hoisted(() => ({
 vi.mock(
   "$/lib/api/profile",
   () => ({
-    followActor: followActorMock,
-    getActorLikes: getActorLikesMock,
-    getAuthorFeed: getAuthorFeedMock,
-    getFollowers: getFollowersMock,
-    getFollows: getFollowsMock,
-    getProfile: getProfileMock,
-    unfollowActor: unfollowActorMock,
+    ProfileController: {
+      followActor: followActorMock,
+      getActorLikes: getActorLikesMock,
+      getAuthorFeed: getAuthorFeedMock,
+      getFollowers: getFollowersMock,
+      getFollows: getFollowsMock,
+      getProfile: getProfileMock,
+      unfollowActor: unfollowActorMock,
+    },
   }),
 );
 

@@ -1,5 +1,7 @@
 import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/ActorSearch";
-import type { LoginSuggestion } from "$/lib/types";
+import { ActorTypeaheadLoading } from "$/components/actors/ActorTypeaheadLoading";
+import { useActorTypeaheadCombobox } from "$/components/actors/hooks/useActorTypeaheadCombobox";
+import type { ActorSuggestion } from "$/lib/types";
 import { createEffect, Show } from "solid-js";
 import { Motion } from "solid-motionone";
 import { Icon } from "./shared/Icon";
@@ -40,6 +42,11 @@ export function LoginPanel(props: LoginPanelProps) {
     input: () => input,
     value: () => props.value,
   });
+  const combobox = useActorTypeaheadCombobox({
+    ariaControls: "login-suggestions",
+    onSelect: applySuggestion,
+    typeahead,
+  });
 
   createEffect(() => {
     if (props.shakeCount > 0) {
@@ -48,34 +55,10 @@ export function LoginPanel(props: LoginPanelProps) {
     }
   });
 
-  function applySuggestion(suggestion: LoginSuggestion) {
+  function applySuggestion(suggestion: ActorSuggestion) {
     props.onInput(suggestion.handle);
     typeahead.close();
     input?.focus();
-  }
-
-  function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      typeahead.moveActiveIndex(1);
-      return;
-    }
-
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      typeahead.moveActiveIndex(-1);
-      return;
-    }
-
-    if (event.key === "Escape") {
-      typeahead.close();
-      return;
-    }
-
-    if (event.key === "Enter" && typeahead.open() && typeahead.activeSuggestion()) {
-      event.preventDefault();
-      applySuggestion(typeahead.activeSuggestion() as LoginSuggestion);
-    }
   }
 
   return (
@@ -119,19 +102,17 @@ export function LoginPanel(props: LoginPanelProps) {
               type="text"
               role="combobox"
               aria-autocomplete="list"
-              aria-controls="login-suggestions"
-              aria-activedescendant={typeahead.activeIndex() >= 0
-                ? `login-suggestions-option-${typeahead.activeIndex()}`
-                : undefined}
-              aria-expanded={typeahead.open()}
+              aria-controls={combobox.a11y.controls}
+              aria-activedescendant={combobox.a11y.activeDescendant()}
+              aria-expanded={combobox.a11y.expanded()}
               autocomplete="username"
               spellcheck={false}
               value={props.value}
               placeholder="alice.bsky.social"
               onFocus={() => typeahead.focus()}
               onInput={(event) => props.onInput(event.currentTarget.value)}
-              onKeyDown={(event) => handleKeyDown(event)} />
-            <LoginLoadingIndicator visible={typeahead.loading()} />
+              onKeyDown={(event) => combobox.handleKeyDown(event)} />
+            <ActorTypeaheadLoading visible={typeahead.loading()} class="right-4" />
             <ActorSuggestionList
               activeIndex={typeahead.activeIndex()}
               id="login-suggestions"
@@ -144,15 +125,5 @@ export function LoginPanel(props: LoginPanelProps) {
         <LoginSubmitButton pending={props.pending} />
       </Motion.form>
     </article>
-  );
-}
-
-function LoginLoadingIndicator(props: { visible: boolean }) {
-  return (
-    <Show when={props.visible}>
-      <span class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
-        <Icon kind="loader" aria-hidden="true" />
-      </span>
-    </Show>
   );
 }

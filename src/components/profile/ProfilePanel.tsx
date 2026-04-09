@@ -3,15 +3,7 @@ import { usePostInteractions } from "$/components/posts/hooks/usePostInteraction
 import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
 import { ProfileSkeleton } from "$/components/ProfileSkeleton";
 import { useAppSession } from "$/contexts/app-session";
-import {
-  followActor,
-  getActorLikes,
-  getAuthorFeed,
-  getFollowers,
-  getFollows,
-  getProfile,
-  unfollowActor,
-} from "$/lib/api/profile";
+import { ProfileController } from "$/lib/api/profile";
 import { buildMessagesRoute } from "$/lib/conversations";
 import { queueExplorerTarget } from "$/lib/explorer-navigation";
 import { patchFeedItems } from "$/lib/feeds";
@@ -135,7 +127,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
 
   async function loadProfile(sequence: number, actor: string) {
     try {
-      const result = await getProfile(actor);
+      const result = await ProfileController.getProfile(actor);
       if (sequence !== requestSequence || actor !== activeActor()) {
         return;
       }
@@ -164,7 +156,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
     setState("authorFeed", loadMore ? "loadingMore" : "loading", true);
 
     try {
-      const response = await getAuthorFeed(actor, loadMore ? feed.cursor : null, FEED_PAGE_SIZE);
+      const response = await ProfileController.getAuthorFeed(actor, loadMore ? feed.cursor : null, FEED_PAGE_SIZE);
       if (sequence !== requestSequence || actor !== activeActor()) {
         return;
       }
@@ -194,7 +186,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
     setState("likesFeed", loadMore ? "loadingMore" : "loading", true);
 
     try {
-      const response = await getActorLikes(actor, loadMore ? feed.cursor : null, FEED_PAGE_SIZE);
+      const response = await ProfileController.getActorLikes(actor, loadMore ? feed.cursor : null, FEED_PAGE_SIZE);
       if (sequence !== requestSequence || actor !== activeActor()) {
         return;
       }
@@ -296,7 +288,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
     setState("profile", "followersCount", prevFollowersCount + 1);
 
     try {
-      const result = await followActor(profile.did);
+      const result = await ProfileController.followActor(profile.did);
       setState("profile", "viewer", { ...state.profile?.viewer, following: result.uri });
     } catch {
       setState("profile", "viewer", prevViewer ?? null);
@@ -320,7 +312,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
     setState("profile", "followersCount", Math.max(0, prevFollowersCount - 1));
 
     try {
-      await unfollowActor(followUri);
+      await ProfileController.unfollowActor(followUri);
     } catch {
       setState("profile", "viewer", prevViewer ?? null);
       setState("profile", "followersCount", prevFollowersCount);
@@ -360,8 +352,8 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
 
     try {
       const response: ActorListResponse = kind === "followers"
-        ? await getFollowers(actor, cursor)
-        : await getFollows(actor, cursor);
+        ? await ProfileController.getFollowers(actor, cursor)
+        : await ProfileController.getFollows(actor, cursor);
 
       const nextActors = loadMore ? [...current.actors, ...response.actors] : response.actors;
       setState("actorList", {
@@ -408,7 +400,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
     updateActorListActor(actor.did, (current) => withActorFollowing(current, "optimistic"));
 
     try {
-      const result = await followActor(actor.did);
+      const result = await ProfileController.followActor(actor.did);
       updateActorListActor(actor.did, (current) => withActorFollowing(current, result.uri));
     } catch {
       updateActorListActor(actor.did, (current) => ({ ...current, viewer: previousViewer }));
@@ -433,7 +425,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
     updateActorListActor(actor.did, (current) => withActorFollowing(current, null));
 
     try {
-      await unfollowActor(followUri);
+      await ProfileController.unfollowActor(followUri);
     } catch {
       updateActorListActor(actor.did, (current) => ({ ...current, viewer: previousViewer }));
     } finally {

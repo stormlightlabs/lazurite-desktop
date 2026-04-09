@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchPanel } from "../SearchPanel";
 
-const searchActorSuggestionsMock = vi.hoisted(() => vi.fn());
+const searchActorTypeaheadMock = vi.hoisted(() => vi.fn());
 const searchActorsMock = vi.hoisted(() => vi.fn());
 const searchPostsMock = vi.hoisted(() => vi.fn());
 const searchPostsNetworkMock = vi.hoisted(() => vi.fn());
@@ -25,7 +25,15 @@ vi.mock(
     },
   }),
 );
-vi.mock("$/lib/api/actors", () => ({ searchActorSuggestions: searchActorSuggestionsMock }));
+vi.mock(
+  "$/lib/api/typeahead",
+  () => ({
+    TypeaheadController: {
+      normalizeQuery: (value: string) => value.trim().replace(/^@/, ""),
+      searchActor: searchActorTypeaheadMock,
+    },
+  }),
+);
 vi.mock("$/components/posts/usePostNavigation", () => ({ usePostNavigation: () => postNavigationMock }));
 
 vi.mock("@tauri-apps/plugin-log", () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }));
@@ -51,7 +59,7 @@ function renderSearchPanel(hash = "#/search") {
 describe("SearchPanel", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    searchActorSuggestionsMock.mockReset();
+    searchActorTypeaheadMock.mockReset();
     searchActorsMock.mockReset();
     searchPostsMock.mockReset();
     searchPostsNetworkMock.mockReset();
@@ -60,7 +68,7 @@ describe("SearchPanel", () => {
     postNavigationMock.openPost.mockReset();
 
     getSyncStatusMock.mockResolvedValue([]);
-    searchActorSuggestionsMock.mockResolvedValue([]);
+    searchActorTypeaheadMock.mockResolvedValue([]);
     searchActorsMock.mockResolvedValue({ actors: [], cursor: null });
     syncPostsMock.mockResolvedValue({
       did: "did:plc:test",
@@ -207,7 +215,7 @@ describe("SearchPanel", () => {
   });
 
   it("searches profiles and opens a selected actor", async () => {
-    searchActorSuggestionsMock.mockResolvedValue([{
+    searchActorTypeaheadMock.mockResolvedValue([{
       avatar: null,
       did: "did:plc:bob",
       displayName: "Bob Example",

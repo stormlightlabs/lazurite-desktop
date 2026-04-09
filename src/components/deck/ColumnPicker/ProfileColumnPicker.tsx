@@ -1,19 +1,10 @@
 import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/ActorSearch";
-import { Icon } from "$/components/shared/Icon";
-import type { LoginSuggestion } from "$/lib/types";
+import { ActorTypeaheadLoading } from "$/components/actors/ActorTypeaheadLoading";
+import { useActorTypeaheadCombobox } from "$/components/actors/hooks/useActorTypeaheadCombobox";
+import type { ActorSuggestion } from "$/lib/types";
 import * as logger from "@tauri-apps/plugin-log";
-import { createSignal, Show } from "solid-js";
+import { createSignal } from "solid-js";
 import type { ProfileSelection } from "../types";
-
-function TypeaheadLoading(props: { visible: boolean }) {
-  return (
-    <Show when={props.visible}>
-      <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
-        <Icon kind="loader" class="animate-spin text-sm" />
-      </span>
-    </Show>
-  );
-}
 
 export function ProfilePicker(props: { onSubmit: (selection: ProfileSelection) => void }) {
   let container: HTMLDivElement | undefined;
@@ -24,6 +15,11 @@ export function ProfilePicker(props: { onSubmit: (selection: ProfileSelection) =
     input: () => input,
     onError: (error) => logger.warn(`Failed to load profile suggestions: ${String(error)}`),
     value,
+  });
+  const combobox = useActorTypeaheadCombobox({
+    ariaControls: "profile-suggestions",
+    onSelect: submitSuggestion,
+    typeahead,
   });
 
   function submitManualActor() {
@@ -36,7 +32,7 @@ export function ProfilePicker(props: { onSubmit: (selection: ProfileSelection) =
     props.onSubmit({ actor });
   }
 
-  function submitSuggestion(suggestion: LoginSuggestion) {
+  function submitSuggestion(suggestion: ActorSuggestion) {
     typeahead.close();
     props.onSubmit({
       actor: suggestion.handle,
@@ -44,30 +40,6 @@ export function ProfilePicker(props: { onSubmit: (selection: ProfileSelection) =
       displayName: suggestion.displayName ?? null,
       handle: suggestion.handle,
     });
-  }
-
-  function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      typeahead.moveActiveIndex(1);
-      return;
-    }
-
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      typeahead.moveActiveIndex(-1);
-      return;
-    }
-
-    if (event.key === "Escape") {
-      typeahead.close();
-      return;
-    }
-
-    if (event.key === "Enter" && typeahead.open() && typeahead.activeSuggestion()) {
-      event.preventDefault();
-      submitSuggestion(typeahead.activeSuggestion() as LoginSuggestion);
-    }
   }
 
   return (
@@ -91,20 +63,18 @@ export function ProfilePicker(props: { onSubmit: (selection: ProfileSelection) =
             type="text"
             role="combobox"
             aria-autocomplete="list"
-            aria-controls="profile-suggestions"
-            aria-activedescendant={typeahead.activeIndex() >= 0
-              ? `profile-suggestions-option-${typeahead.activeIndex()}`
-              : undefined}
-            aria-expanded={typeahead.open()}
+            aria-controls={combobox.a11y.controls}
+            aria-activedescendant={combobox.a11y.activeDescendant()}
+            aria-expanded={combobox.a11y.expanded()}
             class="ui-input ui-input-strong w-full rounded-xl px-4 py-2.5 pr-10"
             placeholder="alice.bsky.social"
             spellcheck={false}
             value={value()}
             onFocus={() => typeahead.focus()}
             onInput={(event) => setValue(event.currentTarget.value)}
-            onKeyDown={(event) => handleKeyDown(event)} />
+            onKeyDown={(event) => combobox.handleKeyDown(event)} />
 
-          <TypeaheadLoading visible={typeahead.loading()} />
+          <ActorTypeaheadLoading visible={typeahead.loading()} iconClass="animate-spin text-sm" />
           <ActorSuggestionList
             activeIndex={typeahead.activeIndex()}
             id="profile-suggestions"

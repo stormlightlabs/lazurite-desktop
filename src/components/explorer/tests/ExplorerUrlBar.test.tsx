@@ -2,19 +2,27 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@solidjs/testing-li
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ExplorerUrlBar } from "../ExplorerUrlBar";
 
-const searchActorSuggestionsMock = vi.hoisted(() => vi.fn());
+const searchActorTypeaheadMock = vi.hoisted(() => vi.fn());
 
-vi.mock("$/lib/api/actors", () => ({ searchActorSuggestions: searchActorSuggestionsMock }));
+vi.mock(
+  "$/lib/api/typeahead",
+  () => ({
+    TypeaheadController: {
+      normalizeQuery: (value: string) => value.trim().replace(/^@/, ""),
+      searchActor: searchActorTypeaheadMock,
+    },
+  }),
+);
 
 describe("ExplorerUrlBar", () => {
   beforeEach(() => {
-    searchActorSuggestionsMock.mockReset();
+    searchActorTypeaheadMock.mockReset();
   });
 
   it("opens typeahead for @ input and not for other input kinds", async () => {
     const onInput = vi.fn();
     const onSubmit = vi.fn();
-    searchActorSuggestionsMock.mockResolvedValue([{ did: "did:plc:alice", handle: "alice.test" }]);
+    searchActorTypeaheadMock.mockResolvedValue([{ did: "did:plc:alice", handle: "alice.test" }]);
 
     render(() => (
       <ExplorerUrlBar
@@ -35,7 +43,7 @@ describe("ExplorerUrlBar", () => {
     input.focus();
     fireEvent.focus(input);
 
-    await waitFor(() => expect(searchActorSuggestionsMock).toHaveBeenCalledWith("ali"));
+    await waitFor(() => expect(searchActorTypeaheadMock).toHaveBeenCalledWith("ali"));
     await waitFor(() => expect(input).toHaveAttribute("aria-expanded", "true"));
     expect(await screen.findByRole("option", { name: /alice\.test/u })).toBeInTheDocument();
 
@@ -61,7 +69,7 @@ describe("ExplorerUrlBar", () => {
   it("submits the highlighted suggestion on enter and on click", async () => {
     const onInput = vi.fn();
     const onSubmit = vi.fn();
-    searchActorSuggestionsMock.mockResolvedValue([{ did: "did:plc:alice", handle: "alice.test" }]);
+    searchActorTypeaheadMock.mockResolvedValue([{ did: "did:plc:alice", handle: "alice.test" }]);
 
     render(() => (
       <ExplorerUrlBar

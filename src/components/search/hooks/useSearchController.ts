@@ -1,4 +1,5 @@
 import { useActorSuggestions } from "$/components/actors/ActorSearch";
+import { handleActorTypeaheadKeyDown } from "$/components/actors/hooks/useActorTypeaheadCombobox";
 import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
 import { useAppPreferences } from "$/contexts/app-preferences";
 import { useAppSession } from "$/contexts/app-session";
@@ -108,9 +109,11 @@ export function useSearchController(options: SearchControllerOptions = {}) {
   const semanticEnabled = createMemo(() =>
     !!preferences.embeddingsConfig?.enabled && !!preferences.embeddingsConfig?.downloaded
   );
+
   const totalIndexedPosts = createMemo(() =>
     search.syncStatus.reduce((sum, status) => sum + (status.postCount ?? 0), 0)
   );
+
   const hasLocalPosts = createMemo(() => totalIndexedPosts() > 0);
   const lastSync = createMemo(() => {
     const timestamps = search.syncStatus.map((status) => status.lastSyncedAt).filter(Boolean) as string[];
@@ -120,6 +123,7 @@ export function useSearchController(options: SearchControllerOptions = {}) {
 
     return formatRelativeTime(timestamps.toSorted((left, right) => right.localeCompare(left))[0]);
   });
+
   const cycleModes = createMemo(() =>
     MODES.filter((candidate) => semanticEnabled() || (candidate !== "semantic" && candidate !== "hybrid"))
   );
@@ -281,22 +285,23 @@ export function useSearchController(options: SearchControllerOptions = {}) {
 
   function handleKeyDown(event: KeyboardEvent) {
     if (routeState().tab === "profiles") {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        typeahead.moveActiveIndex(1);
-        return;
-      }
+      const handled = handleActorTypeaheadKeyDown(event, {
+        onEscape: () => {
+          if (routeState().q) {
+            clearSearch();
+            return;
+          }
 
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        typeahead.moveActiveIndex(-1);
-        return;
-      }
+          typeahead.close();
+        },
+        onSelect: (suggestion) => {
+          openActor(suggestion);
+          typeahead.close();
+        },
+        typeahead,
+      });
 
-      if (event.key === "Enter" && typeahead.open() && typeahead.activeSuggestion()) {
-        event.preventDefault();
-        openActor(typeahead.activeSuggestion() as ProfileViewBasic);
-        typeahead.close();
+      if (handled) {
         return;
       }
     }
@@ -312,11 +317,6 @@ export function useSearchController(options: SearchControllerOptions = {}) {
 
     if (event.key === "Escape" && routeState().q) {
       clearSearch();
-      return;
-    }
-
-    if (event.key === "Escape" && routeState().tab === "profiles") {
-      typeahead.close();
     }
   }
 
