@@ -16,10 +16,8 @@ function LoginSubmitButton(props: { pending: boolean }) {
             <span>Continue</span>
           </>
         }>
-        <>
-          <Icon kind="loader" name="loader" aria-hidden="true" class="mr-1" />
-          <span>Opening sign-in...</span>
-        </>
+        <Icon kind="loader" name="loader" aria-hidden="true" class="mr-1" />
+        <span>Opening sign-in...</span>
       </Show>
     </button>
   );

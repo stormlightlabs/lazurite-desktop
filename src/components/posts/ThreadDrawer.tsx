@@ -70,6 +70,232 @@ function createEscapeKeyHandler(onClose: () => void) {
   };
 }
 
+type ThreadDrawerBodyProps = {
+  activeUri: string | null;
+  bookmarkPendingByUri: Record<string, boolean>;
+  error: string | null;
+  likePendingByUri: Record<string, boolean>;
+  loading: boolean;
+  onBookmark: (post: PostView) => void;
+  onLike: (post: PostView) => void;
+  onOpenEngagement: (uri: string, tab: "likes" | "reposts" | "quotes") => void;
+  onOpenThread: (uri: string) => void;
+  onRepost: (post: PostView) => void;
+  repostPendingByUri: Record<string, boolean>;
+  rootPost: PostView | null;
+  thread: ThreadNode | null;
+};
+
+function ThreadDrawerBody(props: ThreadDrawerBodyProps) {
+  return (
+    <div class="min-h-0 overflow-y-auto overscroll-contain pb-1">
+      <ThreadDrawerLoading loading={props.loading} />
+
+      <Show when={!props.loading && props.error}>
+        {(message) => (
+          <div class="rounded-3xl bg-error-surface p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(180,35,24,0.2)]">
+            {message()}
+          </div>
+        )}
+      </Show>
+
+      <Show when={!props.loading && props.thread && !props.error && props.rootPost}>
+        {(root) => (
+          <div class="grid gap-4">
+            <ThreadNodeView
+              activeUri={props.activeUri}
+              bookmarkPendingByUri={props.bookmarkPendingByUri}
+              likePendingByUri={props.likePendingByUri}
+              node={props.thread!}
+              onBookmark={props.onBookmark}
+              onLike={props.onLike}
+              onOpenEngagement={props.onOpenEngagement}
+              onOpenThread={props.onOpenThread}
+              onRepost={props.onRepost}
+              repostPendingByUri={props.repostPendingByUri}
+              rootPost={root()} />
+          </div>
+        )}
+      </Show>
+    </div>
+  );
+}
+
+type ThreadDrawerHeaderProps = {
+  activeUri: string | null;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onClose: () => void;
+  onGoBack: () => void;
+  onGoForward: () => void;
+  onMaximize: (uri: string) => void;
+  parentThreadHref: string | null;
+};
+
+function ThreadDrawerHeader(props: ThreadDrawerHeaderProps) {
+  const [local, historyControls] = splitProps(props, ["parentThreadHref", "activeUri", "onClose", "onMaximize"]);
+  return (
+    <header class="sticky top-0 z-10 mb-4 flex items-center gap-3 rounded-3xl bg-surface-container-high px-4 py-3 shadow-(--inset-shadow)">
+      <div class="min-w-0 flex-1">
+        <p class="m-0 text-base font-semibold text-on-surface">Thread!</p>
+        <Show when={local.parentThreadHref}>
+          {(href) => (
+            <a
+              class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant no-underline transition hover:text-primary hover:underline"
+              href={`#${href()}`}>
+              Parent post
+            </a>
+          )}
+        </Show>
+      </div>
+      <div class="flex items-center gap-2 flex-1 justify-end">
+        <HistoryControls {...historyControls} />
+        <Show when={local.activeUri}>
+          {(uri) => (
+            <button
+              aria-label="Open full post"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-surface-bright hover:text-on-surface"
+              type="button"
+              onClick={() => local.onMaximize(uri())}>
+              <Icon aria-hidden="true" iconClass="i-ri-external-link-line" />
+            </button>
+          )}
+        </Show>
+        <button
+          class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-surface-bright hover:text-on-surface"
+          type="button"
+          onClick={() => local.onClose()}>
+          <Icon aria-hidden="true" iconClass="i-ri-close-line" />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function ThreadDrawerLoading(props: { loading: boolean }) {
+  return (
+    <Show when={props.loading}>
+      <div class="grid gap-3">
+        <ThreadSkeletonCard />
+        <ThreadSkeletonCard />
+      </div>
+    </Show>
+  );
+}
+
+function ThreadNodeView(
+  props: {
+    activeUri: string | null;
+    bookmarkPendingByUri: Record<string, boolean>;
+    likePendingByUri: Record<string, boolean>;
+    node: ThreadNode;
+    onBookmark: (post: PostView) => void;
+    onLike: (post: PostView) => void;
+    onOpenEngagement: (uri: string, tab: "likes" | "reposts" | "quotes") => void;
+    onOpenThread: (uri: string) => void;
+    onRepost: (post: PostView) => void;
+    repostPendingByUri: Record<string, boolean>;
+    rootPost: PostView;
+  },
+) {
+  const node = createMemo(() => (isThreadViewPost(props.node) ? props.node : null));
+
+  return (
+    <Switch>
+      <Match when={isBlockedNode(props.node)}>
+        <ThreadStateCard label="Blocked post" meta={isBlockedNode(props.node) ? props.node.uri : ""} />
+      </Match>
+      <Match when={isNotFoundNode(props.node)}>
+        <ThreadStateCard label="Post not found" meta={isNotFoundNode(props.node) ? props.node.uri : ""} />
+      </Match>
+      <Match when={node()}>
+        {(threadNode) => (
+          <div class="grid gap-4">
+            <Show when={threadNode().parent}>
+              {(parent) => (
+                <div class="tone-muted rounded-3xl p-3 shadow-(--inset-shadow)">
+                  <ThreadNodeView
+                    activeUri={props.activeUri}
+                    bookmarkPendingByUri={props.bookmarkPendingByUri}
+                    likePendingByUri={props.likePendingByUri}
+                    node={parent()}
+                    onBookmark={props.onBookmark}
+                    onLike={props.onLike}
+                    onOpenEngagement={props.onOpenEngagement}
+                    onOpenThread={props.onOpenThread}
+                    onRepost={props.onRepost}
+                    repostPendingByUri={props.repostPendingByUri}
+                    rootPost={props.rootPost} />
+                </div>
+              )}
+            </Show>
+
+            <PostCard
+              bookmarkPending={!!props.bookmarkPendingByUri[threadNode().post.uri]}
+              focused={threadNode().post.uri === props.activeUri}
+              likePending={!!props.likePendingByUri[threadNode().post.uri]}
+              onBookmark={() => props.onBookmark(threadNode().post)}
+              onLike={() => props.onLike(threadNode().post)}
+              onOpenEngagement={(tab) => props.onOpenEngagement(threadNode().post.uri, tab)}
+              onOpenThread={() => props.onOpenThread(threadNode().post.uri)}
+              onRepost={() => props.onRepost(threadNode().post)}
+              post={threadNode().post}
+              repostPending={!!props.repostPendingByUri[threadNode().post.uri]} />
+
+            <Show when={threadNode().replies?.length}>
+              <div class="tone-muted grid gap-4 rounded-3xl p-3 shadow-(--inset-shadow)">
+                <For each={threadNode().replies}>
+                  {(reply) => (
+                    <ThreadNodeView
+                      activeUri={props.activeUri}
+                      bookmarkPendingByUri={props.bookmarkPendingByUri}
+                      likePendingByUri={props.likePendingByUri}
+                      node={reply}
+                      onBookmark={props.onBookmark}
+                      onLike={props.onLike}
+                      onOpenEngagement={props.onOpenEngagement}
+                      onOpenThread={props.onOpenThread}
+                      onRepost={props.onRepost}
+                      repostPendingByUri={props.repostPendingByUri}
+                      rootPost={props.rootPost} />
+                  )}
+                </For>
+              </div>
+            </Show>
+          </div>
+        )}
+      </Match>
+    </Switch>
+  );
+}
+
+function ThreadStateCard(props: { label: string; meta: string }) {
+  return (
+    <div class="tone-muted rounded-3xl p-4 shadow-(--inset-shadow)">
+      <p class="m-0 text-sm font-semibold text-on-surface">{props.label}</p>
+      <p class="mt-1 text-xs text-on-surface-variant">{props.meta}</p>
+    </div>
+  );
+}
+
+function ThreadSkeletonCard() {
+  return (
+    <div class="tone-muted rounded-3xl p-5 shadow-(--inset-shadow)">
+      <div class="flex gap-3">
+        <div class="skeleton-block h-11 w-11 rounded-full" />
+        <div class="min-w-0 flex-1">
+          <div class="skeleton-block h-4 w-40 rounded-full" />
+          <div class="mt-3 grid gap-2">
+            <div class="skeleton-block h-3.5 w-full rounded-full" />
+            <div class="skeleton-block h-3.5 w-[82%] rounded-full" />
+            <div class="skeleton-block h-3.5 w-[68%] rounded-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ThreadDrawer() {
   const session = useAppSession();
   const postNavigation = usePostNavigation();
@@ -185,233 +411,5 @@ export function ThreadDrawer() {
         </div>
       </Show>
     </Presence>
-  );
-}
-
-function ThreadDrawerBody(
-  props: {
-    activeUri: string | null;
-    bookmarkPendingByUri: Record<string, boolean>;
-    error: string | null;
-    likePendingByUri: Record<string, boolean>;
-    loading: boolean;
-    onBookmark: (post: PostView) => void;
-    onLike: (post: PostView) => void;
-    onOpenEngagement: (uri: string, tab: "likes" | "reposts" | "quotes") => void;
-    onOpenThread: (uri: string) => void;
-    onRepost: (post: PostView) => void;
-    repostPendingByUri: Record<string, boolean>;
-    rootPost: PostView | null;
-    thread: ThreadNode | null;
-  },
-) {
-  return (
-    <div class="min-h-0 overflow-y-auto overscroll-contain pb-1">
-      <ThreadDrawerLoading loading={props.loading} />
-
-      <Show when={!props.loading && props.error}>
-        {(message) => (
-          <div class="rounded-3xl bg-error-surface p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(180,35,24,0.2)]">
-            {message()}
-          </div>
-        )}
-      </Show>
-
-      <Show when={!props.loading && props.thread && !props.error && props.rootPost}>
-        {(root) => (
-          <div class="grid gap-4">
-            <ThreadNodeView
-              activeUri={props.activeUri}
-              bookmarkPendingByUri={props.bookmarkPendingByUri}
-              likePendingByUri={props.likePendingByUri}
-              node={props.thread!}
-              onBookmark={props.onBookmark}
-              onLike={props.onLike}
-              onOpenEngagement={props.onOpenEngagement}
-              onOpenThread={props.onOpenThread}
-              onRepost={props.onRepost}
-              repostPendingByUri={props.repostPendingByUri}
-              rootPost={root()} />
-          </div>
-        )}
-      </Show>
-    </div>
-  );
-}
-
-function ThreadDrawerHeader(
-  props: {
-    activeUri: string | null;
-    canGoBack: boolean;
-    canGoForward: boolean;
-    onClose: () => void;
-    onGoBack: () => void;
-    onGoForward: () => void;
-    onMaximize: (uri: string) => void;
-    parentThreadHref: string | null;
-  },
-) {
-  const [local, historyControls] = splitProps(props, ["parentThreadHref", "activeUri", "onClose", "onMaximize"]);
-  return (
-    <header class="sticky top-0 z-10 mb-4 flex items-center gap-3 rounded-3xl bg-surface-container-high px-4 py-3 shadow-(--inset-shadow)">
-      <div class="min-w-0 flex-1">
-        <p class="m-0 text-base font-semibold text-on-surface">Thread</p>
-        <Show when={local.parentThreadHref}>
-          {(href) => (
-            <a
-              class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant no-underline transition hover:text-primary hover:underline"
-              href={`#${href()}`}>
-              Parent post
-            </a>
-          )}
-        </Show>
-      </div>
-      <div class="flex items-center gap-1">
-        <HistoryControls {...historyControls} />
-      </div>
-      <div class="flex flex-1 items-center justify-end gap-2">
-        <Show when={local.activeUri}>
-          {(uri) => (
-            <button
-              aria-label="Open full post"
-              class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-surface-bright hover:text-on-surface"
-              type="button"
-              onClick={() => local.onMaximize(uri())}>
-              <Icon aria-hidden="true" iconClass="i-ri-external-link-line" />
-            </button>
-          )}
-        </Show>
-        <button
-          class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-surface-bright hover:text-on-surface"
-          type="button"
-          onClick={() => local.onClose()}>
-          <Icon aria-hidden="true" iconClass="i-ri-close-line" />
-        </button>
-      </div>
-    </header>
-  );
-}
-
-function ThreadDrawerLoading(props: { loading: boolean }) {
-  return (
-    <Show when={props.loading}>
-      <div class="grid gap-3">
-        <SkeletonThreadCard />
-        <SkeletonThreadCard />
-      </div>
-    </Show>
-  );
-}
-
-function ThreadNodeView(
-  props: {
-    activeUri: string | null;
-    bookmarkPendingByUri: Record<string, boolean>;
-    likePendingByUri: Record<string, boolean>;
-    node: ThreadNode;
-    onBookmark: (post: PostView) => void;
-    onLike: (post: PostView) => void;
-    onOpenEngagement: (uri: string, tab: "likes" | "reposts" | "quotes") => void;
-    onOpenThread: (uri: string) => void;
-    onRepost: (post: PostView) => void;
-    repostPendingByUri: Record<string, boolean>;
-    rootPost: PostView;
-  },
-) {
-  const node = createMemo(() => (isThreadViewPost(props.node) ? props.node : null));
-
-  return (
-    <Switch>
-      <Match when={isBlockedNode(props.node)}>
-        <StateCard label="Blocked post" meta={isBlockedNode(props.node) ? props.node.uri : ""} />
-      </Match>
-      <Match when={isNotFoundNode(props.node)}>
-        <StateCard label="Post not found" meta={isNotFoundNode(props.node) ? props.node.uri : ""} />
-      </Match>
-      <Match when={node()}>
-        {(threadNode) => (
-          <div class="grid gap-4">
-            <Show when={threadNode().parent}>
-              {(parent) => (
-                <div class="tone-muted rounded-3xl p-3 shadow-(--inset-shadow)">
-                  <ThreadNodeView
-                    activeUri={props.activeUri}
-                    bookmarkPendingByUri={props.bookmarkPendingByUri}
-                    likePendingByUri={props.likePendingByUri}
-                    node={parent()}
-                    onBookmark={props.onBookmark}
-                    onLike={props.onLike}
-                    onOpenEngagement={props.onOpenEngagement}
-                    onOpenThread={props.onOpenThread}
-                    onRepost={props.onRepost}
-                    repostPendingByUri={props.repostPendingByUri}
-                    rootPost={props.rootPost} />
-                </div>
-              )}
-            </Show>
-
-            <PostCard
-              bookmarkPending={!!props.bookmarkPendingByUri[threadNode().post.uri]}
-              focused={threadNode().post.uri === props.activeUri}
-              likePending={!!props.likePendingByUri[threadNode().post.uri]}
-              onBookmark={() => props.onBookmark(threadNode().post)}
-              onLike={() => props.onLike(threadNode().post)}
-              onOpenEngagement={(tab) => props.onOpenEngagement(threadNode().post.uri, tab)}
-              onOpenThread={() => props.onOpenThread(threadNode().post.uri)}
-              onRepost={() => props.onRepost(threadNode().post)}
-              post={threadNode().post}
-              repostPending={!!props.repostPendingByUri[threadNode().post.uri]} />
-
-            <Show when={threadNode().replies?.length}>
-              <div class="tone-muted grid gap-4 rounded-3xl p-3 shadow-(--inset-shadow)">
-                <For each={threadNode().replies}>
-                  {(reply) => (
-                    <ThreadNodeView
-                      activeUri={props.activeUri}
-                      bookmarkPendingByUri={props.bookmarkPendingByUri}
-                      likePendingByUri={props.likePendingByUri}
-                      node={reply}
-                      onBookmark={props.onBookmark}
-                      onLike={props.onLike}
-                      onOpenEngagement={props.onOpenEngagement}
-                      onOpenThread={props.onOpenThread}
-                      onRepost={props.onRepost}
-                      repostPendingByUri={props.repostPendingByUri}
-                      rootPost={props.rootPost} />
-                  )}
-                </For>
-              </div>
-            </Show>
-          </div>
-        )}
-      </Match>
-    </Switch>
-  );
-}
-
-function StateCard(props: { label: string; meta: string }) {
-  return (
-    <div class="tone-muted rounded-3xl p-4 shadow-(--inset-shadow)">
-      <p class="m-0 text-sm font-semibold text-on-surface">{props.label}</p>
-      <p class="mt-1 text-xs text-on-surface-variant">{props.meta}</p>
-    </div>
-  );
-}
-
-function SkeletonThreadCard() {
-  return (
-    <div class="tone-muted rounded-3xl p-5 shadow-(--inset-shadow)">
-      <div class="flex gap-3">
-        <div class="skeleton-block h-11 w-11 rounded-full" />
-        <div class="min-w-0 flex-1">
-          <div class="skeleton-block h-4 w-40 rounded-full" />
-          <div class="mt-3 grid gap-2">
-            <div class="skeleton-block h-3.5 w-full rounded-full" />
-            <div class="skeleton-block h-3.5 w-[82%] rounded-full" />
-            <div class="skeleton-block h-3.5 w-[68%] rounded-full" />
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

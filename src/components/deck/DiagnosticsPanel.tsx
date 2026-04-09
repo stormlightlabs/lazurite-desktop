@@ -345,7 +345,7 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
   }
 
   return (
-    <article class="grid min-h-0 grid-rows-[auto_auto_1fr] overflow-hidden rounded-4xl bg-surface-container shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
+    <article class="grid min-h-0 grid-rows-[auto_auto_1fr] overflow-hidden rounded-4xl bg-surface-container shadow-(--inset-shadow)">
       <DiagnosticsHeader
         did={activeDid()}
         embedded={props.embedded ?? false}
@@ -403,9 +403,9 @@ function DiagnosticsTabs(props: { activeTab: DiagnosticsTab; onSelectTab: (tab: 
 
   return (
     <nav class="px-3 pb-3" aria-label="Diagnostics tabs">
-      <div class="relative flex gap-1 rounded-full bg-black/30 p-1">
+      <div class="ui-input-strong relative flex gap-1 rounded-full p-1">
         <Motion.div
-          class="absolute inset-y-1 rounded-full bg-white/7 shadow-[inset_0_0_0_1px_rgba(125,175,255,0.16)]"
+          class="absolute inset-y-1 rounded-full bg-surface-container-high shadow-[inset_0_0_0_1px_rgba(125,175,255,0.16)]"
           animate={{ x: `${activeIndex() * 100}%` }}
           style={{ width: `${100 / DIAGNOSTICS_TABS.length}%` }}
           transition={{ duration: 0.18 }} />
@@ -614,7 +614,7 @@ function DiagnosticsBlocksTab(
         <StatCard label={props.isSelf ? "Boundaries around you" : "Blocked by"} value={blockedByCount()} />
         <StatCard label={props.isSelf ? "Your boundaries" : "Blocking"} value={blockingCount()} />
       </div>
-      <div class="rounded-3xl bg-white/3 p-4 text-sm leading-relaxed text-on-surface-variant">
+      <div class="rounded-3xl bg-surface-container-high p-4 text-sm leading-relaxed text-on-surface-variant shadow-(--inset-shadow)">
         Blocks are a normal part of social media. This data is public on the AT Protocol.
       </div>
       <button
@@ -719,7 +719,7 @@ function DiagnosticsStarterPacksTab(
 
 function DiagnosticsTabIntro(props: { description: string; title: string }) {
   return (
-    <div class="grid gap-1 rounded-3xl bg-white/3 p-4">
+    <div class="grid gap-1 rounded-3xl bg-surface-container-high p-4 shadow-(--inset-shadow)">
       <h2 class="m-0 text-base font-semibold text-on-surface">{props.title}</h2>
       <p class="m-0 text-sm leading-relaxed text-on-surface-variant">{props.description}</p>
     </div>
@@ -728,7 +728,7 @@ function DiagnosticsTabIntro(props: { description: string; title: string }) {
 
 function DiagnosticsError(props: { message: string | null; onRetry?: () => void }) {
   return (
-    <div class="grid gap-3 rounded-3xl bg-white/3 p-4 text-sm text-on-surface-variant">
+    <div class="grid gap-3 rounded-3xl bg-surface-container-high p-4 text-sm text-on-surface-variant shadow-(--inset-shadow)">
       <p class="m-0">{props.message}</p>
       <Show when={props.onRetry}>
         <button
@@ -744,12 +744,16 @@ function DiagnosticsError(props: { message: string | null; onRetry?: () => void 
 }
 
 function DiagnosticsEmptyState(props: { copy: string }) {
-  return <div class="rounded-3xl bg-white/3 p-4 text-sm text-on-surface-variant">{props.copy}</div>;
+  return (
+    <div class="rounded-3xl bg-surface-container-high p-4 text-sm text-on-surface-variant shadow-(--inset-shadow)">
+      {props.copy}
+    </div>
+  );
 }
 
 function StatCard(props: { label: string; value: number }) {
   return (
-    <div class="rounded-3xl bg-white/3 p-4">
+    <div class="rounded-3xl bg-surface-container-high p-4 shadow-(--inset-shadow)">
       <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.label}</p>
       <p class="m-0 mt-2 text-3xl font-semibold text-on-surface">{props.value}</p>
     </div>
@@ -768,12 +772,12 @@ function LabelChip(props: { index: number; label: DiagnosticLabel; sourceName: s
 
   return (
     <Motion.span
-      class="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-2 text-sm text-on-secondary-container"
+      class="inline-flex items-center gap-2 rounded-full bg-surface-bright px-3 py-2 text-sm text-on-secondary-container"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       title={title()}
       transition={{ delay: Math.min(props.index * 0.02, 0.12), duration: 0.14 }}>
-      <span class="h-2 w-2 rounded-full bg-white/20" />
+      <span class="h-2 w-2 rounded-full bg-primary/35" />
       <span>{props.label.val ?? "label"}</span>
       <span class="text-xs text-on-surface-variant/90">{props.sourceName}</span>
     </Motion.span>
@@ -785,7 +789,7 @@ function ListCard(props: { list: DiagnosticList; onOpenExplorerTarget?: (target:
   const title = () => props.list.title ?? props.list.name ?? "Untitled list";
 
   return (
-    <div class="rounded-3xl bg-white/3 p-4 transition duration-150 hover:bg-white/5">
+    <div class="rounded-3xl bg-surface-container-high p-4 shadow-(--inset-shadow) transition duration-150 hover:bg-surface-bright">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-2">
@@ -827,7 +831,7 @@ function StarterPackCard(props: { onOpenExplorerTarget?: (target: string) => voi
   const title = () => props.pack.title ?? props.pack.name ?? props.pack.record?.name ?? "Starter pack";
 
   return (
-    <div class="rounded-3xl bg-white/3 p-4 transition duration-150 hover:bg-white/5">
+    <div class="rounded-3xl bg-surface-container-high p-4 shadow-(--inset-shadow) transition duration-150 hover:bg-surface-bright">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="min-w-0">
           <p class="m-0 text-base font-semibold text-on-surface">{title()}</p>
@@ -840,7 +844,9 @@ function StarterPackCard(props: { onOpenExplorerTarget?: (target: string) => voi
         </div>
 
         <div class="grid shrink-0 justify-items-start gap-2 sm:justify-items-end">
-          <span class="rounded-full bg-white/5 px-3 py-1 text-xs text-on-surface-variant">{count()} members</span>
+          <span class="rounded-full bg-surface-bright px-3 py-1 text-xs text-on-surface-variant">
+            {count()} members
+          </span>
           <Show when={props.pack.uri}>
             {uri => (
               <button
@@ -875,7 +881,7 @@ function BlockProfileList(
   },
 ) {
   return (
-    <div class="grid gap-3 rounded-3xl bg-white/3 p-4">
+    <div class="grid gap-3 rounded-3xl bg-surface-container-high p-4 shadow-(--inset-shadow)">
       <p class="m-0 text-sm font-semibold text-on-surface">{props.title}</p>
       <div class="grid gap-3">
         <For each={props.items}>
@@ -884,12 +890,12 @@ function BlockProfileList(
             return (
               <Motion.div
                 class="flex items-start gap-3 rounded-2xl p-3"
-                classList={{ "bg-black/20": item.available, "bg-white/4 opacity-70": !item.available }}
+                classList={{ "ui-input-strong": item.available, "tone-muted opacity-70": !item.available }}
                 aria-disabled={!item.available}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(index() * 0.04, 0.16), duration: 0.16 }}>
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 text-xs font-semibold text-on-surface-variant">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-container-high text-xs font-semibold text-on-surface-variant">
                   <Show
                     when={item.available && item.avatar}
                     fallback={item.available

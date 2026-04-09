@@ -96,7 +96,7 @@ export function ProfilePicker(props: { onSubmit: (selection: ProfileSelection) =
               ? `profile-suggestions-option-${typeahead.activeIndex()}`
               : undefined}
             aria-expanded={typeahead.open()}
-            class="w-full rounded-xl border-0 bg-white/6 px-4 py-2.5 pr-10 text-sm text-on-surface placeholder:text-on-surface-variant/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.4)]"
+            class="ui-input ui-input-strong w-full rounded-xl px-4 py-2.5 pr-10"
             placeholder="alice.bsky.social"
             spellcheck={false}
             value={value()}

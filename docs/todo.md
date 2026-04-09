@@ -5,12 +5,17 @@ updated: 2026-03-31
 
 ## Bugs
 
-1. Lists & Labels Not Working
+## Refactor
+
+Typeahead code is largely repeated in the following places:
+
+1. `src/components/LoginPanel.tsx`
+2. `src/components/deck/ColumnPicker/ProfileColumnPicker.tsx`
+3. `src/components/explorer/ExplorerUrlBar.tsx`
+4. `src/components/search/hooks/useSearchController.ts`
 
 ## High Priority Updates
 
-- [ ] Video player
-- [ ] Download videos and media attachments
 - [ ] Profile RSS
   - OK. So making an RSS reader with share to BlueSky would be cool...
 

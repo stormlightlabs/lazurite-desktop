@@ -482,10 +482,10 @@ export function ExplorerPanel() {
         {(message) => (
           <div class="px-6 pt-4">
             <div
-              class="rounded-2xl px-4 py-3 text-sm shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]"
+              class="rounded-2xl px-4 py-3 text-sm shadow-(--inset-shadow)"
               classList={{
-                "bg-[rgba(138,31,31,0.2)] text-error": message().kind === "error",
-                "bg-[rgba(28,80,49,0.28)] text-on-surface": message().kind === "success",
+                "bg-error-surface text-error": message().kind === "error",
+                "bg-surface-container-high text-on-surface": message().kind === "success",
               }}>
               {message().text}
             </div>
@@ -505,7 +505,7 @@ export function ExplorerPanel() {
                 class="h-full overflow-auto p-6">
                 <Switch>
                   <Match when={view().error}>
-                    <div class="rounded-3xl bg-[rgba(138,31,31,0.2)] p-4 text-sm text-error shadow-[inset_0_0_0_1px_rgba(255,128,128,0.2)]">
+                    <div class="rounded-3xl bg-error-surface p-4 text-sm text-error shadow-(--inset-shadow)">
                       {view().error}
                     </div>
                   </Match>
@@ -581,7 +581,7 @@ function InitialEmptyPanel(props: { onExampleClick: (value: string) => void | Pr
 
   return (
     <div class="flex h-full items-start overflow-auto p-6">
-      <section class="mx-auto grid w-full max-w-4xl gap-6 rounded-[1.75rem] bg-white/3 p-8 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+      <section class="mx-auto grid w-full max-w-4xl gap-6 rounded-[1.75rem] bg-surface-container p-8 shadow-(--inset-shadow)">
         <div class="grid gap-2">
           <p class="overline-copy text-xs text-primary/80">AT Protocol Explorer</p>
           <h1 class="m-0 text-[2rem] font-medium tracking-[-0.03em] text-on-surface">
@@ -598,7 +598,7 @@ function InitialEmptyPanel(props: { onExampleClick: (value: string) => void | Pr
               <button
                 type="button"
                 onClick={() => void props.onExampleClick(example.value)}
-                class="rounded-2xl bg-white/4 px-4 py-4 text-left transition duration-150 ease-out hover:bg-white/7 hover:-translate-y-px">
+                class="rounded-2xl bg-surface-container-high px-4 py-4 text-left shadow-(--inset-shadow) transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright">
                 <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{example.label}</p>
                 <p class="mt-2 truncate text-sm font-mono text-primary">{example.value}</p>
               </button>
@@ -627,11 +627,11 @@ function EmptyPanel() {
 
 function ExplorerSkeleton() {
   return (
-    <div class="grid gap-4 animate-pulse">
-      <div class="h-8 w-1/3 rounded-lg bg-white/5" />
-      <div class="h-4 w-1/4 rounded bg-white/5" />
+    <div class="grid gap-4" aria-hidden="true">
+      <div class="skeleton-block h-8 w-1/3 rounded-lg" />
+      <div class="skeleton-block h-4 w-1/4 rounded" />
       <div class="grid gap-2 mt-4">
-        <For each={Array.from({ length: 5 })}>{() => <div class="h-16 rounded-xl bg-white/5" />}</For>
+        <For each={Array.from({ length: 5 })}>{() => <div class="skeleton-block h-16 rounded-xl" />}</For>
       </div>
     </div>
   );

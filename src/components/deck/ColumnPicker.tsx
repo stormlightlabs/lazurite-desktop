@@ -66,7 +66,7 @@ export function FeedPicker(props: { onSelect: (selection: FeedPickerSelection) =
         {(feed) => (
           <button
             type="button"
-            class="flex w-full items-center gap-3 rounded-xl border-0 bg-white/4 px-4 py-3 text-left transition duration-150 hover:-translate-y-px hover:bg-white/8"
+            class="tone-muted flex w-full items-center gap-3 rounded-xl border-0 px-4 py-3 text-left transition duration-150 hover:-translate-y-px hover:bg-surface-bright"
             onClick={() => props.onSelect({ feed, title: getFeedName(feed, generators()[feed.value]?.displayName) })}>
             <FeedChipAvatar feed={feed} generator={generators()[feed.value]} />
             <span class="min-w-0 flex-1">
@@ -101,7 +101,7 @@ export function ExplorerPicker(props: { onSubmit: (uri: string) => void }) {
         </span>
         <input
           type="text"
-          class="rounded-xl border-0 bg-white/6 px-4 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.4)]"
+          class="ui-input ui-input-strong rounded-xl px-4 py-2.5"
           placeholder="at://did:plc:… or handle.bsky.social"
           value={value()}
           onInput={(e) => setValue(e.currentTarget.value)} />
@@ -137,7 +137,7 @@ export function DiagnosticsPicker(props: { onSubmit: (did: string) => void }) {
         <span class="text-xs font-medium uppercase tracking-wide text-on-surface-variant">Handle or DID</span>
         <input
           type="text"
-          class="rounded-xl border-0 bg-white/6 px-4 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.4)]"
+          class="ui-input ui-input-strong rounded-xl px-4 py-2.5"
           placeholder="handle.bsky.social or did:plc:…"
           value={value()}
           onInput={(e) => setValue(e.currentTarget.value)} />
@@ -159,7 +159,7 @@ export function DiagnosticsPicker(props: { onSubmit: (did: string) => void }) {
 export function MessagesPicker(props: { onSubmit: () => void }) {
   return (
     <div class="grid gap-4">
-      <div class="rounded-2xl bg-white/4 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+      <div class="rounded-2xl bg-surface-container-high p-4 shadow-(--inset-shadow)">
         <div class="flex items-start gap-3">
           <span class="mt-0.5 flex items-center text-primary">
             <i class="i-ri-message-3-line" />

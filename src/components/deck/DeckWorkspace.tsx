@@ -34,7 +34,7 @@ function DeckToolbar(props: { columnCount: number; onAdd: () => void }) {
       </div>
       <button
         type="button"
-        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8"
+        class="inline-flex h-11 items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright"
         aria-label="Add column (Ctrl+Shift+N)"
         title="Add column (Ctrl+Shift+N)"
         onClick={() => props.onAdd()}>
@@ -49,7 +49,7 @@ function DeckToolbar(props: { columnCount: number; onAdd: () => void }) {
 
 function EmptyDeck(props: { onAdd: () => void }) {
   return (
-    <div class="flex h-full min-h-104 flex-col items-center justify-center gap-4 rounded-[1.75rem] bg-white/3 px-6 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)]">
+    <div class="flex h-full min-h-104 flex-col items-center justify-center gap-4 rounded-[1.75rem] bg-surface-container px-6 text-center shadow-(--inset-shadow)">
       <span class="flex items-center text-[2.5rem] text-on-surface-variant opacity-30">
         <i class="i-ri-layout-column-line" />
       </span>

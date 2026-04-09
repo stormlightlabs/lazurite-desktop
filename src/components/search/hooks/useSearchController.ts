@@ -93,7 +93,7 @@ export function useSearchController(options: SearchControllerOptions = {}) {
     return parsed;
   });
 
-  const actorSuggestions = useActorSuggestions({
+  const typeahead = useActorSuggestions({
     container: actorSearchContainerRef,
     disabled: () => routeState().tab !== "profiles",
     input: searchInputRef,
@@ -265,7 +265,7 @@ export function useSearchController(options: SearchControllerOptions = {}) {
   }
 
   function clearSearch() {
-    actorSuggestions.close();
+    typeahead.close();
     replaceRoute({ q: "" });
     clearResults();
     searchInputRef()?.focus();
@@ -283,20 +283,20 @@ export function useSearchController(options: SearchControllerOptions = {}) {
     if (routeState().tab === "profiles") {
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        actorSuggestions.moveActiveIndex(1);
+        typeahead.moveActiveIndex(1);
         return;
       }
 
       if (event.key === "ArrowUp") {
         event.preventDefault();
-        actorSuggestions.moveActiveIndex(-1);
+        typeahead.moveActiveIndex(-1);
         return;
       }
 
-      if (event.key === "Enter" && actorSuggestions.open() && actorSuggestions.activeSuggestion()) {
+      if (event.key === "Enter" && typeahead.open() && typeahead.activeSuggestion()) {
         event.preventDefault();
-        openActor(actorSuggestions.activeSuggestion() as ProfileViewBasic);
-        actorSuggestions.close();
+        openActor(typeahead.activeSuggestion() as ProfileViewBasic);
+        typeahead.close();
         return;
       }
     }
@@ -316,7 +316,7 @@ export function useSearchController(options: SearchControllerOptions = {}) {
     }
 
     if (event.key === "Escape" && routeState().tab === "profiles") {
-      actorSuggestions.close();
+      typeahead.close();
     }
   }
 
@@ -387,10 +387,10 @@ export function useSearchController(options: SearchControllerOptions = {}) {
       setSyncStatus,
     },
     actorSuggestions: {
-      activeIndex: actorSuggestions.activeIndex,
-      focus: actorSuggestions.focus,
-      open: actorSuggestions.open,
-      suggestions: actorSuggestions.suggestions,
+      activeIndex: typeahead.activeIndex,
+      focus: typeahead.focus,
+      open: typeahead.open,
+      suggestions: typeahead.suggestions,
     },
     derived: {
       hasLocalPosts,

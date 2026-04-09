@@ -22,7 +22,7 @@ function NavButton(props: { direction: "left" | "right"; disabled: boolean; onCl
     <button
       onClick={() => props.onClick()}
       disabled={props.disabled}
-      class="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+      class="p-2 rounded-lg text-on-surface-variant transition-all hover:bg-surface-bright hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-30"
       aria-label={props.direction === "left" ? "Back" : "Forward"}
       title={props.direction === "left" ? "Back" : "Forward"}>
       <ArrowIcon direction={props.direction} />
@@ -91,7 +91,12 @@ function UrlInputForm(props: { value: string; onInput: (value: string) => void; 
       }}
       onSubmit={handleSubmit}
       class="flex-1 relative">
-      <div class="flex items-center gap-3 px-4 py-2 rounded-xl bg-black/40 shadow-[inset_0_0_0_1px_rgba(125,175,255,0.12)]">
+      <div
+        class="ui-input-strong flex items-center gap-3 rounded-xl border px-4 py-2 transition-[border-color,box-shadow,background-color] duration-150"
+        style={{
+          "border-color": focused() ? "var(--focus-ring)" : "var(--outline-subtle)",
+          "box-shadow": focused() ? "0 0 0 3px var(--focus-ring)" : "var(--inset-shadow)",
+        }}>
         <Icon kind="explore" class="text-primary/80" />
         <input
           ref={(element) => {
@@ -127,7 +132,7 @@ function UrlInputForm(props: { value: string; onInput: (value: string) => void; 
         </Show>
         <button
           type="submit"
-          class="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all">
+          class="rounded-lg p-1.5 text-on-surface-variant transition-all hover:bg-surface-bright hover:text-on-surface">
           <Icon kind="search" />
         </button>
       </div>
@@ -144,7 +149,7 @@ function UrlInputForm(props: { value: string; onInput: (value: string) => void; 
 
 export function ExplorerUrlBar(props: ExplorerUrlBarProps) {
   return (
-    <header class="sticky top-0 z-40 border-b border-white/5 bg-surface-container/80 backdrop-blur-xl">
+    <header class="sticky top-0 z-40 border-b ui-outline-subtle bg-surface-container/80 backdrop-blur-xl">
       <div class="px-6 py-4 flex items-center gap-3">
         <div class="flex gap-1">
           <NavButton direction="left" disabled={!props.canGoBack} onClick={props.onBack} />
@@ -155,7 +160,7 @@ export function ExplorerUrlBar(props: ExplorerUrlBarProps) {
 
         <button
           onClick={() => props.onSubmit(props.value)}
-          class="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all"
+          class="rounded-lg p-2 text-on-surface-variant transition-all hover:bg-surface-bright hover:text-on-surface"
           aria-label="Reload"
           title="Reload">
           <Icon kind="refresh" />
@@ -164,7 +169,7 @@ export function ExplorerUrlBar(props: ExplorerUrlBarProps) {
         <button
           onClick={() => props.onClearIconCache()}
           disabled={props.clearingIconCache}
-          class="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all disabled:cursor-not-allowed disabled:opacity-30"
+          class="rounded-lg p-2 text-on-surface-variant transition-all hover:bg-surface-bright hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-30"
           aria-label="Clear icon cache"
           title="Clear icon cache">
           <Icon iconClass={props.clearingIconCache ? "i-ri-loader-4-line" : "i-ri-delete-bin-6-line"} />
@@ -173,7 +178,7 @@ export function ExplorerUrlBar(props: ExplorerUrlBarProps) {
         <button
           onClick={() => props.onExport()}
           disabled={!props.canExport}
-          class="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all disabled:cursor-not-allowed disabled:opacity-30"
+          class="rounded-lg p-2 text-on-surface-variant transition-all hover:bg-surface-bright hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-30"
           aria-label="Download CAR"
           title="Download CAR">
           <Icon iconClass="i-ri-download-2-line" />

@@ -10,7 +10,8 @@ function SearchModeButton(props: { active: boolean; disabled?: boolean; mode: Se
       class="inline-flex items-center justify-center gap-2 rounded-xl border-0 px-3 py-2 text-xs font-medium transition duration-150 disabled:cursor-not-allowed disabled:opacity-40"
       classList={{
         "bg-primary/15 text-primary": props.active,
-        "bg-white/4 text-on-surface-variant hover:bg-white/8 hover:text-on-surface": !props.active && !props.disabled,
+        "tone-muted text-on-surface-variant hover:bg-surface-bright hover:text-on-surface": !props.active
+          && !props.disabled,
       }}
       onClick={() => props.onClick()}>
       <SearchModeIcon mode={props.mode} class="text-sm" />
@@ -39,7 +40,7 @@ export function SearchPicker(props: { onSubmit: (query: string, mode: SearchMode
         <span class="text-xs font-medium uppercase tracking-wide text-on-surface-variant">Search query</span>
         <input
           type="text"
-          class="rounded-xl border-0 bg-white/6 px-4 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none focus:shadow-[inset_0_0_0_1px_rgba(125,175,255,0.4)]"
+          class="ui-input ui-input-strong rounded-xl px-4 py-2.5"
           placeholder="from:alice at protocol"
           value={query()}
           onInput={(event) => setQuery(event.currentTarget.value)} />

@@ -75,7 +75,7 @@ function HeaderControls(
     <div class="flex shrink-0 items-center gap-1">
       <button
         type="button"
-        class="flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-white/5 text-[0.65rem] font-bold text-on-surface-variant transition duration-150 hover:-translate-y-px hover:bg-white/10 hover:text-on-surface"
+        class="flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-surface-container-high text-[0.65rem] font-bold text-on-surface-variant transition duration-150 hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"
         aria-label={`Column width: ${props.column.width}. Click to cycle.`}
         title="Cycle column width"
         onClick={() => props.onWidthCycle()}>
@@ -83,7 +83,7 @@ function HeaderControls(
       </button>
       <button
         type="button"
-        class="flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-transparent text-sm text-on-surface-variant transition duration-150 hover:-translate-y-px hover:bg-white/6 hover:text-on-surface"
+        class="flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-transparent text-sm text-on-surface-variant transition duration-150 hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"
         aria-label="Move column left"
         title="Move column left"
         onClick={() => props.onMoveLeft()}>
@@ -93,7 +93,7 @@ function HeaderControls(
       </button>
       <button
         type="button"
-        class="flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-transparent text-sm text-on-surface-variant transition duration-150 hover:-translate-y-px hover:bg-white/6 hover:text-on-surface"
+        class="flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-transparent text-sm text-on-surface-variant transition duration-150 hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"
         aria-label="Move column right"
         title="Move column right"
         onClick={() => props.onMoveRight()}>
@@ -103,7 +103,7 @@ function HeaderControls(
       </button>
       <button
         type="button"
-        class="flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-transparent text-sm text-on-surface-variant transition duration-150 hover:-translate-y-px hover:bg-white/6 hover:text-error"
+        class="flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-transparent text-sm text-on-surface-variant transition duration-150 hover:-translate-y-px hover:bg-surface-bright hover:text-error"
         aria-label="Close column"
         title="Close column"
         onClick={() => props.onClose()}>
@@ -117,7 +117,7 @@ function HeaderControls(
 
 function ColumnHeader(props: ColumnHeaderProps) {
   return (
-    <header class="flex shrink-0 items-center gap-2 rounded-t-2xl bg-[rgba(14,14,14,0.94)] px-3 py-2.5 backdrop-blur-[18px] shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)]">
+    <header class="flex shrink-0 items-center gap-2 rounded-t-2xl bg-surface-container-highest px-3 py-2.5 backdrop-blur-[18px] shadow-(--inset-shadow)">
       <span
         class="flex cursor-grab items-center text-on-surface-variant opacity-40 hover:opacity-80 active:cursor-grabbing"
         draggable="true"
@@ -244,7 +244,7 @@ function ColumnBody(
 function BlurredMessagesBody() {
   return (
     <div class="group relative min-h-0 min-w-0 overflow-hidden">
-      <div class="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-black/55 px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-on-surface-variant backdrop-blur-sm transition duration-150 group-hover:opacity-0 group-focus-within:opacity-0">
+      <div class="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-surface-container-highest/88 px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-on-surface-variant backdrop-blur-sm transition duration-150 group-hover:opacity-0 group-focus-within:opacity-0">
         Hover to reveal
       </div>
       <div class="h-full transition duration-200 ease-out blur-[14px] saturate-50 group-hover:blur-none group-hover:saturate-100 group-focus-within:blur-none group-focus-within:saturate-100">
@@ -325,10 +325,10 @@ export function DeckColumn(props: DeckColumnProps) {
         props.onDrop(props.column.id);
       }}>
       <section
-        class="flex h-full w-full flex-col overflow-hidden rounded-2xl bg-[rgba(8,8,8,0.32)] transition-shadow duration-150"
+        class="flex h-full w-full flex-col overflow-hidden rounded-2xl bg-surface-container transition-shadow duration-150"
         classList={{
           "shadow-[inset_0_0_0_2px_rgba(125,175,255,0.45)]": props.isDragOver,
-          "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]": !props.isDragOver,
+          "shadow-(--inset-shadow)": !props.isDragOver,
         }}>
         <ColumnHeader
           column={props.column}

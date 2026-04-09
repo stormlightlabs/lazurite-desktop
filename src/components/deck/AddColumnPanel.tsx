@@ -56,14 +56,14 @@ function PanelContent(props: { handlers: PanelSubmissionHandlers; tab: PanelTab 
 
 function AddColumnPanelHeader(props: { onClose: () => void }) {
   return (
-    <div class="flex shrink-0 items-center justify-between gap-3 px-5 py-4 shadow-[inset_0_-1px_0_rgba(255,255,255,0.04)]">
+    <div class="flex shrink-0 items-center justify-between gap-3 px-5 py-4 shadow-(--inset-shadow)">
       <div>
         <p id="add-column-panel-title" class="m-0 text-sm font-semibold text-on-surface">Add column</p>
         <p class="m-0 mt-1 text-xs uppercase tracking-[0.12em] text-on-surface-variant">Choose a view</p>
       </div>
       <button
         type="button"
-        class="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent text-on-surface-variant transition duration-150 hover:bg-white/6 hover:text-on-surface"
+        class="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent text-on-surface-variant transition duration-150 hover:bg-surface-bright hover:text-on-surface"
         aria-label="Close panel"
         onClick={() => props.onClose()}>
         <Icon kind="close" />
@@ -88,7 +88,7 @@ function AddColumnPanelTabs(props: AddColumnPanelTabsProps) {
             class="flex items-center justify-center gap-1.5 rounded-lg border-0 px-3 py-2 text-xs font-medium transition duration-150"
             classList={{
               "bg-primary/15 text-primary": props.activeTab === tab.id,
-              "bg-transparent text-on-surface-variant hover:bg-white/5 hover:text-on-surface":
+              "bg-transparent text-on-surface-variant hover:bg-surface-bright hover:text-on-surface":
                 props.activeTab !== tab.id,
             }}
             onClick={() => props.onTabChange(tab.id)}>
@@ -120,7 +120,7 @@ function AddColumnPanelBody(props: AddColumnPanelBodyProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-column-panel-title"
-      class="relative z-10 flex h-full w-full max-w-88 flex-col bg-surface-container-highest shadow-[-18px_0_48px_rgba(0,0,0,0.38)] backdrop-blur-[20px]"
+      class="ui-overlay-card relative z-10 flex h-full w-full max-w-88 flex-col bg-surface-container-highest backdrop-blur-[20px]"
       initial={{ opacity: 0, x: 32 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 40 }}
@@ -202,7 +202,7 @@ export function AddColumnPanel(props: AddColumnPanelProps) {
         <Portal>
           <div class="fixed inset-0 z-50 flex justify-end">
             <Motion.div
-              class="absolute inset-0 bg-black/45 backdrop-blur-[20px]"
+              class="ui-scrim absolute inset-0 backdrop-blur-[20px]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
