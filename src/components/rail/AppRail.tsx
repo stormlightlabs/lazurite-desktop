@@ -229,16 +229,19 @@ function RailThemeMenu(
         aria-expanded={open()}
         aria-haspopup="menu"
         onClick={handleToggle}
-        class="relative flex h-11 shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"
+        class="relative flex h-11 shrink-0 items-center rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition-[width,padding,transform,background-color,color] duration-200 ease-out motion-reduce:transition-none hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"
         classList={{
-          "w-[2.75rem] justify-center": compact(),
-          "w-full justify-start px-3": !compact(),
+          "w-[2.75rem] justify-center gap-0": compact(),
+          "w-full justify-start gap-2.5 px-3": !compact(),
           "bg-surface-container text-primary": open(),
         }}>
         <Icon iconClass={iconClassForTheme(props.currentTheme)} class="shrink-0 text-[1.25rem]" />
-        <Show when={!compact()}>
-          <span class="text-sm font-medium leading-none">Theme</span>
-        </Show>
+        <span
+          class="overflow-hidden whitespace-nowrap text-sm font-medium leading-none transition-[max-width,opacity] duration-200 ease-out motion-reduce:transition-none"
+          classList={{ "max-w-40 opacity-100": !compact(), "max-w-0 opacity-0": compact() }}
+          aria-hidden={compact() ? "true" : undefined}>
+          Theme
+        </span>
       </button>
 
       <Show when={open()}>
@@ -295,7 +298,7 @@ export function AppRail() {
 
   return (
     <aside
-      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-300 ease-out max-lg:grid max-lg:min-h-0 max-lg:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] max-lg:items-center max-lg:gap-x-4 max-lg:gap-y-3 max-lg:p-4"
+      class="flex min-h-screen min-w-0 flex-col gap-6 overflow-visible bg-surface-container-lowest px-6 pb-6 pt-6 transition-[padding,gap] duration-220 ease-out motion-reduce:transition-none max-lg:grid max-lg:min-h-0 max-lg:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] max-lg:items-center max-lg:gap-x-4 max-lg:gap-y-3 max-lg:p-4"
       classList={{
         "items-center px-4": shell.railCondensed && !shell.narrowViewport,
         "gap-5": shell.railCondensed && !shell.narrowViewport,

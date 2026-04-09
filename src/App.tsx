@@ -54,7 +54,7 @@ function AppShell(props: AppShellProps) {
   return (
     <>
       <main
-        class="grid h-screen min-h-screen overflow-hidden grid-cols-(--app-rail-cols) transition-[grid-template-columns] duration-300 ease-out max-lg:h-auto max-lg:min-h-screen max-lg:grid-cols-1 max-lg:overflow-visible"
+        class="grid h-screen min-h-screen overflow-hidden grid-cols-(--app-rail-cols) max-lg:h-auto max-lg:min-h-screen max-lg:grid-cols-1 max-lg:overflow-visible"
         style={{ "--app-rail-cols": shell.railColumns }}>
         <AppRail />
 

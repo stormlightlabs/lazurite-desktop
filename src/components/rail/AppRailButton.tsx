@@ -27,9 +27,12 @@ function RailButtonContent(props: RailButtonVisualProps) {
           </Show>
         </Presence>
       </div>
-      <Show when={!props.compact}>
-        <span class="text-sm font-medium leading-none">{props.label}</span>
-      </Show>
+      <span
+        class="overflow-hidden whitespace-nowrap text-sm font-medium leading-none transition-[max-width,opacity] duration-200 ease-out motion-reduce:transition-none"
+        classList={{ "max-w-40 opacity-100": !props.compact, "max-w-0 opacity-0": !!props.compact }}
+        aria-hidden={props.compact ? "true" : undefined}>
+        {props.label}
+      </span>
     </>
   );
 }
@@ -39,10 +42,13 @@ export function RailButton(props: RailButtonProps) {
     <A
       href={props.href}
       end={props.end}
-      class={"relative flex h-11 shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"}
+      class={"relative flex h-11 shrink-0 items-center rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition-[width,padding,transform,background-color,color] duration-200 ease-out motion-reduce:transition-none hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"}
       activeClass="bg-surface-container text-primary"
       inactiveClass=""
-      classList={{ "w-[2.75rem] justify-center": !!props.compact, "px-3": !props.compact }}
+      classList={{
+        "w-[2.75rem] justify-center gap-0": !!props.compact,
+        "gap-2.5 px-3": !props.compact,
+      }}
       aria-label={props.label}
       title={props.label}>
       <RailButtonContent {...props} />
@@ -54,8 +60,11 @@ export function RailActionButton(props: RailActionButtonProps) {
   return (
     <button
       type="button"
-      class={"relative flex h-11 shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition duration-150 ease-out hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"}
-      classList={{ "w-[2.75rem] justify-center": !!props.compact, "px-3": !props.compact }}
+      class={"relative flex h-11 shrink-0 items-center rounded-lg border-0 bg-transparent text-on-surface-variant no-underline transition-[width,padding,transform,background-color,color] duration-200 ease-out motion-reduce:transition-none hover:-translate-y-px hover:bg-surface-bright hover:text-on-surface"}
+      classList={{
+        "w-[2.75rem] justify-center gap-0": !!props.compact,
+        "gap-2.5 px-3": !props.compact,
+      }}
       aria-label={props.label}
       title={props.label}
       onClick={() => props.onClick()}>

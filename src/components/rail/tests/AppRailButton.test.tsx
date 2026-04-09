@@ -21,7 +21,10 @@ describe("RailButton", () => {
   it("hides label text when compact", () => {
     renderInRouter(() => <RailButton href="/auth" label="Accounts" icon="profile" compact />);
 
-    expect(screen.queryByText("Accounts")).not.toBeInTheDocument();
+    const label = screen.getByText("Accounts");
+    expect(label).toHaveClass("max-w-0");
+    expect(label).toHaveClass("opacity-0");
+    expect(label).toHaveAttribute("aria-hidden", "true");
   });
 
   it("uses rounded-lg (not rounded-full) for reduced rounding", () => {
