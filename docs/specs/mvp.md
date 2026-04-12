@@ -62,3 +62,4 @@ Details in sub-specs:
 - [Search & Embeddings](./search.md)
 - [Social Diagnostics](./social-diagnostics.md)
 - [Multicolumn Views](./multicolumn.md)
+- [Follow Hygiene](./follow-hygiene.md)

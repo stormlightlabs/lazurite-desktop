@@ -29,6 +29,10 @@ Tasks are grouped by module. Each references the relevant spec. Polish (keyboard
 - [Spacedust](./11-spacedust.md) - Real-time backlink notifications via microcosm Spacedust
 - [Social Diagnostics](./12-social-diagnostics.md) - Constellation-powered lists, labels, blocks, starter packs, backlinks (depends on Spacedust for live engagement)
 
-## Phase 6: Release
+## Phase 6: Maintenance Tools
+
+- [Follow Hygiene](./16-follows.md) - Audit and batch-unfollow dead/blocked/inactive accounts
+
+## Phase 7: Release
 
 - [Release](./13-release.md) - Cross-platform build (macOS, Windows, Linux), code signing, auto-update, CI/CD
