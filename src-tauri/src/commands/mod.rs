@@ -2,7 +2,9 @@
 use super::auth::{self, LoginSuggestion};
 use super::conversations;
 use super::error::Result;
-use super::feed::{self, CreateRecordResult, EmbedInput, FeedViewPrefItem, ReplyRefInput, UserPreferences};
+use super::feed::{
+    self, BatchResult, CreateRecordResult, EmbedInput, FeedViewPrefItem, FlaggedFollow, ReplyRefInput, UserPreferences,
+};
 use super::notifications;
 use super::state::{AccountSummary, AppBootstrap, AppState};
 use serde_json::Value;
@@ -165,6 +167,16 @@ pub async fn get_followers(
 #[tauri::command]
 pub async fn get_follows(actor: String, cursor: Option<String>, limit: Option<u32>, state: State<'_>) -> Result<Value> {
     feed::get_follows(actor, cursor, limit, &state).await
+}
+
+#[tauri::command]
+pub async fn audit_follows(app: AppHandle, state: State<'_>) -> Result<Vec<FlaggedFollow>> {
+    feed::audit_follows(&app, &state).await
+}
+
+#[tauri::command]
+pub async fn batch_unfollow(follow_uris: Vec<String>, state: State<'_>) -> Result<BatchResult> {
+    feed::batch_unfollow(follow_uris, &state).await
 }
 
 #[tauri::command]

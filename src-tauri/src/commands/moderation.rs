@@ -1,10 +1,6 @@
 use super::super::error::Result;
 use super::super::moderation::{
-    self,
-    ModerationLabelerPolicyDefinition,
-    ModerationUI,
-    ReportSubjectInput,
-    StoredModerationPrefs,
+    self, ModerationLabelerPolicyDefinition, ModerationUI, ReportSubjectInput, StoredModerationPrefs,
 };
 use super::super::state::AppState;
 use tauri_plugin_log::log;

@@ -494,24 +494,26 @@ pub async fn get_labeler_policy_definitions(state: &AppState) -> Result<Vec<Mode
         let definitions = if !definitions_from_view.is_empty() {
             definitions_from_view
         } else if let Ok(parsed) = Did::new(&did) {
-            defs.get(&parsed)
-                .map(normalize_label_definitions)
-                .unwrap_or_default()
+            defs.get(&parsed).map(normalize_label_definitions).unwrap_or_default()
         } else {
             Vec::new()
         };
 
         let reason_types = view.map(|value| {
-            value
-                .reason_types
-                .as_ref()
-                .map(|types| types.iter().map(|item| item.as_ref().to_string()).collect::<Vec<String>>())
+            value.reason_types.as_ref().map(|types| {
+                types
+                    .iter()
+                    .map(|item| item.as_ref().to_string())
+                    .collect::<Vec<String>>()
+            })
         });
         let subject_types = view.map(|value| {
-            value
-                .subject_types
-                .as_ref()
-                .map(|types| types.iter().map(|item| item.as_ref().to_string()).collect::<Vec<String>>())
+            value.subject_types.as_ref().map(|types| {
+                types
+                    .iter()
+                    .map(|item| item.as_ref().to_string())
+                    .collect::<Vec<String>>()
+            })
         });
         let subject_collections = view.map(|value| {
             value.subject_collections.as_ref().map(|collections| {
@@ -525,8 +527,13 @@ pub async fn get_labeler_policy_definitions(state: &AppState) -> Result<Vec<Mode
         policies.push(ModerationLabelerPolicyDefinition {
             labeler_did: did,
             labeler_handle: view.map(|value| value.creator.handle.as_ref().to_string()),
-            labeler_display_name: view
-                .and_then(|value| value.creator.display_name.as_ref().map(|name| name.as_ref().to_string())),
+            labeler_display_name: view.and_then(|value| {
+                value
+                    .creator
+                    .display_name
+                    .as_ref()
+                    .map(|name| name.as_ref().to_string())
+            }),
             reason_types: reason_types.flatten(),
             subject_types: subject_types.flatten(),
             subject_collections: subject_collections.flatten(),

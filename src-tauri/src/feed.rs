@@ -6,9 +6,11 @@ use super::error::{AppError, Result};
 use super::state::AppState;
 use jacquard::api::app_bsky::actor::get_preferences::GetPreferences;
 use jacquard::api::app_bsky::actor::get_profile::GetProfile;
+use jacquard::api::app_bsky::actor::get_profiles::GetProfiles;
 use jacquard::api::app_bsky::actor::put_preferences::PutPreferences;
 use jacquard::api::app_bsky::actor::{
-    FeedViewPref, PreferencesItem, SavedFeed, SavedFeedType, SavedFeedsPrefV2, SavedFeedsPrefV2Builder,
+    FeedViewPref, PreferencesItem, ProfileViewDetailed, SavedFeed, SavedFeedType, SavedFeedsPrefV2,
+    SavedFeedsPrefV2Builder,
 };
 use jacquard::api::app_bsky::bookmark::create_bookmark::CreateBookmark;
 use jacquard::api::app_bsky::bookmark::delete_bookmark::DeleteBookmark;
@@ -27,10 +29,15 @@ use jacquard::api::app_bsky::graph::block::Block;
 use jacquard::api::app_bsky::graph::follow::Follow;
 use jacquard::api::app_bsky::graph::get_followers::GetFollowers;
 use jacquard::api::app_bsky::graph::get_follows::GetFollows;
+use jacquard::api::com_atproto::label::Label;
+use jacquard::api::com_atproto::repo::apply_writes::{
+    ApplyWrites, ApplyWritesOutput, ApplyWritesOutputResultsItem, ApplyWritesWritesItem, Delete,
+};
 use jacquard::api::com_atproto::repo::create_record::CreateRecord;
 use jacquard::api::com_atproto::repo::delete_record::DeleteRecord;
+use jacquard::api::com_atproto::repo::list_records::{ListRecords, ListRecordsOutput, Record as RepoListRecord};
 use jacquard::api::com_atproto::repo::strong_ref::StrongRef;
-use jacquard::identity::JacquardResolver;
+use jacquard::identity::{resolver::IdentityResolver, JacquardResolver};
 use jacquard::richtext;
 use jacquard::types::aturi::AtUri;
 use jacquard::types::cid::Cid;
@@ -43,9 +50,16 @@ use jacquard::types::recordkey::RecordKey;
 use jacquard::types::value::Data;
 use jacquard::xrpc::XrpcClient;
 use jacquard::IntoStatic;
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
+use tauri::{AppHandle, Emitter};
 use tauri_plugin_log::log;
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
+use tokio::time::sleep;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "status", rename_all = "camelCase")]
@@ -323,6 +337,66 @@ pub enum EmbedInput {
 pub struct CreateRecordResult {
     pub uri: String,
     pub cid: String,
+}
+
+const FOLLOW_COLLECTION_NSID: &str = "app.bsky.graph.follow";
+const FOLLOW_HYGIENE_PROGRESS_EVENT: &str = "follow-hygiene:progress";
+const FOLLOW_AUDIT_PAGE_LIMIT: i64 = 100;
+const FOLLOW_AUDIT_PROFILE_BATCH_SIZE: usize = 25;
+const FOLLOW_AUDIT_PROFILE_BATCH_CONCURRENCY: usize = 3;
+const FOLLOW_AUDIT_INTER_BATCH_DELAY: Duration = Duration::from_millis(250);
+const FOLLOW_AUDIT_RETRY_AFTER_DEFAULT: Duration = Duration::from_secs(2);
+const FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES: usize = 5;
+const FOLLOW_UNFOLLOW_WRITE_CHUNK_SIZE: usize = 200;
+
+const FOLLOW_STATUS_DELETED: u8 = 1 << 0;
+const FOLLOW_STATUS_DEACTIVATED: u8 = 1 << 1;
+const FOLLOW_STATUS_SUSPENDED: u8 = 1 << 2;
+const FOLLOW_STATUS_BLOCKED_BY: u8 = 1 << 3;
+const FOLLOW_STATUS_BLOCKING: u8 = 1 << 4;
+const FOLLOW_STATUS_HIDDEN: u8 = 1 << 5;
+const FOLLOW_STATUS_SELF_FOLLOW: u8 = 1 << 6;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct FlaggedFollow {
+    pub did: String,
+    pub handle: String,
+    pub follow_uri: String,
+    pub status: u8,
+    pub status_label: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchResult {
+    pub deleted: usize,
+    pub failed: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FollowHygieneProgress {
+    current: usize,
+    total: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FollowRecordEntry {
+    did: String,
+    follow_uri: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FollowStatusInfo {
+    handle: String,
+    status: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FollowDeleteTarget {
+    uri: String,
+    rkey: String,
 }
 
 pub async fn get_preferences(state: &AppState) -> Result<UserPreferences> {
@@ -955,6 +1029,619 @@ pub async fn get_follows(
     serde_json::to_value(&output).map_err(AppError::from)
 }
 
+pub async fn audit_follows(app: &AppHandle, state: &AppState) -> Result<Vec<FlaggedFollow>> {
+    let session = get_session(state).await?;
+    let active_did = active_did(state)?;
+    let follow_records = list_follow_records_for_audit(&session, &active_did).await?;
+    if follow_records.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let dids = follow_records
+        .iter()
+        .map(|record| record.did.clone())
+        .collect::<Vec<_>>();
+    let unique_dids = dedupe_preserve_order(dids);
+    let follow_statuses = resolve_follow_statuses(&session, app, &active_did, unique_dids).await?;
+
+    Ok(follow_records
+        .into_iter()
+        .filter_map(|record| {
+            follow_statuses
+                .get(&record.did)
+                .map(|status| build_flagged_follow(record, status.clone()))
+        })
+        .collect())
+}
+
+pub async fn batch_unfollow(follow_uris: Vec<String>, state: &AppState) -> Result<BatchResult> {
+    let session = get_session(state).await?;
+    let active_did = active_did(state)?;
+
+    if follow_uris.is_empty() {
+        return Ok(BatchResult { deleted: 0, failed: Vec::new() });
+    }
+
+    let mut targets = Vec::new();
+    let mut failed = Vec::new();
+
+    for uri in follow_uris {
+        match parse_follow_delete_target(&uri) {
+            Ok(target) => targets.push(target),
+            Err(reason) => {
+                log::warn!("skipping invalid follow URI for batch unfollow: {uri} ({reason})");
+                failed.push(uri);
+            }
+        }
+    }
+
+    let mut deleted = 0usize;
+    for chunk in targets.chunks(FOLLOW_UNFOLLOW_WRITE_CHUNK_SIZE) {
+        let (writes, chunk_uris, chunk_failed) = build_delete_writes(chunk);
+        failed.extend(chunk_failed);
+
+        if writes.is_empty() {
+            continue;
+        }
+
+        match send_apply_writes_chunk_with_retry(&session, &active_did, writes).await {
+            Ok(output) => {
+                let (chunk_deleted, chunk_failures) = summarize_apply_writes_result(&chunk_uris, &output);
+                deleted += chunk_deleted;
+                failed.extend(chunk_failures);
+            }
+            Err(error) => {
+                log::warn!(
+                    "applyWrites failed for unfollow batch ({} items): {error}",
+                    chunk_uris.len()
+                );
+                failed.extend(chunk_uris);
+            }
+        }
+    }
+
+    Ok(BatchResult { deleted, failed })
+}
+
+async fn list_follow_records_for_audit(
+    session: &Arc<LazuriteOAuthSession>, active_did: &str,
+) -> Result<Vec<FollowRecordEntry>> {
+    let mut records = Vec::new();
+    let mut cursor = None;
+
+    loop {
+        let output = list_follow_records_page_with_retry(session, active_did, cursor.clone()).await?;
+        for record in output.records {
+            if let Some(entry) = follow_record_entry_from_list_record(&record) {
+                records.push(entry);
+            }
+        }
+
+        cursor = output.cursor.map(|value| value.to_string());
+        if cursor.is_none() {
+            break;
+        }
+
+        sleep(FOLLOW_AUDIT_INTER_BATCH_DELAY).await;
+    }
+
+    Ok(records)
+}
+
+async fn list_follow_records_page_with_retry(
+    session: &Arc<LazuriteOAuthSession>, active_did: &str, cursor: Option<String>,
+) -> Result<ListRecordsOutput<'static>> {
+    let repo = AtIdentifier::Did(Did::new(active_did)?.into_static());
+    let collection = Nsid::new(FOLLOW_COLLECTION_NSID)
+        .map_err(|_| AppError::validation("invalid follow collection NSID"))?
+        .into_static();
+    let mut retries = 0usize;
+
+    loop {
+        let response = session
+            .send(
+                ListRecords::new()
+                    .repo(repo.clone())
+                    .collection(collection.clone())
+                    .limit(FOLLOW_AUDIT_PAGE_LIMIT)
+                    .maybe_cursor(cursor.as_deref().map(Into::into))
+                    .build(),
+            )
+            .await
+            .map_err(|error| {
+                log::error!("follow hygiene listRecords request failed: {error}");
+                AppError::validation("Couldn't scan your follows right now.")
+            })?;
+
+        if response.status() == StatusCode::TOO_MANY_REQUESTS {
+            retries += 1;
+            if retries > FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES {
+                log::warn!("follow hygiene listRecords exceeded max rate-limit retries");
+                return Err(AppError::validation("Couldn't scan your follows right now."));
+            }
+
+            let delay = retry_after_delay(response.buffer()).unwrap_or(FOLLOW_AUDIT_RETRY_AFTER_DEFAULT);
+            log::warn!(
+                "follow hygiene listRecords rate-limited (attempt {retries}/{}), retrying in {}s",
+                FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES,
+                delay.as_secs()
+            );
+            sleep(delay).await;
+            continue;
+        }
+
+        return response.into_output().map(IntoStatic::into_static).map_err(|error| {
+            log::error!("follow hygiene listRecords output decode failed: {error}");
+            AppError::validation("Couldn't scan your follows right now.")
+        });
+    }
+}
+
+async fn resolve_follow_statuses(
+    session: &Arc<LazuriteOAuthSession>, app: &AppHandle, active_did: &str, dids: Vec<String>,
+) -> Result<HashMap<String, FollowStatusInfo>> {
+    let mut resolved = HashMap::new();
+    if dids.is_empty() {
+        return Ok(resolved);
+    }
+
+    let chunks = dids
+        .chunks(FOLLOW_AUDIT_PROFILE_BATCH_SIZE)
+        .map(|chunk| chunk.to_vec())
+        .collect::<Vec<_>>();
+    let total_batches = chunks.len();
+    let semaphore = Arc::new(Semaphore::new(FOLLOW_AUDIT_PROFILE_BATCH_CONCURRENCY));
+    let mut join_set = JoinSet::new();
+
+    for did_chunk in chunks {
+        let session = session.clone();
+        let semaphore = semaphore.clone();
+        join_set.spawn(async move {
+            let _permit = semaphore.acquire_owned().await.map_err(|error| {
+                log::error!("follow hygiene semaphore acquisition failed: {error}");
+                AppError::validation("Couldn't scan your follows right now.")
+            })?;
+            let profiles = get_profiles_batch_with_retry(&session, &did_chunk).await?;
+            sleep(FOLLOW_AUDIT_INTER_BATCH_DELAY).await;
+            Ok::<(Vec<String>, Vec<ProfileViewDetailed<'static>>), AppError>((did_chunk, profiles))
+        });
+    }
+
+    let mut missing = dids.into_iter().collect::<HashSet<_>>();
+    let mut completed = 0usize;
+
+    while let Some(joined) = join_set.join_next().await {
+        let (requested_dids, profiles) = joined.map_err(|error| {
+            log::error!("follow hygiene profile batch task failed: {error}");
+            AppError::validation("Couldn't scan your follows right now.")
+        })??;
+        let mut found_dids = HashSet::new();
+
+        for profile in profiles {
+            let did = profile.did.to_string();
+            found_dids.insert(did.clone());
+            let status = follow_status_from_profile(&profile, active_did);
+            if status != 0 {
+                resolved.insert(
+                    did.clone(),
+                    FollowStatusInfo { handle: profile.handle.to_string(), status },
+                );
+            }
+            missing.remove(&did);
+        }
+
+        for did in requested_dids {
+            if !found_dids.contains(&did) {
+                missing.insert(did);
+            } else {
+                missing.remove(&did);
+            }
+        }
+
+        completed += 1;
+        app.emit(
+            FOLLOW_HYGIENE_PROGRESS_EVENT,
+            FollowHygieneProgress { current: completed, total: total_batches },
+        )?;
+    }
+
+    for did in dedupe_preserve_order(missing.into_iter().collect()) {
+        if let Some(status) = resolve_missing_follow_status(session, &did, active_did).await {
+            resolved.insert(did, status);
+        }
+    }
+
+    Ok(resolved)
+}
+
+async fn get_profiles_batch_with_retry(
+    session: &Arc<LazuriteOAuthSession>, dids: &[String],
+) -> Result<Vec<ProfileViewDetailed<'static>>> {
+    let actors = dids
+        .iter()
+        .map(|did| Did::new(did).map(|parsed| AtIdentifier::Did(parsed.into_static())))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let mut retries = 0usize;
+
+    loop {
+        let response = session
+            .send(GetProfiles::new().actors(actors.clone()).build())
+            .await
+            .map_err(|error| {
+                log::error!("follow hygiene getProfiles request failed: {error}");
+                AppError::validation("Couldn't scan your follows right now.")
+            })?;
+
+        if response.status() == StatusCode::TOO_MANY_REQUESTS {
+            retries += 1;
+            if retries > FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES {
+                log::warn!("follow hygiene getProfiles exceeded max rate-limit retries");
+                return Err(AppError::validation("Couldn't scan your follows right now."));
+            }
+
+            let delay = retry_after_delay(response.buffer()).unwrap_or(FOLLOW_AUDIT_RETRY_AFTER_DEFAULT);
+            log::warn!(
+                "follow hygiene getProfiles rate-limited (attempt {retries}/{}), retrying in {}s",
+                FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES,
+                delay.as_secs()
+            );
+            sleep(delay).await;
+            continue;
+        }
+
+        let output = response.into_output().map_err(|error| {
+            log::error!("follow hygiene getProfiles output decode failed: {error}");
+            AppError::validation("Couldn't scan your follows right now.")
+        })?;
+        return Ok(output.profiles.into_iter().map(IntoStatic::into_static).collect());
+    }
+}
+
+async fn resolve_missing_follow_status(
+    session: &Arc<LazuriteOAuthSession>, did: &str, active_did: &str,
+) -> Option<FollowStatusInfo> {
+    let did_value = Did::new(did).ok()?.into_static();
+    let self_follow = if did == active_did { FOLLOW_STATUS_SELF_FOLLOW } else { 0 };
+
+    match get_profile_for_did_with_retry(session, &did_value).await {
+        Ok(profile) => {
+            let status = follow_status_from_profile(&profile, active_did);
+            if status == 0 {
+                None
+            } else {
+                Some(FollowStatusInfo { handle: profile.handle.to_string(), status })
+            }
+        }
+        Err(error_message) => {
+            let mut status = follow_status_from_unavailability_reason(classify_actor_unavailability(&error_message));
+            status |= self_follow;
+
+            if status == 0 {
+                log::warn!("follow hygiene missing DID fallback unclassified for {did}: {error_message}");
+                return None;
+            }
+
+            let handle = resolve_handle_from_did_document(session, &did_value)
+                .await
+                .unwrap_or_else(|| did.to_string());
+            Some(FollowStatusInfo { handle, status })
+        }
+    }
+}
+
+async fn get_profile_for_did_with_retry(
+    session: &Arc<LazuriteOAuthSession>, did: &Did<'_>,
+) -> std::result::Result<ProfileViewDetailed<'static>, String> {
+    let actor = AtIdentifier::Did(did.clone().into_static());
+    let mut retries = 0usize;
+
+    loop {
+        let response = session
+            .send(GetProfile::new().actor(actor.clone()).build())
+            .await
+            .map_err(|error| error.to_string())?;
+
+        if response.status() == StatusCode::TOO_MANY_REQUESTS {
+            retries += 1;
+            if retries > FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES {
+                return Err("rate limit retries exhausted".into());
+            }
+
+            let delay = retry_after_delay(response.buffer()).unwrap_or(FOLLOW_AUDIT_RETRY_AFTER_DEFAULT);
+            log::warn!(
+                "follow hygiene getProfile rate-limited for {} (attempt {retries}/{}), retrying in {}s",
+                did.as_ref(),
+                FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES,
+                delay.as_secs()
+            );
+            sleep(delay).await;
+            continue;
+        }
+
+        let output = response.into_output().map_err(|error| error.to_string())?;
+        return Ok(output.value.into_static());
+    }
+}
+
+async fn resolve_handle_from_did_document(session: &Arc<LazuriteOAuthSession>, did: &Did<'_>) -> Option<String> {
+    let did_doc = session.resolve_did_doc(did).await.ok()?.into_owned().ok()?;
+
+    did_doc.also_known_as.as_ref().and_then(|aliases| {
+        aliases.iter().find_map(|alias| {
+            alias
+                .as_ref()
+                .strip_prefix("at://")
+                .and_then(|candidate| Handle::new(candidate).ok().map(|handle| handle.to_string()))
+        })
+    })
+}
+
+fn follow_status_from_unavailability_reason(reason: Option<ActorAvailabilityReason>) -> u8 {
+    match reason {
+        Some(ActorAvailabilityReason::NotFound) => FOLLOW_STATUS_DELETED,
+        Some(ActorAvailabilityReason::Deactivated) => FOLLOW_STATUS_DEACTIVATED,
+        Some(ActorAvailabilityReason::Suspended) => FOLLOW_STATUS_SUSPENDED,
+        _ => 0,
+    }
+}
+
+fn follow_status_from_profile(profile: &ProfileViewDetailed<'_>, active_did: &str) -> u8 {
+    let mut status = 0u8;
+
+    if profile.did.as_ref() == active_did {
+        status |= FOLLOW_STATUS_SELF_FOLLOW;
+    }
+
+    if profile
+        .viewer
+        .as_ref()
+        .and_then(|viewer| viewer.blocked_by)
+        .unwrap_or(false)
+    {
+        status |= FOLLOW_STATUS_BLOCKED_BY;
+    }
+
+    let is_blocking = profile
+        .viewer
+        .as_ref()
+        .and_then(|viewer| viewer.blocking.as_ref())
+        .is_some()
+        || profile
+            .viewer
+            .as_ref()
+            .and_then(|viewer| viewer.blocking_by_list.as_ref())
+            .is_some();
+    if is_blocking {
+        status |= FOLLOW_STATUS_BLOCKING;
+    }
+
+    if has_active_hide_label(profile.labels.as_deref()) {
+        status |= FOLLOW_STATUS_HIDDEN;
+    }
+
+    status
+}
+
+fn has_active_hide_label(labels: Option<&[Label<'_>]>) -> bool {
+    labels.is_some_and(|labels| {
+        labels
+            .iter()
+            .any(|label| label.val.as_ref() == "!hide" && !label.neg.unwrap_or(false))
+    })
+}
+
+fn build_flagged_follow(record: FollowRecordEntry, status: FollowStatusInfo) -> FlaggedFollow {
+    FlaggedFollow {
+        did: record.did,
+        handle: status.handle,
+        follow_uri: record.follow_uri,
+        status: status.status,
+        status_label: follow_status_label(status.status),
+    }
+}
+
+fn follow_status_label(status: u8) -> String {
+    if status == 0 {
+        return "Unknown".to_string();
+    }
+
+    let mut labels = Vec::new();
+
+    if status & FOLLOW_STATUS_DELETED != 0 {
+        labels.push("Deleted");
+    }
+    if status & FOLLOW_STATUS_DEACTIVATED != 0 {
+        labels.push("Deactivated");
+    }
+    if status & FOLLOW_STATUS_SUSPENDED != 0 {
+        labels.push("Suspended");
+    }
+
+    let has_blocked_by = status & FOLLOW_STATUS_BLOCKED_BY != 0;
+    let has_blocking = status & FOLLOW_STATUS_BLOCKING != 0;
+    if has_blocked_by && has_blocking {
+        labels.push("Mutual Block");
+    } else if has_blocked_by {
+        labels.push("Blocked By");
+    } else if has_blocking {
+        labels.push("Blocking");
+    }
+
+    if status & FOLLOW_STATUS_HIDDEN != 0 {
+        labels.push("Hidden");
+    }
+    if status & FOLLOW_STATUS_SELF_FOLLOW != 0 {
+        labels.push("Self-Follow");
+    }
+
+    labels.join(", ")
+}
+
+fn follow_record_entry_from_list_record(record: &RepoListRecord<'_>) -> Option<FollowRecordEntry> {
+    let follow_uri = record.uri.to_string();
+    let did = match record.value.get_at_path("subject").and_then(Data::as_str) {
+        Some(subject) => match Did::new(subject) {
+            Ok(did) => did.to_string(),
+            Err(error) => {
+                log::warn!("follow hygiene skipped invalid follow subject DID in {follow_uri}: {error}");
+                return None;
+            }
+        },
+        None => {
+            log::warn!("follow hygiene skipped follow record with missing subject in {follow_uri}");
+            return None;
+        }
+    };
+
+    Some(FollowRecordEntry { did, follow_uri })
+}
+
+fn retry_after_delay(buffer: &[u8]) -> Option<Duration> {
+    let payload = serde_json::from_slice::<serde_json::Value>(buffer).ok();
+    if let Some(seconds) = payload
+        .as_ref()
+        .and_then(|value| value.get("retryAfter"))
+        .and_then(serde_json::Value::as_u64)
+    {
+        return Some(Duration::from_secs(seconds));
+    }
+
+    let text = payload
+        .as_ref()
+        .and_then(|value| value.get("message"))
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| std::str::from_utf8(buffer).ok())
+        .unwrap_or_default();
+
+    let lowered = text.to_ascii_lowercase();
+    for marker in ["retry-after", "retry after", "retry_after"] {
+        if let Some(index) = lowered.find(marker) {
+            let seconds = lowered[index..]
+                .chars()
+                .skip_while(|ch| !ch.is_ascii_digit())
+                .take_while(char::is_ascii_digit)
+                .collect::<String>()
+                .parse::<u64>()
+                .ok()?;
+            return Some(Duration::from_secs(seconds));
+        }
+    }
+
+    None
+}
+
+fn parse_follow_delete_target(uri: &str) -> std::result::Result<FollowDeleteTarget, &'static str> {
+    let at_uri = AtUri::new(uri).map_err(|_| "invalid URI")?;
+    let collection = at_uri.collection().map(|value| value.to_string());
+    if collection.as_deref() != Some(FOLLOW_COLLECTION_NSID) {
+        return Err("URI does not point to follow collection");
+    }
+
+    let rkey = at_uri
+        .rkey()
+        .map(|value| value.as_ref().to_string())
+        .ok_or("URI missing rkey")?;
+
+    Ok(FollowDeleteTarget { uri: uri.to_string(), rkey })
+}
+
+fn build_delete_writes(
+    targets: &[FollowDeleteTarget],
+) -> (Vec<ApplyWritesWritesItem<'static>>, Vec<String>, Vec<String>) {
+    let mut writes = Vec::with_capacity(targets.len());
+    let mut chunk_uris = Vec::with_capacity(targets.len());
+    let mut chunk_failed = Vec::new();
+    let collection = match Nsid::new(FOLLOW_COLLECTION_NSID) {
+        Ok(collection) => collection.into_static(),
+        Err(_) => {
+            return (
+                writes,
+                chunk_uris,
+                targets.iter().map(|target| target.uri.clone()).collect(),
+            )
+        }
+    };
+
+    for target in targets {
+        let rkey = match RecordKey::any(&target.rkey) {
+            Ok(rkey) => rkey.into_static(),
+            Err(error) => {
+                log::warn!("failed to parse follow rkey from URI {}: {error}", target.uri);
+                chunk_failed.push(target.uri.clone());
+                continue;
+            }
+        };
+
+        writes.push(ApplyWritesWritesItem::Delete(Box::new(
+            Delete::new().collection(collection.clone()).rkey(rkey).build(),
+        )));
+        chunk_uris.push(target.uri.clone());
+    }
+
+    (writes, chunk_uris, chunk_failed)
+}
+
+fn summarize_apply_writes_result(chunk_uris: &[String], output: &ApplyWritesOutput<'_>) -> (usize, Vec<String>) {
+    let Some(results) = output.results.as_ref() else {
+        return (chunk_uris.len(), Vec::new());
+    };
+
+    let mut deleted = 0usize;
+    let mut failed = Vec::new();
+
+    for (idx, uri) in chunk_uris.iter().enumerate() {
+        match results.get(idx) {
+            Some(ApplyWritesOutputResultsItem::DeleteResult(_)) => deleted += 1,
+            _ => failed.push(uri.clone()),
+        }
+    }
+
+    (deleted, failed)
+}
+
+async fn send_apply_writes_chunk_with_retry(
+    session: &Arc<LazuriteOAuthSession>, active_did: &str, writes: Vec<ApplyWritesWritesItem<'static>>,
+) -> Result<ApplyWritesOutput<'static>> {
+    let repo = AtIdentifier::Did(Did::new(active_did)?.into_static());
+    let mut retries = 0usize;
+
+    loop {
+        let response = session
+            .send(ApplyWrites::new().repo(repo.clone()).writes(writes.clone()).build())
+            .await
+            .map_err(|error| {
+                log::warn!("follow hygiene applyWrites request failed: {error}");
+                AppError::validation("Couldn't unfollow selected accounts right now.")
+            })?;
+
+        if response.status() == StatusCode::TOO_MANY_REQUESTS {
+            retries += 1;
+            if retries > FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES {
+                return Err(AppError::validation("Couldn't unfollow selected accounts right now."));
+            }
+
+            let delay = retry_after_delay(response.buffer()).unwrap_or(FOLLOW_AUDIT_RETRY_AFTER_DEFAULT);
+            log::warn!(
+                "follow hygiene applyWrites rate-limited (attempt {retries}/{}), retrying in {}s",
+                FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES,
+                delay.as_secs()
+            );
+            sleep(delay).await;
+            continue;
+        }
+
+        return response.into_output().map(IntoStatic::into_static).map_err(|error| {
+            log::warn!("follow hygiene applyWrites output decode failed: {error}");
+            AppError::validation("Couldn't unfollow selected accounts right now.")
+        });
+    }
+}
+
+fn dedupe_preserve_order(values: Vec<String>) -> Vec<String> {
+    let mut seen = HashSet::new();
+    values.into_iter().filter(|value| seen.insert(value.clone())).collect()
+}
+
 fn strong_ref_from_input(input: &StrongRefInput) -> Result<StrongRef<'static>> {
     Ok(StrongRef::new()
         .uri(
@@ -997,13 +1684,25 @@ pub async fn update_feed_view_pref(pref: FeedViewPrefItem, state: &AppState) -> 
 #[cfg(test)]
 mod tests {
     use super::{
-        accepts_empty_bookmark_response, accepts_empty_put_preferences_response, merge_feed_view_preferences,
-        merge_saved_feeds_preferences, user_preferences_from_items, FeedViewPrefItem, SavedFeedItem,
+        accepts_empty_bookmark_response, accepts_empty_put_preferences_response, build_delete_writes,
+        follow_status_from_profile, follow_status_label, merge_feed_view_preferences, merge_saved_feeds_preferences,
+        parse_follow_delete_target, retry_after_delay, summarize_apply_writes_result, user_preferences_from_items,
+        FeedViewPrefItem, FollowDeleteTarget, SavedFeedItem, FOLLOW_STATUS_BLOCKED_BY, FOLLOW_STATUS_BLOCKING,
+        FOLLOW_STATUS_HIDDEN, FOLLOW_STATUS_SELF_FOLLOW,
     };
+    use jacquard::api::app_bsky::actor::ProfileViewDetailed;
     use jacquard::api::app_bsky::actor::{AdultContentPref, FeedViewPref, PreferencesItem};
     use jacquard::api::app_bsky::richtext::facet::FacetFeaturesItem;
+    use jacquard::api::com_atproto::repo::apply_writes::{
+        ApplyWritesOutput, ApplyWritesOutputResultsItem, DeleteResult,
+    };
     use jacquard::richtext;
+    use jacquard::types::aturi::AtUri;
+    use jacquard::types::did::Did;
+    use jacquard::types::handle::Handle;
+    use jacquard::IntoStatic;
     use reqwest::StatusCode;
+    use std::time::Duration;
 
     fn adult_content_pref_item() -> PreferencesItem<'static> {
         PreferencesItem::AdultContentPref(Box::new(AdultContentPref::new().enabled(true).build()))
@@ -1099,6 +1798,95 @@ mod tests {
         assert!(accepts_empty_bookmark_response(StatusCode::OK, b""));
         assert!(!accepts_empty_bookmark_response(StatusCode::OK, b"{}"));
         assert!(!accepts_empty_bookmark_response(StatusCode::BAD_REQUEST, b""));
+    }
+
+    #[test]
+    fn follow_status_label_collapses_mutual_block() {
+        let status = FOLLOW_STATUS_BLOCKED_BY | FOLLOW_STATUS_BLOCKING | FOLLOW_STATUS_HIDDEN;
+        assert_eq!(follow_status_label(status), "Mutual Block, Hidden");
+    }
+
+    #[test]
+    fn follow_status_from_profile_sets_expected_flags() {
+        let mut viewer = jacquard::api::app_bsky::actor::ViewerState::default();
+        viewer.blocked_by = Some(true);
+        viewer.blocking = Some(
+            AtUri::new("at://did:plc:me/app.bsky.graph.block/abc123")
+                .expect("uri should parse")
+                .into_static(),
+        );
+
+        let profile = ProfileViewDetailed::new()
+            .did(Did::new("did:plc:alice").expect("did should parse").into_static())
+            .handle(Handle::new("alice.test").expect("handle should parse").into_static())
+            .viewer(Some(viewer))
+            .build();
+
+        let status = follow_status_from_profile(&profile, "did:plc:alice");
+
+        assert_ne!(status & FOLLOW_STATUS_BLOCKED_BY, 0);
+        assert_ne!(status & FOLLOW_STATUS_BLOCKING, 0);
+        assert_ne!(status & FOLLOW_STATUS_SELF_FOLLOW, 0);
+    }
+
+    #[test]
+    fn parse_follow_delete_target_rejects_invalid_inputs() {
+        assert!(parse_follow_delete_target("at://did:plc:alice/app.bsky.graph.follow/abc123").is_ok());
+        assert!(parse_follow_delete_target("at://did:plc:alice/app.bsky.feed.like/abc123").is_err());
+        assert!(parse_follow_delete_target("at://did:plc:alice/app.bsky.graph.follow").is_err());
+        assert!(parse_follow_delete_target("not-a-uri").is_err());
+    }
+
+    #[test]
+    fn build_delete_writes_skips_invalid_rkeys() {
+        let targets = vec![
+            FollowDeleteTarget { uri: "at://did:plc:alice/app.bsky.graph.follow/abc123".into(), rkey: "abc123".into() },
+            FollowDeleteTarget { uri: "at://did:plc:alice/app.bsky.graph.follow/bad".into(), rkey: "bad key".into() },
+        ];
+
+        let (writes, chunk_uris, failed) = build_delete_writes(&targets);
+        assert_eq!(writes.len(), 1);
+        assert_eq!(chunk_uris, vec!["at://did:plc:alice/app.bsky.graph.follow/abc123"]);
+        assert_eq!(failed, vec!["at://did:plc:alice/app.bsky.graph.follow/bad"]);
+    }
+
+    #[test]
+    fn summarize_apply_writes_result_handles_missing_entries_as_failures() {
+        let output: ApplyWritesOutput<'_> = ApplyWritesOutput {
+            results: Some(vec![ApplyWritesOutputResultsItem::DeleteResult(Box::new(
+                DeleteResult::default(),
+            ))]),
+            ..Default::default()
+        };
+        let chunk_uris = vec![
+            "at://did:plc:a/app.bsky.graph.follow/1".to_string(),
+            "at://did:plc:b/app.bsky.graph.follow/2".to_string(),
+        ];
+
+        let (deleted, failed) = summarize_apply_writes_result(&chunk_uris, &output);
+        assert_eq!(deleted, 1);
+        assert_eq!(failed, vec!["at://did:plc:b/app.bsky.graph.follow/2"]);
+    }
+
+    #[test]
+    fn summarize_apply_writes_result_treats_missing_results_as_all_successful() {
+        let output: ApplyWritesOutput<'_> = ApplyWritesOutput::default();
+        let chunk_uris = vec![
+            "at://did:plc:a/app.bsky.graph.follow/1".to_string(),
+            "at://did:plc:b/app.bsky.graph.follow/2".to_string(),
+        ];
+
+        let (deleted, failed) = summarize_apply_writes_result(&chunk_uris, &output);
+        assert_eq!(deleted, 2);
+        assert!(failed.is_empty());
+    }
+
+    #[test]
+    fn retry_after_delay_reads_numeric_seconds_from_payload() {
+        let body = br#"{"message":"rate limited, retry after 7 seconds"}"#;
+        assert_eq!(retry_after_delay(body), Some(Duration::from_secs(7)));
+
+        assert_eq!(retry_after_delay(br#"{"message":"slow down"}"#), None);
     }
 
     #[test]

@@ -108,6 +108,8 @@ pub fn run() {
             cmd::unfollow_actor,
             cmd::get_followers,
             cmd::get_follows,
+            cmd::audit_follows,
+            cmd::batch_unfollow,
             cmd::update_saved_feeds,
             cmd::update_feed_view_pref,
             cmd::list_notifications,
