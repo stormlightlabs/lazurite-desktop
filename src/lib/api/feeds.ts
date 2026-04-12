@@ -8,13 +8,19 @@ import type {
   UserPreferences,
 } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
+import * as logger from "@tauri-apps/plugin-log";
 
 function getPreferences() {
   return invoke<UserPreferences>("get_preferences");
 }
 
 async function getFeedGenerators(uris: string[]) {
-  return parseFeedGeneratorsResponse(await invoke("get_feed_generators", { uris }));
+  try {
+    return parseFeedGeneratorsResponse(await invoke("get_feed_generators", { uris }));
+  } catch (error) {
+    logger.warn(`getFeedGenerators failed; continuing without hydrated metadata: ${String(error)}`);
+    return { feeds: [] };
+  }
 }
 
 async function getFeedPage(feed: SavedFeedItem, cursor: string | null, limit: number) {

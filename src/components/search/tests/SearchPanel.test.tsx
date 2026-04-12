@@ -11,6 +11,7 @@ const searchPostsMock = vi.hoisted(() => vi.fn());
 const searchPostsNetworkMock = vi.hoisted(() => vi.fn());
 const getSyncStatusMock = vi.hoisted(() => vi.fn());
 const syncPostsMock = vi.hoisted(() => vi.fn());
+const moderateContentMock = vi.hoisted(() => vi.fn());
 const postNavigationMock = vi.hoisted(() => ({ backFromPost: vi.fn(), buildPostHref: vi.fn(), openPost: vi.fn() }));
 
 vi.mock(
@@ -35,6 +36,7 @@ vi.mock(
   }),
 );
 vi.mock("$/components/posts/usePostNavigation", () => ({ usePostNavigation: () => postNavigationMock }));
+vi.mock("$/lib/api/moderation", () => ({ ModerationController: { moderateContent: moderateContentMock } }));
 
 vi.mock("@tauri-apps/plugin-log", () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }));
 
@@ -65,11 +67,19 @@ describe("SearchPanel", () => {
     searchPostsNetworkMock.mockReset();
     getSyncStatusMock.mockReset();
     syncPostsMock.mockReset();
+    moderateContentMock.mockReset();
     postNavigationMock.openPost.mockReset();
 
     getSyncStatusMock.mockResolvedValue([]);
     searchActorTypeaheadMock.mockResolvedValue([]);
     searchActorsMock.mockResolvedValue({ actors: [], cursor: null });
+    moderateContentMock.mockResolvedValue({
+      alert: false,
+      blur: "none",
+      filter: false,
+      inform: false,
+      noOverride: false,
+    });
     syncPostsMock.mockResolvedValue({
       did: "did:plc:test",
       source: "like",
@@ -250,5 +260,32 @@ describe("SearchPanel", () => {
     await flushRouter();
 
     expect(globalThis.location.hash).toBe("#/profile/bob.test");
+  });
+
+  it("renders moderation badges for labeled profile search results", async () => {
+    searchActorsMock.mockResolvedValue({
+      actors: [{
+        avatar: null,
+        description: "Builds search systems.",
+        did: "did:plc:bob",
+        displayName: "Bob Example",
+        handle: "bob.test",
+        labels: [{ src: "did:plc:labeler", val: "sexual" }],
+      }],
+      cursor: null,
+    });
+    moderateContentMock.mockImplementation(async (_labels, context: string) => {
+      if (context === "profileList") {
+        return { alert: true, blur: "none", filter: false, inform: false, noOverride: false };
+      }
+
+      return { alert: false, blur: "none", filter: false, inform: false, noOverride: false };
+    });
+
+    renderSearchPanel("#/search?tab=profiles&q=bob");
+    await vi.advanceTimersByTimeAsync(350);
+
+    expect(await screen.findByText("Builds search systems.")).toBeInTheDocument();
+    expect(screen.getByText("Alert")).toBeInTheDocument();
   });
 });

@@ -2,12 +2,20 @@ export type Maybe<T> = T | null | undefined;
 
 export type ModerationLabel = { src?: string; uri?: string; val?: string; [key: string]: unknown };
 
+export type ModerationUiBadge = {
+  label: string;
+  source: string;
+  description?: string | null;
+  tone?: "alert" | "inform" | "label" | string;
+};
+
 export type ModerationUiDecision = {
   filter: boolean;
   blur: "none" | "content" | "media" | string;
   alert: boolean;
   inform: boolean;
   noOverride: boolean;
+  badges?: ModerationUiBadge[] | null;
 };
 
 export type ModerationLabelVisibility = "ignore" | "warn" | "hide";

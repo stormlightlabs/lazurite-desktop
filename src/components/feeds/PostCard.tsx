@@ -369,10 +369,11 @@ export function PostCard(props: PostCardProps) {
   const profileHref = createMemo(() => buildProfileRoute(getProfileRouteActor(view.post.author)));
   const contentLabels = () => collectModerationLabels(view.post);
   const mediaLabels = () => collectModerationLabels(view.post, view.post.embed);
-  const avatarLabels = () => collectModerationLabels(view.post.author);
+  const authorLabels = () => collectModerationLabels(view.post.author);
   const contentDecision = useModerationDecision(contentLabels, "contentList");
   const mediaDecision = useModerationDecision(mediaLabels, "contentMedia");
-  const avatarDecision = useModerationDecision(avatarLabels, "avatar");
+  const avatarDecision = useModerationDecision(authorLabels, "avatar");
+  const authorDecision = useModerationDecision(authorLabels, "profileList");
   const contentHidden = createMemo(() => isDecisionHidden(contentDecision()));
   const mediaHidden = createMemo(() => isDecisionHidden(mediaDecision()));
   const mergeBodyAndEmbedModeration = createMemo(() => contentHidden() && mediaHidden());
@@ -630,6 +631,8 @@ export function PostCard(props: PostCardProps) {
               authorHandle={authorHandle()}
               authorHref={profileHref()}
               createdAt={createdAt()} />
+
+            <ModerationBadgeRow decision={authorDecision()} labels={authorLabels()} />
 
             <ModerationBadgeRow decision={contentDecision()} labels={contentLabels()} />
 

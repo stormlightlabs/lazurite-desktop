@@ -4,7 +4,7 @@ import { RecordView } from "../RecordView";
 
 const getRecordBacklinksMock = vi.hoisted(() => vi.fn());
 
-vi.mock("$/lib/api/diagnostics", () => ({ getRecordBacklinks: getRecordBacklinksMock }));
+vi.mock("$/lib/api/diagnostics", () => ({ DiagnosticsController: { getRecordBacklinks: getRecordBacklinksMock } }));
 
 describe("RecordView", () => {
   it("renders falsey JSON values and moderation labels", () => {

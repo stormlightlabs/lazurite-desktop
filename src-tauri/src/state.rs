@@ -17,6 +17,9 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_log::log;
 
+const INITIAL_DELAY: Duration = Duration::from_secs(30);
+const REFRESH_INTERVAL: Duration = Duration::from_secs(15 * 60);
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActiveSession {
@@ -54,6 +57,7 @@ impl AppState {
         log::info!("bootstrapping application state");
         let auth_store = PersistentAuthStore::new(db_pool.clone());
         auth_store.prune_orphaned_sessions()?;
+
         let oauth_client = build_oauth_client(auth_store.clone());
         let accounts = auth_store.load_accounts()?;
         log::info!("loaded {} stored account(s)", accounts.len());
@@ -212,7 +216,7 @@ impl AppState {
     }
 
     async fn apply_moderation_headers_for_did(&self, did: &str, session: &LazuriteOAuthSession) {
-        let prefs = match self.auth_store.lock_connection() {
+        let mut prefs = match self.auth_store.lock_connection() {
             Ok(conn) => match moderation::load_prefs(&conn, did) {
                 Ok(prefs) => prefs,
                 Err(error) => {
@@ -225,6 +229,15 @@ impl AppState {
                 StoredModerationPrefs::default()
             }
         };
+
+        match moderation::sync_prefs_from_network(self, did, session).await {
+            Ok(network_prefs) => {
+                prefs = network_prefs;
+            }
+            Err(error) => {
+                log::warn!("failed to sync moderation preferences from network for {did}; using local prefs: {error}");
+            }
+        }
 
         moderation::apply_labeler_headers(session, &prefs).await;
     }
@@ -439,9 +452,6 @@ impl AppState {
     ///
     /// Adds a short initial delay to quickly retry if bootstrap restore failed
     pub fn spawn_token_refresh_task(app: AppHandle) {
-        const INITIAL_DELAY: Duration = Duration::from_secs(30);
-        const REFRESH_INTERVAL: Duration = Duration::from_secs(15 * 60);
-
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(INITIAL_DELAY).await;
 

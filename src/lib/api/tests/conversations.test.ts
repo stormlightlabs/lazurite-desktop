@@ -37,11 +37,15 @@ function createConvo(overrides: Record<string, unknown> = {}) {
 
 describe("conversation payload parsers", () => {
   it("parses the conversation list response", () => {
-    const response = parseListConvosResponse({ convos: [createConvo()], cursor: "cursor-1" });
+    const response = parseListConvosResponse({
+      convos: [createConvo({ members: [createMember({ labels: [{ src: "did:plc:labeler", val: "sexual" }] })] })],
+      cursor: "cursor-1",
+    });
 
     expect(response.cursor).toBe("cursor-1");
     expect(response.convos).toHaveLength(1);
     expect(response.convos[0]?.members[0]?.handle).toBe("bob.test");
+    expect(response.convos[0]?.members[0]?.labels).toEqual([{ src: "did:plc:labeler", val: "sexual" }]);
   });
 
   it("parses a conversation lookup response", () => {

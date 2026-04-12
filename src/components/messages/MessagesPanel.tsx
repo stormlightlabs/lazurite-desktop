@@ -1,6 +1,10 @@
+import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
+import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { useAppSession } from "$/contexts/app-session";
-import { getConvoForMembers, getMessages, listConvos, sendMessage, updateRead } from "$/lib/api/conversations";
-import { formatRelativeTime, getDisplayName } from "$/lib/feeds";
+import { ConvoController } from "$/lib/api/conversations";
+import { formatRelativeTime, getAvatarLabel, getDisplayName } from "$/lib/feeds";
+import { collectModerationLabels } from "$/lib/moderation";
 import type { ConvoView, DeletedMessageView, MessageView } from "$/lib/types";
 import { normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
@@ -132,6 +136,10 @@ function ConvoItem(props: { active: boolean; convo: ConvoView; onClick: () => vo
   const displayName = createMemo(() => getConvoDisplayName(props.convo, props.selfDid));
   const lastText = createMemo(() => getLastMessageText(props.convo));
   const lastTime = createMemo(() => getLastMessageTime(props.convo));
+  const avatarLabel = createMemo(() => getAvatarLabel(other() ?? { did: "unknown", handle: "unknown" }));
+  const profileLabels = () => collectModerationLabels(other());
+  const avatarDecision = useModerationDecision(profileLabels, "avatar");
+  const profileDecision = useModerationDecision(profileLabels, "profileList");
 
   return (
     <button
@@ -140,8 +148,16 @@ function ConvoItem(props: { active: boolean; convo: ConvoView; onClick: () => vo
       classList={{ "bg-primary/10 hover:bg-primary/12": props.active }}
       onClick={() => props.onClick()}>
       <div class="flex items-start gap-3">
-        <AvatarBadge label={other()?.handle ?? "?"} src={other()?.avatar} tone="primary" />
-        <MessageMeta name={displayName()} text={lastText()} time={lastTime()} unread={props.convo.unreadCount ?? 0} />
+        <ModeratedAvatar
+          avatar={other()?.avatar}
+          class="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-container-high"
+          hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
+          label={avatarLabel()}
+          fallbackClass="text-xs font-semibold text-on-surface" />
+        <div class="min-w-0 flex-1">
+          <MessageMeta name={displayName()} text={lastText()} time={lastTime()} unread={props.convo.unreadCount ?? 0} />
+          <ModerationBadgeRow class="mt-1" decision={profileDecision()} labels={profileLabels()} />
+        </div>
       </div>
     </button>
   );
@@ -299,6 +315,10 @@ function ChatPane(
 ) {
   const otherMember = createMemo(() => getConvoOtherMember(props.convo, props.selfDid));
   const displayName = createMemo(() => getConvoDisplayName(props.convo, props.selfDid));
+  const otherLabels = () => collectModerationLabels(otherMember());
+  const headerAvatarLabel = createMemo(() => getAvatarLabel(otherMember() ?? { did: "unknown", handle: "unknown" }));
+  const headerAvatarDecision = useModerationDecision(otherLabels, "avatar");
+  const headerProfileDecision = useModerationDecision(otherLabels, "profileList");
 
   function getMemberAvatar(did: string) {
     return props.convo.members.find((member) => member.did === did)?.avatar;
@@ -306,11 +326,17 @@ function ChatPane(
 
   return (
     <>
-      <header class="flex shrink-0 items-center gap-3 border-b border-white/5 bg-surface-container/80 px-5 py-3.5 backdrop-blur-[12px]">
-        <AvatarBadge label={otherMember()?.handle ?? "?"} src={otherMember()?.avatar} tone="primary" />
+      <header class="flex shrink-0 items-center gap-3 border-b border-white/5 bg-surface-container/80 px-5 py-3.5 backdrop-blur-md">
+        <ModeratedAvatar
+          avatar={otherMember()?.avatar}
+          class="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-container-high"
+          hidden={headerAvatarDecision().filter || headerAvatarDecision().blur !== "none"}
+          label={headerAvatarLabel()}
+          fallbackClass="text-xs font-semibold text-on-surface" />
         <div class="min-w-0 flex-1">
           <p class="m-0 truncate text-sm font-semibold text-on-surface">{displayName()}</p>
           <p class="m-0 truncate text-xs text-on-surface-variant">@{otherMember()?.handle ?? ""}</p>
+          <ModerationBadgeRow class="mt-1" decision={headerProfileDecision()} labels={otherLabels()} />
         </div>
       </header>
 
@@ -393,7 +419,7 @@ export function MessagesPanel(props: MessagesPanelProps) {
     setListState((prev) => ({ ...prev, loadingConvos: true, convoError: null }));
 
     try {
-      const response = await listConvos();
+      const response = await ConvoController.listConvos();
       if (currentRequest !== convoListRequest) {
         return;
       }
@@ -448,7 +474,7 @@ export function MessagesPanel(props: MessagesPanelProps) {
     setListState((prev) => ({ ...prev, loadingConvos: true }));
 
     try {
-      const response = await listConvos(cursor);
+      const response = await ConvoController.listConvos(cursor);
       if (currentRequest !== convoListRequest) {
         return;
       }
@@ -473,7 +499,7 @@ export function MessagesPanel(props: MessagesPanelProps) {
     const currentRequest = ++openMemberRequest;
 
     try {
-      const response = await getConvoForMembers([memberDid]);
+      const response = await ConvoController.getConvoForMembers([memberDid]);
       if (currentRequest !== openMemberRequest) {
         return;
       }
@@ -496,7 +522,7 @@ export function MessagesPanel(props: MessagesPanelProps) {
     setChatState(createConvoContentState(true));
 
     try {
-      const response = await getMessages(convo.id);
+      const response = await ConvoController.getMessages(convo.id);
       if (currentRequest !== messageRequest || activeConvoId() !== convo.id) {
         return;
       }
@@ -512,7 +538,7 @@ export function MessagesPanel(props: MessagesPanelProps) {
 
       if ((convo.unreadCount ?? 0) > 0) {
         const newestMessage = ordered.at(-1);
-        void updateRead(convo.id, newestMessage?.id ?? null).catch(() => {
+        void ConvoController.updateRead(convo.id, newestMessage?.id ?? null).catch(() => {
           logger.error("updateRead failed", { keyValues: { convoId: convo.id } });
         });
 
@@ -545,7 +571,7 @@ export function MessagesPanel(props: MessagesPanelProps) {
     setChatState((prev) => ({ ...prev, loadingMessages: true }));
 
     try {
-      const response = await getMessages(convoId, cursor);
+      const response = await ConvoController.getMessages(convoId, cursor);
       if (activeConvoId() !== convoId) {
         return;
       }
@@ -580,7 +606,7 @@ export function MessagesPanel(props: MessagesPanelProps) {
     setChatState((prev) => ({ ...prev, messageError: null, sending: true }));
 
     try {
-      const message = await sendMessage(convoId, text);
+      const message = await ConvoController.sendMessage(convoId, text);
       if (activeConvoId() !== convoId) {
         return false;
       }
@@ -618,7 +644,7 @@ export function MessagesPanel(props: MessagesPanelProps) {
           "max-w-64 min-w-40 w-[44%]": props.embedded,
           "w-80": !props.embedded,
         }}>
-        <header class="flex shrink-0 items-center justify-between border-b border-white/5 bg-surface-container/80 px-5 py-4 backdrop-blur-[12px]">
+        <header class="flex shrink-0 items-center justify-between border-b border-white/5 bg-surface-container/80 px-5 py-4 backdrop-blur-md">
           <div>
             <h1 class="m-0 text-lg font-semibold tracking-tight text-on-surface">Messages</h1>
           </div>

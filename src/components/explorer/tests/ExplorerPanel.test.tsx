@@ -33,7 +33,7 @@ vi.mock(
 );
 
 vi.mock("$/lib/api/profile", () => ({ ProfileController: { getProfile: getProfileMock } }));
-vi.mock("$/lib/api/diagnostics", () => ({ getRecordBacklinks: getRecordBacklinksMock }));
+vi.mock("$/lib/api/diagnostics", () => ({ DiagnosticsController: { getRecordBacklinks: getRecordBacklinksMock } }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 
 function renderPanel() {

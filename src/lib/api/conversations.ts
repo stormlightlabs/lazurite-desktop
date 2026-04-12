@@ -1,3 +1,4 @@
+import { asModerationLabels } from "$/lib/moderation";
 import type {
   ConvoView,
   DeletedMessageView,
@@ -31,6 +32,7 @@ function parseProfileBasic(value: unknown): ProfileViewBasic | null {
     did: record.did,
     displayName: optionalString(record.displayName),
     handle: record.handle,
+    labels: asModerationLabels(record),
     viewer: viewer ? { following: optionalString(viewer.following) } : null,
   };
 }
@@ -193,28 +195,26 @@ export function parseSendMessageResponse(value: unknown): MessageView {
   return message;
 }
 
-export async function listConvos(cursor?: string | null, limit?: number): Promise<ListConvosResponse> {
+async function listConvos(cursor?: string | null, limit?: number): Promise<ListConvosResponse> {
   return invoke("list_convos", { cursor: cursor ?? null, limit: limit ?? null }).then(parseListConvosResponse);
 }
 
-export async function getConvoForMembers(members: string[]): Promise<GetConvoForMembersResponse> {
+async function getConvoForMembers(members: string[]): Promise<GetConvoForMembersResponse> {
   return invoke("get_convo_for_members", { members }).then(parseGetConvoForMembersResponse);
 }
 
-export async function getMessages(
-  convoId: string,
-  cursor?: string | null,
-  limit?: number,
-): Promise<GetMessagesResponse> {
+async function getMessages(convoId: string, cursor?: string | null, limit?: number): Promise<GetMessagesResponse> {
   return invoke("get_messages", { convoId, cursor: cursor ?? null, limit: limit ?? null }).then(
     parseGetMessagesResponse,
   );
 }
 
-export async function sendMessage(convoId: string, text: string): Promise<MessageView> {
+async function sendMessage(convoId: string, text: string): Promise<MessageView> {
   return invoke("send_message", { convoId, text }).then(parseSendMessageResponse);
 }
 
-export async function updateRead(convoId: string, messageId?: string | null): Promise<void> {
+async function updateRead(convoId: string, messageId?: string | null): Promise<void> {
   return invoke("update_read", { convoId, messageId: messageId ?? null });
 }
+
+export const ConvoController = { listConvos, getConvoForMembers, getMessages, sendMessage, updateRead };

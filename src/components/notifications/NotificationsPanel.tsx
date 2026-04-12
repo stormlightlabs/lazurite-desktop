@@ -1,5 +1,6 @@
 import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
 import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { useThreadOverlayNavigation } from "$/components/posts/hooks/useThreadOverlayNavigation";
 import { useAppSession } from "$/contexts/app-session";
 import { listNotifications, updateSeen } from "$/lib/api/notifications";
@@ -19,12 +20,14 @@ import { notificationReasonCopy, notificationReasonIcon } from "./notification-c
 import {
   buildAllNotificationsFeed,
   groupActivityNotifications,
-  type GroupedNotificationFeedItem,
   isMentionNotification,
-  type NotificationFeedItem,
-  type SingleNotificationFeedItem,
   splitByReadState,
   toSingleFeedItems,
+} from "./notification-grouping";
+import type {
+  GroupedNotificationFeedItem,
+  NotificationFeedItem,
+  SingleNotificationFeedItem,
 } from "./notification-grouping";
 import { NotificationItem } from "./NotificationItem";
 
@@ -471,6 +474,8 @@ function GroupedNotificationItem(
   const time = createMemo(() => formatRelativeTime(props.item.latestIndexedAt));
   const summary = createMemo(() => groupedSummary(props.item));
   const actors = createMemo(() => props.item.actors.slice(0, 3));
+  const profileLabels = () => collectModerationLabels(...props.item.actors);
+  const profileDecision = useModerationDecision(profileLabels, "profileList");
   const bodyTargetUri = createMemo(() => props.item.reasonSubject ?? null);
   const bodyInteractive = createMemo(() => !!bodyTargetUri());
   const memberUris = createMemo(() => props.item.notifications.map((notification) => notification.uri));
@@ -502,6 +507,7 @@ function GroupedNotificationItem(
         </div>
 
         <p class="m-0 text-sm leading-relaxed text-on-surface">{summary()}</p>
+        <ModerationBadgeRow decision={profileDecision()} labels={profileLabels()} class="mt-1" />
 
         <Show when={props.item.sampleRecordText}>
           {(value) => <p class="mt-1 line-clamp-2 text-sm text-on-secondary-container">{value()}</p>}

@@ -49,8 +49,10 @@ export function NotificationItem(props: NotificationItemProps & NotificationInte
   });
   const detail = createMemo(() => postText() ?? followDetail(props.notification));
   const avatarLabels = () => collectModerationLabels(props.notification.author);
+  const profileLabels = () => collectModerationLabels(props.notification.author);
   const contentLabels = () => collectModerationLabels(props.notification);
   const avatarDecision = useModerationDecision(avatarLabels, "avatar");
+  const profileDecision = useModerationDecision(profileLabels, "profileList");
   const contentDecision = useModerationDecision(contentLabels, "contentList");
 
   function openBodyTarget() {
@@ -117,6 +119,8 @@ export function NotificationItem(props: NotificationItemProps & NotificationInte
             originalPostHref={originalPostHref()}
             reason={props.notification.reason} />
         </p>
+
+        <ModerationBadgeRow decision={profileDecision()} labels={profileLabels()} class="mt-1" />
 
         <ModerationBadgeRow decision={contentDecision()} labels={contentLabels()} class="mt-1" />
 

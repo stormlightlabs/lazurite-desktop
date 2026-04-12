@@ -86,7 +86,9 @@ function parseProgressPayload(payload: unknown): FollowHygieneProgress | null {
 }
 
 function deriveFilters(
-  selectedUris: Set<string>, flagged: FlaggedFollow[], filters: Record<StatusCategoryKey, StatusCategoryState>,
+  selectedUris: Set<string>,
+  flagged: FlaggedFollow[],
+  filters: Record<StatusCategoryKey, StatusCategoryState>,
 ) {
   const nextFilters = { ...filters };
   for (const category of STATUS_CATEGORIES) {

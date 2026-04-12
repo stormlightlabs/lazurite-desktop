@@ -2,6 +2,10 @@
 
 ## v0.1.0 - Unreleased
 
+### 2025-04-12
+
+- Added labels to posts & profiles
+
 ### 2026-04-08
 
 - Forward/Back history navigation in the app rail/navigation, and thread drawer

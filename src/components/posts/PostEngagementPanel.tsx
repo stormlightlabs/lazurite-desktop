@@ -1,7 +1,12 @@
+import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
+import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
 import { Icon } from "$/components/shared/Icon";
 import { QuotedPostPreview } from "$/components/shared/QuotedPostPreview";
-import { type DiagnosticBacklinkGroup, type DiagnosticBacklinkItem, getRecordBacklinks } from "$/lib/api/diagnostics";
+import type { DiagnosticBacklinkGroup, DiagnosticBacklinkItem } from "$/lib/api/diagnostics";
+import { DiagnosticsController } from "$/lib/api/diagnostics";
+import { collectModerationLabels } from "$/lib/moderation";
 import {
   buildPostEngagementTabRoute,
   parsePostEngagementTab,
@@ -69,7 +74,7 @@ export function PostEngagementPanel(props: { uri: string | null }) {
 
   async function loadEngagement(nextRequestId: number, uri: string) {
     try {
-      const response = await getRecordBacklinks(uri);
+      const response = await DiagnosticsController.getRecordBacklinks(uri);
       if (nextRequestId !== requestId || uri !== activeUri()) {
         return;
       }
@@ -228,6 +233,9 @@ function EngagementRow(
   const interactive = createMemo(() => quoteInteractive() || profileInteractive());
   const quoteText = createMemo(() => getQuoteText(props.item));
   const quoteAuthor = createMemo(() => getQuoteAuthor(props.item));
+  const profileLabels = () => collectModerationLabels(props.item.profile);
+  const avatarDecision = useModerationDecision(profileLabels, "avatar");
+  const profileDecision = useModerationDecision(profileLabels, "profileList");
 
   return (
     <button
@@ -242,11 +250,12 @@ function EngagementRow(
 
         props.onOpenProfile(props.item);
       }}>
-      <div class="ui-input-strong flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-semibold text-on-surface-variant">
-        <Show when={props.item.profile?.avatar} fallback={<span>{initials(actorLabel())}</span>}>
-          {(src) => <img alt={actorLabel()} class="h-full w-full object-cover" src={src()} />}
-        </Show>
-      </div>
+      <ModeratedAvatar
+        avatar={props.item.profile?.avatar}
+        class="ui-input-strong h-11 w-11 shrink-0 overflow-hidden rounded-full"
+        hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
+        label={initials(actorLabel())}
+        fallbackClass="text-xs font-semibold text-on-surface-variant" />
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2">
           <p class="m-0 text-sm font-medium text-on-surface">{actorLabel()}</p>
@@ -259,6 +268,7 @@ function EngagementRow(
           </Show>
         </div>
         <p class="m-0 mt-1 text-xs text-on-surface-variant">{handleLabel()}</p>
+        <ModerationBadgeRow class="mt-1" decision={profileDecision()} labels={profileLabels()} />
         <Show
           when={props.kind === "quotes"}
           fallback={
@@ -299,7 +309,13 @@ function getQuoteAuthor(item: DiagnosticBacklinkItem): ProfileViewBasic | null {
     return null;
   }
 
-  return { did, handle, avatar: item.profile?.avatar ?? null, displayName: item.profile?.displayName ?? null };
+  return {
+    did,
+    handle,
+    avatar: item.profile?.avatar ?? null,
+    displayName: item.profile?.displayName ?? null,
+    labels: item.profile?.labels ?? null,
+  };
 }
 
 function PanelMessage(props: { body: string; title: string }) {

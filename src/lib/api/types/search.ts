@@ -1,4 +1,4 @@
-import type { PostView } from "$/lib/types";
+import type { ModerationLabel, PostView } from "$/lib/types";
 
 export type SearchMode = "network" | "keyword" | "semantic" | "hybrid";
 
@@ -24,6 +24,7 @@ export type ActorResult = {
   displayName?: string | null;
   avatar?: string | null;
   description?: string | null;
+  labels?: ModerationLabel[] | null;
 };
 
 export type ActorSearchResult = { cursor?: string | null; actors: ActorResult[] };

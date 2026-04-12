@@ -1,6 +1,8 @@
 import { ActorSuggestionList, getActorSuggestionHeadline } from "$/components/actors/ActorSearch";
-import { AvatarBadge } from "$/components/AvatarBadge";
 import { PostCard } from "$/components/feeds/PostCard";
+import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
+import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { Icon, SearchModeIcon } from "$/components/shared/Icon";
 import type {
   ActorResult,
@@ -9,8 +11,10 @@ import type {
   NetworkSearchResult,
   SearchMode,
 } from "$/lib/api/types/search";
+import { getAvatarLabel } from "$/lib/feeds";
+import { collectModerationLabels } from "$/lib/moderation";
 import type { PostSearchFilters, SearchTab } from "$/lib/search-routes";
-import type { ProfileViewBasic } from "$/lib/types";
+import type { ModerationUiDecision, ProfileViewBasic } from "$/lib/types";
 import { createContext, createEffect, createMemo, createSignal, For, Match, Show, Switch, useContext } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
 import { PostCount } from "../shared/PostCount";
@@ -648,27 +652,36 @@ type ActorResultCardProps = {
 };
 
 function ActorResultCard(props: ActorResultCardProps) {
+  const labels = () => collectModerationLabels(props.actor);
+  const avatarLabel = createMemo(() => getAvatarLabel(props.actor));
+  const avatarDecision = useModerationDecision(labels, "avatar");
+  const profileDecision = useModerationDecision(labels, "profileList");
+
   return (
     <button
       type="button"
       aria-label={`Open profile ${getActorSuggestionHeadline(props.actor)}`}
       class="grid w-full gap-3 rounded-3xl border-0 bg-white/[0.035] p-4 text-left shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition duration-150 hover:-translate-y-px hover:bg-white/5.5"
       onClick={() => props.onOpenActor(props.actor)}>
-      <ActorResultHeader actor={props.actor} />
+      <ActorResultHeader actor={props.actor} avatarDecision={avatarDecision()} avatarLabel={avatarLabel()} />
       <Show when={props.actor.description?.trim()}>
         <p class="m-0 text-sm leading-relaxed text-on-surface-variant">{props.actor.description?.trim()}</p>
       </Show>
+      <ModerationBadgeRow class="mt-1" decision={profileDecision()} labels={labels()} />
       <p class="m-0 truncate font-mono text-[0.7rem] text-on-surface-variant/80">{props.actor.did}</p>
     </button>
   );
 }
 
-function ActorResultHeader(props: { actor: ActorSearchResult["actors"][number] }) {
+function ActorResultHeader(props: { actor: ActorResult; avatarDecision: ModerationUiDecision; avatarLabel: string }) {
   return (
     <div class="flex items-start gap-3">
-      <Show when={props.actor.avatar} fallback={<AvatarBadge label={props.actor.handle} tone="muted" />}>
-        {(avatar) => <img class="h-12 w-12 rounded-full object-cover" src={avatar()} alt="" loading="lazy" />}
-      </Show>
+      <ModeratedAvatar
+        avatar={props.actor.avatar}
+        class="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-surface-container-high"
+        hidden={props.avatarDecision.filter || props.avatarDecision.blur !== "none"}
+        label={props.avatarLabel}
+        fallbackClass="text-sm font-semibold text-on-surface" />
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2">
           <p class="m-0 truncate text-sm font-medium text-on-surface">{getActorSuggestionHeadline(props.actor)}</p>

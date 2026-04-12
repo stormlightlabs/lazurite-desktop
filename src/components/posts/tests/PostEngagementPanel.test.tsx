@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PostEngagementPanel } from "../PostEngagementPanel";
 
 const getRecordBacklinksMock = vi.hoisted(() => vi.fn());
+const moderateContentMock = vi.hoisted(() => vi.fn());
 const postNavigationMock = vi.hoisted(() => ({
   backFromPost: vi.fn(),
   buildPostHref: vi.fn(),
@@ -12,8 +13,9 @@ const postNavigationMock = vi.hoisted(() => ({
   openPostScreen: vi.fn(),
 }));
 
-vi.mock("$/lib/api/diagnostics", () => ({ getRecordBacklinks: getRecordBacklinksMock }));
+vi.mock("$/lib/api/diagnostics", () => ({ DiagnosticsController: { getRecordBacklinks: getRecordBacklinksMock } }));
 vi.mock("$/components/posts/hooks/usePostNavigation", () => ({ usePostNavigation: () => postNavigationMock }));
+vi.mock("$/lib/api/moderation", () => ({ ModerationController: { moderateContent: moderateContentMock } }));
 
 const POST_URI = "at://did:plc:alice/app.bsky.feed.post/123";
 
@@ -29,6 +31,13 @@ function renderPanel(hash = `#/post/${encodeURIComponent(POST_URI)}/engagement`)
 describe("PostEngagementPanel", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    moderateContentMock.mockResolvedValue({
+      alert: false,
+      blur: "none",
+      filter: false,
+      inform: false,
+      noOverride: false,
+    });
     getRecordBacklinksMock.mockResolvedValue({
       likes: {
         cursor: null,
@@ -88,5 +97,33 @@ describe("PostEngagementPanel", () => {
 
     await waitFor(() => expect(globalThis.location.hash).toContain("tab=reposts"));
     expect(await screen.findByText("Dana")).toBeInTheDocument();
+  });
+
+  it("renders profile moderation badges for labeled engagement actors", async () => {
+    getRecordBacklinksMock.mockResolvedValueOnce({
+      likes: {
+        cursor: null,
+        records: [{
+          did: "did:plc:bob",
+          profile: { handle: "bob.test", displayName: "Bob", labels: [{ src: "did:plc:labeler", val: "sexual" }] },
+          uri: "at://did:plc:bob/app.bsky.feed.like/1",
+        }],
+        total: 1,
+      },
+      quotes: { cursor: null, records: [], total: 0 },
+      replies: { cursor: null, records: [], total: 0 },
+      reposts: { cursor: null, records: [], total: 0 },
+    });
+    moderateContentMock.mockImplementation(async (_labels, context: string) => {
+      if (context === "profileList") {
+        return { alert: true, blur: "none", filter: false, inform: false, noOverride: false };
+      }
+
+      return { alert: false, blur: "none", filter: false, inform: false, noOverride: false };
+    });
+
+    renderPanel();
+    expect(await screen.findByText("Bob")).toBeInTheDocument();
+    expect(await screen.findByText("Alert")).toBeInTheDocument();
   });
 });

@@ -4,7 +4,7 @@ import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { Icon } from "$/components/shared/Icon";
 import { getAvatarLabel, getDisplayName } from "$/lib/feeds";
 import { collectModerationLabels } from "$/lib/moderation";
-import type { ProfileViewDetailed } from "$/lib/types";
+import type { ModerationLabel, ModerationUiDecision, ProfileViewDetailed } from "$/lib/types";
 import { formatCount } from "$/lib/utils/text";
 import { createMemo, For, Show } from "solid-js";
 
@@ -14,6 +14,8 @@ function ProfileHeroActions(
     followLoading: boolean;
     isFollowing: boolean;
     isSelf: boolean;
+    moderationDecision: ModerationUiDecision;
+    moderationLabels: ModerationLabel[];
     onFollow: () => void;
     onMessage: () => void;
     onOpenFollowHygiene: () => void;
@@ -43,6 +45,10 @@ function ProfileHeroActions(
         </button>
       </Show>
       <ProfileBadgeRow badges={props.badges} isSelf={props.isSelf} />
+      <ModerationBadgeRow
+        class="mt-1 justify-end"
+        decision={props.moderationDecision}
+        labels={props.moderationLabels} />
     </div>
   );
 }
@@ -257,13 +263,13 @@ export function ProfileHero(
               followLoading={props.followLoading}
               isFollowing={isFollowing()}
               isSelf={props.isSelf}
+              moderationDecision={profileDecision()}
+              moderationLabels={profileLabels()}
               onFollow={props.onFollow}
               onMessage={props.onMessage}
               onOpenFollowHygiene={props.onOpenFollowHygiene}
               onUnfollow={props.onUnfollow} />
           </div>
-
-          <ModerationBadgeRow decision={profileDecision()} labels={profileLabels()} />
 
           <ProfileMetaRow
             did={props.profile.did}
@@ -303,7 +309,8 @@ export function ProfileStickyHeader(props: { profile: ProfileViewDetailed; profi
   const displayName = createMemo(() => getDisplayName(props.profile));
   const visibleBadges = createMemo(() => props.profileBadges.slice(0, 2));
   const labels = () => collectModerationLabels(props.profile);
-  const decision = useModerationDecision(labels, "avatar");
+  const avatarDecision = useModerationDecision(labels, "avatar");
+  const profileDecision = useModerationDecision(labels, "profileView");
 
   return (
     <div
@@ -313,7 +320,7 @@ export function ProfileStickyHeader(props: { profile: ProfileViewDetailed; profi
         <ModeratedAvatar
           avatar={props.profile.avatar}
           class="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-surface-container-high shadow-[0_0_0_2px_var(--surface),0_0_0_3px_rgba(125,175,255,0.22)]"
-          hidden={decision().filter || decision().blur !== "none"}
+          hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
           label={avatarLabel()}
           fallbackClass="text-sm font-semibold text-on-surface" />
 
@@ -324,6 +331,7 @@ export function ProfileStickyHeader(props: { profile: ProfileViewDetailed; profi
           <p class="m-0 truncate text-sm leading-tight text-on-surface-variant">
             @{props.profile.handle.replace(/^@/, "")}
           </p>
+          <ModerationBadgeRow class="mt-1" decision={profileDecision()} labels={labels()} />
         </div>
 
         <Show when={visibleBadges().length > 0}>

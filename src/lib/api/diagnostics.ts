@@ -1,7 +1,13 @@
-import type { ProfileUnavailableReason } from "$/lib/types";
+import type { ModerationLabel, ProfileUnavailableReason } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
 
-type TProfile = { did?: string | null; handle?: string | null; displayName?: string | null; avatar?: string | null };
+type TProfile = {
+  did?: string | null;
+  handle?: string | null;
+  displayName?: string | null;
+  avatar?: string | null;
+  labels?: ModerationLabel[] | null;
+};
 
 type TAvailability = "available" | "unavailable";
 
@@ -80,6 +86,7 @@ export type DiagnosticBacklinkGroup = {
 };
 
 type AccountListsResult = { lists: DiagnosticList[]; total: number; truncated: boolean };
+
 type AccountLabelsResult = {
   labels: DiagnosticLabel[];
   sourceProfiles: Record<string, unknown>;
@@ -100,15 +107,15 @@ type RecordBacklinksResult = {
   quotes: DiagnosticBacklinkGroup;
 };
 
-export function getAccountLists(did: string): Promise<AccountListsResult> {
+function getAccountLists(did: string): Promise<AccountListsResult> {
   return invoke("get_account_lists", { did });
 }
 
-export function getAccountLabels(did: string): Promise<AccountLabelsResult> {
+function getAccountLabels(did: string): Promise<AccountLabelsResult> {
   return invoke("get_account_labels", { did });
 }
 
-export function getAccountBlockedBy(
+function getAccountBlockedBy(
   did: string,
   limit?: number | null,
   cursor?: string | null,
@@ -116,14 +123,23 @@ export function getAccountBlockedBy(
   return invoke("get_account_blocked_by", { did, limit: limit ?? null, cursor: cursor ?? null });
 }
 
-export function getAccountBlocking(did: string, cursor?: string | null): Promise<AccountBlockingResult> {
+function getAccountBlocking(did: string, cursor?: string | null): Promise<AccountBlockingResult> {
   return invoke("get_account_blocking", { did, cursor: cursor ?? null });
 }
 
-export function getAccountStarterPacks(did: string): Promise<AccountStarterPacksResult> {
+function getAccountStarterPacks(did: string): Promise<AccountStarterPacksResult> {
   return invoke("get_account_starter_packs", { did });
 }
 
-export function getRecordBacklinks(uri: string): Promise<RecordBacklinksResult> {
+function getRecordBacklinks(uri: string): Promise<RecordBacklinksResult> {
   return invoke("get_record_backlinks", { uri });
 }
+
+export const DiagnosticsController = {
+  getAccountLists,
+  getAccountLabels,
+  getAccountBlockedBy,
+  getAccountBlocking,
+  getAccountStarterPacks,
+  getRecordBacklinks,
+};

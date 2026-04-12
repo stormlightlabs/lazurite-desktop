@@ -329,6 +329,24 @@ describe("PostCard", () => {
     expect(screen.getAllByRole("button", { name: "Show content" })).toHaveLength(1);
   });
 
+  it("renders author profile labels in post cards when the author is labeled", async () => {
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          author: { ...createPost().author, labels: [{ src: "did:plc:labeler", val: "profile-label" }] },
+        }} />
+    ));
+
+    expect(await screen.findByText(/profile-label/i)).toBeInTheDocument();
+  });
+
+  it("renders post labels in post cards when post labels are present", async () => {
+    render(() => <PostCard post={{ ...createPost(), labels: [{ src: "did:plc:labeler", val: "post-label" }] }} />);
+
+    expect(await screen.findByText(/post-label/i)).toBeInTheDocument();
+  });
+
   it("opens gallery on image click and supports right-click save", async () => {
     downloadImageMock.mockResolvedValue({ bytes: 40, path: "/tmp/post-image.jpg" });
     render(() => (

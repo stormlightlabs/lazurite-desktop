@@ -1,5 +1,10 @@
+import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
+import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { ArrowIcon, Icon } from "$/components/shared/Icon";
-import { type DiagnosticBacklinkGroup, type DiagnosticBacklinkItem, getRecordBacklinks } from "$/lib/api/diagnostics";
+import type { DiagnosticBacklinkGroup, DiagnosticBacklinkItem } from "$/lib/api/diagnostics";
+import { DiagnosticsController } from "$/lib/api/diagnostics";
+import { collectModerationLabels } from "$/lib/moderation";
 import { formatHandle, initials, normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, For, Match, Show, Switch } from "solid-js";
@@ -65,7 +70,7 @@ export function RecordBacklinksPanel(props: RecordBacklinksPanelProps) {
 
   async function loadBacklinks(currentRequest: number, uri: string) {
     try {
-      const response = await getRecordBacklinks(uri);
+      const response = await DiagnosticsController.getRecordBacklinks(uri);
       if (currentRequest !== requestId) {
         return;
       }
@@ -208,6 +213,9 @@ function BacklinkRecordCard(props: { index: number; item: DiagnosticBacklinkItem
     props.item.profile?.displayName ?? props.item.profile?.handle ?? props.item.did ?? "Unknown"
   );
   const handleLabel = createMemo(() => formatHandle(props.item.profile?.handle, props.item.did));
+  const profileLabels = () => collectModerationLabels(props.item.profile);
+  const avatarDecision = useModerationDecision(profileLabels, "avatar");
+  const profileDecision = useModerationDecision(profileLabels, "profileList");
 
   return (
     <Motion.div
@@ -215,11 +223,12 @@ function BacklinkRecordCard(props: { index: number; item: DiagnosticBacklinkItem
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(props.index * 0.04, 0.16), duration: 0.16 }}>
-      <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 text-xs font-semibold text-on-surface-variant">
-        <Show when={props.item.profile?.avatar} fallback={<span>{initials(actorLabel())}</span>}>
-          {(src) => <img alt={actorLabel()} class="h-full w-full object-cover" src={src()} />}
-        </Show>
-      </div>
+      <ModeratedAvatar
+        avatar={props.item.profile?.avatar}
+        class="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white/8"
+        hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
+        label={initials(actorLabel())}
+        fallbackClass="text-xs font-semibold text-on-surface-variant" />
 
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">
@@ -229,6 +238,7 @@ function BacklinkRecordCard(props: { index: number; item: DiagnosticBacklinkItem
           </span>
         </div>
         <p class="m-0 mt-1 text-xs text-on-surface-variant">{handleLabel()}</p>
+        <ModerationBadgeRow class="mt-1" decision={profileDecision()} labels={profileLabels()} />
         <p class="m-0 mt-2 break-all font-mono text-xs leading-relaxed text-on-surface-variant">{props.item.uri}</p>
       </div>
     </Motion.div>

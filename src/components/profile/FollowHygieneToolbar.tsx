@@ -25,7 +25,7 @@ function ProgressMeter(props: { batchSize: number; current: number; total: numbe
       </div>
       <p class="m-0 text-xs text-on-surface-variant">
         Scanning batches: {Math.min(props.current, props.total)} / {props.total}
-        <Show when={props.batchSize > 0}> ({props.batchSize} per batch)</Show>
+        <Show when={props.batchSize > 0}>({props.batchSize} per batch)</Show>
       </p>
     </div>
   );

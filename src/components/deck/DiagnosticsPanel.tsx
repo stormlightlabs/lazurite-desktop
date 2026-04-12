@@ -1,18 +1,18 @@
 import { RecordBacklinksPanel } from "$/components/diagnostics/RecordBacklinksPanel";
+import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
+import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { Icon } from "$/components/shared/Icon";
 import { useAppSession } from "$/contexts/app-session";
-import {
-  type DiagnosticBlockItem,
-  type DiagnosticDidProfile,
-  type DiagnosticLabel,
-  type DiagnosticList,
-  type DiagnosticStarterPack,
-  getAccountBlockedBy,
-  getAccountBlocking,
-  getAccountLabels,
-  getAccountLists,
-  getAccountStarterPacks,
+import type {
+  DiagnosticBlockItem,
+  DiagnosticDidProfile,
+  DiagnosticLabel,
+  DiagnosticList,
+  DiagnosticStarterPack,
 } from "$/lib/api/diagnostics";
+import { DiagnosticsController } from "$/lib/api/diagnostics";
+import { collectModerationLabels } from "$/lib/moderation";
 import { asRecord, getStringProperty } from "$/lib/type-guards";
 import { shouldIgnoreKey } from "$/lib/utils/events";
 import { formatHandle, initials, normalizeError } from "$/lib/utils/text";
@@ -278,7 +278,7 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
 
   async function loadLists(currentRequest: number, did: string) {
     try {
-      const response = await getAccountLists(did);
+      const response = await DiagnosticsController.getAccountLists(did);
       if (currentRequest !== requestId) return;
       setState({ lists: response.lists, listsError: null, listsLoading: false });
     } catch (error) {
@@ -291,7 +291,7 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
 
   async function loadLabels(currentRequest: number, did: string) {
     try {
-      const response = await getAccountLabels(did);
+      const response = await DiagnosticsController.getAccountLabels(did);
       if (currentRequest !== requestId) return;
       setState({
         labels: response.labels,
@@ -308,7 +308,10 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
   }
 
   async function loadBlocks(currentRequest: number, did: string) {
-    const [blockedBy, blocking] = await Promise.allSettled([getAccountBlockedBy(did, 25), getAccountBlocking(did)]);
+    const [blockedBy, blocking] = await Promise.allSettled([
+      DiagnosticsController.getAccountBlockedBy(did, 25),
+      DiagnosticsController.getAccountBlocking(did),
+    ]);
 
     if (currentRequest !== requestId) {
       return;
@@ -333,7 +336,7 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
 
   async function loadStarterPacks(currentRequest: number, did: string) {
     try {
-      const response = await getAccountStarterPacks(did);
+      const response = await DiagnosticsController.getAccountStarterPacks(did);
       if (currentRequest !== requestId) return;
       setState({ starterPacks: response.starterPacks, starterPacksError: null, starterPacksLoading: false });
     } catch (error) {
@@ -668,6 +671,7 @@ function DiagnosticsBlock(
       description: item.availability === "available" ? item.profile?.description ?? null : null,
       displayName: item.profile?.displayName ?? null,
       handle: getDiagnosticEntryHandle(item),
+      labels: item.availability === "available" ? item.profile?.labels ?? null : null,
       unavailableMessage: item.unavailableMessage ?? "Profile unavailable",
     }))
   );
@@ -874,6 +878,7 @@ function BlockProfileList(
         description?: string | null;
         displayName?: string | null;
         handle: string;
+        labels?: DiagnosticLabel[] | null;
         unavailableMessage: string;
       }
     >;
@@ -884,43 +889,65 @@ function BlockProfileList(
     <div class="grid gap-3 rounded-3xl bg-surface-container-high p-4 shadow-(--inset-shadow)">
       <p class="m-0 text-sm font-semibold text-on-surface">{props.title}</p>
       <div class="grid gap-3">
-        <For each={props.items}>
-          {(item, index) => {
-            const name = () => item.displayName ?? item.handle;
-            return (
-              <Motion.div
-                class="flex items-start gap-3 rounded-2xl p-3"
-                classList={{ "ui-input-strong": item.available, "tone-muted opacity-70": !item.available }}
-                aria-disabled={!item.available}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(index() * 0.04, 0.16), duration: 0.16 }}>
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-container-high text-xs font-semibold text-on-surface-variant">
-                  <Show
-                    when={item.available && item.avatar}
-                    fallback={item.available
-                      ? <span>{initials(name())}</span>
-                      : <Icon kind="danger" aria-hidden="true" />}>
-                    {(src) => <img alt="" class="h-full w-full object-cover" src={src()} />}
-                  </Show>
-                </div>
-                <div class="min-w-0">
-                  <p class="m-0 text-sm font-medium text-on-surface">{name()}</p>
-                  <p class="m-0 text-xs text-on-surface-variant">{formatHandle(item.handle, null)}</p>
-                  <Show when={item.available && item.description}>
-                    {(description) => (
-                      <p class="m-0 mt-2 text-xs leading-relaxed text-on-surface-variant">{description()}</p>
-                    )}
-                  </Show>
-                  <Show when={!item.available}>
-                    <p class="m-0 mt-2 text-xs leading-relaxed text-on-surface-variant">{item.unavailableMessage}</p>
-                  </Show>
-                </div>
-              </Motion.div>
-            );
-          }}
-        </For>
+        <For each={props.items}>{(item, index) => <BlockProfileRow index={index()} item={item} />}</For>
       </div>
     </div>
+  );
+}
+
+function BlockProfileRow(
+  props: {
+    index: number;
+    item: {
+      available: boolean;
+      avatar?: string | null;
+      description?: string | null;
+      displayName?: string | null;
+      handle: string;
+      labels?: DiagnosticLabel[] | null;
+      unavailableMessage: string;
+    };
+  },
+) {
+  const name = createMemo(() => props.item.displayName ?? props.item.handle);
+  const profileLabels = () => collectModerationLabels({ labels: props.item.labels ?? null });
+  const avatarDecision = useModerationDecision(profileLabels, "avatar");
+  const profileDecision = useModerationDecision(profileLabels, "profileList");
+
+  return (
+    <Motion.div
+      class="flex items-start gap-3 rounded-2xl p-3"
+      classList={{ "ui-input-strong": props.item.available, "tone-muted opacity-70": !props.item.available }}
+      aria-disabled={!props.item.available}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(props.index * 0.04, 0.16), duration: 0.16 }}>
+      <Show
+        when={props.item.available}
+        fallback={
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-container-high text-xs font-semibold text-on-surface-variant">
+            <Icon kind="danger" aria-hidden="true" />
+          </div>
+        }>
+        <ModeratedAvatar
+          avatar={props.item.avatar}
+          class="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-container-high"
+          hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
+          label={initials(name())}
+          fallbackClass="text-xs font-semibold text-on-surface-variant" />
+      </Show>
+
+      <div class="min-w-0">
+        <p class="m-0 text-sm font-medium text-on-surface">{name()}</p>
+        <p class="m-0 text-xs text-on-surface-variant">{formatHandle(props.item.handle, null)}</p>
+        <ModerationBadgeRow class="mt-1" decision={profileDecision()} labels={profileLabels()} />
+        <Show when={props.item.available && props.item.description}>
+          {(description) => <p class="m-0 mt-2 text-xs leading-relaxed text-on-surface-variant">{description()}</p>}
+        </Show>
+        <Show when={!props.item.available}>
+          <p class="m-0 mt-2 text-xs leading-relaxed text-on-surface-variant">{props.item.unavailableMessage}</p>
+        </Show>
+      </div>
+    </Motion.div>
   );
 }

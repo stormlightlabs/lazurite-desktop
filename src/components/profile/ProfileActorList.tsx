@@ -1,6 +1,10 @@
+import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
+import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
+import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { Icon } from "$/components/shared/Icon";
 import { getAvatarLabel, getDisplayName } from "$/lib/feeds";
-import type { ProfileViewBasic } from "$/lib/types";
+import { collectModerationLabels } from "$/lib/moderation";
+import type { ModerationLabel, ModerationUiDecision, ProfileViewBasic } from "$/lib/types";
 import { createMemo, For, onMount, Show } from "solid-js";
 import { Motion } from "solid-motionone";
 import type { ActorListState } from "./profile-state";
@@ -97,6 +101,9 @@ function ActorCard(props: ActorCardProps) {
   const label = createMemo(() => getAvatarLabel(props.actor));
   const name = createMemo(() => getDisplayName(props.actor));
   const isFollowing = createMemo(() => !!props.actor.viewer?.following);
+  const labels = () => collectModerationLabels(props.actor);
+  const avatarDecision = useModerationDecision(labels, "avatar");
+  const profileDecision = useModerationDecision(labels, "profileList");
 
   return (
     <article class="tone-muted rounded-3xl p-4 shadow-(--inset-shadow)">
@@ -105,18 +112,13 @@ function ActorCard(props: ActorCardProps) {
           class="flex min-w-0 flex-1 items-start gap-3 border-0 bg-transparent p-0 text-left transition hover:opacity-90"
           type="button"
           onClick={() => props.onSelect()}>
-          <div class="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-surface-container-high">
-            <Show
-              when={props.actor.avatar}
-              fallback={
-                <div class="flex h-full w-full items-center justify-center text-sm font-semibold text-on-surface">
-                  {label()}
-                </div>
-              }>
-              {(avatar) => <img alt="" class="h-full w-full object-cover" src={avatar()} />}
-            </Show>
-          </div>
-          <ActorCardDetails actor={props.actor} name={name()} />
+          <ModeratedAvatar
+            avatar={props.actor.avatar}
+            class="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-surface-container-high"
+            hidden={avatarDecision().filter || avatarDecision().blur !== "none"}
+            label={label()}
+            fallbackClass="text-sm font-semibold text-on-surface" />
+          <ActorCardDetails actor={props.actor} decision={profileDecision()} labels={labels()} name={name()} />
         </button>
 
         <Show when={!props.isSelf}>
@@ -131,7 +133,9 @@ function ActorCard(props: ActorCardProps) {
   );
 }
 
-function ActorCardDetails(props: { actor: ProfileViewBasic; name: string }) {
+function ActorCardDetails(
+  props: { actor: ProfileViewBasic; decision: ModerationUiDecision; labels: ModerationLabel[]; name: string },
+) {
   return (
     <div class="grid min-w-0 flex-1 gap-1">
       <div class="flex flex-wrap items-center gap-2">
@@ -147,6 +151,7 @@ function ActorCardDetails(props: { actor: ProfileViewBasic; name: string }) {
           </p>
         )}
       </Show>
+      <ModerationBadgeRow class="mt-1" decision={props.decision} labels={props.labels} />
     </div>
   );
 }

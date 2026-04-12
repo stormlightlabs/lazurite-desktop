@@ -8,10 +8,12 @@ const listNotificationsMock = vi.hoisted(() => vi.fn());
 const updateSeenMock = vi.hoisted(() => vi.fn());
 const listenMock = vi.hoisted(() => vi.fn());
 const warnMock = vi.hoisted(() => vi.fn());
+const moderateContentMock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/lib/api/notifications", () => ({ listNotifications: listNotificationsMock, updateSeen: updateSeenMock }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 vi.mock("@tauri-apps/plugin-log", () => ({ warn: warnMock }));
+vi.mock("$/lib/api/moderation", () => ({ ModerationController: { moderateContent: moderateContentMock } }));
 
 function createNotification(reason: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -51,8 +53,16 @@ describe("NotificationsPanel", () => {
     updateSeenMock.mockReset();
     listenMock.mockReset();
     warnMock.mockReset();
+    moderateContentMock.mockReset();
     updateSeenMock.mockResolvedValue(void 0);
     listenMock.mockResolvedValue(() => {});
+    moderateContentMock.mockResolvedValue({
+      alert: false,
+      blur: "none",
+      filter: false,
+      inform: false,
+      noOverride: false,
+    });
   });
 
   it("defaults to the all tab and does not auto-mark seen", async () => {
@@ -402,5 +412,58 @@ describe("NotificationsPanel", () => {
     expect(await screen.findByText("notification fetch failed")).toBeInTheDocument();
     expect(updateSeenMock).not.toHaveBeenCalled();
     expect(warnMock).not.toHaveBeenCalled();
+  });
+
+  it("shows profile moderation badges for single and grouped activity rows", async () => {
+    listNotificationsMock.mockResolvedValue({
+      cursor: null,
+      notifications: [
+        createNotification("follow", {
+          author: {
+            did: "did:plc:single",
+            displayName: "Single Author",
+            handle: "single.test",
+            labels: [{ src: "did:plc:labeler", val: "sexual" }],
+          },
+          uri: "at://did:plc:single/app.bsky.notification/1",
+        }),
+        createNotification("like", {
+          author: {
+            did: "did:plc:alice",
+            displayName: "Alice",
+            handle: "alice.test",
+            labels: [{ src: "did:plc:labeler", val: "sexual" }],
+          },
+          reasonSubject: "at://did:plc:post/app.bsky.feed.post/1",
+          uri: "at://did:plc:like/app.bsky.notification/2",
+        }),
+        createNotification("like", {
+          author: {
+            did: "did:plc:bob",
+            displayName: "Bob",
+            handle: "bob.test",
+            labels: [{ src: "did:plc:labeler", val: "sexual" }],
+          },
+          reasonSubject: "at://did:plc:post/app.bsky.feed.post/1",
+          uri: "at://did:plc:like/app.bsky.notification/3",
+        }),
+      ],
+      seenAt: null,
+    });
+    moderateContentMock.mockImplementation(async (_labels, context: string) => {
+      if (context === "profileList") {
+        return { alert: true, blur: "none", filter: false, inform: false, noOverride: false };
+      }
+
+      return { alert: false, blur: "none", filter: false, inform: false, noOverride: false };
+    });
+
+    renderNotificationsPanelWithRouter();
+    await screen.findByLabelText("Single Author followed you");
+    await waitFor(() => expect(screen.getAllByText("Alert").length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getByRole("button", { name: /activity/i }));
+    await waitFor(() => expect(screen.getByText("Alice and Bob liked your post")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Alert").length).toBeGreaterThan(0));
   });
 });

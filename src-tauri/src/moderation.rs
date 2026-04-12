@@ -1,6 +1,8 @@
 use super::auth::LazuriteOAuthSession;
 use super::error::{AppError, Result};
 use super::state::AppState;
+use jacquard::api::app_bsky::actor::get_preferences::GetPreferences;
+use jacquard::api::app_bsky::actor::PreferencesItem;
 use jacquard::api::app_bsky::labeler::get_services::GetServices;
 use jacquard::api::app_bsky::labeler::get_services::GetServicesOutputViewsItem;
 use jacquard::api::com_atproto::admin::RepoRef;
@@ -31,6 +33,9 @@ const LABELER_CACHE_TTL_SECS: i64 = 3600;
 /// Maximum number of user-subscribed labelers (Bluesky limit).
 pub const MAX_CUSTOM_LABELERS: usize = 20;
 
+/// Synthetic key for globally-scoped content label preferences.
+const GLOBAL_LABEL_PREFS_KEY: &str = "__global__";
+
 /// User's moderation preferences, persisted as JSON in `app_settings`.
 ///
 /// Key in the table: `moderation_preferences::{did}`
@@ -50,6 +55,17 @@ pub struct StoredModerationPrefs {
 /// The UI action the frontend should apply to a piece of content.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ModerationBadge {
+    pub label: String,
+    pub source: String,
+    pub description: Option<String>,
+    /// "alert" | "inform" | "label"
+    pub tone: String,
+}
+
+/// The UI action the frontend should apply to a piece of content.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModerationUI {
     /// Hide content completely.
     pub filter: bool,
@@ -61,6 +77,8 @@ pub struct ModerationUI {
     pub inform: bool,
     /// User cannot override the decision (e.g. legal takedown).
     pub no_override: bool,
+    /// Optional resolved moderation badges with display labels (including custom labels).
+    pub badges: Vec<ModerationBadge>,
 }
 
 impl From<ModerationDecision> for ModerationUI {
@@ -75,6 +93,7 @@ impl From<ModerationDecision> for ModerationUI {
             alert: d.alert,
             inform: d.inform,
             no_override: d.no_override,
+            badges: Vec::new(),
         }
     }
 }
@@ -435,6 +454,98 @@ fn preferred_locale_strings(locales: &[ModerationLabelPolicyLocale]) -> (Option<
     (Some(fallback.name.clone()), Some(fallback.description.clone()))
 }
 
+fn preferred_label_definition_strings(def: &LabelValueDefinition<'_>) -> (Option<String>, Option<String>) {
+    if def.locales.is_empty() {
+        return (None, None);
+    }
+
+    if let Some(en) = def
+        .locales
+        .iter()
+        .find(|locale| locale.lang.as_ref().eq_ignore_ascii_case("en"))
+    {
+        return (
+            Some(en.name.as_ref().to_string()),
+            Some(en.description.as_ref().to_string()),
+        );
+    }
+
+    if let Some(en_region) = def
+        .locales
+        .iter()
+        .find(|locale| locale.lang.as_ref().to_ascii_lowercase().starts_with("en-"))
+    {
+        return (
+            Some(en_region.name.as_ref().to_string()),
+            Some(en_region.description.as_ref().to_string()),
+        );
+    }
+
+    let fallback = &def.locales[0];
+    (
+        Some(fallback.name.as_ref().to_string()),
+        Some(fallback.description.as_ref().to_string()),
+    )
+}
+
+fn humanize_label(value: &str) -> String {
+    let cleaned = value.replace('!', "").replace('-', " ").trim().to_string();
+    if cleaned.is_empty() {
+        return "Sensitive content".to_string();
+    }
+
+    cleaned
+        .split_whitespace()
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+fn moderation_badges_from_decision(decision: &ModerationDecision, defs: &LabelerDefs<'_>) -> Vec<ModerationBadge> {
+    if decision.causes.is_empty() {
+        return Vec::new();
+    }
+
+    let tone = if decision.alert {
+        "alert".to_string()
+    } else if decision.inform {
+        "inform".to_string()
+    } else {
+        "label".to_string()
+    };
+
+    let mut badges = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for cause in &decision.causes {
+        let source_did = cause.source.as_ref().to_string();
+        let label_identifier = cause.label.as_ref();
+
+        let (display_name, description) = defs
+            .find_def(&cause.source, label_identifier)
+            .map(preferred_label_definition_strings)
+            .unwrap_or_else(|| (None, None));
+
+        let label = display_name.unwrap_or_else(|| humanize_label(label_identifier));
+        let source = if source_did == BUILTIN_LABELER_DID { "Bluesky".to_string() } else { source_did.clone() };
+
+        let key = format!("{tone}|{source}|{label}");
+        if !seen.insert(key) {
+            continue;
+        }
+
+        badges.push(ModerationBadge { label, source, description, tone: tone.clone() });
+    }
+
+    badges
+}
+
 fn normalize_label_definition(def: &LabelValueDefinition<'_>) -> ModerationLabelPolicyDefinition {
     let mut locales = def
         .locales
@@ -652,9 +763,21 @@ pub async fn submit_report(
 
 /// Convert stored prefs to the jacquard `ModerationPrefs` type.
 fn to_jacquard_prefs(prefs: &StoredModerationPrefs) -> ModerationPrefs<'static> {
+    let global_labels = prefs
+        .label_preferences
+        .get(GLOBAL_LABEL_PREFS_KEY)
+        .map(|label_map| {
+            label_map
+                .iter()
+                .map(|(label, vis)| (CowStr::from(label.clone()), parse_label_pref(vis)))
+                .collect::<HashMap<CowStr<'static>, LabelPref>>()
+        })
+        .unwrap_or_default();
+
     let labelers = prefs
         .label_preferences
         .iter()
+        .filter(|(did_str, _)| did_str.as_str() != GLOBAL_LABEL_PREFS_KEY)
         .filter_map(|(did_str, label_map)| {
             let did = Did::new(did_str).ok()?.into_static();
             let pref_map = label_map
@@ -668,13 +791,14 @@ fn to_jacquard_prefs(prefs: &StoredModerationPrefs) -> ModerationPrefs<'static> 
         })
         .collect();
 
-    ModerationPrefs { adult_content_enabled: prefs.adult_content_enabled, labels: HashMap::new(), labelers }
+    ModerationPrefs { adult_content_enabled: prefs.adult_content_enabled, labels: global_labels, labelers }
 }
 
 fn parse_label_pref(s: &str) -> LabelPref {
     match s {
         "hide" => LabelPref::Hide,
         "warn" => LabelPref::Warn,
+        "show" => LabelPref::Ignore,
         _ => LabelPref::Ignore,
     }
 }
@@ -701,7 +825,81 @@ pub fn evaluate_labels(
 
     let record = LabeledRecord { record: (), labels };
     let decision = moderate(&record, &jacquard_prefs, defs, &accepted_labelers);
-    Ok(ModerationUI::from(decision))
+    let mut ui = ModerationUI::from(decision.clone());
+    ui.badges = moderation_badges_from_decision(&decision, defs);
+    Ok(ui)
+}
+
+fn visibility_for_storage(value: &str) -> String {
+    match value {
+        "hide" => "hide".to_string(),
+        "warn" => "warn".to_string(),
+        "show" | "ignore" => "ignore".to_string(),
+        _ => "ignore".to_string(),
+    }
+}
+
+fn stored_prefs_from_actor_preferences(items: &[PreferencesItem<'_>]) -> StoredModerationPrefs {
+    let mut adult_content_enabled = false;
+    let mut subscribed_labelers: Vec<String> = Vec::new();
+    let mut label_preferences: HashMap<String, HashMap<String, String>> = HashMap::new();
+
+    for item in items {
+        match item {
+            PreferencesItem::AdultContentPref(pref) => {
+                adult_content_enabled = pref.enabled;
+            }
+            PreferencesItem::LabelersPref(pref) => {
+                subscribed_labelers = pref
+                    .labelers
+                    .iter()
+                    .map(|entry| entry.did.as_ref().to_string())
+                    .filter(|did| did.starts_with("did:") && did != BUILTIN_LABELER_DID)
+                    .collect();
+            }
+            PreferencesItem::ContentLabelPref(pref) => {
+                let key = pref
+                    .labeler_did
+                    .as_ref()
+                    .map(|did| did.as_ref().to_string())
+                    .unwrap_or_else(|| GLOBAL_LABEL_PREFS_KEY.to_string());
+
+                label_preferences.entry(key).or_default().insert(
+                    pref.label.as_ref().to_string(),
+                    visibility_for_storage(pref.visibility.as_ref()),
+                );
+            }
+            _ => {}
+        }
+    }
+
+    subscribed_labelers.sort();
+    subscribed_labelers.dedup();
+
+    StoredModerationPrefs { adult_content_enabled, subscribed_labelers, label_preferences }
+}
+
+/// Pull moderation preferences from the network and persist them locally.
+pub async fn sync_prefs_from_network(
+    state: &AppState, did: &str, session: &LazuriteOAuthSession,
+) -> Result<StoredModerationPrefs> {
+    let output = session
+        .send(GetPreferences)
+        .await
+        .map_err(|error| {
+            log::warn!("failed to fetch moderation preferences from network: {error}");
+            AppError::validation("could not refresh moderation preferences")
+        })?
+        .into_output()
+        .map_err(|error| {
+            log::warn!("failed to decode moderation preferences response: {error}");
+            AppError::validation("could not refresh moderation preferences")
+        })?;
+
+    let prefs = stored_prefs_from_actor_preferences(&output.preferences);
+    let conn = state.auth_store.lock_connection()?;
+    save_prefs(&conn, did, &prefs)?;
+    Ok(prefs)
 }
 
 /// Load moderation preferences for the currently active account.
@@ -1020,6 +1218,78 @@ mod tests {
         assert_eq!(ui.blur, "none");
         assert!(!ui.alert);
         assert!(!ui.inform);
+    }
+
+    #[test]
+    fn parse_label_pref_treats_show_as_ignore() {
+        assert!(matches!(parse_label_pref("show"), LabelPref::Ignore));
+    }
+
+    #[test]
+    fn to_jacquard_prefs_includes_global_labels() {
+        let mut prefs = StoredModerationPrefs::default();
+        prefs
+            .label_preferences
+            .entry(GLOBAL_LABEL_PREFS_KEY.to_string())
+            .or_default()
+            .insert("custom-label".into(), "warn".into());
+
+        let moderation_prefs = to_jacquard_prefs(&prefs);
+        let visibility = moderation_prefs
+            .labels
+            .get(&CowStr::from("custom-label"))
+            .expect("global label should be present");
+        assert!(matches!(visibility, LabelPref::Warn));
+        assert!(
+            moderation_prefs.labelers.is_empty(),
+            "global labels should not create labeler-pref entries"
+        );
+    }
+
+    #[test]
+    fn stored_prefs_from_actor_preferences_maps_global_and_labeler_items() {
+        let items = serde_json::from_str::<Vec<PreferencesItem<'_>>>(
+            r#"[
+                {
+                    "$type":"app.bsky.actor.defs#adultContentPref",
+                    "enabled":true
+                },
+                {
+                    "$type":"app.bsky.actor.defs#labelersPref",
+                    "labelers":[
+                        { "did":"did:plc:ar7c4by46qjdydhdevvrndac" },
+                        { "did":"did:plc:aaaaaaaaaaaaaaaaaaaaaaaa" }
+                    ]
+                },
+                {
+                    "$type":"app.bsky.actor.defs#contentLabelPref",
+                    "label":"custom-label",
+                    "visibility":"show"
+                },
+                {
+                    "$type":"app.bsky.actor.defs#contentLabelPref",
+                    "label":"toxicity",
+                    "labelerDid":"did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
+                    "visibility":"hide"
+                }
+            ]"#,
+        )
+        .expect("preferences should deserialize");
+
+        let stored = stored_prefs_from_actor_preferences(&items);
+        assert!(stored.adult_content_enabled);
+        assert_eq!(
+            stored.subscribed_labelers,
+            vec!["did:plc:aaaaaaaaaaaaaaaaaaaaaaaa".to_string()]
+        );
+        assert_eq!(
+            stored.label_preferences[GLOBAL_LABEL_PREFS_KEY]["custom-label"],
+            "ignore"
+        );
+        assert_eq!(
+            stored.label_preferences["did:plc:aaaaaaaaaaaaaaaaaaaaaaaa"]["toxicity"],
+            "hide"
+        );
     }
 
     #[test]

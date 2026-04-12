@@ -17,6 +17,7 @@ const getRecordBacklinksMock = vi.hoisted(() => vi.fn());
 const getFollowersMock = vi.hoisted(() => vi.fn());
 const getFollowsMock = vi.hoisted(() => vi.fn());
 const getProfileMock = vi.hoisted(() => vi.fn());
+const moderateContentMock = vi.hoisted(() => vi.fn());
 const navigateMock = vi.hoisted(() => vi.fn());
 const unfollowActorMock = vi.hoisted(() => vi.fn());
 const postNavigationMock = vi.hoisted(() => ({
@@ -45,14 +46,18 @@ vi.mock(
 vi.mock(
   "$/lib/api/diagnostics",
   () => ({
-    getAccountBlockedBy: getAccountBlockedByMock,
-    getAccountBlocking: getAccountBlockingMock,
-    getAccountLabels: getAccountLabelsMock,
-    getAccountLists: getAccountListsMock,
-    getAccountStarterPacks: getAccountStarterPacksMock,
-    getRecordBacklinks: getRecordBacklinksMock,
+    DiagnosticsController: {
+      getAccountBlockedBy: getAccountBlockedByMock,
+      getAccountBlocking: getAccountBlockingMock,
+      getAccountLabels: getAccountLabelsMock,
+      getAccountLists: getAccountListsMock,
+      getAccountStarterPacks: getAccountStarterPacksMock,
+      getRecordBacklinks: getRecordBacklinksMock,
+    },
   }),
 );
+
+vi.mock("$/lib/api/moderation", () => ({ ModerationController: { moderateContent: moderateContentMock } }));
 
 vi.mock("@solidjs/router", () => ({ useNavigate: () => navigateMock }));
 vi.mock("$/components/posts/hooks/usePostNavigation", () => ({ usePostNavigation: () => postNavigationMock }));
@@ -135,6 +140,13 @@ describe("ProfilePanel", () => {
     batchUnfollowMock.mockResolvedValue({ deleted: 0, failed: [] });
     followActorMock.mockResolvedValue({ cid: "cid-follow", uri: "at://did:plc:alice/app.bsky.graph.follow/1" });
     unfollowActorMock.mockResolvedValue(void 0);
+    moderateContentMock.mockResolvedValue({
+      alert: false,
+      blur: "none",
+      filter: false,
+      inform: false,
+      noOverride: false,
+    });
   });
 
   it("shows follow hygiene entry on the signed-in profile", async () => {
@@ -145,6 +157,22 @@ describe("ProfilePanel", () => {
     });
 
     expect(await screen.findByRole("button", { name: "Audit follows" })).toBeInTheDocument();
+  });
+
+  it("shows profile labels beneath the current account badge when labels are present", async () => {
+    getProfileMock.mockResolvedValueOnce({
+      status: "available",
+      profile: { ...createProfile(), labels: [{ src: "did:plc:labeler", val: "my-label" }] },
+    });
+
+    renderProfilePanel("bob.test", {
+      activeDid: "did:plc:bob",
+      activeHandle: "bob.test",
+      activeSession: { did: "did:plc:bob", handle: "bob.test" },
+    });
+
+    expect(await screen.findByText("Current account")).toBeInTheDocument();
+    expect(await screen.findByText(/my-label/i)).toBeInTheDocument();
   });
 
   it("optimistically follows and unfollows from the hero while keeping badges in sync", async () => {
@@ -248,6 +276,35 @@ describe("ProfilePanel", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
+  });
+
+  it("renders moderation badges in follower rows when labels are present", async () => {
+    getFollowersMock.mockResolvedValueOnce({
+      actors: [{
+        description: "Writes about decentralised UI and protocol design.",
+        did: "did:plc:charlie",
+        displayName: "Charlie",
+        handle: "charlie.test",
+        labels: [{ src: "did:plc:labeler", val: "sexual" }],
+        viewer: { following: null },
+      }],
+      cursor: null,
+    });
+    moderateContentMock.mockImplementation(async (_labels, context: string) => {
+      if (context === "profileList") {
+        return { alert: true, blur: "none", filter: false, inform: false, noOverride: false };
+      }
+
+      return { alert: false, blur: "none", filter: false, inform: false, noOverride: false };
+    });
+
+    renderProfilePanel();
+    expect(await screen.findByRole("button", { name: "Follow" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /followers/i }));
+    const dialog = await screen.findByRole("dialog");
+
+    expect(await within(dialog).findByText("Alert")).toBeInTheDocument();
   });
 
   it("renders diagnostics in the Context tab without making it the default tab", async () => {

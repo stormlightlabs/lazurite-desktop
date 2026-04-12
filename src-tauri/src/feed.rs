@@ -18,6 +18,7 @@ use jacquard::api::app_bsky::embed::record::Record;
 use jacquard::api::app_bsky::feed::get_actor_likes::GetActorLikes;
 use jacquard::api::app_bsky::feed::get_author_feed::GetAuthorFeed;
 use jacquard::api::app_bsky::feed::get_feed::GetFeed;
+use jacquard::api::app_bsky::feed::get_feed_generator::GetFeedGenerator;
 use jacquard::api::app_bsky::feed::get_feed_generators::GetFeedGenerators;
 use jacquard::api::app_bsky::feed::get_list_feed::GetListFeed;
 use jacquard::api::app_bsky::feed::get_post_thread::GetPostThread;
@@ -25,6 +26,7 @@ use jacquard::api::app_bsky::feed::get_timeline::GetTimeline;
 use jacquard::api::app_bsky::feed::like::Like;
 use jacquard::api::app_bsky::feed::post::{Post, PostEmbed, ReplyRef};
 use jacquard::api::app_bsky::feed::repost::Repost;
+use jacquard::api::app_bsky::feed::GeneratorView;
 use jacquard::api::app_bsky::graph::block::Block;
 use jacquard::api::app_bsky::graph::follow::Follow;
 use jacquard::api::app_bsky::graph::get_followers::GetFollowers;
@@ -60,6 +62,26 @@ use tauri_plugin_log::log;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tokio::time::sleep;
+
+const FEED_GENERATOR_BATCH_SIZE: usize = 10;
+
+const FOLLOW_COLLECTION_NSID: &str = "app.bsky.graph.follow";
+const FOLLOW_HYGIENE_PROGRESS_EVENT: &str = "follow-hygiene:progress";
+const FOLLOW_AUDIT_PAGE_LIMIT: i64 = 100;
+const FOLLOW_AUDIT_PROFILE_BATCH_SIZE: usize = 25;
+const FOLLOW_AUDIT_PROFILE_BATCH_CONCURRENCY: usize = 3;
+const FOLLOW_AUDIT_INTER_BATCH_DELAY: Duration = Duration::from_millis(250);
+const FOLLOW_AUDIT_RETRY_AFTER_DEFAULT: Duration = Duration::from_secs(2);
+const FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES: usize = 5;
+const FOLLOW_UNFOLLOW_WRITE_CHUNK_SIZE: usize = 200;
+
+const FOLLOW_STATUS_DELETED: u8 = 1 << 0;
+const FOLLOW_STATUS_DEACTIVATED: u8 = 1 << 1;
+const FOLLOW_STATUS_SUSPENDED: u8 = 1 << 2;
+const FOLLOW_STATUS_BLOCKED_BY: u8 = 1 << 3;
+const FOLLOW_STATUS_BLOCKING: u8 = 1 << 4;
+const FOLLOW_STATUS_HIDDEN: u8 = 1 << 5;
+const FOLLOW_STATUS_SELF_FOLLOW: u8 = 1 << 6;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "status", rename_all = "camelCase")]
@@ -339,24 +361,6 @@ pub struct CreateRecordResult {
     pub cid: String,
 }
 
-const FOLLOW_COLLECTION_NSID: &str = "app.bsky.graph.follow";
-const FOLLOW_HYGIENE_PROGRESS_EVENT: &str = "follow-hygiene:progress";
-const FOLLOW_AUDIT_PAGE_LIMIT: i64 = 100;
-const FOLLOW_AUDIT_PROFILE_BATCH_SIZE: usize = 25;
-const FOLLOW_AUDIT_PROFILE_BATCH_CONCURRENCY: usize = 3;
-const FOLLOW_AUDIT_INTER_BATCH_DELAY: Duration = Duration::from_millis(250);
-const FOLLOW_AUDIT_RETRY_AFTER_DEFAULT: Duration = Duration::from_secs(2);
-const FOLLOW_AUDIT_MAX_RATE_LIMIT_RETRIES: usize = 5;
-const FOLLOW_UNFOLLOW_WRITE_CHUNK_SIZE: usize = 200;
-
-const FOLLOW_STATUS_DELETED: u8 = 1 << 0;
-const FOLLOW_STATUS_DEACTIVATED: u8 = 1 << 1;
-const FOLLOW_STATUS_SUSPENDED: u8 = 1 << 2;
-const FOLLOW_STATUS_BLOCKED_BY: u8 = 1 << 3;
-const FOLLOW_STATUS_BLOCKING: u8 = 1 << 4;
-const FOLLOW_STATUS_HIDDEN: u8 = 1 << 5;
-const FOLLOW_STATUS_SELF_FOLLOW: u8 = 1 << 6;
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct FlaggedFollow {
@@ -411,26 +415,105 @@ pub async fn get_feed_generators(uris: Vec<String>, state: &AppState) -> Result<
     }
 
     let session = get_session(state).await?;
-    let parsed: std::result::Result<Vec<AtUri<'_>>, _> = uris.iter().map(|u| AtUri::new(u)).collect();
-    let feeds = parsed.map_err(|error| {
-        log::warn!("invalid feed URI in get_feed_generators input: {:?}", error);
-        AppError::validation("invalid feed URI")
-    })?;
+    let feeds = uris
+        .iter()
+        .filter_map(|uri| {
+            AtUri::new(uri)
+                .map(IntoStatic::into_static)
+                .map_err(|error| {
+                    log::warn!("skipping invalid feed URI in get_feed_generators input ({uri}): {error}");
+                    error
+                })
+                .ok()
+        })
+        .collect::<Vec<AtUri<'static>>>();
 
-    let output = session
-        .send(GetFeedGenerators::new().feeds(feeds).build())
-        .await
-        .map_err(|error| {
-            log::error!("getFeedGenerators error: {error}");
-            AppError::validation("getFeedGenerators error")
-        })?
-        .into_output()
-        .map_err(|error| {
-            log::error!("getFeedGenerators output error: {error}");
-            AppError::validation("getFeedGenerators output error")
-        })?;
+    if feeds.is_empty() {
+        return Ok(serde_json::json!({ "feeds": [] }));
+    }
 
-    serde_json::to_value(&output).map_err(AppError::from)
+    let mut collected = Vec::<GeneratorView<'static>>::new();
+    let mut seen = HashSet::<String>::new();
+
+    for chunk in feeds.chunks(FEED_GENERATOR_BATCH_SIZE) {
+        let request = GetFeedGenerators::new().feeds(chunk.to_vec()).build();
+        match session.send(request).await {
+            Ok(response) => match response.into_output() {
+                Ok(output) => {
+                    for feed in output.feeds.into_iter().map(IntoStatic::into_static) {
+                        let uri = feed.uri.as_ref().to_string();
+                        if seen.insert(uri) {
+                            collected.push(feed);
+                        }
+                    }
+                }
+                Err(error) => {
+                    log::info!(
+                        "getFeedGenerators decode failed for batch ({} feeds); trying per-feed fallback: {error}",
+                        chunk.len()
+                    );
+                    let recovered =
+                        fetch_feed_generators_individually(chunk, session.as_ref(), &mut collected, &mut seen).await;
+                    if recovered == 0 {
+                        log::warn!(
+                            "getFeedGenerators fallback failed for batch ({} feeds); no generator metadata recovered",
+                            chunk.len()
+                        );
+                    }
+                }
+            },
+            Err(error) => {
+                log::info!(
+                    "getFeedGenerators request failed for batch ({} feeds); trying per-feed fallback: {error}",
+                    chunk.len()
+                );
+                let recovered =
+                    fetch_feed_generators_individually(chunk, session.as_ref(), &mut collected, &mut seen).await;
+                if recovered == 0 {
+                    log::warn!(
+                        "getFeedGenerators fallback request failed for batch ({} feeds); no generator metadata recovered",
+                        chunk.len()
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(serde_json::json!({ "feeds": collected }))
+}
+
+async fn fetch_feed_generators_individually(
+    feeds: &[AtUri<'static>], session: &LazuriteOAuthSession, out: &mut Vec<GeneratorView<'static>>,
+    seen: &mut HashSet<String>,
+) -> usize {
+    let mut recovered = 0;
+    for feed in feeds {
+        let request = GetFeedGenerator::new().feed(feed.clone()).build();
+        let response = match session.send(request).await {
+            Ok(response) => response,
+            Err(error) => {
+                log::debug!("getFeedGenerator request failed for {}: {error}", feed.as_ref());
+                continue;
+            }
+        };
+
+        let output = match response.into_output() {
+            Ok(output) => output,
+            Err(error) => {
+                log::debug!("getFeedGenerator decode failed for {}: {error}", feed.as_ref());
+                continue;
+            }
+        };
+
+        let view = output.view.into_static();
+        let uri = view.uri.as_ref().to_string();
+        if seen.insert(uri) {
+            out.push(view);
+            recovered += 1;
+        }
+    }
+
+    recovered
 }
 
 pub async fn get_timeline(cursor: Option<String>, limit: u32, state: &AppState) -> Result<serde_json::Value> {
