@@ -14,7 +14,7 @@ export type ScanToolbarProps = {
   onScan: () => void;
 };
 
-function ProgressMeter(props: { current: number; total: number; percent: number }) {
+function ProgressMeter(props: { batchSize: number; current: number; total: number; percent: number }) {
   return (
     <div class="grid gap-2">
       <div class="h-2 overflow-hidden rounded-full bg-surface-container-high">
@@ -25,6 +25,7 @@ function ProgressMeter(props: { current: number; total: number; percent: number 
       </div>
       <p class="m-0 text-xs text-on-surface-variant">
         Scanning batches: {Math.min(props.current, props.total)} / {props.total}
+        <Show when={props.batchSize > 0}> ({props.batchSize} per batch)</Show>
       </p>
     </div>
   );
@@ -56,7 +57,11 @@ export function ScanToolbar(props: ScanToolbarProps) {
       </div>
 
       <Show when={props.showProgress}>
-        <ProgressMeter current={props.progress.current} percent={props.progressPercent} total={props.progress.total} />
+        <ProgressMeter
+          batchSize={props.progress.batchSize}
+          current={props.progress.current}
+          percent={props.progressPercent}
+          total={props.progress.total} />
       </Show>
 
       <Show when={props.scanError}>{(error) => <p class="m-0 text-sm text-red-300">{error()}</p>}</Show>

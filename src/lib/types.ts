@@ -142,7 +142,7 @@ export type FlaggedFollow = { did: string; followUri: string; handle: string; st
 
 export type FollowBatchResult = { deleted: number; failed: string[] };
 
-export type FollowHygieneProgress = { current: number; total: number };
+export type FollowHygieneProgress = { batchSize: number; current: number; total: number };
 
 export type FeedGeneratorView = {
   uri: string;

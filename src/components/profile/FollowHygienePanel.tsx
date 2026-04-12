@@ -8,6 +8,7 @@ import { shouldIgnoreKey } from "$/lib/utils/events";
 import { normalizeError } from "$/lib/utils/text";
 import { listen } from "@tauri-apps/api/event";
 import * as logger from "@tauri-apps/plugin-log";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { createMemo, onCleanup, onMount, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Motion } from "solid-motionone";
@@ -55,7 +56,7 @@ function createInitialState(): FollowHygieneState {
     flagged: [],
     focusedUri: null,
     phase: "idle",
-    progress: { current: 0, total: 1 },
+    progress: { batchSize: 0, current: 0, total: 1 },
     result: null,
     scanError: null,
     selectedUris: new Set<string>(),
@@ -70,13 +71,33 @@ function parseProgressPayload(payload: unknown): FollowHygieneProgress | null {
     return null;
   }
 
+  const batchSize = optionalNumber(record.batchSize);
   const current = optionalNumber(record.current);
   const total = optionalNumber(record.total);
   if (current === null || total === null) {
     return null;
   }
 
-  return { current: Math.max(0, Math.floor(current)), total: Math.max(1, Math.floor(total)) };
+  return {
+    batchSize: batchSize === null ? 0 : Math.max(1, Math.floor(batchSize)),
+    current: Math.max(0, Math.floor(current)),
+    total: Math.max(1, Math.floor(total)),
+  };
+}
+
+function deriveFilters(
+  selectedUris: Set<string>, flagged: FlaggedFollow[], filters: Record<StatusCategoryKey, StatusCategoryState>,
+) {
+  const nextFilters = { ...filters };
+  for (const category of STATUS_CATEGORIES) {
+    const categoryUris = flagged.filter((follow) => hasStatus(follow.status, category.bit)).map((follow) =>
+      follow.followUri
+    );
+    const selected = categoryUris.length > 0 && categoryUris.every((uri) => selectedUris.has(uri));
+    nextFilters[category.key] = { ...filters[category.key], selected };
+  }
+
+  return nextFilters;
 }
 
 function FollowHygieneHeader(props: { onClose: () => void }) {
@@ -84,14 +105,23 @@ function FollowHygieneHeader(props: { onClose: () => void }) {
     <header class="flex items-center justify-between gap-3 px-5 py-4">
       <div class="grid gap-1">
         <p class="m-0 text-[0.68rem] uppercase tracking-[0.12em] text-on-surface-variant">Account maintenance</p>
-        <h2 class="m-0 text-xl font-semibold tracking-[-0.02em] text-on-surface">Follow hygiene</h2>
+        <h2 class="m-0 text-xl font-semibold tracking-[-0.02em] text-on-surface">Follow Audit</h2>
       </div>
-      <button
-        class="ui-control ui-control-hoverable flex h-9 w-9 items-center justify-center rounded-full"
-        type="button"
-        onClick={() => props.onClose()}>
-        <Icon iconClass="i-ri-close-line" class="text-base" />
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          class="ui-control ui-control-hoverable inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm text-on-surface"
+          type="button"
+          onClick={() => void openUrl(FOLLOW_AUDIT_INSPIRATION_URL)}>
+          <span>Inspiration</span>
+          <Icon kind="ext-link" class="text-sm" />
+        </button>
+        <button
+          class="ui-control ui-control-hoverable flex h-9 w-9 items-center justify-center rounded-full"
+          type="button"
+          onClick={() => props.onClose()}>
+          <Icon iconClass="i-ri-close-line" class="text-base" />
+        </button>
+      </div>
     </header>
   );
 }
@@ -270,19 +300,11 @@ export function FollowHygienePanel(props: { onClose: () => void }) {
     onUnfollow: openConfirmation,
   }));
 
-  function syncCategorySelection(selectedUris: Set<string>, flagged: FlaggedFollow[]) {
-    for (const category of STATUS_CATEGORIES) {
-      const categoryUris = flagged.filter((follow) => hasStatus(follow.status, category.bit)).map((follow) =>
-        follow.followUri
-      );
-      const selected = categoryUris.length > 0 && categoryUris.every((uri) => selectedUris.has(uri));
-      setState("filters", category.key, "selected", selected);
-    }
-  }
-
   function updateSelectedUris(nextSelected: Set<string>, flagged: FlaggedFollow[] = state.flagged) {
-    setState("selectedUris", nextSelected);
-    syncCategorySelection(nextSelected, flagged);
+    setState((current) => ({
+      filters: deriveFilters(nextSelected, flagged, current.filters),
+      selectedUris: nextSelected,
+    }));
   }
 
   async function startScan() {
@@ -292,13 +314,19 @@ export function FollowHygienePanel(props: { onClose: () => void }) {
 
     requestId += 1;
     const activeRequest = requestId;
+
+    if (exitTimer) {
+      clearTimeout(exitTimer);
+      exitTimer = undefined;
+    }
+
     setState({
       confirmOpen: false,
       exitingUris: new Set<string>(),
       flagged: [],
       focusedUri: null,
       phase: "scanning",
-      progress: { current: 0, total: 1 },
+      progress: { batchSize: 0, current: 0, total: 1 },
       result: null,
       scanError: null,
       selectedUris: new Set<string>(),
@@ -313,13 +341,17 @@ export function FollowHygienePanel(props: { onClose: () => void }) {
       }
 
       const initialSelection = new Set(flagged.map((follow) => follow.followUri));
-      setState("flagged", flagged);
-      updateSelectedUris(initialSelection, flagged);
-      setState("phase", "ready");
-      setState(
-        "progress",
-        (progress) => ({ current: Math.max(progress.current, progress.total), total: progress.total }),
-      );
+      setState((current) => ({
+        filters: deriveFilters(initialSelection, flagged, current.filters),
+        flagged,
+        phase: "ready",
+        progress: {
+          batchSize: current.progress.batchSize,
+          current: Math.max(current.progress.current, current.progress.total),
+          total: current.progress.total,
+        },
+        selectedUris: initialSelection,
+      }));
     } catch (error) {
       if (activeRequest !== requestId) {
         return;
@@ -419,10 +451,12 @@ export function FollowHygienePanel(props: { onClose: () => void }) {
 
     exitTimer = setTimeout(() => {
       const filtered = state.flagged.filter((follow) => !successfulUris.includes(follow.followUri));
-      const selected = new Set(state.selectedUris);
-      setState("flagged", filtered);
-      setState("exitingUris", new Set<string>());
-      syncCategorySelection(selected, filtered);
+      setState((current) => ({
+        exitingUris: new Set<string>(),
+        filters: deriveFilters(current.selectedUris, filtered, current.filters),
+        flagged: filtered,
+      }));
+      exitTimer = undefined;
     }, EXIT_ANIMATION_MS);
   }
 
@@ -550,3 +584,4 @@ export function FollowHygienePanel(props: { onClose: () => void }) {
     </>
   );
 }
+const FOLLOW_AUDIT_INSPIRATION_URL = "https://cleanfollow-bsky.pages.dev/";

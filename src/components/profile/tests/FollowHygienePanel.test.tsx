@@ -67,10 +67,10 @@ describe("FollowHygienePanel", () => {
 
     const listener = listenMock.mock.calls[0]?.[1];
     expect(listener).toBeTypeOf("function");
-    listener({ payload: { current: 1, total: 4 } });
+    listener({ payload: { batchSize: 25, current: 1, total: 4 } });
 
     expect(await screen.findByText("@ghost.test")).toBeInTheDocument();
-    expect(screen.getByText(/Scanning batches: [1-4] \/ 4/u)).toBeInTheDocument();
+    expect(screen.getByText(/Scanning batches: [1-4] \/ 4 \(25 per batch\)/u)).toBeInTheDocument();
     expect(screen.getByText("3 of 3 visible selected (3 total).")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Hide Deleted" }));

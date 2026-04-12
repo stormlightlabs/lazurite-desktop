@@ -377,6 +377,7 @@ pub struct BatchResult {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FollowHygieneProgress {
+    batch_size: usize,
     current: usize,
     total: usize,
 }
@@ -1241,7 +1242,11 @@ async fn resolve_follow_statuses(
         completed += 1;
         app.emit(
             FOLLOW_HYGIENE_PROGRESS_EVENT,
-            FollowHygieneProgress { current: completed, total: total_batches },
+            FollowHygieneProgress {
+                batch_size: FOLLOW_AUDIT_PROFILE_BATCH_SIZE,
+                current: completed,
+                total: total_batches,
+            },
         )?;
     }
 

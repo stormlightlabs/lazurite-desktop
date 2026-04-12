@@ -33,8 +33,7 @@ function FollowRow(props: FollowRowProps) {
       class="tone-muted rounded-2xl p-3 transition-colors duration-150"
       classList={{ "bg-red-500/12": props.selected, "ring-1 ring-[var(--focus-ring)]": props.focused }}
       animate={{ opacity: props.exiting ? 0 : 1, x: props.exiting ? 20 : 0, y: 0 }}
-      initial={{ opacity: 0, y: 6 }}
-      transition={{ duration: 0.18, delay: Math.min(props.index * 0.02, 0.2) }}
+      transition={{ duration: 0.18 }}
       tabIndex={0}
       onFocus={() => props.onFocus()}
       onKeyDown={(event) => {
