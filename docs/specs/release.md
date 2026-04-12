@@ -144,7 +144,7 @@ On store builds: omitted entirely (Apple and Microsoft have their own monetizati
 | Field        | Value                        |
 | ------------ | ---------------------------- |
 | Product name | Lazurite                     |
-| Identifier   | `com.owais.lazurite`         |
+| Identifier   | `org.stormlightlabs.lazurite-desktop`         |
 | Category     | Social Networking            |
 | Age rating   | 17+ (user-generated content) |
 | Copyright    | Copyright 2026 Owais         |

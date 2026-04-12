@@ -29,7 +29,7 @@ Cross-platform build, signing, packaging, and distribution targeting GitHub Rele
 ### App Identity & Branding
 
 - [x] Final app icon set: generate all required sizes from source SVG
-- [ ] Update `tauri.conf.json` - `productName: "Lazurite"`, `identifier: "com.owais.lazurite"`, window title, bundle metadata (description, copyright, category)
+- [x] Update `tauri.conf.json` - `productName: "Lazurite"`, `identifier: "org.stormlightlabs.lazurite-desktop"`, window title, bundle metadata (description, copyright, category)
 - [ ] Splash / welcome screen for first-launch flow
 - [ ] Conditional support button in About section (visible on `github` channel only)
 
