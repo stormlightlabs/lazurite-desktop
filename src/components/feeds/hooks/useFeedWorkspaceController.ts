@@ -8,10 +8,10 @@ import {
   extractHashtags,
   getFeedName,
   getReplyRootPost,
-  isThreadViewPost,
   patchFeedItems,
   toStrongRef,
 } from "$/lib/feeds";
+import { isThreadViewPost } from "$/lib/feeds/type-guards";
 import type { PostEngagementTab } from "$/lib/post-engagement-routes";
 import type {
   ActiveSession,

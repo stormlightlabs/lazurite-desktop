@@ -1,5 +1,7 @@
 import type { LogEntry, Maybe } from "$/lib/types";
 
+const MAX_JSON_PREVIEW_CHARS = 6000;
+
 export function escapeForRegex(value: string) {
   return value.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
@@ -101,4 +103,69 @@ export function formatHandle(handle: string | null | undefined, did: string | nu
 
 export function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+export function hashString(value: string) {
+  let hash = 0x81_1C_9D_C5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.codePointAt(index)!;
+    hash = Math.imul(hash, 0x01_00_01_93);
+  }
+
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+export function stringifyUnknown(value: unknown) {
+  const seen = new WeakSet<object>();
+
+  try {
+    const json = JSON.stringify(value, (_, current) => {
+      if (typeof current !== "object" || current === null) {
+        return current;
+      }
+
+      if (seen.has(current)) {
+        return "[Circular]";
+      }
+      seen.add(current);
+      return current;
+    }, 2);
+
+    if (!json) {
+      return "null";
+    }
+
+    if (json.length <= MAX_JSON_PREVIEW_CHARS) {
+      return json;
+    }
+
+    return `${json.slice(0, MAX_JSON_PREVIEW_CHARS)}\n...`;
+  } catch {
+    return String(value);
+  }
+}
+
+export function formatRelativeTime(value: string) {
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) {
+    return "";
+  }
+
+  const deltaSeconds = Math.round((timestamp - Date.now()) / 1000);
+  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const ranges = [
+    ["year", 60 * 60 * 24 * 365],
+    ["month", 60 * 60 * 24 * 30],
+    ["day", 60 * 60 * 24],
+    ["hour", 60 * 60],
+    ["minute", 60],
+  ] as const;
+
+  for (const [unit, seconds] of ranges) {
+    if (Math.abs(deltaSeconds) >= seconds) {
+      return formatter.format(Math.round(deltaSeconds / seconds), unit);
+    }
+  }
+
+  return formatter.format(deltaSeconds, "second");
 }

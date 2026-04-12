@@ -9,15 +9,14 @@ import { PostRichText } from "$/components/shared/PostRichText";
 import { ModerationController } from "$/lib/api/moderation";
 import {
   buildPublicPostUrl,
-  formatRelativeTime,
   getAvatarLabel,
   getDisplayName,
   getPostCreatedAt,
   getPostFacets,
   getPostText,
   hasKnownThreadContext,
-  isReplyItem,
 } from "$/lib/feeds";
+import { isReplyItem } from "$/lib/feeds/type-guards";
 import { collectModerationLabels } from "$/lib/moderation";
 import type { PostEngagementTab } from "$/lib/post-engagement-routes";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
@@ -30,6 +29,7 @@ import type {
   PostView,
   RichTextFacet,
 } from "$/lib/types";
+import { formatRelativeTime } from "$/lib/utils/text";
 import { formatCount, formatHandle, normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createMemo, createSignal, type ParentProps, Show, splitProps } from "solid-js";

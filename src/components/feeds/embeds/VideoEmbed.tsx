@@ -7,6 +7,7 @@ import { listen } from "@tauri-apps/api/event";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 import type { JSX } from "solid-js";
+import { filenameFromPath, toDownloadErrorMessage } from "./shared";
 
 type VideoEmbedProps = {
   alt?: string;
@@ -206,22 +207,8 @@ function containerStyle(ratio: string): JSX.CSSProperties {
   return { "aspect-ratio": ratio };
 }
 
-function filenameFromPath(path: string) {
-  const parts = path.split(/[/\\]/u);
-  return parts.at(-1) || "downloaded file";
-}
-
 function isM3u8Url(value: string) {
   return /\.m3u8($|[?#])/iu.test(value);
-}
-
-function toDownloadErrorMessage(error: unknown, fallback: string) {
-  const message = normalizeError(error);
-  if (/download folder|writable|save|directory|exists/iu.test(message)) {
-    return "Couldn't save — check that the download folder exists.";
-  }
-
-  return fallback;
 }
 
 function toPlaybackMessage(error: unknown) {
@@ -233,20 +220,20 @@ function toPlaybackMessage(error: unknown) {
   return "Couldn't start playback right now.";
 }
 
-function VideoPlayerStage(
-  props: {
-    aspectRatio: string;
-    hasPlaylist: boolean;
-    hlsLoading: boolean;
-    poster?: string;
-    started: boolean;
-    onPlay: () => void;
-    onVideoRef: (element: HTMLVideoElement) => void;
-  },
-) {
+type VideoPlayerStageProps = {
+  aspectRatio: string;
+  hasPlaylist: boolean;
+  hlsLoading: boolean;
+  poster?: string;
+  started: boolean;
+  onPlay: () => void;
+  onVideoRef: (element: HTMLVideoElement) => void;
+};
+
+function VideoPlayerStage(props: VideoPlayerStageProps) {
   return (
     <div
-      class="relative w-full overflow-hidden rounded-[1.2rem] bg-black/40 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"
+      class="ui-input-strong relative w-full overflow-hidden rounded-[1.2rem] shadow-(--inset-shadow)"
       style={containerStyle(props.aspectRatio)}>
       <video
         ref={(element) => props.onVideoRef(element)}
@@ -269,7 +256,7 @@ function PlayOverlay(props: { onPlay: () => void }) {
     <button
       type="button"
       aria-label="Play video"
-      class="absolute inset-0 grid place-items-center border-0 bg-black/35 backdrop-blur-[2px] transition hover:bg-black/45"
+      class="absolute inset-0 grid place-items-center border-0 bg-surface-container-highest/70 backdrop-blur-[2px] transition hover:bg-surface-container-highest/85"
       onClick={() => props.onPlay()}>
       <span class="grid h-16 w-16 place-items-center rounded-full bg-primary/88 text-on-primary-fixed shadow-[0_16px_30px_rgba(0,0,0,0.32)]">
         <Icon aria-hidden="true" iconClass="i-ri-play-fill text-3xl" />
@@ -280,7 +267,7 @@ function PlayOverlay(props: { onPlay: () => void }) {
 
 function LoadingBadge() {
   return (
-    <div class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-xs text-on-surface">
+    <div class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-surface-container-high/90 px-3 py-1.5 text-xs text-on-surface">
       <Icon aria-hidden="true" iconClass="i-ri-loader-4-line animate-spin" />
       <span>Loading stream</span>
     </div>

@@ -3,10 +3,11 @@ import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
 import { ModeratedBlurOverlay } from "$/components/moderation/ModeratedBlurOverlay";
 import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { Icon } from "$/components/shared/Icon";
-import { formatRelativeTime, getAvatarLabel, getDisplayName } from "$/lib/feeds";
+import { getAvatarLabel, getDisplayName } from "$/lib/feeds";
 import { collectModerationLabels } from "$/lib/moderation";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { NotificationReason, NotificationView } from "$/lib/types";
+import { formatRelativeTime } from "$/lib/utils/text";
 import { createMemo, Show } from "solid-js";
 import {
   notificationBodyTargetUri,

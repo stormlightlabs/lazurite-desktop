@@ -1,7 +1,8 @@
 import { Icon } from "$/components/shared/Icon";
 import { useAppSession } from "$/contexts/app-session";
 import { FeedController } from "$/lib/api/feeds";
-import { findRootPost, isBlockedNode, isNotFoundNode, isThreadViewPost, patchThreadNode } from "$/lib/feeds";
+import { findRootPost, patchThreadNode } from "$/lib/feeds";
+import { isBlockedNode, isNotFoundNode, isThreadViewPost } from "$/lib/feeds/type-guards";
 import { useNavigationHistory } from "$/lib/navigation-history";
 import type { PostView, ThreadNode } from "$/lib/types";
 import { createEffect, createMemo, For, Match, onCleanup, Show, splitProps, Switch } from "solid-js";

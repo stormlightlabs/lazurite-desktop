@@ -5,10 +5,18 @@ updated: 2026-04-08
 
 ## Bugs
 
+- [ ] Quoted posts should link to the original post
+  - [ ] They should also nest properly
+
 ## High Priority Updates
 
-- [ ] Profile RSS
-  - OK. So making an RSS reader with share to BlueSky would be cool...
+- [ ] Feed view
+- [ ] Starter pack view
+- [ ] List view
+
+## Updates
+
+- [ ] Profile RSS?
 
 ## Multicolumn Layouts
 

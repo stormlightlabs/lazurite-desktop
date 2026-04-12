@@ -203,30 +203,80 @@ type ExternalEmbedView = {
   external: { description?: string; thumb?: string; title?: string; uri?: string };
 };
 
-type EmbeddedQuoteRecord = {
-  $type?: string;
-  author?: ProfileViewBasic;
-  cid?: string;
-  embeds?: EmbedView[];
-  labels?: ModerationLabel[] | null;
-  uri?: string;
-  value?: Record<string, unknown>;
-};
-
-type RecordEmbedView = { $type: "app.bsky.embed.record#view"; record: EmbeddedQuoteRecord };
-
-type RecordWithMediaEmbedView = {
-  $type: "app.bsky.embed.recordWithMedia#view";
-  media?: EmbedView;
-  record?: RecordEmbedView;
-};
-
 type VideoEmbedView = {
   $type: "app.bsky.embed.video#view";
   alt?: string;
   aspectRatio?: { height: number; width: number };
   playlist?: string;
   thumbnail?: string;
+};
+
+type EmbeddedRecordViewRecord = {
+  $type?: "app.bsky.embed.record#viewRecord";
+  author?: ProfileViewBasic;
+  cid?: string;
+  embeds?: EmbedView[];
+  indexedAt?: string;
+  labels?: ModerationLabel[] | null;
+  uri?: string;
+  value?: Record<string, unknown>;
+};
+
+type EmbeddedRecordViewBlocked = {
+  $type?: "app.bsky.embed.record#viewBlocked";
+  author?: ProfileViewBasic;
+  blocked?: boolean;
+  uri?: string;
+};
+
+type EmbeddedRecordViewDetached = { $type?: "app.bsky.embed.record#viewDetached"; detached?: boolean; uri?: string };
+
+type EmbeddedRecordViewNotFound = { $type?: "app.bsky.embed.record#viewNotFound"; notFound?: boolean; uri?: string };
+
+type EmbeddedGeneratorView = {
+  $type: "app.bsky.feed.defs#generatorView";
+  creator?: ProfileViewBasic;
+  description?: string;
+  displayName?: string;
+  uri?: string;
+};
+
+type EmbeddedListView = {
+  $type: "app.bsky.graph.defs#listView";
+  creator?: ProfileViewBasic;
+  description?: string;
+  name?: string;
+  uri?: string;
+};
+
+type EmbeddedLabelerView = { $type: "app.bsky.labeler.defs#labelerView"; creator?: ProfileViewBasic; uri?: string };
+
+type EmbeddedStarterPackView = {
+  $type: "app.bsky.graph.defs#starterPackViewBasic";
+  creator?: ProfileViewBasic;
+  record?: Record<string, unknown>;
+  uri?: string;
+};
+
+type EmbeddedUnknownRecord = { $type?: string; [key: string]: unknown };
+
+export type EmbeddedRecordView =
+  | EmbeddedGeneratorView
+  | EmbeddedLabelerView
+  | EmbeddedListView
+  | EmbeddedRecordViewBlocked
+  | EmbeddedRecordViewDetached
+  | EmbeddedRecordViewNotFound
+  | EmbeddedRecordViewRecord
+  | EmbeddedStarterPackView
+  | EmbeddedUnknownRecord;
+
+type RecordEmbedView = { $type: "app.bsky.embed.record#view"; record: EmbeddedRecordView };
+
+type RecordWithMediaEmbedView = {
+  $type: "app.bsky.embed.recordWithMedia#view";
+  media?: ExternalEmbedView | ImagesEmbedView | VideoEmbedView | EmbeddedUnknownRecord;
+  record?: RecordEmbedView;
 };
 
 export type EmbedView =

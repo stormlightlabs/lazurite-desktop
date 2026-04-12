@@ -1,5 +1,5 @@
-import { formatRelativeTime } from "$/lib/feeds";
 import { buildProfileRoute } from "$/lib/profile";
+import { formatRelativeTime } from "$/lib/utils/text";
 import { escapeForRegex } from "$/lib/utils/text";
 import { createMemo, type JSX, type ParentProps, Show } from "solid-js";
 import { Icon } from "../shared/Icon";

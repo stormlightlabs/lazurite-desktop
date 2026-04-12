@@ -5,11 +5,12 @@ import { useThreadOverlayNavigation } from "$/components/posts/hooks/useThreadOv
 import { useAppSession } from "$/contexts/app-session";
 import { listNotifications, updateSeen } from "$/lib/api/notifications";
 import { NOTIFICATIONS_UNREAD_COUNT_EVENT } from "$/lib/constants/events";
-import { formatRelativeTime, getAvatarLabel, getDisplayName } from "$/lib/feeds";
+import { getAvatarLabel, getDisplayName } from "$/lib/feeds";
 import { collectModerationLabels } from "$/lib/moderation";
 import { buildPostRoute } from "$/lib/post-routes";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { ListNotificationsResponse, NotificationReason, NotificationView, ProfileViewBasic } from "$/lib/types";
+import { formatRelativeTime } from "$/lib/utils/text";
 import { normalizeError } from "$/lib/utils/text";
 import { listen } from "@tauri-apps/api/event";
 import * as logger from "@tauri-apps/plugin-log";

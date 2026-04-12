@@ -1,7 +1,7 @@
 import { Icon } from "$/components/shared/Icon";
 import { SearchController } from "$/lib/api/search";
 import type { SyncStatus } from "$/lib/api/types/search";
-import { formatRelativeTime } from "$/lib/feeds";
+import { formatRelativeTime } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";

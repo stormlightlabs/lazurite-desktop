@@ -12,11 +12,11 @@ import type {
   SearchMode,
   SyncStatus,
 } from "$/lib/api/types/search";
-import { formatRelativeTime } from "$/lib/feeds";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import { buildSearchRoute, parseSearchRouteState, toLocalDayStartIso, toLocalDayUntilIso } from "$/lib/search-routes";
 import type { PostSearchFilters, SearchTab } from "$/lib/search-routes";
 import type { ProfileViewBasic } from "$/lib/types";
+import { formatRelativeTime } from "$/lib/utils/text";
 import { normalizeError } from "$/lib/utils/text";
 import { useLocation, useNavigate } from "@solidjs/router";
 import * as logger from "@tauri-apps/plugin-log";

@@ -282,6 +282,181 @@ describe("PostCard", () => {
     expect(onOpenThread).toHaveBeenCalledWith("at://did:plc:bob/app.bsky.feed.post/quoted");
   });
 
+  it("renders quoted post image and video embeds from the quoted record", () => {
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              $type: "app.bsky.embed.record#viewRecord",
+              author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+              embeds: [
+                {
+                  $type: "app.bsky.embed.images#view",
+                  images: [{ alt: "Quoted image", fullsize: "https://cdn.example.com/quoted-image.png" }],
+                },
+                {
+                  $type: "app.bsky.embed.video#view",
+                  alt: "Quoted clip",
+                  playlist: "https://cdn.example.com/quoted-video.m3u8",
+                  thumbnail: "https://cdn.example.com/quoted-video-thumb.jpg",
+                },
+              ],
+              uri: "at://did:plc:bob/app.bsky.feed.post/quoted",
+              value: { text: "Quoted body with media" },
+            },
+          },
+        }} />
+    ));
+
+    expect(screen.getByAltText("Quoted image")).toHaveAttribute("src", "https://cdn.example.com/quoted-image.png");
+    expect(screen.getByRole("button", { name: "Play video" })).toBeInTheDocument();
+    expect(screen.getByText("Quoted clip")).toBeInTheDocument();
+  });
+
+  it("renders quoted external card embeds from the quoted record", () => {
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              $type: "app.bsky.embed.record#viewRecord",
+              author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+              embeds: [{
+                $type: "app.bsky.embed.external#view",
+                external: {
+                  description: "Deep dive",
+                  title: "External article",
+                  uri: "https://example.com/article",
+                },
+              }],
+              uri: "at://did:plc:bob/app.bsky.feed.post/quoted",
+              value: { text: "Quoted body with external card" },
+            },
+          },
+        }} />
+    ));
+
+    expect(screen.getByRole("link", { name: /external article/i })).toHaveAttribute("href", "https://example.com/article");
+  });
+
+  it("renders feed generator record embeds with feed metadata and external links", () => {
+    const onOpenThread = vi.fn();
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              $type: "app.bsky.feed.defs#generatorView",
+              creator: { did: "did:plc:alice", handle: "alice.test", displayName: "Alice" },
+              description: "Prioritizes high-signal posts.",
+              displayName: "For You",
+              uri: "at://did:plc:alice/app.bsky.feed.generator/for-you",
+            },
+          },
+        }}
+        onOpenThread={onOpenThread} />
+    ));
+
+    expect(screen.getByText("Embedded feed")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /for you/i })).toHaveAttribute(
+      "href",
+      "https://bsky.app/profile/alice.test/feed/for-you",
+    );
+    fireEvent.click(screen.getByRole("link", { name: /for you/i }));
+    expect(onOpenThread).not.toHaveBeenCalled();
+  });
+
+  it("renders list record embeds with list metadata and external links", () => {
+    const onOpenThread = vi.fn();
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              $type: "app.bsky.graph.defs#listView",
+              creator: { did: "did:plc:alice", handle: "alice.test", displayName: "Alice" },
+              name: "Science Curators",
+              uri: "at://did:plc:alice/app.bsky.graph.list/science-curators",
+            },
+          },
+        }}
+        onOpenThread={onOpenThread} />
+    ));
+
+    expect(screen.getByText("Embedded list")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /science curators/i })).toHaveAttribute(
+      "href",
+      "https://bsky.app/profile/alice.test/lists/science-curators",
+    );
+    fireEvent.click(screen.getByRole("link", { name: /science curators/i }));
+    expect(onOpenThread).not.toHaveBeenCalled();
+  });
+
+  it("ignores non-media payloads inside recordWithMedia and avoids duplicate quote previews", () => {
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.recordWithMedia#view",
+            media: {
+              $type: "app.bsky.embed.record#view",
+              record: {
+                author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+                uri: "at://did:plc:bob/app.bsky.feed.post/nested",
+                value: { text: "Nested record" },
+              },
+            },
+            record: {
+              $type: "app.bsky.embed.record#view",
+              record: {
+                author: { did: "did:plc:carol", handle: "carol.test", displayName: "Carol" },
+                uri: "at://did:plc:carol/app.bsky.feed.post/outer",
+                value: { text: "Outer quote" },
+              },
+            },
+          },
+        }} />
+    ));
+
+    expect(screen.getByText("Outer quote")).toBeInTheDocument();
+    expect(screen.queryByText("Nested record")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Quoted post")).toHaveLength(1);
+    expect(screen.queryByText("This recognized media type is not valid in recordWithMedia.media.")).not.toBeInTheDocument();
+  });
+
+  it("does not show unsupported embed fallback cards for custom quoted embeds", () => {
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              $type: "app.bsky.embed.record#viewRecord",
+              author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+              embeds: [{ $type: "app.bsky.embed.unsupported#view" }],
+              uri: "at://did:plc:bob/app.bsky.feed.post/quoted",
+              value: { text: "Quoted body" },
+            },
+          },
+        }} />
+    ));
+
+    expect(screen.queryByText("Unsupported custom embed type.")).not.toBeInTheDocument();
+    expect(screen.queryByText("View JSON")).not.toBeInTheDocument();
+    expect(screen.getByText("Quoted body")).toBeInTheDocument();
+  });
+
   it("renders inline video embed player for video attachments", () => {
     render(() => (
       <PostCard

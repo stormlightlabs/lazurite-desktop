@@ -1,7 +1,7 @@
 import { Icon } from "$/components/shared/Icon";
 import { DraftController } from "$/lib/api/drafts";
-import { formatRelativeTime } from "$/lib/feeds";
 import type { Draft } from "$/lib/types";
+import { formatRelativeTime } from "$/lib/utils/text";
 import { normalizeError } from "$/lib/utils/text";
 import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createSignal, For, Show } from "solid-js";

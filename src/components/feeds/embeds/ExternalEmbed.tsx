@@ -3,7 +3,7 @@ import { Show } from "solid-js";
 export function ExternalEmbed(props: { description?: string; thumb?: string; title?: string; uri?: string }) {
   return (
     <a
-      class="grid min-w-0 gap-3 overflow-hidden rounded-2xl bg-black/30 p-3 text-inherit no-underline shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] transition duration-150 ease-out hover:bg-black/40"
+      class="ui-input-strong grid min-w-0 gap-3 overflow-hidden rounded-2xl p-3 text-inherit no-underline shadow-(--inset-shadow) transition duration-150 ease-out hover:bg-surface-bright"
       href={props.uri}
       rel="noreferrer"
       target="_blank"

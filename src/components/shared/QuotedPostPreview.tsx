@@ -5,11 +5,9 @@ import { formatHandle } from "$/lib/utils/text";
 import { createMemo, Show } from "solid-js";
 
 function QuotedText(props: { facets?: RichTextFacet[] | null; text: string; truncated: boolean }) {
-  const hasFacets = createMemo(() => Array.isArray(props.facets) && props.facets.length > 0);
-
   return (
     <Show
-      when={hasFacets()}
+      when={props.facets}
       fallback={
         <Show
           when={props.truncated}
@@ -21,19 +19,57 @@ function QuotedText(props: { facets?: RichTextFacet[] | null; text: string; trun
           <p class="mt-2 line-clamp-4 text-sm leading-[1.55] text-on-secondary-container">{props.text}</p>
         </Show>
       }>
-      <div class="mt-2" classList={{ "line-clamp-4": props.truncated }}>
-        <PostRichText
-          class="m-0 text-sm leading-[1.55] text-on-secondary-container [&_p]:text-sm [&_p]:leading-[1.55] [&_p]:text-on-secondary-container"
-          facets={props.facets}
-          text={props.text} />
-      </div>
+      {facets => (
+        <div class="mt-2" classList={{ "line-clamp-4": props.truncated }}>
+          <PostRichText
+            class="m-0 text-sm leading-[1.55] text-on-secondary-container [&_p]:text-sm [&_p]:leading-[1.55] [&_p]:text-on-secondary-container"
+            facets={facets()}
+            text={props.text} />
+        </div>
+      )}
     </Show>
+  );
+}
+
+type QuotedPreviewContentProps = {
+  author: ProfileViewBasic | null;
+  emptyText?: string;
+  facets?: RichTextFacet[] | null;
+  preview: string;
+  truncated: boolean;
+};
+
+function QuotedPreviewContent(props: QuotedPreviewContentProps) {
+  return (
+    <>
+      <Show when={props.author}>
+        {(value) => {
+          const author = value();
+          return (
+            <p class="m-0 wrap-break-word text-sm font-semibold text-on-surface">
+              {getDisplayName(author)}
+              <span class="ml-1 break-all text-xs font-normal text-on-surface-variant">
+                {formatHandle(author.handle, author.did)}
+              </span>
+            </p>
+          );
+        }}
+      </Show>
+      <Show
+        when={props.preview}
+        fallback={
+          <p class="mt-2 text-sm leading-[1.55] text-on-surface-variant">{props.emptyText ?? "Quoted post"}</p>
+        }>
+        {(text) => <QuotedText facets={props.facets} text={text()} truncated={props.truncated} />}
+      </Show>
+    </>
   );
 }
 
 type QuotedPostPreviewProps = {
   author: ProfileViewBasic | null;
   class?: string;
+  emptyText?: string;
   facets?: RichTextFacet[] | null;
   href?: string | null;
   onOpenPost?: () => void;
@@ -55,7 +91,13 @@ export function QuotedPostPreview(props: QuotedPostPreviewProps) {
         fallback={
           <Show
             when={props.href}
-            fallback={<QuotedPreviewContent author={props.author} preview={preview()} truncated={truncated()} />}>
+            fallback={
+              <QuotedPreviewContent
+                author={props.author}
+                emptyText={props.emptyText}
+                preview={preview()}
+                truncated={truncated()} />
+            }>
             {(href) => (
               <a
                 class="mt-2 block rounded-xl px-1 py-1 text-inherit no-underline transition duration-150 ease-out hover:bg-surface-bright"
@@ -65,6 +107,7 @@ export function QuotedPostPreview(props: QuotedPostPreviewProps) {
                 onClick={(event) => event.stopPropagation()}>
                 <QuotedPreviewContent
                   author={props.author}
+                  emptyText={props.emptyText}
                   facets={props.facets}
                   preview={preview()}
                   truncated={truncated()} />
@@ -81,35 +124,12 @@ export function QuotedPostPreview(props: QuotedPostPreviewProps) {
           }}>
           <QuotedPreviewContent
             author={props.author}
+            emptyText={props.emptyText}
             facets={props.facets}
             preview={preview()}
             truncated={truncated()} />
         </button>
       </Show>
     </div>
-  );
-}
-
-function QuotedPreviewContent(
-  props: { author: ProfileViewBasic | null; facets?: RichTextFacet[] | null; preview: string; truncated: boolean },
-) {
-  return (
-    <>
-      <Show when={props.author}>
-        {(author) => (
-          <p class="m-0 wrap-break-word text-sm font-semibold text-on-surface">
-            {getDisplayName(author())}
-            <span class="ml-1 break-all text-xs font-normal text-on-surface-variant">
-              {formatHandle(author().handle, author().did)}
-            </span>
-          </p>
-        )}
-      </Show>
-      <Show
-        when={props.preview}
-        fallback={<p class="mt-2 text-sm leading-[1.55] text-on-surface-variant">Quoted post</p>}>
-        {(text) => <QuotedText facets={props.facets} text={text()} truncated={props.truncated} />}
-      </Show>
-    </>
   );
 }

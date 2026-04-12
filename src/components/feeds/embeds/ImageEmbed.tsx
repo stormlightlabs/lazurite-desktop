@@ -5,9 +5,10 @@ import { MediaController } from "$/lib/api/media";
 import { getPostText, postRkeyFromUri } from "$/lib/feeds";
 import { buildProfileRoute, getProfileRouteActor } from "$/lib/profile";
 import type { ImagesEmbedView, PostView } from "$/lib/types";
-import { formatHandle, normalizeError } from "$/lib/utils/text";
+import { formatHandle } from "$/lib/utils/text";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { createMemo, createSignal, For, onCleanup } from "solid-js";
+import { filenameFromPath, toDownloadErrorMessage } from "./shared";
 
 function buildImageFilename(postRkey: string | null, imageCount: number, imageIndex: number | null) {
   if (!postRkey) {
@@ -19,20 +20,6 @@ function buildImageFilename(postRkey: string | null, imageCount: number, imageIn
   }
 
   return postRkey;
-}
-
-function filenameFromPath(path: string) {
-  const parts = path.split(/[/\\]/u);
-  return parts.at(-1) || "downloaded file";
-}
-
-function toDownloadErrorMessage(error: unknown) {
-  const message = normalizeError(error);
-  if (/download folder|writable|save|directory|exists/iu.test(message)) {
-    return "Couldn't save — check that the download folder exists.";
-  }
-
-  return "Couldn't save this image right now.";
 }
 
 export function ImageEmbed(props: { embed: ImagesEmbedView; post: PostView }) {
@@ -118,7 +105,7 @@ export function ImageEmbed(props: { embed: ImagesEmbedView; post: PostView }) {
 
       queueNotice({ kind: "success", message: `Saved ${filenameFromPath(result.path)}.`, path: result.path });
     } catch (error) {
-      queueNotice({ kind: "error", message: toDownloadErrorMessage(error) });
+      queueNotice({ kind: "error", message: toDownloadErrorMessage(error, "Couldn't save this image right now.") });
     } finally {
       setDownloadPending(false);
     }
@@ -131,7 +118,7 @@ export function ImageEmbed(props: { embed: ImagesEmbedView; post: PostView }) {
           {(image, index) => (
             <button
               type="button"
-              class="overflow-hidden rounded-[1.2rem] border-0 bg-black/30 p-0 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"
+              class="ui-input-strong overflow-hidden rounded-[1.2rem] border-0 p-0 shadow-(--inset-shadow)"
               onClick={(event) => openGallery(index(), event)}
               onContextMenu={(event) => openImageMenu(event, image.fullsize ?? image.thumb, index())}>
               <img class="max-h-88 w-full object-cover" src={image.fullsize ?? image.thumb} alt={image.alt ?? ""} />

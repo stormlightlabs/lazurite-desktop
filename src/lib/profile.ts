@@ -1,4 +1,5 @@
-import { isReplyItem, parseFeedResponse } from "$/lib/feeds";
+import { parseFeedResponse } from "$/lib/feeds";
+import { isReplyItem } from "$/lib/feeds/type-guards";
 import { asModerationLabels } from "$/lib/moderation";
 import type {
   ActorListResponse,
