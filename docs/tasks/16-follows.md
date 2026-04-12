@@ -24,19 +24,19 @@ Spec: [follow-hygiene.md](../specs/follow-hygiene.md)
 
 #### Core
 
-- [ ] **Create `FollowHygienePanel` component** (`src/components/profile/FollowHygienePanel.tsx`). Local state via `createStore<FollowHygieneState>`. Phases: idle → scanning → ready → unfollowing → done.
-- [ ] **Progress bar.** Listen to `follow-hygiene:progress` Tauri events during scan. Determinate bar with animated fill.
-- [ ] **Flagged account list.** Scrollable list with per-row checkbox, handle, DID, status label chip. Selected rows get background tint. Use `For` (not map).
-- [ ] **Category filter sidebar.** Sticky sidebar with visibility toggles and select-all checkboxes per status category. Selection counter.
-- [ ] **Unfollow flow.** Confirmation dialog before destructive action should invoke `batch_unfollow`, remove completed rows with exit animation, show result summary.
-- [ ] **Entry points.** Add "Audit follows" button to the authenticated user's own profile panel.
-  - [ ] Add secondary entry in Settings > Account section.
+- [x] **Create `FollowHygienePanel` component** (`src/components/profile/FollowHygienePanel.tsx`). Local state via `createStore<FollowHygieneState>`. Phases: idle → scanning → ready → unfollowing → done.
+- [x] **Progress bar.** Listen to `follow-hygiene:progress` Tauri events during scan. Determinate bar with animated fill.
+- [x] **Flagged account list.** Scrollable list with per-row checkbox, handle, DID, status label chip. Selected rows get background tint. Use `For` (not map).
+- [x] **Category filter sidebar.** Sticky sidebar with visibility toggles and select-all checkboxes per status category. Selection counter.
+- [x] **Unfollow flow.** Confirmation dialog before destructive action should invoke `batch_unfollow`, remove completed rows with exit animation, show result summary.
+- [x] **Entry points.** Add "Audit follows" button to the authenticated user's own profile panel.
+  - [x] Add secondary entry in Settings > Account section.
 
 #### Polish
 
-- [ ] Keyboard shortcuts: `Space` toggle, `Ctrl+A` select all, `Escape` close
-- [ ] `Motion` staggered fade-in on scan results, exit animation on unfollow
-- [ ] `Presence` fade-in on confirmation dialog
-- [ ] Skeleton/spinner states during scan
-- [ ] Empty state message when no flagged accounts found
-- [ ] Error handling: toast on scan failure, inline retry for batch unfollow failures
+- [x] Keyboard shortcuts: `Space` toggle, `Ctrl+A` select all, `Escape` close
+- [x] `Motion` staggered fade-in on scan results, exit animation on unfollow
+- [x] `Presence` fade-in on confirmation dialog
+- [x] Skeleton/spinner states during scan
+- [x] Empty state message when no flagged accounts found
+- [x] Error handling: toast on scan failure, inline retry for batch unfollow failures

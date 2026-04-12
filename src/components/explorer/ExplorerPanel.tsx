@@ -63,6 +63,25 @@ function hasCachedLexiconIcon(icons: Record<string, string | null>, collection: 
   return Object.prototype.hasOwnProperty.call(icons, collection);
 }
 
+function parseExplorerTargetFromHash(hash: string) {
+  const queryIndex = hash.indexOf("?");
+  if (queryIndex === -1 || queryIndex === hash.length - 1) {
+    return null;
+  }
+
+  const params = new URLSearchParams(hash.slice(queryIndex + 1));
+  const value = params.get("target");
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export function ExplorerPanel() {
   const explorer = createExplorerState();
   const [clearingIconCache, setClearingIconCache] = createSignal(false);
@@ -432,7 +451,7 @@ export function ExplorerPanel() {
 
   onMount(() => {
     let unlisten: (() => void) | undefined;
-    const pendingTarget = consumeQueuedExplorerTarget();
+    const pendingTarget = consumeQueuedExplorerTarget() ?? parseExplorerTargetFromHash(globalThis.location.hash);
 
     void listen<ExplorerNavigation>(NAVIGATION_EVENT, (event) => {
       const target = event.payload.target;

@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-lib
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilePanel } from "../ProfilePanel";
 
+const auditFollowsMock = vi.hoisted(() => vi.fn());
+const batchUnfollowMock = vi.hoisted(() => vi.fn());
 const followActorMock = vi.hoisted(() => vi.fn());
 const getActorLikesMock = vi.hoisted(() => vi.fn());
 const getAuthorFeedMock = vi.hoisted(() => vi.fn());
@@ -27,6 +29,8 @@ vi.mock(
   "$/lib/api/profile",
   () => ({
     ProfileController: {
+      auditFollows: auditFollowsMock,
+      batchUnfollow: batchUnfollowMock,
       followActor: followActorMock,
       getActorLikes: getActorLikesMock,
       getAuthorFeed: getAuthorFeedMock,
@@ -80,13 +84,14 @@ function createProfile() {
   };
 }
 
-function renderProfilePanel(actor = "bob.test") {
+function renderProfilePanel(actor = "bob.test", session: Record<string, unknown> = {}) {
   render(() => (
     <AppTestProviders
       session={{
         activeDid: "did:plc:alice",
         activeHandle: "alice.test",
         activeSession: { did: "did:plc:alice", handle: "alice.test" },
+        ...session,
       }}>
       <ProfilePanel actor={actor} />
     </AppTestProviders>
@@ -126,8 +131,20 @@ describe("ProfilePanel", () => {
     });
     getFollowersMock.mockResolvedValue({ actors: [], cursor: null });
     getFollowsMock.mockResolvedValue({ actors: [], cursor: null });
+    auditFollowsMock.mockResolvedValue([]);
+    batchUnfollowMock.mockResolvedValue({ deleted: 0, failed: [] });
     followActorMock.mockResolvedValue({ cid: "cid-follow", uri: "at://did:plc:alice/app.bsky.graph.follow/1" });
     unfollowActorMock.mockResolvedValue(void 0);
+  });
+
+  it("shows follow hygiene entry on the signed-in profile", async () => {
+    renderProfilePanel("bob.test", {
+      activeDid: "did:plc:bob",
+      activeHandle: "bob.test",
+      activeSession: { did: "did:plc:bob", handle: "bob.test" },
+    });
+
+    expect(await screen.findByRole("button", { name: "Audit follows" })).toBeInTheDocument();
   });
 
   it("optimistically follows and unfollows from the hero while keeping badges in sync", async () => {

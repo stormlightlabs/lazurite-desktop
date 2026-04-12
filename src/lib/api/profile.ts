@@ -1,5 +1,5 @@
 import { parseActorList, parseProfileFeed, parseProfileResult } from "$/lib/profile";
-import type { CreateRecordResult, ProfileLookupResult } from "$/lib/types";
+import type { CreateRecordResult, FlaggedFollow, FollowBatchResult, ProfileLookupResult } from "$/lib/types";
 import { invoke } from "@tauri-apps/api/core";
 
 async function getProfile(actor: string): Promise<ProfileLookupResult> {
@@ -36,7 +36,17 @@ async function getFollows(actor: string, cursor?: string | null, limit?: number)
   );
 }
 
+async function auditFollows(): Promise<FlaggedFollow[]> {
+  return invoke("audit_follows");
+}
+
+async function batchUnfollow(followUris: string[]): Promise<FollowBatchResult> {
+  return invoke("batch_unfollow", { followUris });
+}
+
 export const ProfileController = {
+  auditFollows,
+  batchUnfollow,
   getProfile,
   getAuthorFeed,
   getActorLikes,

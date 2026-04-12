@@ -21,6 +21,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Presence } from "solid-motionone";
 import { Icon } from "../shared/Icon";
+import { FollowHygienePanel } from "./FollowHygienePanel";
 import { createActorListState, createFeedState, createProfilePanelState, tabLabel } from "./profile-state";
 import type { ProfilePanelState } from "./profile-state";
 import { ActorListOverlay } from "./ProfileActorList";
@@ -38,6 +39,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
   const postNavigation = usePostNavigation();
   const [state, setState] = createStore<ProfilePanelState>(createProfilePanelState());
   const [heroHeight, setHeroHeight] = createSignal<number | null>(null);
+  const [followHygieneOpen, setFollowHygieneOpen] = createSignal(false);
   let requestSequence = 0;
   const interactions = usePostInteractions({
     onError: session.reportError,
@@ -457,6 +459,7 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
                       joinedLabel={joinedLabel()}
                       onFollow={handleFollow}
                       onMessage={handleMessage}
+                      onOpenFollowHygiene={() => setFollowHygieneOpen(true)}
                       onOpenFollowers={() => openActorList("followers")}
                       onOpenFollows={() => openActorList("follows")}
                       onUnfollow={handleUnfollow}
@@ -523,6 +526,12 @@ export function ProfilePanel(props: { actor: string | null; embedded?: boolean }
             }}
             onUnfollowActor={handleActorListUnfollow}
             sessionDid={session.activeDid} />
+        </Show>
+      </Presence>
+
+      <Presence>
+        <Show when={followHygieneOpen()}>
+          <FollowHygienePanel onClose={() => setFollowHygieneOpen(false)} />
         </Show>
       </Presence>
     </section>

@@ -168,6 +168,7 @@ describe("SettingsPanel", () => {
     expect(await screen.findByText("Notifications")).toBeInTheDocument();
     expect(await screen.findByText("Moderation")).toBeInTheDocument();
     expect(await screen.findByText("Accounts")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Audit follows" })).toBeInTheDocument();
     expect(await screen.findByText("Services")).toBeInTheDocument();
     expect(await screen.findByText("Data")).toBeInTheDocument();
     expect(await screen.findByText("Downloads")).toBeInTheDocument();

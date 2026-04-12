@@ -16,20 +16,31 @@ function ProfileHeroActions(
     isSelf: boolean;
     onFollow: () => void;
     onMessage: () => void;
+    onOpenFollowHygiene: () => void;
     onUnfollow: () => void;
   },
 ) {
   return (
     <div class="flex flex-col items-end gap-2">
-      <Show when={!props.isSelf}>
-        <div class="flex flex-wrap justify-end gap-2">
-          <MessageButton onClick={props.onMessage} />
-          <FollowButton
-            isFollowing={props.isFollowing}
-            loading={props.followLoading}
-            onFollow={props.onFollow}
-            onUnfollow={props.onUnfollow} />
-        </div>
+      <Show
+        when={props.isSelf}
+        fallback={
+          <div class="flex flex-wrap justify-end gap-2">
+            <MessageButton onClick={props.onMessage} />
+            <FollowButton
+              isFollowing={props.isFollowing}
+              loading={props.followLoading}
+              onFollow={props.onFollow}
+              onUnfollow={props.onUnfollow} />
+          </div>
+        }>
+        <button
+          class="tone-muted inline-flex min-h-9 items-center gap-2 rounded-full border ui-outline-subtle px-4 text-sm font-medium text-on-surface shadow-(--inset-shadow) transition duration-150 ease-out hover:bg-surface-bright"
+          type="button"
+          onClick={() => props.onOpenFollowHygiene()}>
+          <Icon iconClass="i-ri-user-search-line" class="text-base" />
+          Audit follows
+        </button>
       </Show>
       <ProfileBadgeRow badges={props.badges} isSelf={props.isSelf} />
     </div>
@@ -198,6 +209,7 @@ export function ProfileHero(
     joinedLabel: string | null;
     onFollow: () => void;
     onMessage: () => void;
+    onOpenFollowHygiene: () => void;
     onOpenFollowers: () => void;
     onOpenFollows: () => void;
     onUnfollow: () => void;
@@ -247,6 +259,7 @@ export function ProfileHero(
               isSelf={props.isSelf}
               onFollow={props.onFollow}
               onMessage={props.onMessage}
+              onOpenFollowHygiene={props.onOpenFollowHygiene}
               onUnfollow={props.onUnfollow} />
           </div>
 

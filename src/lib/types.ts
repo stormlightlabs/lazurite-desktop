@@ -138,6 +138,12 @@ export type ProfileLookupResult = ProfileLookupAvailable | ProfileLookupUnavaila
 
 export type ActorListResponse = { cursor?: string | null; actors: ProfileViewBasic[] };
 
+export type FlaggedFollow = { did: string; followUri: string; handle: string; status: number; statusLabel: string };
+
+export type FollowBatchResult = { deleted: number; failed: string[] };
+
+export type FollowHygieneProgress = { current: number; total: number };
+
 export type FeedGeneratorView = {
   uri: string;
   did: string;

@@ -17,6 +17,7 @@ import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Motion, Presence } from "solid-motionone";
+import { FollowHygienePanel } from "../profile/FollowHygienePanel";
 import { Icon } from "../shared/Icon";
 import { SettingsAbout } from "./SettingsAbout";
 import { AccountControl } from "./SettingsAccount";
@@ -44,6 +45,7 @@ type SettingsPanelState = {
     onConfirm: () => void;
   } | null;
   modalOpen: boolean;
+  followHygieneOpen: boolean;
 };
 
 function ConfirmationModal(
@@ -168,6 +170,7 @@ export function SettingsPanel() {
   const navigate = useNavigate();
   const [panel, setPanel] = createStore<SettingsPanelState>({
     cacheSize: null,
+    followHygieneOpen: false,
     logLevel: "all",
     logs: [],
     logsExpanded: false,
@@ -289,7 +292,9 @@ export function SettingsPanel() {
                   <NotificationsControl settings={settings()} handleUpdateSetting={handleUpdateSetting} />
                   <SettingsModeration />
                   <EmbeddingsSettings />
-                  <AccountControl openConfirmation={openConfirmation} />
+                  <AccountControl
+                    openConfirmation={openConfirmation}
+                    onOpenFollowHygiene={() => setPanel("followHygieneOpen", true)} />
                   <SettingsService settings={settings()} handleUpdateSetting={handleUpdateSetting} />
                   <SettingsData
                     cacheSize={panel.cacheSize}
@@ -327,6 +332,12 @@ export function SettingsPanel() {
           panel.modalConfig?.onConfirm();
           setPanel("modalOpen", false);
         }} />
+
+      <Presence>
+        <Show when={panel.followHygieneOpen}>
+          <FollowHygienePanel onClose={() => setPanel("followHygieneOpen", false)} />
+        </Show>
+      </Presence>
     </article>
   );
 }

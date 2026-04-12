@@ -7,7 +7,7 @@ import { SettingsCard } from "./SettingsCard";
 
 function AccountItem(props: { account: AccountSummary; active: boolean; onRemove: () => void; onSwitch: () => void }) {
   return (
-    <div class="tone-muted flex items-center justify-between rounded-xl p-3 transition-colors hover:bg-[var(--panel-muted-hover)]">
+    <div class="tone-muted flex items-center justify-between rounded-xl p-3 transition-colors hover:bg-(--panel-muted-hover)">
       <div class="flex items-center gap-3">
         <div class="relative">
           <div class="h-10 w-10 overflow-hidden rounded-full">
@@ -68,6 +68,7 @@ export function AccountControl(
         onConfirm: () => void;
       },
     ) => void;
+    onOpenFollowHygiene: () => void;
   },
 ) {
   const session = useAppSession();
@@ -97,6 +98,22 @@ export function AccountControl(
           class="inline-flex items-center justify-center gap-2 rounded-full border-0 bg-primary px-4 py-2 text-sm font-medium text-on-primary-fixed transition hover:opacity-90">
           Add account
         </button>
+
+        <div class="tone-muted grid gap-3 rounded-xl p-3 shadow-(--inset-shadow)">
+          <div class="grid gap-1">
+            <p class="m-0 text-sm font-medium text-on-surface">Follow hygiene</p>
+            <p class="m-0 text-xs leading-relaxed text-on-surface-variant">
+              Audit follows for deleted, deactivated, blocked, and hidden accounts.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => props.onOpenFollowHygiene()}
+            class="ui-control ui-control-hoverable inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium text-on-surface">
+            <Icon iconClass="i-ri-user-search-line" class="text-base" />
+            Audit follows
+          </button>
+        </div>
       </div>
     </SettingsCard>
   );
