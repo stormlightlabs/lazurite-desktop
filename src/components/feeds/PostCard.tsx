@@ -335,7 +335,7 @@ type PostCardProps = {
   onFocus?: () => void;
   onLike?: () => void;
   onOpenEngagement?: (tab: PostEngagementTab) => void;
-  onOpenThread?: () => void;
+  onOpenThread?: (uri: string) => void;
   onQuote?: () => void;
   onReply?: () => void;
   onRepost?: () => void;
@@ -380,6 +380,9 @@ export function PostCard(props: PostCardProps) {
   const mergedPostDecision = createMemo(() => mergeModerationDecisions(contentDecision(), mediaDecision()));
   const hasPostText = createMemo(() => postText().trim().length > 0);
   const showThreadAction = createMemo(() => hasKnownThreadContext(view.post, view.item));
+  const openThread = (uri: string = view.post.uri) => {
+    interactions.onOpenThread?.(uri);
+  };
   const reasonLabel = createMemo(() => {
     const reason = view.item?.reason;
     if (!reason || reason.$type !== "app.bsky.feed.defs#reasonRepost") {
@@ -454,7 +457,7 @@ export function PostCard(props: PostCardProps) {
     });
 
     if (interactions.onOpenThread && showThreadAction()) {
-      items.push({ icon: "i-ri-node-tree", label: "Open thread", onSelect: interactions.onOpenThread });
+      items.push({ icon: "i-ri-node-tree", label: "Open thread", onSelect: () => openThread() });
     }
 
     if (interactions.onOpenEngagement) {
@@ -625,7 +628,7 @@ export function PostCard(props: PostCardProps) {
         </div>
 
         <div class="min-w-0 flex-1">
-          <PostPrimaryRegion onFocus={interactions.onFocus} onOpenThread={interactions.onOpenThread}>
+          <PostPrimaryRegion onFocus={interactions.onFocus} onOpenThread={() => openThread()}>
             <PostHeader
               authorName={authorName()}
               authorHandle={authorHandle()}
@@ -644,7 +647,7 @@ export function PostCard(props: PostCardProps) {
               mediaLabels={mediaLabels()}
               mergeBodyAndEmbedModeration={mergeBodyAndEmbedModeration()}
               mergedPostDecision={mergedPostDecision()}
-              onOpenPost={interactions.onOpenThread}
+              onOpenPost={openThread}
               post={view.post}
               text={postText()} />
           </PostPrimaryRegion>
@@ -661,7 +664,7 @@ export function PostCard(props: PostCardProps) {
 
                   interactions.onLike?.();
                 },
-                onOpenThread: interactions.onOpenThread,
+                onOpenThread: () => openThread(),
                 onQuote: (event) => {
                   if (event.shiftKey && interactions.onOpenEngagement) {
                     interactions.onOpenEngagement("quotes");

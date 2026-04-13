@@ -1,5 +1,6 @@
+import { buildPostRoute } from "$/lib/post-routes";
 import { buildHashtagRoute } from "$/lib/search-routes";
-import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PostCard } from "../PostCard";
 
@@ -275,8 +276,14 @@ describe("PostCard", () => {
     expect(screen.getByAltText("Preview image")).toHaveAttribute("src", "https://cdn.example.com/image.png");
     expect(screen.getByText("Quoted post")).toBeInTheDocument();
     expect(screen.getByText("Quoted body")).toBeInTheDocument();
+    const quotedCard = screen.getByText("Quoted post").closest(".ui-input-strong");
+    expect(quotedCard).not.toBeNull();
+    expect(within(quotedCard as HTMLElement).getByAltText("Preview image")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /quoted body/i }));
+    const quotedLink = screen.getByRole("link", { name: /quoted body/i });
+    expect(quotedLink).toHaveAttribute("href", `#${buildPostRoute("at://did:plc:bob/app.bsky.feed.post/quoted")}`);
+
+    fireEvent.click(quotedLink);
 
     expect(onOpenThread).toHaveBeenCalledTimes(1);
     expect(onOpenThread).toHaveBeenCalledWith("at://did:plc:bob/app.bsky.feed.post/quoted");
@@ -292,18 +299,15 @@ describe("PostCard", () => {
             record: {
               $type: "app.bsky.embed.record#viewRecord",
               author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
-              embeds: [
-                {
-                  $type: "app.bsky.embed.images#view",
-                  images: [{ alt: "Quoted image", fullsize: "https://cdn.example.com/quoted-image.png" }],
-                },
-                {
-                  $type: "app.bsky.embed.video#view",
-                  alt: "Quoted clip",
-                  playlist: "https://cdn.example.com/quoted-video.m3u8",
-                  thumbnail: "https://cdn.example.com/quoted-video-thumb.jpg",
-                },
-              ],
+              embeds: [{
+                $type: "app.bsky.embed.images#view",
+                images: [{ alt: "Quoted image", fullsize: "https://cdn.example.com/quoted-image.png" }],
+              }, {
+                $type: "app.bsky.embed.video#view",
+                alt: "Quoted clip",
+                playlist: "https://cdn.example.com/quoted-video.m3u8",
+                thumbnail: "https://cdn.example.com/quoted-video-thumb.jpg",
+              }],
               uri: "at://did:plc:bob/app.bsky.feed.post/quoted",
               value: { text: "Quoted body with media" },
             },
@@ -314,6 +318,78 @@ describe("PostCard", () => {
     expect(screen.getByAltText("Quoted image")).toHaveAttribute("src", "https://cdn.example.com/quoted-image.png");
     expect(screen.getByRole("button", { name: "Play video" })).toBeInTheDocument();
     expect(screen.getByText("Quoted clip")).toBeInTheDocument();
+  });
+
+  it("renders quoted postView media and opens that quoted thread", () => {
+    const onOpenThread = vi.fn();
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              $type: "app.bsky.feed.defs#postView",
+              author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+              record: {
+                text: "Quoted postView body",
+                embed: {
+                  $type: "app.bsky.embed.images#view",
+                  images: [{ alt: "Quoted postView image", fullsize: "https://cdn.example.com/postview-image.png" }],
+                },
+              },
+              uri: "at://did:plc:bob/app.bsky.feed.post/postview",
+            },
+          },
+        }}
+        onOpenThread={onOpenThread} />
+    ));
+
+    expect(screen.getByAltText("Quoted postView image")).toHaveAttribute(
+      "src",
+      "https://cdn.example.com/postview-image.png",
+    );
+    const quotedLink = screen.getByRole("link", { name: /quoted postview body/i });
+    expect(quotedLink).toHaveAttribute("href", `#${buildPostRoute("at://did:plc:bob/app.bsky.feed.post/postview")}`);
+
+    fireEvent.click(quotedLink);
+    expect(onOpenThread).toHaveBeenCalledWith("at://did:plc:bob/app.bsky.feed.post/postview");
+  });
+
+  it("renders blob-backed quoted record images and opens quoted thread uri", () => {
+    const onOpenThread = vi.fn();
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              $type: "app.bsky.feed.defs#postView",
+              author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+              record: {
+                embed: {
+                  $type: "app.bsky.embed.images",
+                  images: [{
+                    alt: "Blob-backed image",
+                    image: { mimeType: "image/jpeg", ref: { $link: "bafyblobimg" } },
+                  }],
+                },
+                text: "Blob-backed quote",
+              },
+              uri: "at://did:plc:bob/app.bsky.feed.post/blob-post",
+            },
+          },
+        }}
+        onOpenThread={onOpenThread} />
+    ));
+
+    expect(screen.getByAltText("Blob-backed image")).toHaveAttribute(
+      "src",
+      "https://cdn.bsky.app/img/feed_fullsize/plain/did%3Aplc%3Abob/bafyblobimg@jpeg",
+    );
+    fireEvent.click(screen.getByRole("link", { name: /blob-backed quote/i }));
+    expect(onOpenThread).toHaveBeenCalledWith("at://did:plc:bob/app.bsky.feed.post/blob-post");
   });
 
   it("renders quoted external card embeds from the quoted record", () => {
@@ -328,11 +404,7 @@ describe("PostCard", () => {
               author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
               embeds: [{
                 $type: "app.bsky.embed.external#view",
-                external: {
-                  description: "Deep dive",
-                  title: "External article",
-                  uri: "https://example.com/article",
-                },
+                external: { description: "Deep dive", title: "External article", uri: "https://example.com/article" },
               }],
               uri: "at://did:plc:bob/app.bsky.feed.post/quoted",
               value: { text: "Quoted body with external card" },
@@ -341,7 +413,10 @@ describe("PostCard", () => {
         }} />
     ));
 
-    expect(screen.getByRole("link", { name: /external article/i })).toHaveAttribute("href", "https://example.com/article");
+    expect(screen.getByRole("link", { name: /external article/i })).toHaveAttribute(
+      "href",
+      "https://example.com/article",
+    );
   });
 
   it("renders feed generator record embeds with feed metadata and external links", () => {
@@ -431,7 +506,8 @@ describe("PostCard", () => {
     expect(screen.getByText("Outer quote")).toBeInTheDocument();
     expect(screen.queryByText("Nested record")).not.toBeInTheDocument();
     expect(screen.getAllByText("Quoted post")).toHaveLength(1);
-    expect(screen.queryByText("This recognized media type is not valid in recordWithMedia.media.")).not.toBeInTheDocument();
+    expect(screen.queryByText("This recognized media type is not valid in recordWithMedia.media.")).not
+      .toBeInTheDocument();
   });
 
   it("does not show unsupported embed fallback cards for custom quoted embeds", () => {

@@ -238,7 +238,7 @@ function ThreadNodeView(
               onBookmark={() => props.onBookmark(threadNode().post)}
               onLike={() => props.onLike(threadNode().post)}
               onOpenEngagement={(tab) => props.onOpenEngagement(threadNode().post.uri, tab)}
-              onOpenThread={() => props.onOpenThread(threadNode().post.uri)}
+              onOpenThread={(uri) => props.onOpenThread(uri)}
               onRepost={() => props.onRepost(threadNode().post)}
               post={threadNode().post}
               repostPending={!!props.repostPendingByUri[threadNode().post.uri]} />

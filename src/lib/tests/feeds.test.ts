@@ -4,15 +4,15 @@ import {
   buildPublicPostUrl,
   buildThreadOverlayRoute,
   decodeThreadRouteUri,
-  getUnknownEmbedTelemetryForTests,
   getFeedCommand,
   getQuotedPresentation,
   getThreadOverlayUri,
+  getUnknownEmbedTelemetryForTests,
+  type NormalizedEmbed,
   normalizeEmbed,
   parseFeedResponse,
   parseThreadResponse,
   resetUnknownEmbedTelemetryForTests,
-  type NormalizedEmbed,
 } from "../feeds";
 import type { FeedViewPost, FeedViewPrefItem, SavedFeedItem } from "../types";
 
@@ -228,6 +228,64 @@ describe("feed helpers", () => {
     });
   });
 
+  it("extracts text, facets, and embed media from quoted postView records", () => {
+    const presentation = getQuotedPresentation({
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.feed.defs#postView",
+        author: { did: "did:plc:bob", handle: "bob.test" },
+        record: {
+          text: "quoted postView body",
+          facets: [{
+            features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://example.com" }],
+            index: { byteEnd: 20, byteStart: 0 },
+          }],
+          embed: {
+            $type: "app.bsky.embed.images#view",
+            images: [{ fullsize: "https://cdn.example.com/postview-image.png" }],
+          },
+        },
+        uri: "at://did:plc:bob/app.bsky.feed.post/postview",
+      },
+    });
+
+    expect(presentation).toMatchObject({
+      href: "https://bsky.app/profile/bob.test/post/postview",
+      kind: "post",
+      text: "quoted postView body",
+      uri: "at://did:plc:bob/app.bsky.feed.post/postview",
+    });
+    expect(presentation.facets).toHaveLength(1);
+    expect(presentation.normalizedEmbeds.map((embed) => embed.kind)).toEqual(["images"]);
+  });
+
+  it("hydrates quoted record image blobs into renderable CDN URLs", () => {
+    const presentation = getQuotedPresentation({
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.feed.defs#postView",
+        author: { did: "did:plc:bob", handle: "bob.test" },
+        record: {
+          embed: {
+            $type: "app.bsky.embed.images",
+            images: [{ alt: "Blob image", image: { mimeType: "image/jpeg", ref: { $link: "bafyblobimg" } } }],
+          },
+          text: "",
+        },
+        uri: "at://did:plc:bob/app.bsky.feed.post/blob-post",
+      },
+    });
+
+    expect(presentation.normalizedEmbeds).toHaveLength(1);
+    expect(presentation.normalizedEmbeds[0]?.kind).toBe("images");
+    if (presentation.normalizedEmbeds[0]?.kind === "images") {
+      expect(presentation.normalizedEmbeds[0].embed.images[0]).toMatchObject({
+        fullsize: "https://cdn.bsky.app/img/feed_fullsize/plain/did%3Aplc%3Abob/bafyblobimg@jpeg",
+        thumb: "https://cdn.bsky.app/img/feed_thumbnail/plain/did%3Aplc%3Abob/bafyblobimg@jpeg",
+      });
+    }
+  });
+
   it("extracts quoted post embeds and keeps unknown custom embeds in the unknown list", () => {
     const presentation = getQuotedPresentation({
       $type: "app.bsky.embed.record#view",
@@ -235,18 +293,9 @@ describe("feed helpers", () => {
         $type: "app.bsky.embed.record#viewRecord",
         author: { did: "did:plc:bob", handle: "bob.test" },
         embeds: [
-          {
-            $type: "app.bsky.embed.images#view",
-            images: [{ fullsize: "https://cdn.example.com/quoted-image.png" }],
-          },
-          {
-            $type: "app.bsky.embed.video#view",
-            playlist: "https://cdn.example.com/quoted-video.m3u8",
-          },
-          {
-            $type: "app.bsky.embed.external#view",
-            external: { uri: "https://example.com", title: "External card" },
-          },
+          { $type: "app.bsky.embed.images#view", images: [{ fullsize: "https://cdn.example.com/quoted-image.png" }] },
+          { $type: "app.bsky.embed.video#view", playlist: "https://cdn.example.com/quoted-video.m3u8" },
+          { $type: "app.bsky.embed.external#view", external: { uri: "https://example.com", title: "External card" } },
           { $type: "app.bsky.embed.unsupported#view" },
         ],
         uri: "at://did:plc:bob/app.bsky.feed.post/123",
@@ -265,60 +314,45 @@ describe("feed helpers", () => {
   });
 
   it("normalizes every official top-level embed kind without treating them as unknown", () => {
-    const fixtures = [
-      {
-        expectedKind: "images",
-        value: {
+    const fixtures = [{
+      expectedKind: "images",
+      value: { $type: "app.bsky.embed.images#view", images: [{ fullsize: "https://cdn.example.com/top-image.png" }] },
+    }, {
+      expectedKind: "video",
+      value: { $type: "app.bsky.embed.video#view", playlist: "https://cdn.example.com/top-video.m3u8" },
+    }, {
+      expectedKind: "external",
+      value: { $type: "app.bsky.embed.external#view", external: { title: "External", uri: "https://example.com" } },
+    }, {
+      expectedKind: "record",
+      value: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewRecord",
+          author: { did: "did:plc:bob", handle: "bob.test" },
+          uri: "at://did:plc:bob/app.bsky.feed.post/quoted-a",
+          value: { text: "quoted a" },
+        },
+      },
+    }, {
+      expectedKind: "recordWithMedia",
+      value: {
+        $type: "app.bsky.embed.recordWithMedia#view",
+        media: {
           $type: "app.bsky.embed.images#view",
-          images: [{ fullsize: "https://cdn.example.com/top-image.png" }],
+          images: [{ fullsize: "https://cdn.example.com/top-rwm-image.png" }],
         },
-      },
-      {
-        expectedKind: "video",
-        value: {
-          $type: "app.bsky.embed.video#view",
-          playlist: "https://cdn.example.com/top-video.m3u8",
-        },
-      },
-      {
-        expectedKind: "external",
-        value: {
-          $type: "app.bsky.embed.external#view",
-          external: { title: "External", uri: "https://example.com" },
-        },
-      },
-      {
-        expectedKind: "record",
-        value: {
+        record: {
           $type: "app.bsky.embed.record#view",
           record: {
             $type: "app.bsky.embed.record#viewRecord",
             author: { did: "did:plc:bob", handle: "bob.test" },
-            uri: "at://did:plc:bob/app.bsky.feed.post/quoted-a",
-            value: { text: "quoted a" },
+            uri: "at://did:plc:bob/app.bsky.feed.post/quoted-b",
+            value: { text: "quoted b" },
           },
         },
       },
-      {
-        expectedKind: "recordWithMedia",
-        value: {
-          $type: "app.bsky.embed.recordWithMedia#view",
-          media: {
-            $type: "app.bsky.embed.images#view",
-            images: [{ fullsize: "https://cdn.example.com/top-rwm-image.png" }],
-          },
-          record: {
-            $type: "app.bsky.embed.record#view",
-            record: {
-              $type: "app.bsky.embed.record#viewRecord",
-              author: { did: "did:plc:bob", handle: "bob.test" },
-              uri: "at://did:plc:bob/app.bsky.feed.post/quoted-b",
-              value: { text: "quoted b" },
-            },
-          },
-        },
-      },
-    ] as const;
+    }] as const;
 
     for (const fixture of fixtures) {
       const normalized = normalizeEmbed(fixture.value, { source: "top" });
@@ -331,68 +365,68 @@ describe("feed helpers", () => {
   });
 
   it("covers official quoted record union variants without emitting unknown embeds", () => {
-    const fixtures = [
-      {
-        expectedKind: "post",
-        record: {
-          $type: "app.bsky.embed.record#viewRecord",
-          author: { did: "did:plc:bob", handle: "bob.test" },
-          uri: "at://did:plc:bob/app.bsky.feed.post/1",
-          value: { text: "post record" },
-        },
+    const fixtures = [{
+      expectedKind: "post",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        author: { did: "did:plc:bob", handle: "bob.test" },
+        uri: "at://did:plc:bob/app.bsky.feed.post/1",
+        value: { text: "post record" },
       },
-      {
-        expectedKind: "not-found",
-        record: { $type: "app.bsky.embed.record#viewNotFound", notFound: true, uri: "at://did:plc:bob/app.bsky.feed.post/2" },
+    }, {
+      expectedKind: "not-found",
+      record: {
+        $type: "app.bsky.embed.record#viewNotFound",
+        notFound: true,
+        uri: "at://did:plc:bob/app.bsky.feed.post/2",
       },
-      {
-        expectedKind: "blocked",
-        record: { $type: "app.bsky.embed.record#viewBlocked", blocked: true, uri: "at://did:plc:bob/app.bsky.feed.post/3" },
+    }, {
+      expectedKind: "blocked",
+      record: {
+        $type: "app.bsky.embed.record#viewBlocked",
+        blocked: true,
+        uri: "at://did:plc:bob/app.bsky.feed.post/3",
       },
-      {
-        expectedKind: "detached",
-        record: { $type: "app.bsky.embed.record#viewDetached", detached: true, uri: "at://did:plc:bob/app.bsky.feed.post/4" },
+    }, {
+      expectedKind: "detached",
+      record: {
+        $type: "app.bsky.embed.record#viewDetached",
+        detached: true,
+        uri: "at://did:plc:bob/app.bsky.feed.post/4",
       },
-      {
-        expectedKind: "feed",
-        record: {
-          $type: "app.bsky.feed.defs#generatorView",
-          creator: { did: "did:plc:bob", handle: "bob.test" },
-          uri: "at://did:plc:bob/app.bsky.feed.generator/following",
-        },
+    }, {
+      expectedKind: "feed",
+      record: {
+        $type: "app.bsky.feed.defs#generatorView",
+        creator: { did: "did:plc:bob", handle: "bob.test" },
+        uri: "at://did:plc:bob/app.bsky.feed.generator/following",
       },
-      {
-        expectedKind: "list",
-        record: {
-          $type: "app.bsky.graph.defs#listView",
-          creator: { did: "did:plc:bob", handle: "bob.test" },
-          uri: "at://did:plc:bob/app.bsky.graph.list/curated",
-        },
+    }, {
+      expectedKind: "list",
+      record: {
+        $type: "app.bsky.graph.defs#listView",
+        creator: { did: "did:plc:bob", handle: "bob.test" },
+        uri: "at://did:plc:bob/app.bsky.graph.list/curated",
       },
-      {
-        expectedKind: "labeler",
-        record: {
-          $type: "app.bsky.labeler.defs#labelerView",
-          creator: { did: "did:plc:bob", handle: "bob.test" },
-          uri: "at://did:plc:bob/app.bsky.labeler.service/self",
-        },
+    }, {
+      expectedKind: "labeler",
+      record: {
+        $type: "app.bsky.labeler.defs#labelerView",
+        creator: { did: "did:plc:bob", handle: "bob.test" },
+        uri: "at://did:plc:bob/app.bsky.labeler.service/self",
       },
-      {
-        expectedKind: "starter-pack",
-        record: {
-          $type: "app.bsky.graph.defs#starterPackViewBasic",
-          creator: { did: "did:plc:bob", handle: "bob.test" },
-          record: { name: "Starter Pack" },
-          uri: "at://did:plc:bob/app.bsky.graph.starterpack/abc123",
-        },
+    }, {
+      expectedKind: "starter-pack",
+      record: {
+        $type: "app.bsky.graph.defs#starterPackViewBasic",
+        creator: { did: "did:plc:bob", handle: "bob.test" },
+        record: { name: "Starter Pack" },
+        uri: "at://did:plc:bob/app.bsky.graph.starterpack/abc123",
       },
-    ] as const;
+    }] as const;
 
     for (const fixture of fixtures) {
-      const presentation = getQuotedPresentation({
-        $type: "app.bsky.embed.record#view",
-        record: fixture.record,
-      });
+      const presentation = getQuotedPresentation({ $type: "app.bsky.embed.record#view", record: fixture.record });
 
       expect(presentation.kind).toBe(fixture.expectedKind);
       expect(presentation.unknownEmbeds).toHaveLength(0);
@@ -400,29 +434,22 @@ describe("feed helpers", () => {
   });
 
   it("infers malformed but recognizable embed shapes without adding unknown embeds", () => {
-    const inferredImages = normalizeEmbed(
-      { images: [{ fullsize: "https://cdn.example.com/inferred-image.png" }] },
-      { source: "quoted" },
-    );
-    const inferredVideo = normalizeEmbed(
-      { playlist: "https://cdn.example.com/inferred-video.m3u8" },
-      { source: "quoted" },
-    );
-    const inferredExternal = normalizeEmbed(
-      { external: { title: "Inferred external", uri: "https://example.com/inferred" } },
-      { source: "quoted" },
-    );
-    const inferredRecord = normalizeEmbed(
-      { record: { uri: "at://did:plc:bob/app.bsky.feed.post/inferred" } },
-      { source: "quoted" },
-    );
-    const inferredRecordWithMedia = normalizeEmbed(
-      {
-        media: { images: [{ fullsize: "https://cdn.example.com/inferred-rwm.png" }] },
-        record: { uri: "at://did:plc:bob/app.bsky.feed.post/inferred-rwm" },
-      },
-      { source: "quoted" },
-    );
+    const inferredImages = normalizeEmbed({ images: [{ fullsize: "https://cdn.example.com/inferred-image.png" }] }, {
+      source: "quoted",
+    });
+    const inferredVideo = normalizeEmbed({ playlist: "https://cdn.example.com/inferred-video.m3u8" }, {
+      source: "quoted",
+    });
+    const inferredExternal = normalizeEmbed({
+      external: { title: "Inferred external", uri: "https://example.com/inferred" },
+    }, { source: "quoted" });
+    const inferredRecord = normalizeEmbed({ record: { uri: "at://did:plc:bob/app.bsky.feed.post/inferred" } }, {
+      source: "quoted",
+    });
+    const inferredRecordWithMedia = normalizeEmbed({
+      media: { images: [{ fullsize: "https://cdn.example.com/inferred-rwm.png" }] },
+      record: { uri: "at://did:plc:bob/app.bsky.feed.post/inferred-rwm" },
+    }, { source: "quoted" });
 
     expect(inferredImages.kind).toBe("images");
     expect(inferredVideo.kind).toBe("video");

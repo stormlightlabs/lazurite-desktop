@@ -65,7 +65,7 @@ export function FeedContent(
             onFocus={() => props.onFocusIndex(index())}
             onLike={() => void props.onLike(item.post)}
             onOpenEngagement={(tab) => void props.onOpenEngagement(item.post.uri, tab)}
-            onOpenThread={() => void props.onOpenThread(item.post.uri)}
+            onOpenThread={(uri) => void props.onOpenThread(uri)}
             onQuote={() => props.onQuote(item.post)}
             onReply={() => props.onReply(item.post, getReplyRootPost(item))}
             onRepost={() => void props.onRepost(item.post)}

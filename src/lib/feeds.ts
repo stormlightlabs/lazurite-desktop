@@ -540,6 +540,103 @@ function normalizeImagesEmbedView(record: Record<string, unknown>) {
   return { $type: "app.bsky.embed.images#view", images: normalizedImages } as const;
 }
 
+function blobCidFromRecord(record: Record<string, unknown> | null) {
+  if (!record) {
+    return null;
+  }
+
+  if (typeof record.$link === "string" && record.$link.trim().length > 0) {
+    return record.$link.trim();
+  }
+
+  if (typeof record.ref === "string" && record.ref.trim().length > 0) {
+    return record.ref.trim();
+  }
+
+  const ref = asRecord(record.ref);
+  if (ref && typeof ref.$link === "string" && ref.$link.trim().length > 0) {
+    return ref.$link.trim();
+  }
+
+  return null;
+}
+
+function imageFormatFromMimeType(mimeType: unknown) {
+  if (typeof mimeType !== "string") {
+    return "jpeg";
+  }
+
+  const normalized = mimeType.trim().toLowerCase();
+  if (normalized === "image/png") {
+    return "png";
+  }
+  if (normalized === "image/webp") {
+    return "webp";
+  }
+  if (normalized === "image/gif") {
+    return "gif";
+  }
+
+  return "jpeg";
+}
+
+function withBlobBackedImageUrls(value: unknown, authorDid: string | null) {
+  if (!authorDid) {
+    return value;
+  }
+
+  const record = asRecord(value);
+  if (!record) {
+    return value;
+  }
+
+  const explicitType = typeof record.$type === "string" ? record.$type : null;
+  if (explicitType && explicitType !== "app.bsky.embed.images" && explicitType !== "app.bsky.embed.images#view") {
+    return value;
+  }
+
+  const images = asArray(record.images);
+  if (!images || images.length === 0) {
+    return value;
+  }
+
+  let changed = false;
+  const resolvedImages = images.map((entry) => {
+    const imageRecord = asRecord(entry);
+    if (!imageRecord) {
+      return entry;
+    }
+
+    const hasViewUrls = typeof imageRecord.fullsize === "string" || typeof imageRecord.thumb === "string";
+    if (hasViewUrls) {
+      return imageRecord;
+    }
+
+    const blobRecord = asRecord(imageRecord.image);
+    const cid = blobCidFromRecord(blobRecord);
+    if (!cid) {
+      return imageRecord;
+    }
+
+    changed = true;
+    const format = imageFormatFromMimeType(blobRecord?.mimeType);
+    const encodedDid = encodeURIComponent(authorDid);
+    const encodedCid = encodeURIComponent(cid);
+
+    return {
+      ...imageRecord,
+      fullsize: `https://cdn.bsky.app/img/feed_fullsize/plain/${encodedDid}/${encodedCid}@${format}`,
+      thumb: `https://cdn.bsky.app/img/feed_thumbnail/plain/${encodedDid}/${encodedCid}@${format}`,
+    };
+  });
+
+  if (!changed) {
+    return value;
+  }
+
+  return { ...record, images: resolvedImages };
+}
+
 function normalizeExternalEmbedView(record: Record<string, unknown>) {
   const external = asRecord(record.external);
   if (!external) {
@@ -651,7 +748,13 @@ function classifyQuotedRecord(record: Record<string, unknown>): QuotedRecordClas
 
 function quotedRecordText(kind: QuotedRecordKind, record: Record<string, unknown>) {
   if (kind === "post") {
-    const text = asRecord(record.value)?.text;
+    const valueText = asRecord(record.value)?.text;
+    if (typeof valueText === "string" && valueText.trim().length > 0) {
+      return valueText;
+    }
+
+    const postRecordText = asRecord(record.record)?.text;
+    const text = typeof postRecordText === "string" ? postRecordText : record.text;
     return typeof text === "string" && text.trim().length > 0 ? text : null;
   }
   if (kind === "feed") {
@@ -729,7 +832,7 @@ function quotedRecordFacets(kind: QuotedRecordKind, record: Record<string, unkno
     return null;
   }
 
-  const facets = asRecord(record.value)?.facets;
+  const facets = asRecord(record.value)?.facets ?? asRecord(record.record)?.facets;
   return Array.isArray(facets) ? (facets as RichTextFacet[]) : null;
 }
 
@@ -741,21 +844,43 @@ function quotedEmbedExtraction(record: Record<string, unknown>): QuotedEmbedExtr
     return { source: "viewRecord.embeds", values: direct ?? (record.embeds === undefined ? [] : [record.embeds]) };
   }
 
+  if (Object.prototype.hasOwnProperty.call(record, "embed")) {
+    if (record.embed === null || record.embed === undefined) {
+      return { source: "value.embed", values: [] };
+    }
+    return { source: "value.embed", values: [record.embed] };
+  }
+
   const value = asRecord(record.value);
-  if (!value) {
+  if (value) {
+    if (Object.prototype.hasOwnProperty.call(value, "embed")) {
+      if (value.embed === null || value.embed === undefined) {
+        return { source: "value.embed", values: [] };
+      }
+      return { source: "value.embed", values: [value.embed] };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(value, "embeds")) {
+      const embeds = asArray(value.embeds);
+      return { source: "value.embeds", values: embeds ?? (value.embeds === undefined ? [] : [value.embeds]) };
+    }
+  }
+
+  const postRecord = asRecord(record.record);
+  if (!postRecord) {
     return null;
   }
 
-  if (Object.prototype.hasOwnProperty.call(value, "embed")) {
-    if (value.embed === null || value.embed === undefined) {
+  if (Object.prototype.hasOwnProperty.call(postRecord, "embed")) {
+    if (postRecord.embed === null || postRecord.embed === undefined) {
       return { source: "value.embed", values: [] };
     }
-    return { source: "value.embed", values: [value.embed] };
+    return { source: "value.embed", values: [postRecord.embed] };
   }
 
-  if (Object.prototype.hasOwnProperty.call(value, "embeds")) {
-    const embeds = asArray(value.embeds);
-    return { source: "value.embeds", values: embeds ?? (value.embeds === undefined ? [] : [value.embeds]) };
+  if (Object.prototype.hasOwnProperty.call(postRecord, "embeds")) {
+    const embeds = asArray(postRecord.embeds);
+    return { source: "value.embeds", values: embeds ?? (postRecord.embeds === undefined ? [] : [postRecord.embeds]) };
   }
 
   return null;
@@ -835,8 +960,18 @@ function normalizeQuotedEmbeds(record: Record<string, unknown>, context: Normali
     return { normalizedEmbeds: [] as NormalizedEmbed[], unknownEmbeds: [] as UnknownEmbedEntry[] };
   }
 
+  const authorDid = (() => {
+    const author = asRecord(record.author);
+    if (author && typeof author.did === "string" && author.did.trim().length > 0) {
+      return author.did.trim();
+    }
+
+    const parts = atUriParts(typeof record.uri === "string" ? record.uri : null);
+    return parts?.did ?? null;
+  })();
+
   const normalizedEmbeds = extraction.values.map((value) =>
-    normalizeEmbed(value, {
+    normalizeEmbed(withBlobBackedImageUrls(value, authorDid), {
       depth: context.depth + 1,
       maxDepth: context.maxDepth,
       source: extraction.source,

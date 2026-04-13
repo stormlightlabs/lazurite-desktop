@@ -214,7 +214,7 @@ function ThreadState(
                     onBookmark={() => props.onBookmark(parent.post)}
                     onLike={() => props.onLike(parent.post)}
                     onOpenEngagement={(tab) => props.onOpenEngagement(parent.post.uri, tab)}
-                    onOpenThread={() => props.onOpenPost(parent.post.uri)}
+                    onOpenThread={(uri) => props.onOpenPost(uri)}
                     onRepost={() => props.onRepost(parent.post)}
                     post={parent.post}
                     repostPending={!!props.repostPendingByUri[parent.post.uri]}
@@ -230,7 +230,7 @@ function ThreadState(
               onBookmark={() => props.onBookmark(focused().post)}
               onLike={() => props.onLike(focused().post)}
               onOpenEngagement={(tab) => props.onOpenEngagement(focused().post.uri, tab)}
-              onOpenThread={() => props.onOpenPost(focused().post.uri)}
+              onOpenThread={(uri) => props.onOpenPost(uri)}
               onRepost={() => props.onRepost(focused().post)}
               post={focused().post}
               repostPending={!!props.repostPendingByUri[focused().post.uri]} />
@@ -292,7 +292,7 @@ function ThreadReplies(
               onBookmark={() => props.onBookmark(current().post)}
               onLike={() => props.onLike(current().post)}
               onOpenEngagement={(tab) => props.onOpenEngagement(current().post.uri, tab)}
-              onOpenThread={() => props.onOpenPost(current().post.uri)}
+              onOpenThread={(uri) => props.onOpenPost(uri)}
               onRepost={() => props.onRepost(current().post)}
               post={current().post}
               repostPending={!!props.repostPendingByUri[current().post.uri]} />

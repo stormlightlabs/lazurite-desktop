@@ -31,7 +31,7 @@ function ProfilePostList(
             onOpenEngagement={(tab) => props.onOpenEngagement(item.post.uri, tab)}
             post={item.post}
             item={item}
-            onOpenThread={() => props.onOpenThread(item.post.uri)}
+            onOpenThread={(uri) => props.onOpenThread(uri)}
             onRepost={() => props.onRepost(item.post)}
             repostPending={!!props.repostPendingByUri[item.post.uri]} />
         )}

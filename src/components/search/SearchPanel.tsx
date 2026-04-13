@@ -715,7 +715,7 @@ function NetworkResultsList(props: { onOpenThread: (uri: string) => void; result
               <PostCard
                 post={post}
                 showActions={false}
-                onOpenThread={() => props.onOpenThread(post.uri)} />
+                onOpenThread={(uri) => props.onOpenThread(uri)} />
             </Motion.div>
           )}
         </For>

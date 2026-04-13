@@ -635,7 +635,7 @@ function SavedPostsResultsList(props: { onOpenThread: (uri: string) => void; res
             <PostCard
               post={toSavedPost(result)}
               showActions={false}
-              onOpenThread={() => props.onOpenThread(result.uri)} />
+              onOpenThread={(uri) => props.onOpenThread(uri)} />
           </Motion.div>
         )}
       </For>

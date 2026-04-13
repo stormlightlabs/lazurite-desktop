@@ -28,6 +28,7 @@ function RenderQuotedPreview(
     const uri = quotedUri();
     return uri ? `#${buildPostRoute(uri)}` : null;
   });
+  const quotedHref = createMemo(() => quotedInternalHref() ?? quotedExternalHref());
 
   const openQuotedPost = () => {
     const uri = quotedUri();
@@ -54,33 +55,26 @@ function RenderQuotedPreview(
   });
 
   return (
-    <>
-      <QuotedPostPreview
-        author={props.quoted.author}
-        emptyText={props.quoted.emptyText}
-        facets={props.quoted.facets}
-        href={quotedUri() && props.onOpenPost ? null : quotedInternalHref() ?? quotedExternalHref()}
-        onOpenPost={quotedUri() && props.onOpenPost ? openQuotedPost : undefined}
-        text={props.quoted.text}
-        title={props.quoted.title} />
+    <QuotedPostPreview
+      author={props.quoted.author}
+      emptyText={props.quoted.emptyText}
+      facets={props.quoted.facets}
+      href={quotedHref()}
+      onOpenPost={quotedUri() && props.onOpenPost ? openQuotedPost : undefined}
+      text={props.quoted.text}
+      title={props.quoted.title}>
       <Show when={quotedPostForEmbeds()}>
         {(quotedPost) => (
           <Show when={props.quoted.normalizedEmbeds.length > 0}>
-            <div class="mt-3 grid gap-2">
-              <For each={props.quoted.normalizedEmbeds}>
-                {(embed) => (
-                  <EmbedContent
-                    depth={props.depth + 1}
-                    embed={embed}
-                    onOpenPost={props.onOpenPost}
-                    post={quotedPost()} />
-                )}
-              </For>
-            </div>
+            <For each={props.quoted.normalizedEmbeds}>
+              {(embed) => (
+                <EmbedContent depth={props.depth + 1} embed={embed} onOpenPost={props.onOpenPost} post={quotedPost()} />
+              )}
+            </For>
           </Show>
         )}
       </Show>
-    </>
+    </QuotedPostPreview>
   );
 }
 
@@ -131,23 +125,18 @@ export function EmbedContent(
         );
       }
       case "recordWithMedia": {
+        const quotedWithMedia: QuotedRecordPresentation = {
+          ...embed.quoted,
+          normalizedEmbeds: embed.media
+            ? [embed.media, ...embed.quoted.normalizedEmbeds]
+            : embed.quoted.normalizedEmbeds,
+        };
         return (
-          <div class="grid gap-3">
-            <Show when={embed.media}>
-              {(mediaEmbed) => (
-                <EmbedContent
-                  depth={depth() + 1}
-                  embed={mediaEmbed()}
-                  onOpenPost={props.onOpenPost}
-                  post={props.post} />
-              )}
-            </Show>
-            <RenderQuotedPreview
-              depth={depth()}
-              post={props.post}
-              quoted={embed.quoted}
-              onOpenPost={props.onOpenPost} />
-          </div>
+          <RenderQuotedPreview
+            depth={depth()}
+            post={props.post}
+            quoted={quotedWithMedia}
+            onOpenPost={props.onOpenPost} />
         );
       }
       default: {

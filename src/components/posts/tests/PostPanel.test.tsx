@@ -1,7 +1,7 @@
-import { decodePostRouteUri } from "$/lib/post-routes";
+import { buildPostRoute, decodePostRouteUri } from "$/lib/post-routes";
 import { AppTestProviders } from "$/test/providers";
 import { HashRouter, Route, useParams } from "@solidjs/router";
-import { render, screen, waitFor } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PostPanel } from "../PostPanel";
 
@@ -9,7 +9,7 @@ const invokeMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 
-function createThreadPayload(uri: string, text: string) {
+function createThreadPayload(uri: string, text: string, embed?: Record<string, unknown>) {
   return {
     thread: {
       $type: "app.bsky.feed.defs#threadViewPost",
@@ -23,6 +23,7 @@ function createThreadPayload(uri: string, text: string) {
         repostCount: 0,
         uri,
         viewer: {},
+        ...(embed ? { embed } : {}),
       },
       replies: [],
     },
@@ -131,6 +132,70 @@ describe("PostPanel", () => {
 
     await waitFor(() => expect(screen.queryByText("Post A")).not.toBeInTheDocument());
     expect(screen.getByText("Post B")).toBeInTheDocument();
+  });
+
+  it("renders nested quoted posts in post views and links quotes to their original post route", async () => {
+    const uri = "at://did:plc:alice/app.bsky.feed.post/a";
+    const quotedUri = "at://did:plc:bob/app.bsky.feed.post/quoted";
+    const nestedQuotedUri = "at://did:plc:carol/app.bsky.feed.post/nested";
+    const embed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+        embeds: [{
+          $type: "app.bsky.embed.record#view",
+          record: {
+            $type: "app.bsky.embed.record#viewRecord",
+            author: { did: "did:plc:carol", handle: "carol.test", displayName: "Carol" },
+            uri: nestedQuotedUri,
+            value: { text: "Nested quoted post" },
+          },
+        }],
+        uri: quotedUri,
+        value: { text: "Quoted post body" },
+      },
+    } as const;
+
+    invokeMock.mockImplementation((command: string, args?: { uri?: string }) => {
+      if (command !== "get_post_thread") {
+        throw new Error(`unexpected invoke: ${command}`);
+      }
+
+      if (args?.uri === uri) {
+        return Promise.resolve(createThreadPayload(uri, "Root post", embed));
+      }
+
+      if (args?.uri === quotedUri) {
+        return Promise.resolve(createThreadPayload(quotedUri, "Opened quoted thread"));
+      }
+
+      throw new Error(`unexpected uri: ${args?.uri}`);
+    });
+
+    globalThis.location.hash = `#/post/${encodeURIComponent(uri)}`;
+
+    render(() => (
+      <AppTestProviders
+        session={{
+          activeDid: "did:plc:alice",
+          activeHandle: "alice.test",
+          activeSession: { did: "did:plc:alice", handle: "alice.test" },
+        }}>
+        <HashRouter>
+          <Route path="/post/:encodedUri" component={TestPostRoute} />
+        </HashRouter>
+      </AppTestProviders>
+    ));
+
+    expect(await screen.findByText("Quoted post body")).toBeInTheDocument();
+    expect(screen.getByText("Nested quoted post")).toBeInTheDocument();
+    const quotedLink = screen.getByRole("link", { name: /quoted post body/i });
+    expect(quotedLink).toHaveAttribute("href", `#${buildPostRoute(quotedUri)}`);
+
+    globalThis.location.hash = `#${buildPostRoute(uri)}`;
+    fireEvent.click(quotedLink);
+    expect(await screen.findByText("Opened quoted thread")).toBeInTheDocument();
   });
 });
 

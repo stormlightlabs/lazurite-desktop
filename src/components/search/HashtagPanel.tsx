@@ -153,7 +153,7 @@ function HashtagState(props: HashtagPanelState & { onOpenThread: (uri: string) =
                       <PostCard
                         post={post}
                         showActions={false}
-                        onOpenThread={() => props.onOpenThread(post.uri)} />
+                        onOpenThread={(uri) => props.onOpenThread(uri)} />
                     </Motion.div>
                   )}
                 </For>

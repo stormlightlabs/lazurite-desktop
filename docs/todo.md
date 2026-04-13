@@ -1,14 +1,14 @@
 ---
 title: "To-Do List/Parking Lot"
-updated: 2026-04-12
+updated: 2026-04-13
 ---
 
 ## Pre-release
 
 ### Bugs
 
-- [ ] Quoted posts should link to the original post
-  - [ ] They should also nest properly
+- [x] Quoted posts should link to the original post
+  - [x] They should also nest properly
 
 ### High Priority Updates
 
