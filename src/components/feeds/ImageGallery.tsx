@@ -1,5 +1,5 @@
 import { type MediaNotice, MediaNoticeToast } from "$/components/feeds/MediaNoticeToast";
-import { Icon } from "$/components/shared/Icon";
+import { ArrowIcon, Icon, LoadingIcon } from "$/components/shared/Icon";
 import { MediaController } from "$/lib/api/media";
 import { clamp } from "$/lib/utils/text";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -31,7 +31,7 @@ function GalleryOverlay(props: GalleryOverlayProps) {
   return (
     <Motion.div
       role="dialog"
-      aria-modal="true"
+      aria-modal
       aria-label="Image gallery"
       class="fixed inset-0 z-60 overflow-hidden bg-surface-container-highest/70 p-4 backdrop-blur-[20px] max-[760px]:p-3"
       initial={{ opacity: 0 }}
@@ -104,9 +104,7 @@ function Toolbar(props: ToolbarProps) {
           class="inline-flex items-center gap-1.5 rounded-full border-0 bg-surface-container-high px-3 py-1.5 text-xs text-on-surface transition duration-150 ease-out hover:bg-surface-bright disabled:cursor-wait disabled:opacity-65"
           aria-label="Download image"
           onClick={() => props.onDownload()}>
-          <Icon
-            aria-hidden="true"
-            iconClass={props.pending ? "i-ri-loader-4-line animate-spin" : "i-ri-download-2-line"} />
+          <LoadingIcon isLoading={props.pending} class="text-base" fallback={<i class="i-ri-download-2-line" />} />
           <span>{props.pending ? "Saving..." : "Download"}</span>
         </button>
         <button
@@ -114,7 +112,7 @@ function Toolbar(props: ToolbarProps) {
           class="inline-flex h-9 w-9 items-center justify-center rounded-full border-0 bg-surface-container-high text-on-surface-variant transition hover:bg-surface-bright hover:text-on-surface"
           aria-label="Close gallery"
           onClick={() => props.onClose()}>
-          <Icon aria-hidden="true" iconClass="i-ri-close-line" />
+          <Icon kind="close" aria-hidden />
         </button>
       </div>
     </div>
@@ -129,9 +127,9 @@ function ArrowButton(props: { direction: "left" | "right"; onClick: () => void }
       classList={{ "left-1": props.direction === "left", "right-1": props.direction === "right" }}
       aria-label={props.direction === "left" ? "Previous image" : "Next image"}
       onClick={() => props.onClick()}>
-      <Icon
-        aria-hidden="true"
-        iconClass={props.direction === "left" ? "i-ri-arrow-left-s-line" : "i-ri-arrow-right-s-line"} />
+      <Show when={props.direction === "left"} fallback={<ArrowIcon aria-hidden direction="right" />}>
+        <ArrowIcon direction="left" aria-hidden />
+      </Show>
     </button>
   );
 }

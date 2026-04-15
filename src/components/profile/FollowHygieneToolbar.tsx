@@ -1,7 +1,7 @@
 import type { FollowHygieneProgress } from "$/lib/types";
 import { Show } from "solid-js";
 import { Motion } from "solid-motionone";
-import { Icon } from "../shared/Icon";
+import { Icon, LoadingIcon } from "../shared/Icon";
 import type { FollowHygienePhase } from "./types";
 
 export type ScanToolbarProps = {
@@ -49,9 +49,7 @@ export function ScanToolbar(props: ScanToolbarProps) {
           disabled={scanning()}
           type="button"
           onClick={() => props.onScan()}>
-          <Show when={scanning()} fallback={<Icon iconClass="i-ri-radar-line" class="text-base" />}>
-            <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
-          </Show>
+          <LoadingIcon isLoading={scanning()} class="text-base" fallback={<Icon kind="radar" class="text-base" />} />
           <span>{scanning() ? "Scanning follows..." : "Scan follows"}</span>
         </button>
       </div>

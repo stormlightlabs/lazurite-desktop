@@ -108,7 +108,7 @@ export function HashtagPanel() {
         <Show when={state.loading} fallback={<HashtagState {...state} onOpenThread={postNavigation.openPost} />}>
           <div class="grid gap-2 py-1">
             <For each={Array.from({ length: 5 })}>
-              {() => <div class="h-40 animate-pulse rounded-3xl bg-white/4" aria-hidden="true" />}
+              {() => <div class="h-40 animate-pulse rounded-3xl bg-white/4" aria-hidden />}
             </For>
           </div>
         </Show>

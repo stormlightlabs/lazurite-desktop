@@ -4,6 +4,7 @@ import type { FeedGeneratorView, SavedFeedItem } from "$/lib/types";
 import * as logger from "@tauri-apps/plugin-log";
 import { createSignal, For, onMount, Show } from "solid-js";
 import { FeedChipAvatar } from "../feeds/FeedChipAvatar";
+import { LoadingIcon } from "../shared/Icon";
 import type { FeedPickerSelection } from "./types";
 
 function feedKindLabel(feed: SavedFeedItem) {
@@ -46,9 +47,7 @@ export function FeedPicker(props: { onSelect: (selection: FeedPickerSelection) =
     <div class="grid gap-2">
       <Show when={loading()}>
         <div class="flex items-center justify-center py-6">
-          <span class="flex items-center text-on-surface-variant">
-            <i class="i-ri-loader-4-line animate-spin" />
-          </span>
+          <LoadingIcon isLoading class="text-on-surface-variant" />
         </div>
       </Show>
 

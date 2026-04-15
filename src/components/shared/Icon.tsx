@@ -1,6 +1,6 @@
 import type { ExplorerTargetKind } from "$/lib/api/types/explorer";
 import type { SearchMode } from "$/lib/api/types/search";
-import { type JSX, Match, splitProps, Switch } from "solid-js";
+import { type JSX, Match, Show, splitProps, Switch } from "solid-js";
 
 type ActionIconKind = "add" | "edit" | "delete" | "save" | "cancel";
 
@@ -60,7 +60,12 @@ export type IconKind =
   | "rss"
   | "messages"
   | "unpin"
-  | "bookmark";
+  | "bookmark"
+  | "diagnostics"
+  | "stethoscope"
+  | "check"
+  | "radar"
+  | "unfollow";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -183,6 +188,18 @@ export function Icon(props: IconProps) {
         <Match when={local.kind === "bookmark"}>
           <i class="i-ri-bookmark-line" />
         </Match>
+        <Match when={local.kind === "diagnostics" || local.kind === "stethoscope"}>
+          <i class="i-ri-stethoscope-line" />
+        </Match>
+        <Match when={local.kind === "radar"}>
+          <i class="i-ri-radar-line" />
+        </Match>
+        <Match when={local.kind === "check"}>
+          <i class="i-ri-check-line" />
+        </Match>
+        <Match when={local.kind === "unfollow"}>
+          <i class="i-ri-user-unfollow-line" />
+        </Match>
       </Switch>
     </span>
   );
@@ -212,7 +229,7 @@ export function SettingsIcon(props: IconProps & { kind: SettingsIconKind }) {
           <i class="i-ri-notification-3-line" />
         </Match>
         <Match when={local.kind === "user"}>
-          <i class="i-ri-user-lin" />
+          <i class="i-ri-user-line" />
         </Match>
         <Match when={local.kind === "services"}>
           <i class="i-ri-global-line" />
@@ -332,5 +349,18 @@ export function ActionIcon(props: Omit<IconProps, "kind"> & { kind: ActionIconKi
         </Match>
       </Switch>
     </span>
+  );
+}
+
+export function LoadingIcon(
+  props: JSX.HTMLAttributes<HTMLSpanElement> & { isLoading: boolean; class?: string; fallback?: JSX.Element },
+) {
+  const [local, rest] = splitProps(props, ["class", "isLoading"]);
+  return (
+    <Show when={local.isLoading} fallback={props.fallback}>
+      <span {...rest} class="flex items-center justify-center" classList={{ [local.class ?? ""]: !!local.class }}>
+        <i class="i-ri-loader-4-line animate-spin" />
+      </span>
+    </Show>
   );
 }

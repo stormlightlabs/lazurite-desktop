@@ -1,7 +1,7 @@
 import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
 import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
 import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
-import { Icon } from "$/components/shared/Icon";
+import { Icon, LoadingIcon } from "$/components/shared/Icon";
 import { getAvatarLabel, getDisplayName } from "$/lib/feeds";
 import { collectModerationLabels } from "$/lib/moderation";
 import type { ModerationLabel, ModerationUiDecision, ProfileViewBasic } from "$/lib/types";
@@ -20,7 +20,7 @@ function ActorListHeader(props: { onClose: () => void; title: string }) {
         class="ui-control ui-control-hoverable flex h-8 w-8 items-center justify-center rounded-full"
         type="button"
         onClick={() => props.onClose()}>
-        <Icon iconClass="i-ri-close-line" class="text-base" />
+        <Icon kind="close" aria-hidden class="text-base" />
       </button>
     </div>
   );
@@ -34,11 +34,9 @@ function ActorListLoadMoreButton(props: { loadingMore: boolean; onLoadMore: () =
         disabled={props.loadingMore}
         type="button"
         onClick={() => props.onLoadMore()}>
+        <LoadingIcon isLoading={props.loadingMore} class="text-base" />
         <Show when={props.loadingMore} fallback={<span>Load more</span>}>
-          <>
-            <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
-            <span>Loading...</span>
-          </>
+          <span>Loading...</span>
         </Show>
       </button>
     </div>
@@ -168,9 +166,7 @@ function ActorCardFollowButton(
           disabled={props.loading}
           type="button"
           onClick={() => props.onFollow()}>
-          <Show when={props.loading} fallback={<Icon kind="follow" class="text-sm" />}>
-            <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-sm" />
-          </Show>
+          <LoadingIcon isLoading={props.loading} class="text-sm" fallback={<Icon kind="follow" class="text-sm" />} />
           Follow
         </button>
       }>
@@ -179,9 +175,7 @@ function ActorCardFollowButton(
         disabled={props.loading}
         type="button"
         onClick={() => props.onUnfollow()}>
-        <Show when={props.loading} fallback={<Icon iconClass="i-ri-check-line" class="text-sm" />}>
-          <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-sm" />
-        </Show>
+        <LoadingIcon isLoading={props.loading} class="text-sm" fallback={<Icon kind="check" class="text-sm" />} />
         <span class="group-hover:hidden">Following</span>
         <span class="hidden group-hover:inline">Unfollow</span>
       </button>
@@ -233,7 +227,7 @@ export function ActorListOverlay(props: ActorListOverlayProps) {
       ref={(element) => {
         overlayRef = element;
       }}
-      aria-modal="true"
+      aria-modal
       class="ui-scrim absolute inset-0 z-50 flex items-end p-3 backdrop-blur-xl"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}

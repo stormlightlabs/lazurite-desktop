@@ -642,7 +642,7 @@ function EmptyPanel() {
 
 function ExplorerSkeleton() {
   return (
-    <div class="grid gap-4" aria-hidden="true">
+    <div class="grid gap-4" aria-hidden>
       <div class="skeleton-block h-8 w-1/3 rounded-lg" />
       <div class="skeleton-block h-4 w-1/4 rounded" />
       <div class="grid gap-2 mt-4">

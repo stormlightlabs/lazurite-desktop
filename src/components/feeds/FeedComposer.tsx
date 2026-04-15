@@ -43,9 +43,9 @@ export function ComposerLauncher(props: { activeAvatar?: string | null; activeHa
         <p class="m-0 wrap-break-word text-[0.9rem] text-on-surface-variant">What's happening?</p>
       </div>
       <div class="flex items-center gap-1 text-on-surface-variant max-[520px]:hidden">
-        <Icon aria-hidden="true" kind="at" />
-        <Icon aria-hidden="true" kind="hashtag" />
-        <Icon aria-hidden="true" kind="quote" />
+        <Icon aria-hidden kind="at" />
+        <Icon aria-hidden kind="hashtag" />
+        <Icon aria-hidden kind="quote" />
       </div>
     </button>
   );
@@ -175,7 +175,7 @@ function ComposerHeader(
           class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
           type="button"
           onClick={() => props.onClose()}>
-          <Icon aria-hidden="true" iconClass="i-ri-close-line" />
+          <Icon kind="close" aria-hidden />
         </button>
         <ComposerTitle activeHandle={props.activeHandle} />
       </div>
@@ -199,7 +199,7 @@ function ComposerSaveDraftButton(props: { onSaveDraft?: () => void }) {
         type="button"
         title="Save as draft (Ctrl+S)"
         onClick={() => props.onSaveDraft?.()}>
-        <Icon aria-hidden="true" iconClass="i-ri-save-line" />
+        <Icon aria-hidden iconClass="i-ri-save-line" />
         <span class="max-[520px]:hidden">Save</span>
       </button>
     </Show>
@@ -214,7 +214,7 @@ function ComposerDraftsButton(props: { draftCount?: number; onOpenDrafts?: () =>
         type="button"
         title="Drafts (Ctrl+D)"
         onClick={() => props.onOpenDrafts?.()}>
-        <Icon aria-hidden="true" iconClass="i-ri-draft-line" />
+        <Icon aria-hidden iconClass="i-ri-draft-line" />
         <Show when={(props.draftCount ?? 0) > 0}>
           <span class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.6rem] font-semibold leading-none text-on-primary-fixed">
             {props.draftCount}
@@ -243,7 +243,7 @@ function ComposerSubmitButton(props: { disabled: boolean; pending: boolean; onSu
       type="button"
       disabled={props.disabled}
       onClick={() => props.onSubmit()}>
-      <Icon aria-hidden="true" iconClass={props.pending ? "i-ri-loader-4-line" : "i-ri-send-plane-2-line"} />
+      <Icon aria-hidden iconClass={props.pending ? "i-ri-loader-4-line" : "i-ri-send-plane-2-line"} />
       <span>{props.pending ? "Posting..." : "Post"}</span>
     </button>
   );
@@ -390,7 +390,7 @@ function SuggestionChip(props: { suggestion: ComposerSuggestion; onApplySuggesti
       class="inline-flex w-full items-center gap-2 rounded-2xl border-0 bg-white/6 px-3 py-2 text-left text-[0.8rem] text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/10"
       type="button"
       onClick={() => props.onApplySuggestion(props.suggestion.label)}>
-      <Icon aria-hidden="true" kind={iconKind()} />
+      <Icon aria-hidden kind={iconKind()} />
       <span class="min-w-0 break-all">{props.suggestion.label}</span>
     </button>
   );
@@ -455,13 +455,13 @@ function ComposerCounter(props: { count: number; progress: number }) {
 function ContextChip(props: { icon: string; label: string; onClear: () => void }) {
   return (
     <div class="mb-3 inline-flex max-w-full items-center gap-2 rounded-full bg-white/6 px-3 py-2 text-[0.8rem] text-on-surface">
-      <Icon aria-hidden="true" iconClass={props.icon} />
+      <Icon aria-hidden iconClass={props.icon} />
       <span class="truncate">{props.label}</span>
       <button
         class="inline-flex h-7 w-7 items-center justify-center rounded-full border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/6 hover:text-on-surface"
         type="button"
         onClick={() => props.onClear()}>
-        <Icon aria-hidden="true" kind="close" />
+        <Icon aria-hidden kind="close" />
       </button>
     </div>
   );
@@ -473,7 +473,7 @@ function ToolbarButton(props: { icon: string; label: string }) {
       class="inline-flex h-11 w-11 items-center justify-center rounded-xl border-0 bg-transparent transition duration-150 ease-out hover:bg-white/5 hover:text-primary"
       type="button"
       title={props.label}>
-      <Icon aria-hidden="true" iconClass={props.icon} />
+      <Icon aria-hidden iconClass={props.icon} />
     </button>
   );
 }

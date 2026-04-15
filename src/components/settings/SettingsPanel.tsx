@@ -267,7 +267,7 @@ export function SettingsPanel() {
             onClick={() => navigate(-1)}
             class="ui-control ui-control-hoverable inline-flex h-10 w-10 items-center justify-center rounded-full"
             title="Close settings">
-            <Icon kind="close" aria-hidden="true" class="text-lg" />
+            <Icon kind="close" aria-hidden class="text-lg" />
           </button>
         </div>
       </header>

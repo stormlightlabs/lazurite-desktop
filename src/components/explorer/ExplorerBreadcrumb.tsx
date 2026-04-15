@@ -2,10 +2,9 @@ import { ArrowIcon, ExplorerLevelIcon } from "$/components/shared/Icon";
 import type { ExplorerTargetKind } from "$/lib/api/types/explorer";
 import { For, Show } from "solid-js";
 import { Motion } from "solid-motionone";
+import type { Crumb } from "./explorer-state";
 
-type BreadcrumbItem = { label: string; level: ExplorerTargetKind; active: boolean };
-
-type ExplorerBreadcrumbProps = { items: BreadcrumbItem[]; onNavigate: (level: ExplorerTargetKind) => void };
+type ExplorerBreadcrumbProps = { items: Crumb[]; onNavigate: (level: ExplorerTargetKind) => void };
 
 export function ExplorerBreadcrumb(props: ExplorerBreadcrumbProps) {
   return (

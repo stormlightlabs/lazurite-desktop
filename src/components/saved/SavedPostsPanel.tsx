@@ -3,7 +3,7 @@ import { usePostNavigation } from "$/components/posts/hooks/usePostNavigation";
 import { LocalPostResultsSkeletons } from "$/components/search/LocalPostResultsList";
 import { SearchEmptyState } from "$/components/search/SearchEmptyState";
 import { SearchQueryInput } from "$/components/search/SearchQueryInput";
-import { Icon } from "$/components/shared/Icon";
+import { Icon, LoadingIcon } from "$/components/shared/Icon";
 import { PostCount } from "$/components/shared/PostCount";
 import { useAppSession } from "$/contexts/app-session";
 import { SearchController } from "$/lib/api/search";
@@ -89,11 +89,11 @@ function LoadMoreButton(props: { next: number | null; onLoadMore: () => void; lo
             when={props.loadingMore}
             fallback={
               <>
-                <Icon kind="bookmark" aria-hidden="true" />
+                <Icon kind="bookmark" aria-hidden />
                 Load More
               </>
             }>
-            <Icon iconClass="i-ri-loader-4-line animate-spin" aria-hidden="true" />
+            <LoadingIcon isLoading aria-hidden />
             Loading more...
           </Show>
         </button>
@@ -467,9 +467,7 @@ function SavedPostsHeader(
           class="inline-flex h-10 items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 text-sm font-medium text-on-surface-variant transition duration-150 hover:-translate-y-px hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-60"
           disabled={props.loading}
           onClick={() => props.onRefresh()}>
-          <Show when={props.loading} fallback={<Icon kind="refresh" aria-hidden="true" />}>
-            <Icon iconClass="i-ri-loader-4-line animate-spin" aria-hidden="true" />
-          </Show>
+          <LoadingIcon isLoading={props.loading} aria-hidden fallback={<Icon kind="refresh" aria-hidden />} />
           <Show when={props.loading} fallback="Refresh">Refreshing...</Show>
         </button>
       </div>

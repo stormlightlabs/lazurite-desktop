@@ -15,7 +15,7 @@ export function ReauthBanner(props: { onReauth: () => void }) {
         <p class="m-0 text-xs text-on-surface-variant">Sign in again to reconnect your account.</p>
       </div>
       <button class="pill-action border-0 bg-white/8 text-on-surface" type="button" onClick={() => props.onReauth()}>
-        <Icon kind="refresh" name="refresh" aria-hidden="true" class="mr-1" />
+        <Icon kind="refresh" name="refresh" aria-hidden class="mr-1" />
         Sign in again
       </button>
     </Motion.div>

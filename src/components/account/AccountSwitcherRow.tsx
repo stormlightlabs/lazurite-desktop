@@ -36,7 +36,7 @@ export function AccountSwitcherRow(props: AccountSwitcherRowProps) {
         aria-label={`Logout ${props.account.handle || props.account.did}`}
         disabled={isLocked()}
         onClick={() => props.onLogout(props.account.did)}>
-        <Icon kind="logout" name="logout" aria-hidden="true" />
+        <Icon kind="logout" name="logout" aria-hidden />
       </button>
     </div>
   );

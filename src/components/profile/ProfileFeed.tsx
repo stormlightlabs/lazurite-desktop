@@ -3,7 +3,7 @@ import type { ProfileTab } from "$/lib/profile";
 import type { FeedViewPost, PostView } from "$/lib/types";
 import { For, Match, Show, Switch } from "solid-js";
 import { PostCard } from "../feeds/PostCard";
-import { Icon } from "../shared/Icon";
+import { Icon, LoadingIcon } from "../shared/Icon";
 import { tabLabel } from "./profile-state";
 
 function ProfilePostList(
@@ -48,9 +48,10 @@ function ProfileLoadMoreButton(props: { activeTab: ProfileTab; loadingMore: bool
         type="button"
         disabled={props.loadingMore}
         onClick={() => props.onLoadMore()}>
-        <Show when={props.loadingMore} fallback={<Icon iconClass="i-ri-arrow-down-circle-line" class="text-base" />}>
-          <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
-        </Show>
+        <LoadingIcon
+          isLoading={props.loadingMore}
+          class="text-base"
+          fallback={<Icon iconClass="i-ri-arrow-down-circle-line" class="text-base" />} />
         <span>{props.loadingMore ? "Loading more..." : `Load more ${tabLabel(props.activeTab).toLowerCase()}`}</span>
       </button>
     </div>

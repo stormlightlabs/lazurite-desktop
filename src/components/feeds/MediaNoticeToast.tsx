@@ -25,7 +25,7 @@ export function MediaNoticeToast(props: MediaNoticeToastProps) {
             transition={{ duration: 0.2 }}>
             <Icon
               kind={current().kind === "error" ? "danger" : "complete"}
-              aria-hidden="true"
+              aria-hidden
               classList={{
                 "text-emerald-300": current().kind === "success",
                 "text-error": current().kind === "error",
@@ -48,7 +48,7 @@ export function MediaNoticeToast(props: MediaNoticeToastProps) {
               type="button"
               class="cursor-pointer rounded-full border-0 bg-transparent p-[0.35rem] text-inherit hover:bg-surface-bright"
               onClick={() => props.onDismiss()}>
-              <Icon kind="close" aria-hidden="true" />
+              <Icon kind="close" aria-hidden />
               <span class="sr-only">Dismiss message</span>
             </button>
           </Motion.div>

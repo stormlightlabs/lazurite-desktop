@@ -59,7 +59,7 @@ function OverlayCard(props: { revealLabel: string; revealable: boolean; summaryT
 function OverlayIcon() {
   return (
     <div class="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-white/8 text-on-surface">
-      <Icon aria-hidden="true" class="text-lg" iconClass="i-ri-eye-off-line" />
+      <Icon aria-hidden class="text-lg" iconClass="i-ri-eye-off-line" />
     </div>
   );
 }

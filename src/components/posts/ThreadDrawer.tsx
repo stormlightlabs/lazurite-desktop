@@ -158,7 +158,7 @@ function ThreadDrawerHeader(props: ThreadDrawerHeaderProps) {
               class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-surface-bright hover:text-on-surface"
               type="button"
               onClick={() => local.onMaximize(uri())}>
-              <Icon aria-hidden="true" iconClass="i-ri-external-link-line" />
+              <Icon aria-hidden kind="ext-link" />
             </button>
           )}
         </Show>
@@ -166,7 +166,7 @@ function ThreadDrawerHeader(props: ThreadDrawerHeaderProps) {
           class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-surface-bright hover:text-on-surface"
           type="button"
           onClick={() => local.onClose()}>
-          <Icon aria-hidden="true" iconClass="i-ri-close-line" />
+          <Icon kind="close" aria-hidden />
         </button>
       </div>
     </header>

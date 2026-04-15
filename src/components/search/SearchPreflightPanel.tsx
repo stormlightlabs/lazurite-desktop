@@ -1,5 +1,5 @@
 /* eslint react/jsx-max-depth: ["error", { "max": 5 }] */
-import { Icon } from "$/components/shared/Icon";
+import { Icon, LoadingIcon } from "$/components/shared/Icon";
 import { useAppPreferences } from "$/contexts/app-preferences";
 import { normalizeSearchReturnRoute } from "$/lib/search-routes";
 import { formatBytes, formatEtaSeconds, formatProgress } from "$/lib/utils/text";
@@ -207,10 +207,10 @@ function SearchPreflightFooter(props: { handleDismiss: () => void; enable: () =>
           onClick={() => void props.enable()}
           disabled={props.activating}
           class="inline-flex items-center gap-2 rounded-full border-0 bg-primary px-4 py-2 text-sm font-medium text-on-primary-fixed transition hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-50">
-          <Icon
-            kind={props.activating ? "loader" : "download"}
-            iconClass={props.activating ? "i-ri-loader-4-line animate-spin" : undefined}
-            class="text-sm" />
+          <LoadingIcon
+            isLoading={props.activating}
+            class="text-sm"
+            fallback={<Icon kind="download" class="text-sm" />} />
           <Show when={props.activating} fallback={<span>Enable semantic search</span>}>
             <span>Downloading model...</span>
           </Show>

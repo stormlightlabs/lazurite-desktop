@@ -1,4 +1,4 @@
-import { Icon } from "$/components/shared/Icon";
+import { Icon, LoadingIcon } from "$/components/shared/Icon";
 import { SearchController } from "$/lib/api/search";
 import type { SyncStatus } from "$/lib/api/types/search";
 import { formatRelativeTime } from "$/lib/utils/text";
@@ -40,9 +40,7 @@ function ReindexButton(props: { isSyncing: boolean; isReindexing: boolean; onRei
       onClick={() => void props.onReindex()}
       disabled={props.isSyncing || props.isReindexing}
       class="inline-flex items-center gap-2 rounded-xl border-0 bg-white/6 px-3 py-2 text-xs font-medium text-on-surface-variant transition hover:bg-white/10 hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-50">
-      <Show when={props.isReindexing} fallback={<Icon kind="refresh" />}>
-        <Icon iconClass="i-ri-loader-4-line animate-spin" />
-      </Show>
+      <LoadingIcon isLoading={props.isReindexing} class="text-base" fallback={<Icon kind="refresh" />} />
       <Show when={props.isReindexing} fallback="Reindex">Reindexing...</Show>
     </button>
   );
@@ -55,9 +53,7 @@ function SyncButton(props: { isSyncing: boolean; isReindexing: boolean; onSync: 
       onClick={() => void props.onSync()}
       disabled={props.isSyncing || props.isReindexing}
       class="inline-flex items-center gap-2 rounded-xl border-0 bg-white/6 px-3 py-2 text-xs font-medium text-on-surface-variant transition hover:bg-white/10 hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-50">
-      <Show when={props.isSyncing} fallback={<Icon kind="refresh" />}>
-        <Icon iconClass="i-ri-loader-4-line animate-spin" />
-      </Show>
+      <LoadingIcon isLoading={props.isSyncing} class="text-base" fallback={<Icon kind="refresh" />} />
       <Show when={props.isSyncing} fallback="Sync now">Syncing...</Show>
     </button>
   );

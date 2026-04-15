@@ -557,7 +557,7 @@ function ProfileUnavailableView(props: { unavailable: ProfileLookupUnavailable }
       <div class="tone-muted grid max-w-lg gap-4 rounded-4xl p-6 text-left shadow-(--inset-shadow)">
         <div class="flex items-center gap-3">
           <span class="ui-input-strong flex h-12 w-12 items-center justify-center rounded-full text-on-surface-variant">
-            <Icon kind="danger" aria-hidden="true" />
+            <Icon kind="danger" aria-hidden />
           </span>
           <div class="min-w-0">
             <p class="m-0 text-sm text-on-surface-variant">Profile unavailable</p>
@@ -580,7 +580,7 @@ function ProfileErrorView(props: { error: string | null; onRetry: () => void }) 
           type="button"
           class="ui-control ui-control-hoverable inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-on-surface"
           onClick={() => props.onRetry()}>
-          <Icon kind="refresh" aria-hidden="true" />
+          <Icon kind="refresh" aria-hidden />
           Retry
         </button>
       </div>

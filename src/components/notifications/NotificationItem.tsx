@@ -21,7 +21,7 @@ function ReasonIcon(props: { reason: NotificationReason }) {
 
   return (
     <div class="flex w-8 shrink-0 justify-center pt-0.5">
-      <Icon kind={icon().kind} class={icon().className} aria-hidden="true" />
+      <Icon kind={icon().kind} class={icon().className} aria-hidden />
     </div>
   );
 }

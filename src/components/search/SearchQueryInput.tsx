@@ -1,6 +1,6 @@
 import type { JSX, ParentProps } from "solid-js";
 import { Show } from "solid-js";
-import { Icon } from "../shared/Icon";
+import { Icon, LoadingIcon } from "../shared/Icon";
 
 type SearchQueryInputA11y = {
   ariaActivedescendant?: string;
@@ -79,20 +79,12 @@ function SearchInputField(
         onKeyDown={(event) => props.actions.onKeyDown?.(event)} />
 
       <div class="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
-        <LoadingIndicator loading={props.state.loading} />
+        <LoadingIcon isLoading={props.state.loading} class="text-base text-on-surface-variant" />;
         <ClearButton query={props.state.query} loading={props.state.loading} onClear={props.actions.onClear} />
       </div>
 
       {props.children}
     </div>
-  );
-}
-
-function LoadingIndicator(props: { loading: boolean }) {
-  return (
-    <Show when={props.loading}>
-      <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base  text-on-surface-variant" />
-    </Show>
   );
 }
 

@@ -1,4 +1,4 @@
-import { Icon } from "$/components/shared/Icon";
+import { Icon, LoadingIcon } from "$/components/shared/Icon";
 import { useAppSession } from "$/contexts/app-session";
 import { ProfileController } from "$/lib/api/profile";
 import { FOLLOW_HYGIENE_PROGRESS_EVENT } from "$/lib/constants/events";
@@ -121,7 +121,7 @@ function FollowHygieneHeader(props: { onClose: () => void }) {
           class="ui-control ui-control-hoverable flex h-9 w-9 items-center justify-center rounded-full"
           type="button"
           onClick={() => props.onClose()}>
-          <Icon iconClass="i-ri-close-line" class="text-base" />
+          <Icon kind="close" class="text-base" />
         </button>
       </div>
     </header>
@@ -176,9 +176,7 @@ function FooterActions(props: FooterActionsProps) {
           disabled={!props.canUnfollow || pending()}
           type="button"
           onClick={() => props.onUnfollow()}>
-          <Show when={pending()} fallback={<Icon iconClass="i-ri-user-unfollow-line" class="text-base" />}>
-            <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
-          </Show>
+          <LoadingIcon isLoading={pending()} class="text-base" fallback={<Icon kind="unfollow" class="text-base" />} />
           <span>Unfollow selected</span>
         </button>
       </div>
@@ -550,7 +548,7 @@ export function FollowHygienePanel(props: { onClose: () => void }) {
         ref={(element) => {
           panelRef = element;
         }}
-        aria-modal="true"
+        aria-modal
         class="ui-scrim fixed inset-0 z-50 flex items-stretch justify-end p-3 backdrop-blur-xl max-sm:p-0"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

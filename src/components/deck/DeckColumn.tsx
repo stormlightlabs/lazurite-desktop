@@ -7,6 +7,7 @@ import { SearchPanel } from "$/components/search/SearchPanel";
 import type { Column, ColumnWidth } from "$/lib/api/types/columns";
 import type { PostView, SavedFeedItem } from "$/lib/types";
 import { createSignal, Match, Show, Switch } from "solid-js";
+import { ArrowIcon, Icon } from "../shared/Icon";
 import { DiagnosticsColumn } from "./DiagnosticsColumn";
 import {
   COLUMN_WIDTH_PX,
@@ -87,9 +88,7 @@ function HeaderControls(
         aria-label="Move column left"
         title="Move column left"
         onClick={() => props.onMoveLeft()}>
-        <span class="flex items-center">
-          <i class="i-ri-arrow-left-s-line" />
-        </span>
+        <ArrowIcon direction="left" />
       </button>
       <button
         type="button"
@@ -97,9 +96,7 @@ function HeaderControls(
         aria-label="Move column right"
         title="Move column right"
         onClick={() => props.onMoveRight()}>
-        <span class="flex items-center">
-          <i class="i-ri-arrow-right-s-line" />
-        </span>
+        <ArrowIcon direction="right" />
       </button>
       <button
         type="button"
@@ -107,9 +104,7 @@ function HeaderControls(
         aria-label="Close column"
         title="Close column"
         onClick={() => props.onClose()}>
-        <span class="flex items-center">
-          <i class="i-ri-close-line" />
-        </span>
+        <Icon kind="close" aria-hidden />
       </button>
     </div>
   );
@@ -120,10 +115,10 @@ function ColumnHeader(props: ColumnHeaderProps) {
     <header class="flex shrink-0 items-center gap-2 rounded-t-2xl bg-surface-container-highest px-3 py-2.5 backdrop-blur-[18px] shadow-(--inset-shadow)">
       <span
         class="flex cursor-grab items-center text-on-surface-variant opacity-40 hover:opacity-80 active:cursor-grabbing"
-        draggable="true"
+        draggable
         onDragStart={(e) => props.onDragStart(e)}
         onDragEnd={() => props.onDragEnd()}
-        aria-hidden="true"
+        aria-hidden
         title="Drag to reorder">
         <i class="i-ri-draggable" />
       </span>

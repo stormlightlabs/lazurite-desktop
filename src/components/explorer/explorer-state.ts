@@ -1,6 +1,8 @@
 import type { ExplorerState, ExplorerTargetKind, ExplorerViewState } from "$/lib/api/types/explorer";
 import { createStore, produce } from "solid-js/store";
 
+export type Crumb = { label: string; level: ExplorerTargetKind; active: boolean };
+
 export function createExplorerState() {
   const [state, setState] = createStore<ExplorerState>({
     inputValue: "",
@@ -76,12 +78,12 @@ export function createExplorerState() {
     setState("lexiconIcons", {});
   }
 
-  function getBreadcrumb(): Array<{ label: string; level: ExplorerTargetKind; active: boolean }> {
+  function getBreadcrumb(): Crumb[] {
     const current = state.current;
     if (!current || !current.resolved) return [];
 
     const resolved = current.resolved;
-    const crumbs: Array<{ label: string; level: ExplorerTargetKind; active: boolean }> = [];
+    const crumbs: Crumb[] = [];
 
     if (resolved.pdsUrl) {
       crumbs.push({ label: "PDS", level: "pds", active: resolved.targetKind === "pds" });

@@ -3,7 +3,7 @@ import type { SearchMode } from "$/lib/api/types/search";
 import { createEffect, createSignal, For, Match, onCleanup, Show, splitProps, Switch } from "solid-js";
 import { Portal } from "solid-js/web";
 import { Motion, Presence } from "solid-motionone";
-import { Icon } from "../shared/Icon";
+import { Icon, type IconKind } from "../shared/Icon";
 import { DiagnosticsPicker, ExplorerPicker, FeedPicker, MessagesPicker } from "./ColumnPicker";
 import { ProfilePicker } from "./ColumnPicker/ProfileColumnPicker";
 import { SearchPicker } from "./ColumnPicker/SearchPicker";
@@ -12,6 +12,8 @@ import type { FeedPickerSelection, ProfileSelection } from "./types";
 type AddColumnPanelProps = { onAdd: (kind: ColumnKind, config: string) => void; onClose: () => void; open: boolean };
 
 type PanelTab = ColumnKind;
+
+type TabProps = { icon: IconKind; id: PanelTab; label: string };
 
 type PanelSubmissionHandlers = {
   onDiagnosticsSubmit: (did: string) => void;
@@ -72,11 +74,7 @@ function AddColumnPanelHeader(props: { onClose: () => void }) {
   );
 }
 
-type AddColumnPanelTabsProps = {
-  activeTab: PanelTab;
-  onTabChange: (tab: PanelTab) => void;
-  tabs: Array<{ icon: string; id: PanelTab; label: string }>;
-};
+type AddColumnPanelTabsProps = { activeTab: PanelTab; onTabChange: (tab: PanelTab) => void; tabs: TabProps[] };
 
 function AddColumnPanelTabs(props: AddColumnPanelTabsProps) {
   return (
@@ -92,9 +90,7 @@ function AddColumnPanelTabs(props: AddColumnPanelTabsProps) {
                 props.activeTab !== tab.id,
             }}
             onClick={() => props.onTabChange(tab.id)}>
-            <span class="flex items-center">
-              <i class={tab.icon} />
-            </span>
+            <Icon kind={tab.icon} />
             {tab.label}
           </button>
         )}
@@ -107,7 +103,7 @@ type AddColumnPanelFrame = {
   activeTab: PanelTab;
   onClose: () => void;
   onTabChange: (tab: PanelTab) => void;
-  tabs: Array<{ icon: string; id: PanelTab; label: string }>;
+  tabs: TabProps[];
 };
 
 type AddColumnPanelBodyProps = { frame: AddColumnPanelFrame; handlers: PanelSubmissionHandlers };
@@ -118,7 +114,7 @@ function AddColumnPanelBody(props: AddColumnPanelBodyProps) {
   return (
     <Motion.aside
       role="dialog"
-      aria-modal="true"
+      aria-modal
       aria-labelledby="add-column-panel-title"
       class="ui-overlay-card relative z-10 flex h-full w-full max-w-88 flex-col bg-surface-container-highest backdrop-blur-[20px]"
       initial={{ opacity: 0, x: 32 }}
@@ -170,14 +166,13 @@ export function AddColumnPanel(props: AddColumnPanelProps) {
     panelActions.onAdd("profile", JSON.stringify(selection));
   }
 
-  // TODO: use IconKind for Icon
-  const tabs: Array<{ icon: string; id: PanelTab; label: string }> = [
-    { icon: "i-ri-rss-line", id: "feed", label: "Feed" },
-    { icon: "i-ri-compass-discover-line", id: "explorer", label: "Explorer" },
-    { icon: "i-ri-stethoscope-line", id: "diagnostics", label: "Diagnostics" },
-    { icon: "i-ri-message-3-line", id: "messages", label: "DMs" },
-    { icon: "i-ri-search-line", id: "search", label: "Search" },
-    { icon: "i-ri-user-3-line", id: "profile", label: "Profile" },
+  const tabs: TabProps[] = [
+    { icon: "rss", id: "feed", label: "Feed" },
+    { icon: "compass", id: "explorer", label: "Explorer" },
+    { icon: "stethoscope", id: "diagnostics", label: "Diagnostics" },
+    { icon: "messages", id: "messages", label: "DMs" },
+    { icon: "search", id: "search", label: "Search" },
+    { icon: "user", id: "profile", label: "Profile" },
   ];
 
   function handleKeyDown(event: KeyboardEvent) {

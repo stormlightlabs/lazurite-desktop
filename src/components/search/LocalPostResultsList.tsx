@@ -5,7 +5,7 @@ import { SearchResultCard } from "./SearchResultCard";
 
 function LocalPostResultsSkeleton() {
   return (
-    <div class="flex animate-pulse items-start gap-4 rounded-2xl bg-surface px-4 py-4" aria-hidden="true">
+    <div class="flex animate-pulse items-start gap-4 rounded-2xl bg-surface px-4 py-4" aria-hidden>
       <div class="h-10 w-10 shrink-0 rounded-full bg-white/5" />
       <div class="min-w-0 flex-1 space-y-2">
         <For each={["w-48", "w-full", "w-2/3"]}>

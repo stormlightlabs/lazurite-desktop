@@ -45,7 +45,7 @@ export function SettingsInlineFeedback(props: { feedback: SettingsFeedback | nul
             aria-live={kind === "error" ? "assertive" : "polite"}
             class="inline-flex w-fit items-center gap-2 rounded-full bg-surface-container-high px-3 py-1.5 text-sm"
             classList={{ "text-emerald-300": kind === "success", "text-red-300": kind === "error" }}>
-            <Icon kind={kind === "success" ? "complete" : "danger"} aria-hidden="true" />
+            <Icon kind={kind === "success" ? "complete" : "danger"} aria-hidden />
             <span>{message}</span>
           </div>
         );

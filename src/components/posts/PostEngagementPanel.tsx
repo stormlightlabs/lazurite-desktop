@@ -136,7 +136,7 @@ export function PostEngagementPanel(props: { uri: string | null }) {
           type="button"
           class="ui-control ui-control-hoverable inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm text-on-surface"
           onClick={() => void postNavigation.backFromPost()}>
-          <Icon aria-hidden="true" iconClass="i-ri-arrow-left-line" />
+          <Icon aria-hidden iconClass="i-ri-arrow-left-line" />
           Back
         </button>
       </header>

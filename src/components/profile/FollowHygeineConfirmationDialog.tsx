@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
-import { Icon } from "../shared/Icon";
+import { LoadingIcon } from "../shared/Icon";
 
 function ConfirmationDialogBody(props: { selectedCount: number }) {
   return (
@@ -22,9 +22,7 @@ function ConfirmationDialogActions(props: { pending: boolean; onCancel: () => vo
         disabled={props.pending}
         type="button"
         onClick={() => props.onConfirm()}>
-        <Show when={props.pending}>
-          <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
-        </Show>
+        <LoadingIcon isLoading={props.pending} class="text-base" />
         Confirm unfollow
       </button>
     </div>

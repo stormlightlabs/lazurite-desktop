@@ -14,11 +14,11 @@ function LoginSubmitButton(props: { pending: boolean }) {
         when={props.pending}
         fallback={
           <>
-            <Icon kind="ext-link" name="ext-link" aria-hidden="true" class="mr-1" />
+            <Icon kind="ext-link" name="ext-link" aria-hidden class="mr-1" />
             <span>Continue</span>
           </>
         }>
-        <Icon kind="loader" name="loader" aria-hidden="true" class="mr-1" />
+        <Icon kind="loader" name="loader" aria-hidden class="mr-1" />
         <span>Opening sign-in...</span>
       </Show>
     </button>

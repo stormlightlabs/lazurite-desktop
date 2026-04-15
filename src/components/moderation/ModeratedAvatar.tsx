@@ -21,7 +21,7 @@ export function ModeratedAvatar(props: ModeratedAvatarProps) {
             classList={{ [props.fallbackClass ?? "text-sm font-semibold text-on-surface"]: true }}>
             <Show
               when={!props.hidden}
-              fallback={<Icon aria-hidden="true" iconClass="i-ri-shield-line" class="text-lg text-on-surface" />}>
+              fallback={<Icon aria-hidden iconClass="i-ri-shield-line" class="text-lg text-on-surface" />}>
               {props.label}
             </Show>
           </span>

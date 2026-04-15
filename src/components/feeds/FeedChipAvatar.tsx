@@ -22,7 +22,7 @@ export function FeedChipAvatar(props: { feed: SavedFeedItem; generator?: FeedGen
       when={props.generator?.avatar}
       fallback={
         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-white/6 text-primary">
-          <Icon aria-hidden="true" iconClass={icon()} />
+          <Icon aria-hidden iconClass={icon()} />
         </div>
       }>
       {(avatar) => <img class="h-8 w-8 rounded-full object-cover" src={avatar()} alt="" />}

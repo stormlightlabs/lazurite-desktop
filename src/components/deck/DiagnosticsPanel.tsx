@@ -389,7 +389,7 @@ function DiagnosticsHeader(props: { did: string; embedded: boolean; isSelf: bool
             class="inline-flex h-10 w-10 items-center justify-center rounded-full border-0 bg-surface-container-high text-on-surface-variant transition duration-150 hover:-translate-y-px hover:text-on-surface"
             onClick={() => props.onClose?.()}
             title="Close diagnostics panel">
-            <Icon kind="close" aria-hidden="true" />
+            <Icon kind="close" aria-hidden />
           </button>
         </Show>
       </div>
@@ -624,7 +624,7 @@ function DiagnosticsBlocksTab(
         type="button"
         class="inline-flex w-fit items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface transition duration-150 hover:-translate-y-px"
         onClick={() => props.onToggleExpanded()}>
-        <Icon kind={props.expanded ? "close" : "list"} aria-hidden="true" />
+        <Icon kind={props.expanded ? "close" : "list"} aria-hidden />
         {props.expanded ? "Hide details" : "Show details"}
       </button>
 
@@ -739,7 +739,7 @@ function DiagnosticsError(props: { message: string | null; onRetry?: () => void 
           type="button"
           class="inline-flex w-fit items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface transition duration-150 hover:-translate-y-px"
           onClick={() => props.onRetry?.()}>
-          <Icon kind="refresh" aria-hidden="true" />
+          <Icon kind="refresh" aria-hidden />
           Retry
         </button>
       </Show>
@@ -819,7 +819,7 @@ function ListCard(props: { list: DiagnosticList; onOpenExplorerTarget?: (target:
                 class="inline-flex items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 py-2 text-sm text-on-surface transition duration-150 hover:-translate-y-px"
                 disabled={!props.onOpenExplorerTarget}
                 onClick={() => props.onOpenExplorerTarget?.(uri())}>
-                <Icon kind="ext-link" aria-hidden="true" />
+                <Icon kind="ext-link" aria-hidden />
                 Open list
               </button>
             )}
@@ -858,7 +858,7 @@ function StarterPackCard(props: { onOpenExplorerTarget?: (target: string) => voi
                 class="inline-flex items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 py-2 text-sm text-on-surface transition duration-150 hover:-translate-y-px"
                 disabled={!props.onOpenExplorerTarget}
                 onClick={() => props.onOpenExplorerTarget?.(uri())}>
-                <Icon kind="ext-link" aria-hidden="true" />
+                <Icon kind="ext-link" aria-hidden />
                 AT Explorer
               </button>
             )}
@@ -926,7 +926,7 @@ function BlockProfileRow(
         when={props.item.available}
         fallback={
           <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-container-high text-xs font-semibold text-on-surface-variant">
-            <Icon kind="danger" aria-hidden="true" />
+            <Icon kind="danger" aria-hidden />
           </div>
         }>
         <ModeratedAvatar

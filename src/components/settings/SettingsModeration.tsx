@@ -308,7 +308,7 @@ export function SettingsModeration() {
                       type="button"
                       class="inline-flex w-fit items-center gap-2 rounded-full border-0 bg-primary/20 px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/30"
                       onClick={() => void openUrl("https://bsky.app/settings/content-moderation")}>
-                      <Icon aria-hidden="true" iconClass="i-ri-external-link-line" />
+                      <Icon aria-hidden kind="ext-link" />
                       Open web settings
                     </button>
                   </div>

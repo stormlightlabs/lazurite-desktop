@@ -130,7 +130,7 @@ function DrawerHeader(props: { onClose: () => void }) {
         class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
         type="button"
         onClick={() => props.onClose()}>
-        <Icon aria-hidden="true" iconClass="i-ri-close-line" />
+        <Icon kind="close" aria-hidden />
       </button>
     </div>
   );
@@ -166,7 +166,7 @@ function DrawerPinnedFeedRow(
           disabled={props.isFirst}
           title="Move up"
           onClick={() => props.onMoveUp()}>
-          <ArrowIcon direction="up" aria-hidden="true" />
+          <ArrowIcon direction="up" aria-hidden />
         </button>
         <button
           class="inline-flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface disabled:opacity-30"
@@ -174,14 +174,14 @@ function DrawerPinnedFeedRow(
           disabled={props.isLast}
           title="Move down"
           onClick={() => props.onMoveDown()}>
-          <ArrowIcon direction="down" aria-hidden="true" />
+          <ArrowIcon direction="down" aria-hidden />
         </button>
         <button
           class="inline-flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-primary"
           type="button"
           title="Unpin from tabs"
           onClick={() => props.onUnpin()}>
-          <Icon aria-hidden="true" kind="unpin" />
+          <Icon aria-hidden kind="unpin" />
         </button>
       </div>
     </div>
@@ -206,7 +206,7 @@ function DrawerUnpinnedFeedRow(
         type="button"
         title="Pin to tabs"
         onClick={() => props.onPin()}>
-        <Icon aria-hidden="true" iconClass="i-ri-pushpin-line" />
+        <Icon aria-hidden iconClass="i-ri-pushpin-line" />
       </button>
     </div>
   );

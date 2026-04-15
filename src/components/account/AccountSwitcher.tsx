@@ -99,7 +99,7 @@ export function AccountSwitcher() {
             "bottom-0 right-0 h-[1.35rem] w-[1.35rem] translate-x-[20%] translate-y-[20%] rounded-full bg-surface-container-high text-[0.78rem] leading-none shadow-[0_0_0_2px_var(--surface-container-lowest),inset_0_0_0_1px_var(--outline-subtle)]":
               compact(),
           }}
-          aria-hidden="true">
+          aria-hidden>
           <Show when={shell.showSwitcher} fallback={<ArrowIcon direction="down" />}>
             <ArrowIcon direction="up" />
           </Show>

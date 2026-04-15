@@ -1,11 +1,11 @@
-import { Icon } from "$/components/shared/Icon";
+import { LoadingIcon } from "$/components/shared/Icon";
 import { For, Show } from "solid-js";
 
 export function LoadingMoreIndicator(props: { loading: boolean }) {
   return (
     <Show when={props.loading}>
       <div class="flex items-center justify-center py-4 text-sm text-on-surface-variant">
-        <Icon aria-hidden="true" class="animate-spin" iconClass="i-ri-loader-4-line" />
+        <LoadingIcon isLoading aria-hidden />
         <span class="ml-2">Loading more</span>
       </div>
     </Show>

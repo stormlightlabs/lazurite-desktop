@@ -136,7 +136,7 @@ function PostActionButton(props: PostActionButtonProps) {
         class="flex items-center"
         animate={{ scale: props.pulse ? [1, 1.3, 1] : 1 }}
         transition={{ duration: 0.28 }}>
-        <Icon aria-hidden="true" iconClass={props.active ? props.iconActive ?? props.icon : props.icon} />
+        <Icon aria-hidden iconClass={props.active ? props.iconActive ?? props.icon : props.icon} />
       </Motion.span>
       <span class="max-w-24 truncate">{props.busy ? "..." : props.label}</span>
     </button>
@@ -240,7 +240,7 @@ function PostActions(props: PostActionsProps) {
           event.stopPropagation();
           menu.menu.onOpen(event.currentTarget);
         }}>
-        <Icon aria-hidden="true" iconClass="i-ri-more-fill" />
+        <Icon aria-hidden iconClass="i-ri-more-fill" />
       </button>
     </footer>
   );
@@ -600,13 +600,13 @@ export function PostCard(props: PostCardProps) {
       }}>
       <Show when={reasonLabel()}>
         <div class="mb-3 flex items-center gap-2 text-xs font-medium tracking-[0.04em] text-primary">
-          <Icon aria-hidden="true" iconClass="i-ri-repeat-2-line" />
+          <Icon aria-hidden iconClass="i-ri-repeat-2-line" />
           <span>{reasonLabel()}</span>
         </div>
       </Show>
       <Show when={replyLabel()}>
         <div class="mb-3 flex items-center gap-2 text-xs font-medium tracking-[0.04em] text-on-surface-variant">
-          <Icon aria-hidden="true" iconClass="i-ri-corner-down-right-line" />
+          <Icon aria-hidden iconClass="i-ri-corner-down-right-line" />
           <span>{replyLabel()}</span>
         </div>
       </Show>

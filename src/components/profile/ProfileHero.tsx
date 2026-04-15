@@ -1,7 +1,7 @@
 import { useModerationDecision } from "$/components/moderation/hooks/useModerationDecision";
 import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
 import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
-import { Icon } from "$/components/shared/Icon";
+import { Icon, LoadingIcon } from "$/components/shared/Icon";
 import { PostRichText } from "$/components/shared/PostRichText";
 import { openExternalUrlFromEvent } from "$/lib/external-url";
 import { getAvatarLabel, getDisplayName } from "$/lib/feeds";
@@ -184,9 +184,7 @@ function FollowButton(props: { isFollowing: boolean; loading: boolean; onFollow:
           disabled={props.loading}
           type="button"
           onClick={props.onFollow}>
-          <Show when={props.loading}>
-            <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
-          </Show>
+          <LoadingIcon isLoading={props.loading} class="text-base" />
           Follow
         </button>
       }>
@@ -195,9 +193,7 @@ function FollowButton(props: { isFollowing: boolean; loading: boolean; onFollow:
         disabled={props.loading}
         type="button"
         onClick={() => props.onUnfollow()}>
-        <Show when={props.loading}>
-          <Icon iconClass="i-ri-loader-4-line animate-spin" class="text-base" />
-        </Show>
+        <LoadingIcon isLoading={props.loading} class="text-base" />
         <span class="group-hover:hidden">Following</span>
         <span class="hidden group-hover:inline">Unfollow</span>
       </button>

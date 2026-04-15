@@ -68,13 +68,13 @@ export function ModerationBadgeRow(props: ModerationBadgeRowProps) {
       <div class="mt-2 flex flex-wrap items-center gap-2" classList={{ [props.class ?? ""]: !!props.class }}>
         <Show when={showGenericStatusPill() && props.decision.alert}>
           <span class="inline-flex items-center gap-1 rounded-full bg-red-500/18 px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.08em] text-red-200">
-            <Icon aria-hidden="true" class="text-xs" iconClass="i-ri-alarm-warning-line" />
+            <Icon aria-hidden class="text-xs" iconClass="i-ri-alarm-warning-line" />
             Alert
           </span>
         </Show>
         <Show when={showGenericStatusPill() && !props.decision.alert && props.decision.inform}>
           <span class="inline-flex items-center gap-1 rounded-full bg-primary/18 px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.08em] text-primary">
-            <Icon aria-hidden="true" class="text-xs" iconClass="i-ri-information-line" />
+            <Icon aria-hidden class="text-xs" iconClass="i-ri-information-line" />
             Advisory
           </span>
         </Show>
@@ -88,7 +88,7 @@ export function ModerationBadgeRow(props: ModerationBadgeRowProps) {
                 "bg-surface-bright text-on-surface-variant": badge.tone === "label",
               }}
               title={badge.description ? `${badge.description} — ${badge.source}` : badge.source}>
-              <Icon aria-hidden="true" class="text-xs" iconClass={badgeIcon(badge.tone)} />
+              <Icon aria-hidden class="text-xs" iconClass={badgeIcon(badge.tone)} />
               {badge.label}
             </span>
           )}

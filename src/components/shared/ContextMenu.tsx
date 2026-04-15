@@ -191,9 +191,7 @@ export function ContextMenu(props: ContextMenuProps) {
                     item.onSelect();
                     props.onClose();
                   }}>
-                  <Show when={item.icon}>
-                    {(icon) => <Icon aria-hidden="true" iconClass={icon()} class="text-base" />}
-                  </Show>
+                  <Show when={item.icon}>{(icon) => <Icon aria-hidden iconClass={icon()} class="text-base" />}</Show>
                   <span>{item.label}</span>
                 </button>
               )}

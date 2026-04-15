@@ -12,7 +12,7 @@ export function ActorTypeaheadLoading(props: ActorTypeaheadLoadingProps) {
   return (
     <Show when={props.visible}>
       <span class={`${defaultClass()} ${props.class ?? ""}`}>
-        <Icon kind="loader" aria-hidden="true" class={props.iconClass} />
+        <Icon kind="loader" aria-hidden class={props.iconClass} />
       </span>
     </Show>
   );

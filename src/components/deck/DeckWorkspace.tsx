@@ -9,7 +9,7 @@ import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, For, onCleanup, onMount, Show } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { Motion } from "solid-motionone";
-import { ActionIcon, Icon } from "../shared/Icon";
+import { ActionIcon, LoadingIcon } from "../shared/Icon";
 import { AddColumnPanel } from "./AddColumnPanel";
 import { DeckColumn } from "./DeckColumn";
 import { parseFeedConfig, type ResolvedFeedColumn, resolveFeedColumn } from "./types";
@@ -378,7 +378,7 @@ export function DeckWorkspace() {
       <div class="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-contain">
         <Show when={state.loading}>
           <div class="flex h-full min-h-80 items-center justify-center">
-            <Icon iconClass="i-ri-loader-4-line animate-spin text-2xl text-on-surface-variant" />
+            <LoadingIcon isLoading class="text-2xl text-on-surface-variant" />
           </div>
         </Show>
 

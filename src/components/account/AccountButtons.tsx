@@ -34,8 +34,8 @@ export function AccountSwitchButton(
       type="button"
       disabled={isActive() || switching() || loggingOut()}
       onClick={() => props.onSwitch(props.account.did)}>
-      <Show when={switching()} fallback={<Icon kind="user" name="user" aria-hidden="true" class="mr-1" />}>
-        <Icon kind="loader" name="loader" aria-hidden="true" class="mr-1" />
+      <Show when={switching()} fallback={<Icon kind="user" name="user" aria-hidden class="mr-1" />}>
+        <Icon kind="loader" name="loader" aria-hidden class="mr-1" />
         <span>{content()}</span>
       </Show>
     </button>
@@ -58,12 +58,12 @@ export function LogoutButton(
         when={isLoggingOut()}
         fallback={
           <>
-            <Icon kind="logout" name="logout" aria-hidden="true" />
+            <Icon kind="logout" name="logout" aria-hidden />
             <span>Logout</span>
           </>
         }>
         <>
-          <Icon kind="loader" name="loader" aria-hidden="true" />
+          <Icon kind="loader" name="loader" aria-hidden />
           <span>Removing...</span>
         </>
       </Show>

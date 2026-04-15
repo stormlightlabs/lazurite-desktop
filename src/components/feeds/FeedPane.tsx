@@ -14,7 +14,7 @@ function FeedHeaderActions(props: { onCompose: () => void; onRefresh: () => void
         class="ui-control ui-control-hoverable inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm text-on-surface max-[960px]:flex-1 max-[960px]:justify-center max-[520px]:px-3"
         type="button"
         onClick={() => props.onCompose()}>
-        <Icon aria-hidden="true" kind="quill" />
+        <Icon aria-hidden kind="quill" />
         <span>New post</span>
       </button>
       <button
@@ -23,7 +23,7 @@ function FeedHeaderActions(props: { onCompose: () => void; onRefresh: () => void
         aria-label="Refresh active feed"
         title="Refresh active feed"
         onClick={() => props.onRefresh()}>
-        <Icon aria-hidden="true" kind="refresh" />
+        <Icon aria-hidden kind="refresh" />
       </button>
     </div>
   );

@@ -134,7 +134,7 @@ export function RecordBacklinksPanel(props: RecordBacklinksPanelProps) {
               type="button"
               class="inline-flex w-fit items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface transition duration-150 hover:-translate-y-px"
               onClick={() => void loadBacklinks(requestId, activeUri())}>
-              <Icon kind="refresh" aria-hidden="true" />
+              <Icon kind="refresh" aria-hidden />
               Retry
             </button>
           </div>
@@ -166,7 +166,7 @@ function BacklinkGroupCard(
         onClick={() => props.onToggle()}>
         <div class="flex min-w-0 items-start gap-3">
           <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface-container-high text-primary">
-            <Icon kind={props.icon} aria-hidden="true" />
+            <Icon kind={props.icon} aria-hidden />
           </div>
           <div class="min-w-0">
             <p class="m-0 text-sm font-semibold text-on-surface">{props.label}</p>

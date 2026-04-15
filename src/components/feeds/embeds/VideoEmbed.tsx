@@ -1,5 +1,5 @@
 import { type MediaNotice, MediaNoticeToast } from "$/components/feeds/MediaNoticeToast";
-import { Icon } from "$/components/shared/Icon";
+import { Icon, LoadingIcon } from "$/components/shared/Icon";
 import { MediaController } from "$/lib/api/media";
 import type { DownloadProgress } from "$/lib/api/types/media";
 import { normalizeError } from "$/lib/utils/text";
@@ -188,9 +188,10 @@ export function VideoEmbed(props: VideoEmbedProps) {
             class="inline-flex items-center gap-1.5 rounded-full border-0 bg-surface-container-high px-3 py-1.5 text-xs text-on-surface transition duration-150 ease-out hover:bg-surface-bright disabled:cursor-wait disabled:opacity-65"
             aria-label="Download video"
             onClick={(event) => void handleDownload(event)}>
-            <Icon
-              aria-hidden="true"
-              iconClass={downloadPending() ? "i-ri-loader-4-line animate-spin" : "i-ri-download-2-line"} />
+            <LoadingIcon
+              isLoading={downloadPending()}
+              class="text-base"
+              fallback={<Icon iconClass="i-ri-download-2-line" class="text-base" />} />
             <span>
               {downloadPending() ? (progressLabel() ? `Saving ${progressLabel()}` : "Saving...") : "Download"}
             </span>
@@ -259,7 +260,7 @@ function PlayOverlay(props: { onPlay: () => void }) {
       class="absolute inset-0 grid place-items-center border-0 bg-surface-container-highest/70 backdrop-blur-[2px] transition hover:bg-surface-container-highest/85"
       onClick={() => props.onPlay()}>
       <span class="grid h-16 w-16 place-items-center rounded-full bg-primary/88 text-on-primary-fixed shadow-[0_16px_30px_rgba(0,0,0,0.32)]">
-        <Icon aria-hidden="true" iconClass="i-ri-play-fill text-3xl" />
+        <Icon aria-hidden iconClass="i-ri-play-fill text-3xl" />
       </span>
     </button>
   );
@@ -268,7 +269,7 @@ function PlayOverlay(props: { onPlay: () => void }) {
 function LoadingBadge() {
   return (
     <div class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-surface-container-high/90 px-3 py-1.5 text-xs text-on-surface">
-      <Icon aria-hidden="true" iconClass="i-ri-loader-4-line animate-spin" />
+      <LoadingIcon isLoading />
       <span>Loading stream</span>
     </div>
   );

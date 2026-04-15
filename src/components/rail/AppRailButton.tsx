@@ -13,7 +13,7 @@ function RailButtonContent(props: RailButtonVisualProps) {
   return (
     <>
       <div class="relative">
-        <Icon kind={props.icon} name={props.label} aria-hidden="true" class="shrink-0 text-[1.25rem]" />
+        <Icon kind={props.icon} name={props.label} aria-hidden class="shrink-0 text-[1.25rem]" />
         <Presence>
           <Show when={(props.badge ?? 0) > 0}>
             <Motion.span

@@ -155,7 +155,7 @@ function DraftsListHeader(props: { count: number; onClose: () => void }) {
         class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-transparent text-on-surface-variant transition duration-150 ease-out hover:bg-white/5 hover:text-on-surface"
         type="button"
         onClick={() => props.onClose()}>
-        <Icon aria-hidden="true" iconClass="i-ri-close-line" />
+        <Icon kind="close" aria-hidden />
       </button>
     </header>
   );
@@ -224,7 +224,7 @@ function LoadConfirmBanner(props: { draft: Draft; onConfirm: () => void; onCance
 function DraftsLoading() {
   return (
     <div class="flex items-center justify-center px-6 py-12">
-      <Icon aria-hidden="true" kind="loader" class="text-on-surface-variant" />
+      <Icon aria-hidden kind="loader" class="text-on-surface-variant" />
     </div>
   );
 }
@@ -232,7 +232,7 @@ function DraftsLoading() {
 function DraftsError(props: { message: string }) {
   return (
     <div class="flex flex-col items-center gap-2 px-6 py-12 text-center">
-      <Icon aria-hidden="true" kind="danger" class="text-error" />
+      <Icon aria-hidden kind="danger" class="text-error" />
       <p class="m-0 text-sm text-on-surface-variant">{props.message}</p>
     </div>
   );
@@ -318,7 +318,7 @@ function DraftContextBadges(props: { draft: Draft }) {
 function DraftContextBadge(props: { icon: string; label: string }) {
   return (
     <span class="inline-flex items-center gap-1 rounded-full bg-white/8 px-2 py-0.5 text-[0.7rem] text-on-surface-variant">
-      <Icon aria-hidden="true" iconClass={props.icon} />
+      <Icon aria-hidden iconClass={props.icon} />
       <span>{props.label}</span>
     </span>
   );
@@ -331,7 +331,7 @@ function DraftDeleteButton(props: { onDelete: () => void }) {
       type="button"
       title="Delete draft"
       onClick={() => props.onDelete()}>
-      <Icon aria-hidden="true" iconClass="i-ri-delete-bin-line" />
+      <Icon aria-hidden iconClass="i-ri-delete-bin-line" />
     </button>
   );
 }

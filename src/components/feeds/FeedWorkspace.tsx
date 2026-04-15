@@ -106,7 +106,7 @@ function RestoreDraftToast(props: { onRestore: () => void; onDiscard: () => void
       exit={{ opacity: 0, y: 16, scale: 0.94 }}
       transition={{ duration: 0.2 }}>
       <div class="flex items-center gap-3 px-4 py-3">
-        <Icon aria-hidden="true" iconClass="i-ri-draft-line" class="shrink-0 text-primary" />
+        <Icon aria-hidden iconClass="i-ri-draft-line" class="shrink-0 text-primary" />
         <p class="m-0 min-w-0 text-[0.875rem] text-on-surface">You have an unsaved post. Restore?</p>
         <div class="flex shrink-0 items-center gap-2">
           <button

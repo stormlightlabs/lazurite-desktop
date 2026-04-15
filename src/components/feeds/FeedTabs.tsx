@@ -30,7 +30,7 @@ export function FeedTabBar(
         class="inline-flex h-11 shrink-0 items-center gap-2 rounded-full border-0 bg-white/5 px-4 text-sm text-on-surface transition duration-150 ease-out hover:-translate-y-px hover:bg-white/8 max-[1040px]:px-3 max-[1040px]:text-xs max-md:w-11 max-md:justify-center max-md:px-0"
         type="button"
         onClick={() => props.onToggleDrawer()}>
-        <Icon aria-hidden="true" iconClass="i-ri-stack-line" />
+        <Icon aria-hidden iconClass="i-ri-stack-line" />
         <span class="max-md:hidden">Saved feeds</span>
       </button>
     </div>

@@ -234,7 +234,7 @@ function NotificationsHeader(
           class="inline-flex h-10 items-center gap-2 rounded-full border-0 bg-surface-container-high px-4 text-sm font-medium text-on-surface-variant transition duration-150 hover:-translate-y-px hover:text-on-surface"
           onClick={() => props.onMarkSeen()}
           title="Mark all as read">
-          <Icon kind="complete" aria-hidden="true" />
+          <Icon kind="complete" aria-hidden />
           Mark all read
         </button>
       </div>
@@ -435,7 +435,7 @@ function GroupedReasonIcon(props: { reason: NotificationReason }) {
 
   return (
     <div class="flex w-8 shrink-0 justify-center pt-0.5">
-      <Icon kind={icon().kind} class={icon().className} aria-hidden="true" />
+      <Icon kind={icon().kind} class={icon().className} aria-hidden />
     </div>
   );
 }
@@ -577,7 +577,7 @@ function EmptyState(props: { label: string }) {
 
 function NotificationSkeleton() {
   return (
-    <div class="flex animate-pulse items-start gap-4 rounded-2xl bg-surface px-4 py-4" aria-hidden="true">
+    <div class="flex animate-pulse items-start gap-4 rounded-2xl bg-surface px-4 py-4" aria-hidden>
       <div class="mt-1 h-5 w-5 shrink-0 rounded-full bg-white/5" />
       <div class="h-8 w-8 shrink-0 rounded-full bg-white/5" />
       <div class="min-w-0 flex-1 space-y-2">
