@@ -10,20 +10,20 @@ import type { ModerationLabel, ModerationUiDecision, ProfileViewDetailed, RichTe
 import { formatCount } from "$/lib/utils/text";
 import { createMemo, For, Show } from "solid-js";
 
-function ProfileHeroActions(
-  props: {
-    badges: string[];
-    followLoading: boolean;
-    isFollowing: boolean;
-    isSelf: boolean;
-    moderationDecision: ModerationUiDecision;
-    moderationLabels: ModerationLabel[];
-    onFollow: () => void;
-    onMessage: () => void;
-    onOpenFollowHygiene: () => void;
-    onUnfollow: () => void;
-  },
-) {
+type ProfileHeroActionProps = {
+  badges: string[];
+  followLoading: boolean;
+  isFollowing: boolean;
+  isSelf: boolean;
+  moderationDecision: ModerationUiDecision;
+  moderationLabels: ModerationLabel[];
+  onFollow: () => void;
+  onMessage: () => void;
+  onOpenFollowHygiene: () => void;
+  onUnfollow: () => void;
+};
+
+function ProfileHeroActions(props: ProfileHeroActionProps) {
   return (
     <div class="flex flex-col items-end gap-2">
       <Show
@@ -42,7 +42,7 @@ function ProfileHeroActions(
           class="tone-muted inline-flex min-h-9 items-center gap-2 rounded-full border ui-outline-subtle px-4 text-sm font-medium text-on-surface shadow-(--inset-shadow) transition duration-150 ease-out hover:bg-surface-bright"
           type="button"
           onClick={() => props.onOpenFollowHygiene()}>
-          <Icon iconClass="i-ri-user-search-line" class="text-base" />
+          <Icon kind="user-search" class="text-base" />
           Audit follows
         </button>
       </Show>
@@ -156,7 +156,7 @@ function ProfileMetaRow(
       </Show>
 
       <span class="inline-flex items-center gap-2">
-        <Icon iconClass="i-ri-at-line" class="text-base" />
+        <Icon class="text-base" kind="at" />
         <span class="max-w-full break-all">{props.did}</span>
       </span>
 
@@ -213,25 +213,25 @@ function MessageButton(props: { onClick: () => void }) {
   );
 }
 
-export function ProfileHero(
-  props: {
-    coverOffset: number;
-    followLoading: boolean;
-    isSelf: boolean;
-    joinedLabel: string | null;
-    onFollow: () => void;
-    onMessage: () => void;
-    onOpenFollowHygiene: () => void;
-    onOpenFollowers: () => void;
-    onOpenFollows: () => void;
-    onUnfollow: () => void;
-    pinnedPostHref: string | null;
-    profile: ProfileViewDetailed;
-    profileBadges: string[];
-    rootRef?: (element: HTMLElement) => void;
-    viewLabel: string;
-  },
-) {
+type ProfileHeroProps = {
+  coverOffset: number;
+  followLoading: boolean;
+  isSelf: boolean;
+  joinedLabel: string | null;
+  onFollow: () => void;
+  onMessage: () => void;
+  onOpenFollowHygiene: () => void;
+  onOpenFollowers: () => void;
+  onOpenFollows: () => void;
+  onUnfollow: () => void;
+  pinnedPostHref: string | null;
+  profile: ProfileViewDetailed;
+  profileBadges: string[];
+  rootRef?: (element: HTMLElement) => void;
+  viewLabel: string;
+};
+
+export function ProfileHero(props: ProfileHeroProps) {
   const displayName = createMemo(() => getDisplayName(props.profile));
   const isFollowing = createMemo(() => !!props.profile.viewer?.following);
   const bannerStyle = createMemo(() => ({ transform: `translate3d(0, ${props.coverOffset}px, 0)` }));

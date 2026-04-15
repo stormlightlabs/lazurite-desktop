@@ -4,7 +4,7 @@ import type { FeedGeneratorView, SavedFeedItem } from "$/lib/types";
 import * as logger from "@tauri-apps/plugin-log";
 import { createSignal, For, onMount, Show } from "solid-js";
 import { FeedChipAvatar } from "../feeds/FeedChipAvatar";
-import { LoadingIcon } from "../shared/Icon";
+import { Icon, LoadingIcon } from "../shared/Icon";
 import type { FeedPickerSelection } from "./types";
 
 function feedKindLabel(feed: SavedFeedItem) {
@@ -110,9 +110,7 @@ export function ExplorerPicker(props: { onSubmit: (uri: string) => void }) {
         type="submit"
         disabled={!value().trim()}
         class="flex items-center justify-center gap-2 rounded-xl border-0 bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40">
-        <span class="flex items-center">
-          <i class="i-ri-compass-discover-line" />
-        </span>
+        <Icon kind="explore" />
         Open in column
       </button>
     </form>
@@ -146,9 +144,7 @@ export function DiagnosticsPicker(props: { onSubmit: (did: string) => void }) {
         type="submit"
         disabled={!value().trim()}
         class="flex items-center justify-center gap-2 rounded-xl border-0 bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40">
-        <span class="flex items-center">
-          <i class="i-ri-stethoscope-line" />
-        </span>
+        <Icon kind="diagnostics" />
         Open diagnostics
       </button>
     </form>
@@ -160,9 +156,7 @@ export function MessagesPicker(props: { onSubmit: () => void }) {
     <div class="grid gap-4">
       <div class="rounded-2xl bg-surface-container-high p-4 shadow-(--inset-shadow)">
         <div class="flex items-start gap-3">
-          <span class="mt-0.5 flex items-center text-primary">
-            <i class="i-ri-message-3-line" />
-          </span>
+          <Icon kind="messages" class="text-primary mt-0.5" />
           <div class="grid gap-1.5">
             <p class="m-0 text-sm font-medium text-on-surface">Direct messages</p>
             <p class="m-0 text-xs leading-relaxed text-on-surface-variant">
@@ -176,9 +170,7 @@ export function MessagesPicker(props: { onSubmit: () => void }) {
         type="button"
         class="flex items-center justify-center gap-2 rounded-xl border-0 bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25"
         onClick={() => props.onSubmit()}>
-        <span class="flex items-center">
-          <i class="i-ri-layout-column-line" />
-        </span>
+        <Icon kind="deck" />
         Add DM column
       </button>
     </div>

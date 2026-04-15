@@ -1,4 +1,4 @@
-import { SearchModeIcon } from "$/components/shared/Icon";
+import { Icon, SearchModeIcon } from "$/components/shared/Icon";
 import type { SearchMode } from "$/lib/api/types/search";
 import { createSignal } from "solid-js";
 
@@ -60,9 +60,7 @@ export function SearchPicker(props: { onSubmit: (query: string, mode: SearchMode
         type="submit"
         disabled={!query().trim()}
         class="flex items-center justify-center gap-2 rounded-xl border-0 bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40">
-        <span class="flex items-center">
-          <i class="i-ri-search-line" />
-        </span>
+        <Icon kind="search" />
         Open search column
       </button>
     </form>

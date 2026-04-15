@@ -14,7 +14,13 @@ export type Column = {
   createdAt: string;
 };
 
-export type FeedColumnConfig = { feedUri: string; feedType: "timeline" | "feed" | "list"; title?: string | null };
+export type FeedKind = "timeline" | "feed" | "list";
+
+export function isFeedType(value: unknown): value is FeedKind {
+  return value === "timeline" || value === "feed" || value === "list";
+}
+
+export type FeedColumnConfig = { feedUri: string; feedType: FeedKind; title?: string | null };
 
 export type ExplorerColumnConfig = { targetUri: string };
 

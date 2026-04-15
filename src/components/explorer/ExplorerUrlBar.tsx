@@ -1,7 +1,7 @@
 import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/ActorSearch";
 import { ActorTypeaheadLoading } from "$/components/actors/ActorTypeaheadLoading";
 import { useActorTypeaheadCombobox } from "$/components/actors/hooks/useActorTypeaheadCombobox";
-import { ArrowIcon, Icon } from "$/components/shared/Icon";
+import { ArrowIcon, Icon, LoadingIcon } from "$/components/shared/Icon";
 import type { ActorSuggestion } from "$/lib/types";
 import { createEffect, createSignal } from "solid-js";
 
@@ -149,7 +149,7 @@ export function ExplorerUrlBar(props: ExplorerUrlBarProps) {
           class="rounded-lg p-2 text-on-surface-variant transition-all hover:bg-surface-bright hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-30"
           aria-label="Clear icon cache"
           title="Clear icon cache">
-          <Icon iconClass={props.clearingIconCache ? "i-ri-loader-4-line" : "i-ri-delete-bin-6-line"} />
+          <LoadingIcon isLoading={props.clearingIconCache} fallback={<Icon iconClass="i-ri-delete-bin-6-line" />} />
         </button>
 
         <button
@@ -158,7 +158,7 @@ export function ExplorerUrlBar(props: ExplorerUrlBarProps) {
           class="rounded-lg p-2 text-on-surface-variant transition-all hover:bg-surface-bright hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-30"
           aria-label="Download CAR"
           title="Download CAR">
-          <Icon iconClass="i-ri-download-2-line" />
+          <Icon kind="download" />
         </button>
       </div>
     </header>

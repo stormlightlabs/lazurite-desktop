@@ -1,6 +1,7 @@
 import { ActorSuggestionList, useActorSuggestions } from "$/components/actors/ActorSearch";
 import { ActorTypeaheadLoading } from "$/components/actors/ActorTypeaheadLoading";
 import { useActorTypeaheadCombobox } from "$/components/actors/hooks/useActorTypeaheadCombobox";
+import { Icon } from "$/components/shared/Icon";
 import type { ActorSuggestion } from "$/lib/types";
 import * as logger from "@tauri-apps/plugin-log";
 import { createSignal } from "solid-js";
@@ -89,9 +90,7 @@ export function ProfilePicker(props: { onSubmit: (selection: ProfileSelection) =
         type="submit"
         disabled={!value().trim()}
         class="flex items-center justify-center gap-2 rounded-xl border-0 bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition duration-150 hover:-translate-y-px hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40">
-        <span class="flex items-center">
-          <i class="i-ri-user-3-line" />
-        </span>
+        <Icon kind="profile" />
         Open profile
       </button>
     </form>

@@ -9,15 +9,8 @@ import type { PostView, SavedFeedItem } from "$/lib/types";
 import { createSignal, Match, Show, Switch } from "solid-js";
 import { ArrowIcon, Icon } from "../shared/Icon";
 import { DiagnosticsColumn } from "./DiagnosticsColumn";
-import {
-  COLUMN_WIDTH_PX,
-  columnTitle,
-  cycleWidth,
-  parseDiagnosticsConfig,
-  parseProfileConfig,
-  parseSearchConfig,
-  type ResolvedFeedColumn,
-} from "./types";
+import { cycleWidth, parseColumnTitle, parseDiagnosticsConfig, parseProfileConfig, parseSearchConfig } from "./helpers";
+import { COLUMN_WIDTH_PX, type ResolvedFeedColumn } from "./types";
 import { useFeedColumnState } from "./useFeedColumnState";
 
 type DeckColumnProps = {
@@ -273,7 +266,7 @@ function ProfileBody(props: { actor: string | null }) {
 
 export function DeckColumn(props: DeckColumnProps) {
   const [resizingWidth, setResizingWidth] = createSignal<number | null>(null);
-  const title = () => props.feedColumn?.title ?? columnTitle(props.column.kind, props.column.config);
+  const title = () => props.feedColumn?.title ?? parseColumnTitle(props.column.kind, props.column.config);
   const widthPx = () => resizingWidth() ?? COLUMN_WIDTH_PX[props.column.width];
 
   function handleDragStart(e: DragEvent) {

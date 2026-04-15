@@ -9,10 +9,11 @@ import * as logger from "@tauri-apps/plugin-log";
 import { createEffect, For, onCleanup, onMount, Show } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { Motion } from "solid-motionone";
-import { ActionIcon, LoadingIcon } from "../shared/Icon";
+import { ActionIcon, Icon, LoadingIcon } from "../shared/Icon";
 import { AddColumnPanel } from "./AddColumnPanel";
 import { DeckColumn } from "./DeckColumn";
-import { parseFeedConfig, type ResolvedFeedColumn, resolveFeedColumn } from "./types";
+import { parseFeedConfig, resolveFeedColumn } from "./helpers";
+import { type ResolvedFeedColumn } from "./types";
 
 type DeckState = {
   addPanelOpen: boolean;
@@ -38,9 +39,7 @@ function DeckToolbar(props: { columnCount: number; onAdd: () => void }) {
         aria-label="Add column (Ctrl+Shift+N)"
         title="Add column (Ctrl+Shift+N)"
         onClick={() => props.onAdd()}>
-        <span class="flex items-center">
-          <i class="i-ri-add-line" />
-        </span>
+        <ActionIcon kind="add" />
         Add column
       </button>
     </div>
@@ -50,9 +49,7 @@ function DeckToolbar(props: { columnCount: number; onAdd: () => void }) {
 function EmptyDeck(props: { onAdd: () => void }) {
   return (
     <div class="flex h-full min-h-104 flex-col items-center justify-center gap-4 rounded-[1.75rem] bg-surface-container px-6 text-center shadow-(--inset-shadow)">
-      <span class="flex items-center text-[2.5rem] text-on-surface-variant opacity-30">
-        <i class="i-ri-layout-column-line" />
-      </span>
+      <Icon kind="deck" class="text-[1.75rem] text-on-surface-variant opacity-30" />
       <div>
         <p class="m-0 text-sm font-medium text-on-surface">No columns yet</p>
         <p class="m-0 mt-1 text-xs text-on-surface-variant">

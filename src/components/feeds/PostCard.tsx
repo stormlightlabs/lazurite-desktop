@@ -300,7 +300,6 @@ function PostModeratedContent(
             labels={props.contentLabels}
             post={props.post}
             text={props.text} />
-
           <Show when={props.post.embed}>
             {(current) => (
               <ModeratedBlurOverlay decision={props.mediaDecision} labels={props.mediaLabels} class="mt-4">
@@ -634,11 +633,8 @@ export function PostCard(props: PostCardProps) {
               authorHandle={authorHandle()}
               authorHref={profileHref()}
               createdAt={createdAt()} />
-
             <ModerationBadgeRow decision={authorDecision()} labels={authorLabels()} />
-
             <ModerationBadgeRow decision={contentDecision()} labels={contentLabels()} />
-
             <PostModeratedContent
               contentDecision={contentDecision()}
               contentLabels={contentLabels()}
@@ -651,7 +647,6 @@ export function PostCard(props: PostCardProps) {
               post={view.post}
               text={postText()} />
           </PostPrimaryRegion>
-
           <Show when={view.showActions !== false}>
             <PostActions
               handlers={{
@@ -717,7 +712,6 @@ export function PostCard(props: PostCardProps) {
         open={menuOpen()}
         returnFocusTo={menuTriggerRef}
         onClose={closeContextMenu} />
-
       <ContextMenu
         anchor={repostMenuAnchor()}
         items={repostMenuItems()}
@@ -725,7 +719,6 @@ export function PostCard(props: PostCardProps) {
         open={repostMenuOpen()}
         returnFocusTo={repostMenuTriggerRef}
         onClose={closeRepostMenu} />
-
       <ReportDialog
         open={reportOpen()}
         subjectLabel={reportTarget()?.subjectLabel ?? "Report content"}

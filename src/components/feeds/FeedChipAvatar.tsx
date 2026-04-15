@@ -1,18 +1,18 @@
-import { Icon } from "$/components/shared/Icon";
+import { Icon, type IconKind } from "$/components/shared/Icon";
 import type { FeedGeneratorView, SavedFeedItem } from "$/lib/types";
 import { createMemo, Show } from "solid-js";
 
 export function FeedChipAvatar(props: { feed: SavedFeedItem; generator?: FeedGeneratorView }) {
-  const icon = createMemo(() => {
+  const icon = createMemo<IconKind>(() => {
     switch (props.feed.type) {
       case "list": {
-        return "i-ri-list-check-2";
+        return "check";
       }
       case "timeline": {
-        return "i-ri-home-5-line";
+        return "timeline";
       }
       default: {
-        return "i-ri-rss-line";
+        return "rss";
       }
     }
   });
@@ -22,7 +22,7 @@ export function FeedChipAvatar(props: { feed: SavedFeedItem; generator?: FeedGen
       when={props.generator?.avatar}
       fallback={
         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-white/6 text-primary">
-          <Icon aria-hidden iconClass={icon()} />
+          <Icon aria-hidden kind={icon()} />
         </div>
       }>
       {(avatar) => <img class="h-8 w-8 rounded-full object-cover" src={avatar()} alt="" />}

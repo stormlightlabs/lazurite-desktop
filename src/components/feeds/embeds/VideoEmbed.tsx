@@ -191,7 +191,7 @@ export function VideoEmbed(props: VideoEmbedProps) {
             <LoadingIcon
               isLoading={downloadPending()}
               class="text-base"
-              fallback={<Icon iconClass="i-ri-download-2-line" class="text-base" />} />
+              fallback={<Icon kind="download" class="text-base" />} />
             <span>
               {downloadPending() ? (progressLabel() ? `Saving ${progressLabel()}` : "Saving...") : "Download"}
             </span>

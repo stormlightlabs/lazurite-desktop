@@ -110,7 +110,7 @@ export function AccountControl(
             type="button"
             onClick={() => props.onOpenFollowHygiene()}
             class="ui-control ui-control-hoverable inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium text-on-surface">
-            <Icon iconClass="i-ri-user-search-line" class="text-base" />
+            <Icon kind="user-search" class="text-base" />
             Audit follows
           </button>
         </div>

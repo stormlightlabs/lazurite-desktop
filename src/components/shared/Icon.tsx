@@ -65,7 +65,8 @@ export type IconKind =
   | "stethoscope"
   | "check"
   | "radar"
-  | "unfollow";
+  | "unfollow"
+  | "user-search";
 
 type IconProps = JSX.HTMLAttributes<HTMLSpanElement> & {
   class?: string;
@@ -199,6 +200,9 @@ export function Icon(props: IconProps) {
         </Match>
         <Match when={local.kind === "unfollow"}>
           <i class="i-ri-user-unfollow-line" />
+        </Match>
+        <Match when={local.kind === "user-search"}>
+          <i class="i-ri-user-search-line" />
         </Match>
       </Switch>
     </span>
