@@ -9,6 +9,7 @@ import type {
   ProfileUnavailableReason,
   ProfileViewBasic,
   ProfileViewDetailed,
+  RichTextFacet,
 } from "$/lib/types";
 import { asArray, asRecord, optionalNumber, optionalString } from "./type-guards";
 
@@ -52,6 +53,7 @@ function parseProfile(value: unknown): ProfileViewDetailed {
     banner: optionalString(record.banner),
     createdAt: optionalString(record.createdAt),
     description: optionalString(record.description),
+    descriptionFacets: parseRichTextFacets(record.descriptionFacets),
     did: record.did,
     displayName: optionalString(record.displayName),
     followersCount: optionalNumber(record.followersCount),
@@ -67,6 +69,11 @@ function parseProfile(value: unknown): ProfileViewDetailed {
     viewer: parseProfileViewer(record.viewer),
     website: optionalString(record.website),
   };
+}
+
+function parseRichTextFacets(value: unknown): RichTextFacet[] | null {
+  const facets = asArray(value);
+  return (facets as RichTextFacet[] | null) || null;
 }
 
 export function parseProfileResult(value: unknown): ProfileLookupResult {

@@ -79,6 +79,7 @@ describe("profile helpers", () => {
         banner: null,
         createdAt: null,
         description: null,
+        descriptionFacets: null,
         did: "did:plc:bob",
         displayName: "Bob",
         followersCount: null,

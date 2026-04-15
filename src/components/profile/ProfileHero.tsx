@@ -2,9 +2,11 @@ import { useModerationDecision } from "$/components/moderation/hooks/useModerati
 import { ModeratedAvatar } from "$/components/moderation/ModeratedAvatar";
 import { ModerationBadgeRow } from "$/components/moderation/ModerationBadgeRow";
 import { Icon } from "$/components/shared/Icon";
+import { PostRichText } from "$/components/shared/PostRichText";
+import { openExternalUrlFromEvent } from "$/lib/external-url";
 import { getAvatarLabel, getDisplayName } from "$/lib/feeds";
 import { collectModerationLabels } from "$/lib/moderation";
-import type { ModerationLabel, ModerationUiDecision, ProfileViewDetailed } from "$/lib/types";
+import type { ModerationLabel, ModerationUiDecision, ProfileViewDetailed, RichTextFacet } from "$/lib/types";
 import { formatCount } from "$/lib/utils/text";
 import { createMemo, For, Show } from "solid-js";
 
@@ -77,7 +79,13 @@ function ProfileStat(props: { label: string; onClick?: () => void; value?: numbe
 }
 
 function ProfileIdentity(
-  props: { description: string | null; displayName: string; handle: string; viewLabel: string },
+  props: {
+    description: string | null;
+    descriptionFacets?: RichTextFacet[] | null;
+    displayName: string;
+    handle: string;
+    viewLabel: string;
+  },
 ) {
   return (
     <div class="grid min-w-0 flex-1 gap-3">
@@ -90,9 +98,10 @@ function ProfileIdentity(
       </div>
       <Show when={props.description}>
         {(description) => (
-          <p class="m-0 max-w-3xl whitespace-pre-wrap text-[0.98rem] leading-[1.7] text-on-secondary-container">
-            {description()}
-          </p>
+          <PostRichText
+            class="m-0 max-w-3xl text-[0.98rem] leading-[1.7] text-on-secondary-container"
+            facets={props.descriptionFacets}
+            text={description()} />
         )}
       </Show>
     </div>
@@ -129,7 +138,8 @@ function ProfileMetaRow(
             class="inline-flex items-center gap-2 text-primary no-underline transition hover:text-on-surface"
             href={website()}
             rel="noreferrer"
-            target="_blank">
+            target="_blank"
+            onClick={(event) => openExternalUrlFromEvent(event, website(), "profile-website-link")}>
             <Icon iconClass="i-ri-link" class="text-base" />
             <span>{website().replace(/^https?:\/\//, "")}</span>
           </a>
@@ -255,6 +265,7 @@ export function ProfileHero(
 
             <ProfileIdentity
               description={props.profile.description ?? null}
+              descriptionFacets={props.profile.descriptionFacets}
               displayName={displayName()}
               handle={props.profile.handle}
               viewLabel={props.viewLabel} />

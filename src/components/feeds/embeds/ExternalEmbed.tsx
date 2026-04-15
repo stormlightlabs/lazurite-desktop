@@ -1,22 +1,9 @@
-import { normalizeError } from "$/lib/utils/text";
-import * as logger from "@tauri-apps/plugin-log";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrlFromEvent } from "$/lib/external-url";
 import { Show } from "solid-js";
 
 export function ExternalEmbed(props: { description?: string; thumb?: string; title?: string; uri?: string }) {
   function handleClick(event: MouseEvent) {
-    event.stopPropagation();
-
-    const uri = props.uri?.trim();
-    if (!uri) {
-      event.preventDefault();
-      return;
-    }
-
-    event.preventDefault();
-    void openUrl(uri).catch((error) => {
-      logger.warn("failed to open external embed URL", { keyValues: { error: normalizeError(error), uri } });
-    });
+    openExternalUrlFromEvent(event, props.uri, "external-embed");
   }
 
   return (

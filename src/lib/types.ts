@@ -121,6 +121,7 @@ export type ProfileViewDetailed = ProfileViewBasic & {
   banner?: string | null;
   createdAt?: string | null;
   description?: string | null;
+  descriptionFacets?: RichTextFacet[] | null;
   followersCount?: number | null;
   followsCount?: number | null;
   indexedAt?: string | null;

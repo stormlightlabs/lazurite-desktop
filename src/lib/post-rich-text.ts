@@ -1,3 +1,6 @@
+import { normalizeAndEnsureValidHandle } from "@atproto/syntax";
+import * as linkify from "linkifyjs";
+import "linkify-plugin-hashtag";
 import type { RichTextFacet, RichTextFacetFeature } from "./types";
 
 export type ResolvedRichTextFacet = { end: number; feature: RichTextFacetFeature; start: number };
@@ -12,7 +15,22 @@ export type RichTextBlock = { kind: "blockquote"; lines: RichTextLine[] } | {
   language: string | null;
 } | { kind: "paragraph"; lines: RichTextLine[] };
 
-const URL_REGEX = /https?:\/\/\S+/giu;
+const HANDLE_CHAR_REGEX = /[a-z0-9.-]/i;
+const HANDLE_PREFIX_CHAR_REGEX = /[a-z0-9_.-]/i;
+
+type LegacyToken = { end: number; href: string; kind: "url"; start: number; text: string } | {
+  end: number;
+  handle: string;
+  kind: "mention";
+  start: number;
+  text: string;
+} | { end: number; kind: "hashtag"; start: number; tag: string; text: string };
+
+export type LegacyRichTextPart = { kind: "text"; text: string } | { href: string; kind: "url"; text: string } | {
+  handle: string;
+  kind: "mention";
+  text: string;
+} | { kind: "hashtag"; tag: string; text: string };
 
 export function parsePostRichText(text: string): RichTextBlock[] {
   const blocks: RichTextBlock[] = [];
@@ -103,27 +121,47 @@ export function resolveRichTextFacets(
   return resolved.toSorted((left, right) => left.start - right.start || left.end - right.end);
 }
 
-export function splitLegacyUrls(text: string) {
-  const parts: Array<{ kind: "text" | "url"; text: string }> = [];
-  let lastIndex = 0;
+export function splitLegacyRichText(text: string): LegacyRichTextPart[] {
+  const tokens = collectLegacyTokens(text);
+  if (tokens.length === 0) {
+    return [{ kind: "text", text }];
+  }
 
-  for (const match of text.matchAll(URL_REGEX)) {
-    const url = match[0];
-    const start = match.index ?? 0;
+  const parts: LegacyRichTextPart[] = [];
+  let cursor = 0;
 
-    if (start > lastIndex) {
-      parts.push({ kind: "text", text: text.slice(lastIndex, start) });
+  for (const token of tokens) {
+    if (token.start < cursor) {
+      continue;
     }
 
-    parts.push({ kind: "url", text: url });
-    lastIndex = start + url.length;
+    if (token.start > cursor) {
+      parts.push({ kind: "text", text: text.slice(cursor, token.start) });
+    }
+
+    switch (token.kind) {
+      case "url": {
+        parts.push({ href: token.href, kind: "url", text: token.text });
+        break;
+      }
+      case "mention": {
+        parts.push({ handle: token.handle, kind: "mention", text: token.text });
+        break;
+      }
+      case "hashtag": {
+        parts.push({ kind: "hashtag", tag: token.tag, text: token.text });
+        break;
+      }
+    }
+
+    cursor = token.end;
   }
 
-  if (lastIndex < text.length) {
-    parts.push({ kind: "text", text: text.slice(lastIndex) });
+  if (cursor < text.length) {
+    parts.push({ kind: "text", text: text.slice(cursor) });
   }
 
-  return parts.length > 0 ? parts : [{ kind: "text" as const, text }];
+  return parts.length > 0 ? parts : [{ kind: "text", text }];
 }
 
 function buildUtf8BoundaryMap(text: string) {
@@ -205,4 +243,104 @@ function pushTextSegment(segments: RichTextInlineSegment[], start: number, end: 
   }
 
   segments.push({ end, kind: "text", start });
+}
+
+function collectLegacyTokens(text: string): LegacyToken[] {
+  const linkifyTokens = collectLinkifyTokens(text);
+  const mentionTokens = collectMentionTokens(text);
+  const tokens = [...linkifyTokens, ...mentionTokens];
+
+  return tokens.toSorted((left, right) => left.start - right.start || right.end - left.end);
+}
+
+function collectLinkifyTokens(text: string): LegacyToken[] {
+  const tokens: LegacyToken[] = [];
+  // linkify is not an array -> this is a false positive
+  // eslint-disable-next-line unicorn/no-array-callback-reference
+  const matches = linkify.find(text);
+
+  for (const match of matches) {
+    const start = match.start;
+    const end = match.end;
+    if (typeof start !== "number" || typeof end !== "number" || start >= end) {
+      continue;
+    }
+
+    if (match.type === "url") {
+      tokens.push({ end, href: match.href, kind: "url", start, text: match.value });
+      continue;
+    }
+
+    if (match.type === "hashtag") {
+      const tag = match.value.replace(/^#/, "").trim();
+      if (!tag) {
+        continue;
+      }
+      tokens.push({ end, kind: "hashtag", start, tag, text: match.value });
+    }
+  }
+
+  return tokens;
+}
+
+function collectMentionTokens(text: string): LegacyToken[] {
+  const mentions: LegacyToken[] = [];
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const atIndex = text.indexOf("@", cursor);
+    if (atIndex === -1) {
+      break;
+    }
+
+    if (atIndex > 0 && HANDLE_PREFIX_CHAR_REGEX.test(text[atIndex - 1] ?? "")) {
+      cursor = atIndex + 1;
+      continue;
+    }
+
+    let end = atIndex + 1;
+    while (end < text.length && HANDLE_CHAR_REGEX.test(text[end] ?? "")) {
+      end += 1;
+    }
+
+    const rawCandidate = text.slice(atIndex + 1, end);
+    const normalized = normalizeMentionCandidate(rawCandidate);
+    if (!normalized) {
+      cursor = atIndex + 1;
+      continue;
+    }
+
+    const normalizedEnd = atIndex + 1 + normalized.length;
+    mentions.push({
+      end: normalizedEnd,
+      handle: normalized,
+      kind: "mention",
+      start: atIndex,
+      text: text.slice(atIndex, normalizedEnd),
+    });
+    cursor = normalizedEnd;
+  }
+
+  return mentions;
+}
+
+function normalizeMentionCandidate(rawCandidate: string): string | null {
+  if (!rawCandidate) {
+    return null;
+  }
+
+  let candidate = rawCandidate;
+  while (candidate.endsWith(".") || candidate.endsWith("-")) {
+    candidate = candidate.slice(0, -1);
+  }
+
+  if (!candidate) {
+    return null;
+  }
+
+  try {
+    return normalizeAndEnsureValidHandle(candidate);
+  } catch {
+    return null;
+  }
 }

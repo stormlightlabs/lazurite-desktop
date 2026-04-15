@@ -1,11 +1,13 @@
+import { openExternalUrlFromEvent } from "$/lib/external-url";
 import {
+  type LegacyRichTextPart,
   parsePostRichText,
   type ResolvedRichTextFacet,
   resolveRichTextFacets,
   type RichTextBlock,
   type RichTextInlineSegment,
   type RichTextLine,
-  splitLegacyUrls,
+  splitLegacyRichText,
 } from "$/lib/post-rich-text";
 import { buildProfileRoute } from "$/lib/profile";
 import { buildHashtagRoute } from "$/lib/search-routes";
@@ -145,13 +147,14 @@ function buildFacetNodes(text: string, offset: number, facets: ResolvedRichTextF
 
 function renderFacetNode(facet: ResolvedRichTextFacet, label: string) {
   if (facet.feature.$type === "app.bsky.richtext.facet#link") {
+    const linkUri = facet.feature.uri;
     return (
       <a
         class="break-all text-primary no-underline hover:underline"
-        href={facet.feature.uri}
+        href={linkUri}
         rel="noreferrer"
         target="_blank"
-        onClick={(event) => event.stopPropagation()}>
+        onClick={(event) => openExternalUrlFromEvent(event, linkUri, "post-rich-text-facet-link")}>
         {label}
       </a>
     );
@@ -181,20 +184,47 @@ function renderFacetNode(facet: ResolvedRichTextFacet, label: string) {
 function LegacyText(props: { text: string; useFallback: boolean }) {
   return (
     <Show when={props.useFallback} fallback={<span class="wrap-anywhere">{props.text}</span>}>
-      <For each={splitLegacyUrls(props.text)}>
-        {(part) => (
-          <Show when={part.kind === "url"} fallback={<span class="wrap-anywhere">{part.text}</span>}>
-            <a
-              class="break-all text-primary no-underline hover:underline"
-              href={part.text}
-              rel="noreferrer"
-              target="_blank"
-              onClick={(event) => event.stopPropagation()}>
-              {part.text}
-            </a>
-          </Show>
-        )}
-      </For>
+      <For each={splitLegacyRichText(props.text)}>{(part) => renderLegacyPart(part)}</For>
     </Show>
   );
+}
+
+function renderLegacyPart(part: LegacyRichTextPart) {
+  switch (part.kind) {
+    case "url": {
+      return (
+        <a
+          class="break-all text-primary no-underline hover:underline"
+          href={part.href}
+          rel="noreferrer"
+          target="_blank"
+          onClick={(event) => openExternalUrlFromEvent(event, part.href, "post-rich-text-fallback-url")}>
+          {part.text}
+        </a>
+      );
+    }
+    case "mention": {
+      return (
+        <a
+          class="break-all text-primary no-underline hover:underline"
+          href={`#${buildProfileRoute(part.handle)}`}
+          onClick={(event) => event.stopPropagation()}>
+          {part.text}
+        </a>
+      );
+    }
+    case "hashtag": {
+      return (
+        <a
+          class="break-all text-primary no-underline hover:underline"
+          href={`#${buildHashtagRoute(part.tag)}`}
+          onClick={(event) => event.stopPropagation()}>
+          {part.text}
+        </a>
+      );
+    }
+    default: {
+      return <span class="wrap-anywhere">{part.text}</span>;
+    }
+  }
 }

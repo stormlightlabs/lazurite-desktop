@@ -5,6 +5,7 @@
 ### 2025-04-15
 
 - Open external links in your default browser
+- Parse links, mentions, and hashtags in profile bios/`app.bsky.actor.profile.description` field
 
 ### 2025-04-12
 

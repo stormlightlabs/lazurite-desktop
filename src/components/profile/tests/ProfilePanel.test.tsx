@@ -1,3 +1,5 @@
+import { buildProfileRoute } from "$/lib/profile";
+import { buildHashtagRoute } from "$/lib/search-routes";
 import { AppTestProviders } from "$/test/providers";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -173,6 +175,40 @@ describe("ProfilePanel", () => {
 
     expect(await screen.findByText("Current account")).toBeInTheDocument();
     expect(await screen.findByText(/my-label/i)).toBeInTheDocument();
+  });
+
+  it("renders profile bio links, mentions, and hashtags", async () => {
+    getProfileMock.mockResolvedValueOnce({
+      status: "available",
+      profile: {
+        ...createProfile(),
+        description:
+          "A sincere engineer from #Austin building\n\n@flipper.social\n@lazurite.stormlightlabs.org\n@stormlightlabs.org\n\nhttps://github.com/sponsors/desertthunder/",
+      },
+    });
+
+    renderProfilePanel();
+
+    expect(await screen.findByRole("link", { name: "#Austin" })).toHaveAttribute(
+      "href",
+      `#${buildHashtagRoute("Austin")}`,
+    );
+    expect(screen.getByRole("link", { name: "@flipper.social" })).toHaveAttribute(
+      "href",
+      `#${buildProfileRoute("flipper.social")}`,
+    );
+    expect(screen.getByRole("link", { name: "@lazurite.stormlightlabs.org" })).toHaveAttribute(
+      "href",
+      `#${buildProfileRoute("lazurite.stormlightlabs.org")}`,
+    );
+    expect(screen.getByRole("link", { name: "@stormlightlabs.org" })).toHaveAttribute(
+      "href",
+      `#${buildProfileRoute("stormlightlabs.org")}`,
+    );
+    expect(screen.getByRole("link", { name: "https://github.com/sponsors/desertthunder/" })).toHaveAttribute(
+      "href",
+      "https://github.com/sponsors/desertthunder/",
+    );
   });
 
   it("optimistically follows and unfollows from the hero while keeping badges in sync", async () => {
