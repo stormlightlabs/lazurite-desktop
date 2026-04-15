@@ -1,13 +1,31 @@
+import { normalizeError } from "$/lib/utils/text";
+import * as logger from "@tauri-apps/plugin-log";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { Show } from "solid-js";
 
 export function ExternalEmbed(props: { description?: string; thumb?: string; title?: string; uri?: string }) {
+  function handleClick(event: MouseEvent) {
+    event.stopPropagation();
+
+    const uri = props.uri?.trim();
+    if (!uri) {
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+    void openUrl(uri).catch((error) => {
+      logger.warn("failed to open external embed URL", { keyValues: { error: normalizeError(error), uri } });
+    });
+  }
+
   return (
     <a
       class="ui-input-strong grid min-w-0 gap-3 overflow-hidden rounded-2xl p-3 text-inherit no-underline shadow-(--inset-shadow) transition duration-150 ease-out hover:bg-surface-bright"
       href={props.uri}
       rel="noreferrer"
       target="_blank"
-      onClick={(event) => event.stopPropagation()}>
+      onClick={handleClick}>
       <Show when={props.thumb}>
         {(thumb) => <img class="max-h-64 w-full rounded-2xl object-cover" src={thumb()} alt="" />}
       </Show>

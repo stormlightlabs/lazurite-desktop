@@ -42,9 +42,13 @@ describe("SettingsModeration", () => {
     unsubscribeLabelerMock.mockResolvedValue(void 0);
     getLabelerPolicyDefinitionsMock.mockResolvedValue([{
       labelerDid: "did:plc:ar7c4by46qjdydhdevvrndac",
+      labelerHandle: "moderation.bsky.app",
+      labelerDisplayName: "Bluesky Moderation",
       definitions: [{ identifier: "graphic-media", adultOnly: false, severity: "alert", blurs: "media", locales: [] }],
     }, {
       labelerDid: "did:plc:custom-labeler",
+      labelerHandle: "custom-labeler.test",
+      labelerDisplayName: "Custom Labeler",
       definitions: [{ identifier: "porn", adultOnly: true, severity: "alert", blurs: "media", locales: [] }],
     }]);
     getDistributionChannelMock.mockResolvedValue("github");
@@ -84,6 +88,13 @@ describe("SettingsModeration", () => {
     await screen.findByText("Subscribed labelers");
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
     await waitFor(() => expect(unsubscribeLabelerMock).toHaveBeenCalledWith("did:plc:custom-labeler"));
+  });
+
+  it("shows labeler identity metadata in label preference headings", async () => {
+    render(() => <SettingsModeration />);
+
+    expect(await screen.findByText("Custom Labeler | @custom-labeler.test | did:plc:custom-labeler"))
+      .toBeInTheDocument();
   });
 
   it("adds a label visibility override", async () => {

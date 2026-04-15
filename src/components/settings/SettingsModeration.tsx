@@ -263,6 +263,14 @@ export function SettingsModeration() {
     return null;
   }
 
+  function getLabelerSummary(did: string) {
+    const policy = policyByDid().get(did);
+    const displayName = policy?.labelerDisplayName?.trim() || policy?.labelerHandle?.trim() || "Unknown labeler";
+    const handle = policy?.labelerHandle?.trim();
+    const normalizedHandle = handle ? `@${handle.replace(/^@/, "")}` : "@unknown";
+    return `${displayName} | ${normalizedHandle} | ${did}`;
+  }
+
   function isMasBuild() {
     return distributionChannel() === "mac_app_store";
   }
@@ -377,7 +385,9 @@ export function SettingsModeration() {
 
                     return (
                       <details class="rounded-xl ui-input-strong px-3 py-2" open>
-                        <summary class="cursor-pointer select-none text-xs font-medium text-on-surface">{did}</summary>
+                        <summary class="cursor-pointer select-none break-all text-xs font-medium text-on-surface">
+                          {getLabelerSummary(did)}
+                        </summary>
                         <div class="mt-3 grid gap-2">
                           <Show
                             when={entries().length > 0}

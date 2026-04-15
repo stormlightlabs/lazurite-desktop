@@ -2,6 +2,10 @@
 
 ## v0.1.0 - Unreleased
 
+### 2025-04-15
+
+- Open external links in your default browser
+
 ### 2025-04-12
 
 - Added labels to posts & profiles
