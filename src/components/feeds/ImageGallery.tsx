@@ -30,7 +30,10 @@ type GalleryOverlayProps = {
 function GalleryOverlay(props: GalleryOverlayProps) {
   return (
     <Motion.div
-      class="fixed inset-0 z-60 grid min-h-0 grid-rows-[1fr_auto] bg-surface-container-highest/70 p-4 backdrop-blur-[20px] max-[760px]:p-3"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image gallery"
+      class="fixed inset-0 z-60 overflow-hidden bg-surface-container-highest/70 p-4 backdrop-blur-[20px] max-[760px]:p-3"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -41,16 +44,20 @@ function GalleryOverlay(props: GalleryOverlayProps) {
         class="absolute inset-0 border-0 bg-transparent"
         onClick={() => props.onClose()} />
 
-      <div class="relative z-1 grid min-h-0">
-        <Toolbar
-          current={props.hasManyImages ? props.index + 1 : 1}
-          disabled={props.downloadPending}
-          total={props.hasManyImages ? props.imageCount : 1}
-          onDownload={props.onDownload}
-          onClose={props.onClose}
-          pending={props.downloadPending} />
+      <div class="pointer-events-none absolute inset-x-4 top-4 z-2 max-[760px]:inset-x-3 max-[760px]:top-3">
+        <div class="pointer-events-auto">
+          <Toolbar
+            current={props.hasManyImages ? props.index + 1 : 1}
+            disabled={props.downloadPending}
+            total={props.hasManyImages ? props.imageCount : 1}
+            onDownload={props.onDownload}
+            onClose={props.onClose}
+            pending={props.downloadPending} />
+        </div>
+      </div>
 
-        <div class="relative grid min-h-0 place-items-center px-14 py-3 max-[760px]:px-11">
+      <div class="relative z-1 h-full min-h-0 w-full px-14 py-3 max-[760px]:px-11">
+        <div class="relative mx-auto flex h-full w-full max-w-[min(96rem,100%)] items-center justify-center">
           <img
             class="max-h-full max-w-full rounded-2xl object-contain shadow-[0_30px_60px_rgba(0,0,0,0.35)]"
             src={props.selectedImage?.fullsize ?? props.selectedImage?.thumb}
@@ -61,14 +68,18 @@ function GalleryOverlay(props: GalleryOverlayProps) {
         </div>
       </div>
 
-      <CaptionPanel
-        alt={props.selectedImage?.alt}
-        authorHandle={props.authorHandle}
-        authorHref={props.authorHref}
-        expanded={props.expanded}
-        postText={props.postText}
-        showToggle={props.showPostTextToggle}
-        onToggleExpand={props.onToggleExpand} />
+      <div class="pointer-events-none absolute inset-x-4 bottom-4 z-2 max-[760px]:inset-x-3 max-[760px]:bottom-3">
+        <div class="pointer-events-auto">
+          <CaptionPanel
+            alt={props.selectedImage?.alt}
+            authorHandle={props.authorHandle}
+            authorHref={props.authorHref}
+            expanded={props.expanded}
+            postText={props.postText}
+            showToggle={props.showPostTextToggle}
+            onToggleExpand={props.onToggleExpand} />
+        </div>
+      </div>
     </Motion.div>
   );
 }
@@ -84,7 +95,7 @@ type ToolbarProps = {
 
 function Toolbar(props: ToolbarProps) {
   return (
-    <div class="flex min-h-10 items-center justify-between gap-3">
+    <div class="relative z-1 mx-auto flex min-h-10 w-full max-w-[min(96rem,100%)] items-center justify-between gap-3">
       <p class="m-0 text-xs uppercase tracking-[0.12em] text-on-surface-variant">{props.current} / {props.total}</p>
       <div class="flex items-center gap-2">
         <button
@@ -138,7 +149,7 @@ type CaptionPanelProps = {
 function CaptionPanel(props: CaptionPanelProps) {
   const label = () => props.expanded ? "Show less" : "Show more";
   return (
-    <div class="relative z-1 grid gap-2 rounded-2xl bg-surface-container-high/86 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
+    <div class="relative z-1 mx-auto grid w-full max-w-[min(96rem,100%)] gap-2 rounded-2xl bg-surface-container-high/86 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
       <Show when={props.alt}>{(alt) => <p class="m-0 text-sm leading-normal text-on-surface">{alt()}</p>}</Show>
       <Show when={(props.postText ?? "").trim().length > 0}>
         <div class="grid items-start gap-1">

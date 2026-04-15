@@ -36,6 +36,16 @@ describe("ImageGallery", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("renders a modal gallery dialog container", () => {
+    render(() => (
+      <ImageGallery images={[...GALLERY_IMAGES]} open postText="Post text" startIndex={0} onClose={() => {}} />
+    ));
+
+    const dialog = screen.getByRole("dialog", { name: "Image gallery" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog.className).toContain("fixed inset-0");
+  });
+
   it("truncates post copy and toggles expansion", () => {
     render(() => (
       <ImageGallery images={[...GALLERY_IMAGES]} open postText={"x".repeat(220)} startIndex={0} onClose={() => {}} />
