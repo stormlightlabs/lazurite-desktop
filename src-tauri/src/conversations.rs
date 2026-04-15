@@ -106,6 +106,23 @@ fn map_chat_error(error: &ClientError, default_message: &'static str, context: &
     AppError::validation(default_message)
 }
 
+fn truncate_for_log(value: &str, max_chars: usize) -> String {
+    if value.chars().count() <= max_chars {
+        return value.to_string();
+    }
+
+    let truncated: String = value.chars().take(max_chars).collect();
+    format!("{truncated}...")
+}
+
+fn raw_json_preview<R: jacquard::xrpc::XrpcResp>(response: &jacquard::xrpc::Response<R>) -> Option<String> {
+    response
+        .parse_raw()
+        .ok()
+        .and_then(|raw| serde_json::to_string(&raw).ok())
+        .map(|json| truncate_for_log(&json, 4096))
+}
+
 pub async fn list_convos(cursor: Option<String>, limit: Option<u32>, state: &AppState) -> Result<Value> {
     ensure_chat_scope(state).await?;
     let session = get_session(state).await?;
@@ -114,15 +131,17 @@ pub async fn list_convos(cursor: Option<String>, limit: Option<u32>, state: &App
         req = req.cursor(Some(c.as_str().into()));
     }
 
-    let output = session
+    let response = session
         .send_with_opts(req.build(), chat_opts())
         .await
-        .map_err(|error| map_chat_error(&error, "Could not load conversations.", "listConvos error"))?
-        .into_output()
+        .map_err(|error| map_chat_error(&error, "Could not load conversations.", "listConvos error"))?;
+    let output = response
+        .parse_raw()
         .map_err(|error| {
             log::error!("listConvos output error: {error}");
             AppError::validation("Could not load conversations.")
-        })?;
+        })?
+        .into_static();
 
     serde_json::to_value(&output).map_err(AppError::from)
 }
@@ -144,15 +163,17 @@ pub async fn get_convo_for_members(members: Vec<String>, state: &AppState) -> Re
         .collect();
     let req = GetConvoForMembers::new().members(dids?).build();
 
-    let output = session
+    let response = session
         .send_with_opts(req, chat_opts())
         .await
-        .map_err(|error| map_chat_error(&error, "Could not open this conversation.", "getConvoForMembers error"))?
-        .into_output()
+        .map_err(|error| map_chat_error(&error, "Could not open this conversation.", "getConvoForMembers error"))?;
+    let output = response
+        .parse_raw()
         .map_err(|error| {
             log::error!("getConvoForMembers output error: {error}");
             AppError::validation("Could not open this conversation.")
-        })?;
+        })?
+        .into_static();
 
     serde_json::to_value(&output).map_err(AppError::from)
 }
@@ -173,13 +194,19 @@ pub async fn get_messages(
         req = req.cursor(Some(c.as_str().into()));
     }
 
-    let output = session
+    let response = session
         .send_with_opts(req.build(), chat_opts())
         .await
-        .map_err(|error| map_chat_error(&error, "Could not load messages.", "getMessages error"))?
+        .map_err(|error| map_chat_error(&error, "Could not load messages.", "getMessages error"))?;
+    let raw_json = raw_json_preview(&response);
+    let output = response
         .into_output()
         .map_err(|error| {
-            log::error!("getMessages output error: {error}");
+            if let Some(raw_json) = raw_json {
+                log::error!("getMessages output error: {error}; raw_json={raw_json}");
+            } else {
+                log::error!("getMessages output error: {error}; raw_json=unavailable");
+            }
             AppError::validation("Could not load messages.")
         })?;
 
@@ -199,13 +226,19 @@ pub async fn send_message(convo_id: String, text: String, state: &AppState) -> R
     let msg = MessageInput { text: text.into(), facets: None, embed: None, ..Default::default() };
     let req = SendMessage::new().convo_id(convo_id.as_str()).message(msg).build();
 
-    let output = session
+    let response = session
         .send_with_opts(req, chat_opts())
         .await
-        .map_err(|error| map_chat_error(&error, "Could not send this message.", "sendMessage error"))?
+        .map_err(|error| map_chat_error(&error, "Could not send this message.", "sendMessage error"))?;
+    let raw_json = raw_json_preview(&response);
+    let output = response
         .into_output()
         .map_err(|error| {
-            log::error!("sendMessage output error: {error}");
+            if let Some(raw_json) = raw_json {
+                log::error!("sendMessage output error: {error}; raw_json={raw_json}");
+            } else {
+                log::error!("sendMessage output error: {error}; raw_json=unavailable");
+            }
             AppError::validation("Could not send this message.")
         })?;
 
@@ -225,7 +258,7 @@ pub async fn update_read(convo_id: String, message_id: Option<String>, state: &A
         ..Default::default()
     };
 
-    session
+    let response = session
         .send_with_opts(req, chat_opts())
         .await
         .map_err(|error| {
@@ -234,10 +267,16 @@ pub async fn update_read(convo_id: String, message_id: Option<String>, state: &A
                 "Could not update the read status for this conversation.",
                 "updateRead error",
             )
-        })?
-        .into_output()
+        })?;
+    let raw_json = raw_json_preview(&response);
+    response
+        .parse_raw()
         .map_err(|error| {
-            log::error!("updateRead output error: {error}");
+            if let Some(raw_json) = raw_json {
+                log::error!("updateRead output error: {error}; raw_json={raw_json}");
+            } else {
+                log::error!("updateRead output error: {error}; raw_json=unavailable");
+            }
             AppError::validation("Could not update the read status for this conversation.")
         })?;
 

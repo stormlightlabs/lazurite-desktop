@@ -497,14 +497,19 @@ function recognizedUnrenderableEmbed(
   raw: unknown,
   options: Partial<Pick<NormalizationMeta, "cycle" | "depthLimited" | "explicitType" | "inferred">> = {},
 ): Extract<NormalizedEmbed, { kind: "recognized-unrenderable" }> {
+  const rawRecord = asRecord(raw);
+  const topLevelKeys = rawRecord ? Object.keys(rawRecord).toSorted().slice(0, 24).join(",") : "none";
+
   logger.warn("recognized embed shape could not be rendered", {
     keyValues: {
+      embedShape: shapeSignature(raw),
       explicitType: options.explicitType ?? "none",
       inferred: String(options.inferred ?? false),
       message,
       payloadJson: stringifyUnknown(raw),
       recognizedType,
       source: context.source,
+      topLevelKeys,
     },
   });
   return { kind: "recognized-unrenderable", message, meta: buildMeta(context, options), recognizedType };
