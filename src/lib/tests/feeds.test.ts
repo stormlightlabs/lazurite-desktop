@@ -509,6 +509,54 @@ describe("feed helpers", () => {
     expect(fromValueEmbeds.normalizedEmbeds[0]?.meta.source).toBe("value.embeds");
   });
 
+  it("prefers postView.record.embed before value embed fallbacks", () => {
+    const fromPostViewEmbed = getQuotedPresentation({
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.feed.defs#postView",
+        author: { did: "did:plc:bob", handle: "bob.test" },
+        record: {
+          embed: {
+            $type: "app.bsky.embed.images#view",
+            images: [{ fullsize: "https://cdn.example.com/postview.png" }],
+          },
+          text: "postview",
+        },
+        uri: "at://did:plc:bob/app.bsky.feed.post/postview-priority",
+        value: {
+          embed: { $type: "app.bsky.embed.video#view", playlist: "https://cdn.example.com/fallback.m3u8" },
+          embeds: [{
+            $type: "app.bsky.embed.external#view",
+            external: { title: "fallback", uri: "https://example.com/fallback" },
+          }],
+          text: "fallback text",
+        },
+      },
+    });
+
+    expect(fromPostViewEmbed.normalizedEmbeds).toHaveLength(1);
+    expect(fromPostViewEmbed.normalizedEmbeds[0]?.kind).toBe("images");
+    expect(fromPostViewEmbed.normalizedEmbeds[0]?.meta.source).toBe("value.embed");
+
+    const fromFallbackValueEmbed = getQuotedPresentation({
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.feed.defs#postView",
+        author: { did: "did:plc:bob", handle: "bob.test" },
+        record: { text: "postview without hydrated embed" },
+        uri: "at://did:plc:bob/app.bsky.feed.post/postview-fallback",
+        value: {
+          embed: { $type: "app.bsky.embed.video#view", playlist: "https://cdn.example.com/value-only.m3u8" },
+          text: "value-only",
+        },
+      },
+    });
+
+    expect(fromFallbackValueEmbed.normalizedEmbeds).toHaveLength(1);
+    expect(fromFallbackValueEmbed.normalizedEmbeds[0]?.kind).toBe("video");
+    expect(fromFallbackValueEmbed.normalizedEmbeds[0]?.meta.source).toBe("value.embed");
+  });
+
   it("keeps unknown custom embeds visible and aggregates telemetry by fingerprint", () => {
     const custom = { $type: "dev.example.embed#view", payload: { nested: { key: "value" } } };
     const topUnknownA = normalizeEmbed(custom, { source: "top" });

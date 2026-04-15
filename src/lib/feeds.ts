@@ -844,16 +844,18 @@ function quotedRecordFacets(kind: QuotedRecordKind, record: Record<string, unkno
 type QuotedEmbedExtraction = { source: "value.embed" | "value.embeds" | "viewRecord.embeds"; values: unknown[] };
 
 function quotedEmbedExtraction(record: Record<string, unknown>): QuotedEmbedExtraction | null {
+  // Prefer hydrated view fields first, then fall back to raw record payload fields.
   if (Object.prototype.hasOwnProperty.call(record, "embeds")) {
     const direct = asArray(record.embeds);
     return { source: "viewRecord.embeds", values: direct ?? (record.embeds === undefined ? [] : [record.embeds]) };
   }
 
-  if (Object.prototype.hasOwnProperty.call(record, "embed")) {
-    if (record.embed === null || record.embed === undefined) {
+  const postRecord = asRecord(record.record);
+  if (postRecord && Object.prototype.hasOwnProperty.call(postRecord, "embed")) {
+    if (postRecord.embed === null || postRecord.embed === undefined) {
       return { source: "value.embed", values: [] };
     }
-    return { source: "value.embed", values: [record.embed] };
+    return { source: "value.embed", values: [postRecord.embed] };
   }
 
   const value = asRecord(record.value);
@@ -869,23 +871,6 @@ function quotedEmbedExtraction(record: Record<string, unknown>): QuotedEmbedExtr
       const embeds = asArray(value.embeds);
       return { source: "value.embeds", values: embeds ?? (value.embeds === undefined ? [] : [value.embeds]) };
     }
-  }
-
-  const postRecord = asRecord(record.record);
-  if (!postRecord) {
-    return null;
-  }
-
-  if (Object.prototype.hasOwnProperty.call(postRecord, "embed")) {
-    if (postRecord.embed === null || postRecord.embed === undefined) {
-      return { source: "value.embed", values: [] };
-    }
-    return { source: "value.embed", values: [postRecord.embed] };
-  }
-
-  if (Object.prototype.hasOwnProperty.call(postRecord, "embeds")) {
-    const embeds = asArray(postRecord.embeds);
-    return { source: "value.embeds", values: embeds ?? (postRecord.embeds === undefined ? [] : [postRecord.embeds]) };
   }
 
   return null;

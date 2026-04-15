@@ -278,7 +278,7 @@ describe("PostCard", () => {
     expect(screen.getByText("Quoted body")).toBeInTheDocument();
     const quotedCard = screen.getByText("Quoted post").closest(".ui-input-strong");
     expect(quotedCard).not.toBeNull();
-    expect(within(quotedCard as HTMLElement).getByAltText("Preview image")).toBeInTheDocument();
+    expect(within(quotedCard as HTMLElement).queryByAltText("Preview image")).not.toBeInTheDocument();
 
     const quotedLink = screen.getByRole("link", { name: /quoted body/i });
     expect(quotedLink).toHaveAttribute("href", `#${buildPostRoute("at://did:plc:bob/app.bsky.feed.post/quoted")}`);
@@ -287,6 +287,54 @@ describe("PostCard", () => {
 
     expect(onOpenThread).toHaveBeenCalledTimes(1);
     expect(onOpenThread).toHaveBeenCalledWith("at://did:plc:bob/app.bsky.feed.post/quoted");
+  });
+
+  it("uses outer post context for recordWithMedia media and keeps quoted embeds nested", async () => {
+    downloadImageMock.mockResolvedValue({ bytes: 40, path: "/tmp/post-image.jpg" });
+    render(() => (
+      <PostCard
+        post={{
+          ...createPost(),
+          uri: "at://did:plc:alice/app.bsky.feed.post/outer-post",
+          embed: {
+            $type: "app.bsky.embed.recordWithMedia#view",
+            media: {
+              $type: "app.bsky.embed.images#view",
+              images: [{ alt: "Outer media image", fullsize: "https://cdn.example.com/outer-image.jpg" }],
+            },
+            record: {
+              $type: "app.bsky.embed.record#view",
+              record: {
+                $type: "app.bsky.embed.record#viewRecord",
+                author: { did: "did:plc:bob", handle: "bob.test", displayName: "Bob" },
+                embeds: [{
+                  $type: "app.bsky.embed.images#view",
+                  images: [{ alt: "Quoted nested image", fullsize: "https://cdn.example.com/quoted-image.jpg" }],
+                }],
+                uri: "at://did:plc:bob/app.bsky.feed.post/quoted-post",
+                value: { text: "Quoted body with nested media" },
+              },
+            },
+          },
+        }} />
+    ));
+
+    const quotedCard = screen.getByText("Quoted post").closest(".ui-input-strong");
+    expect(quotedCard).not.toBeNull();
+    expect(within(quotedCard as HTMLElement).getByAltText("Quoted nested image")).toBeInTheDocument();
+    expect(within(quotedCard as HTMLElement).queryByAltText("Outer media image")).not.toBeInTheDocument();
+
+    fireEvent.contextMenu(screen.getByAltText("Outer media image"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save image" }));
+    await waitFor(() =>
+      expect(downloadImageMock).toHaveBeenCalledWith("https://cdn.example.com/outer-image.jpg", "outer-post")
+    );
+
+    fireEvent.contextMenu(screen.getByAltText("Quoted nested image"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save image" }));
+    await waitFor(() =>
+      expect(downloadImageMock).toHaveBeenLastCalledWith("https://cdn.example.com/quoted-image.jpg", "quoted-post")
+    );
   });
 
   it("renders quoted post image and video embeds from the quoted record", () => {

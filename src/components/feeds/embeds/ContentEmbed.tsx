@@ -125,18 +125,23 @@ export function EmbedContent(
         );
       }
       case "recordWithMedia": {
-        const quotedWithMedia: QuotedRecordPresentation = {
-          ...embed.quoted,
-          normalizedEmbeds: embed.media
-            ? [embed.media, ...embed.quoted.normalizedEmbeds]
-            : embed.quoted.normalizedEmbeds,
-        };
         return (
-          <RenderQuotedPreview
-            depth={depth()}
-            post={props.post}
-            quoted={quotedWithMedia}
-            onOpenPost={props.onOpenPost} />
+          <div class="grid gap-3">
+            <Show when={embed.media}>
+              {(mediaEmbed) => (
+                <EmbedContent
+                  depth={depth() + 1}
+                  embed={mediaEmbed()}
+                  onOpenPost={props.onOpenPost}
+                  post={props.post} />
+              )}
+            </Show>
+            <RenderQuotedPreview
+              depth={depth()}
+              post={props.post}
+              quoted={embed.quoted}
+              onOpenPost={props.onOpenPost} />
+          </div>
         );
       }
       default: {
